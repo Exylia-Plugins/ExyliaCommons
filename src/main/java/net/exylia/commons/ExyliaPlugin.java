@@ -1,6 +1,7 @@
 package net.exylia.commons;
 
 import net.exylia.commons.command.BungeeMessageSender;
+import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.menu.MenuActionManager;
 import net.exylia.commons.menu.MenuManager;
@@ -77,6 +78,14 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         AdapterFactory.initialize(this);
         BungeeMessageSender.initialize(this);
 
+        // Inicializar sistema de base de datos
+        try {
+            DatabaseManager.initialize(this);
+            logInfo("Sistema de base de datos inicializado correctamente");
+        } catch (Exception e) {
+            logInfo("Error inicializando sistema de base de datos: " + e.getMessage());
+        }
+
         // Integración automática de Redis
         if (getConfig().getBoolean("redis.auto-initialize", true)) {
             try {
@@ -103,14 +112,60 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             logInfo("Jedis no encontrado. Funciones de Redis no estarán disponibles.");
         }
 
-//        boolean vaultEnabled = Bukkit.getPluginManager().getPlugin("Vault") != null;
-//        if (vaultEnabled) {
-//            getLogger().info("Vault detectado. Soporte de economía activado.");
-//        }
+        // Verificar drivers de base de datos
+        checkDatabaseDrivers();
+    }
+
+    private void checkDatabaseDrivers() {
+        // Verificar H2
+        try {
+            Class.forName("org.h2.Driver");
+            logInfo("Driver H2 detectado. Soporte de base de datos H2 disponible.");
+        } catch (ClassNotFoundException e) {
+            logInfo("Driver H2 no encontrado.");
+        }
+
+        // Verificar MySQL
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            logInfo("Driver MySQL detectado. Soporte de MySQL/MariaDB disponible.");
+        } catch (ClassNotFoundException e) {
+            try {
+                Class.forName("com.mysql.jdbc.Driver");
+                logInfo("Driver MySQL legacy detectado. Soporte de MySQL/MariaDB disponible.");
+            } catch (ClassNotFoundException ex) {
+                logInfo("Driver MySQL no encontrado.");
+            }
+        }
+
+        // Verificar MongoDB
+        try {
+            Class.forName("com.mongodb.client.MongoClient");
+            logInfo("Driver MongoDB detectado. Soporte de MongoDB disponible.");
+        } catch (ClassNotFoundException e) {
+            logInfo("Driver MongoDB no encontrado.");
+        }
+
+        // Verificar HikariCP
+        try {
+            Class.forName("com.zaxxer.hikari.HikariDataSource");
+            logInfo("HikariCP detectado. Pool de conexiones optimizado disponible.");
+        } catch (ClassNotFoundException e) {
+            logInfo("HikariCP no encontrado. Se recomienda para mejor rendimiento con MySQL.");
+        }
     }
 
     private void shutdownExylia() {
         logInfo("Limpiando recursos globales de Exylia");
+
+        // Cerrar base de datos
+        try {
+            if (DatabaseManager.getInstance() != null) {
+                DatabaseManager.getInstance().shutdown();
+            }
+        } catch (Exception e) {
+            logInfo("Error cerrando sistema de base de datos: " + e.getMessage());
+        }
 
         // Cerrar Redis si fue inicializado automáticamente
         RedisIntegration.shutdownRedis();
@@ -155,6 +210,24 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Verifica si el sistema de base de datos está disponible
+     */
+    public static boolean isDatabaseAvailable() {
+        try {
+            return DatabaseManager.getInstance() != null && DatabaseManager.getInstance().isConnected();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Obtiene el manager de base de datos
+     */
+    public static DatabaseManager getDatabaseManager() {
+        return DatabaseManager.getInstance();
     }
 
     protected abstract void onExyliaEnable();
