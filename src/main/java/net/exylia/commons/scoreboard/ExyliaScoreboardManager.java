@@ -1,110 +1,156 @@
 package net.exylia.commons.scoreboard;
 
+import net.exylia.commons.config.ConfigManager;
+import net.exylia.commons.placeholders.PlaceholderRegistry;
+import net.exylia.commons.utils.ColorUtils;
+import net.kyori.adventure.text.Component;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logWarn;
 
-/**
- * Core manager for the Exylia Scoreboard system.
- * Controls all scoreboard templates and player scoreboard instances.
- */
 public class ExyliaScoreboardManager {
 
     private final Plugin plugin;
+    private final ConfigManager configManager;
     private final Map<String, ScoreboardTemplate> templates;
     private final Map<UUID, PlayerScoreboard> playerScoreboards;
     private final boolean placeholderAPIEnabled;
 
-    /**
-     * Creates a new ScoreboardManager.
-     *
-     * @param plugin The plugin instance
-     */
-    public ExyliaScoreboardManager(Plugin plugin) {
+    private BukkitTask globalUpdateTask;
+
+    public ExyliaScoreboardManager(Plugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
+        this.configManager = configManager;
         this.templates = new HashMap<>();
         this.playerScoreboards = new ConcurrentHashMap<>();
-        this.placeholderAPIEnabled = isPlaceholderAPIEnabled();
+        this.placeholderAPIEnabled = checkPlaceholderAPI();
 
         if (placeholderAPIEnabled) {
-            logInfo("PlaceholderAPI found, enabling placeholder support for scoreboards.");
+            logInfo("PlaceholderAPI encontrado, habilitando soporte de placeholders.");
+        }
+
+        startGlobalUpdateTask();
+    }
+
+    private boolean checkPlaceholderAPI() {
+        try {
+            return plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
+        } catch (Exception e) {
+            return false;
         }
     }
 
     /**
-     * Creates a new scoreboard template with the given ID.
-     *
-     * @param templateId The unique ID for this template
-     * @return A new ScoreboardTemplateBuilder instance
+     * Registra un template con un proveedor de contexto personalizado
      */
-    public ScoreboardTemplateBuilder createTemplate(String templateId) {
-        return new ScoreboardTemplateBuilder(this, templateId);
+    public void registerTemplate(String templateId, String title, Map<Integer, String> lines,
+                                 int updateTicks, Function<Player, Object> contextProvider) {
+        ScoreboardTemplate template = new ScoreboardTemplate(templateId, title, lines, updateTicks, contextProvider);
+        templates.put(templateId, template);
+        logInfo("Template '" + templateId + "' registrado con contexto personalizado");
     }
 
     /**
-     * Gets a scoreboard template by ID.
-     *
-     * @param templateId The template ID
-     * @return The template, or null if not found
+     * Establece un proveedor de contexto para un template existente
      */
-    public ScoreboardTemplate getTemplate(String templateId) {
-        return templates.get(templateId);
+    public void setTemplateContext(String templateId, Function<Player, Object> contextProvider) {
+        ScoreboardTemplate template = templates.get(templateId);
+        if (template != null) {
+            template.setContextProvider(contextProvider);
+            logInfo("Contexto establecido para template '" + templateId + "'");
+        } else {
+            logWarn("Template '" + templateId + "' no encontrado para establecer contexto");
+        }
     }
 
     /**
-     * Registers a scoreboard template.
-     *
-     * @param template The template to register
+     * Muestra un scoreboard a un jugador con contexto personalizado
      */
-    void registerTemplate(ScoreboardTemplate template) {
-        templates.put(template.getId(), template);
-    }
+    public PlayerScoreboard showScoreboard(Player player, String templateId, Function<Player, Object> contextProvider) {
+        if (!player.isOnline()) {
+            throw new IllegalStateException("El jugador no está conectado");
+        }
 
-    /**
-     * Shows a scoreboard from a template to a player.
-     *
-     * @param player The player
-     * @param templateId The template ID
-     * @return The PlayerScoreboard instance
-     */
-    public PlayerScoreboard showScoreboard(Player player, String templateId) {
         ScoreboardTemplate template = templates.get(templateId);
         if (template == null) {
-            throw new IllegalArgumentException("Scoreboard template not found: " + templateId);
+            throw new IllegalArgumentException("Template no encontrado: " + templateId);
         }
 
-        // Hide any existing scoreboard
+        // Crear una copia del template con el contexto específico
+        ScoreboardTemplate contextTemplate = new ScoreboardTemplate(
+                template.getId(),
+                template.getTitle(),
+                template.getLines(),
+                template.getUpdateTicks(),
+                contextProvider
+        );
+
+        // Ocultar scoreboard existente
         hideScoreboard(player);
 
-        // Create and show the new scoreboard
-        PlayerScoreboard playerScoreboard = new PlayerScoreboard(plugin, player, template);
+        // Crear y mostrar nuevo scoreboard
+        PlayerScoreboard playerScoreboard = new PlayerScoreboard(
+                plugin, player, contextTemplate, configManager, placeholderAPIEnabled
+        );
         playerScoreboards.put(player.getUniqueId(), playerScoreboard);
         playerScoreboard.show();
 
         return playerScoreboard;
     }
 
-    /**
-     * Gets a player's active scoreboard.
-     *
-     * @param player The player
-     * @return The player's scoreboard, or null if none is active
-     */
+    public PlayerScoreboard showScoreboard(Player player, String templateId) {
+        return showScoreboard(player, templateId, null);
+    }
+
+    public void loadTemplatesFromConfig(ConfigurationSection config) {
+        if (config == null) return;
+
+        templates.clear();
+
+        for (String templateId : config.getKeys(false)) {
+            ConfigurationSection templateConfig = config.getConfigurationSection(templateId);
+            if (templateConfig != null) {
+                try {
+                    ScoreboardTemplate template = createTemplateFromConfig(templateId, templateConfig);
+                    templates.put(templateId, template);
+                    logInfo("Template '" + templateId + "' cargado correctamente");
+                } catch (Exception e) {
+                    logWarn("Error cargando template '" + templateId + "': " + e.getMessage());
+                }
+            }
+        }
+
+        logInfo("Cargados " + templates.size() + " templates de scoreboard");
+    }
+
+    private ScoreboardTemplate createTemplateFromConfig(String templateId, ConfigurationSection config) {
+        String title = config.getString("title", "Scoreboard");
+        int updateTicks = config.getInt("update-ticks", 20);
+        List<String> linesList = config.getStringList("lines");
+        Map<Integer, String> lines = new HashMap<>();
+
+        for (int i = 0; i < linesList.size(); i++) {
+            lines.put(i, linesList.get(i));
+        }
+
+        return new ScoreboardTemplate(templateId, title, lines, updateTicks);
+    }
+
     public PlayerScoreboard getPlayerScoreboard(Player player) {
         return playerScoreboards.get(player.getUniqueId());
     }
 
-    /**
-     * Hides the scoreboard for a player.
-     *
-     * @param player The player
-     */
     public void hideScoreboard(Player player) {
         PlayerScoreboard scoreboard = playerScoreboards.remove(player.getUniqueId());
         if (scoreboard != null) {
@@ -112,65 +158,68 @@ public class ExyliaScoreboardManager {
         }
     }
 
-    /**
-     * Checks if a player has an active scoreboard.
-     *
-     * @param player The player
-     * @return true if the player has an active scoreboard
-     */
     public boolean hasScoreboard(Player player) {
         return playerScoreboards.containsKey(player.getUniqueId());
     }
 
     /**
-     * Updates all player scoreboards.
+     * Actualiza todos los scoreboards activos
      */
     public void updateAllScoreboards() {
-        playerScoreboards.values().forEach(PlayerScoreboard::update);
+        if (playerScoreboards.isEmpty()) return;
+
+        // Crear snapshot para evitar problemas de concurrencia
+        Map<UUID, PlayerScoreboard> snapshot = new HashMap<>(playerScoreboards);
+
+        for (PlayerScoreboard scoreboard : snapshot.values()) {
+            try {
+                if (scoreboard.getPlayer().isOnline()) {
+                    scoreboard.update();
+                } else {
+                    // Limpiar scoreboards de jugadores desconectados
+                    hideScoreboard(scoreboard.getPlayer());
+                }
+            } catch (Exception e) {
+                logWarn("Error actualizando scoreboard: " + e.getMessage());
+            }
+        }
     }
 
     /**
-     * Gets the total number of active player scoreboards.
-     *
-     * @return The number of active scoreboards
+     * Inicia la tarea global de actualización
      */
+    private void startGlobalUpdateTask() {
+        if (globalUpdateTask != null) {
+            globalUpdateTask.cancel();
+        }
+
+        globalUpdateTask = plugin.getServer().getScheduler().runTaskTimer(
+                plugin,
+                this::updateAllScoreboards,
+                20L,
+                5L
+        );
+    }
+
     public int getActiveScoreboardCount() {
         return playerScoreboards.size();
     }
 
-    /**
-     * Gets the total number of registered templates.
-     *
-     * @return The number of templates
-     */
     public int getTemplateCount() {
         return templates.size();
     }
 
-    /**
-     * Cleans up all resources when the plugin is disabled.
-     */
     public void shutdown() {
+        if (globalUpdateTask != null) {
+            globalUpdateTask.cancel();
+        }
+
         playerScoreboards.values().forEach(PlayerScoreboard::destroy);
         playerScoreboards.clear();
         templates.clear();
     }
 
-    /**
-     * Gets the plugin instance.
-     *
-     * @return The plugin
-     */
     Plugin getPlugin() {
         return plugin;
-    }
-
-    /**
-     * Checks if PlaceholderAPI is enabled.
-     *
-     * @return true if PlaceholderAPI is enabled
-     */
-    boolean isPlaceholderAPIEnabled() {
-        return placeholderAPIEnabled;
     }
 }

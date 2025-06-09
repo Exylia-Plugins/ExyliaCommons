@@ -172,8 +172,6 @@ public class PaginationMenu extends Menu {
         if (itemSlotsFillerItem == null) return;
 
         int itemsInPage = getItemsInPage(page);
-
-        // Aplicar filler a slots vacíos
         for (int i = itemsInPage; i < itemSlots.length; i++) {
             int slot = itemSlots[i];
             MenuItem filler = itemSlotsFillerItem.clone();
@@ -187,10 +185,10 @@ public class PaginationMenu extends Menu {
     private void addPageItems(Player player, int page) {
         int start = (page - 1) * maxItemsPerPage;
         int end = Math.min(start + maxItemsPerPage, paginationItems.size());
-
         for (int i = start, slotIndex = 0; i < end; i++, slotIndex++) {
             if (slotIndex < itemSlots.length) {
-                MenuItem item = paginationItems.get(i).clone();
+                MenuItem originalItem = paginationItems.get(i);
+                MenuItem item = originalItem.clone();
                 if (item.usesPlaceholders()) {
                     item.updatePlaceholders(player);
                 }
@@ -205,7 +203,9 @@ public class PaginationMenu extends Menu {
             if (prevButton.usesPlaceholders()) {
                 prevButton.updatePlaceholders(player);
             }
-            prevButton.setClickHandler(info -> open(info.player(), page - 1));
+            prevButton.setClickHandler(info -> {
+                open(info.player(), page - 1);
+            });
             super.items.put(previousPageButtonSlot, prevButton);
         }
 
@@ -214,7 +214,9 @@ public class PaginationMenu extends Menu {
             if (nextButton.usesPlaceholders()) {
                 nextButton.updatePlaceholders(player);
             }
-            nextButton.setClickHandler(info -> open(info.player(), page + 1));
+            nextButton.setClickHandler(info -> {
+                open(info.player(), page + 1);
+            });
             super.items.put(nextPageButtonSlot, nextButton);
         }
     }
@@ -262,17 +264,14 @@ public class PaginationMenu extends Menu {
     public void updatePaginationItemInPlace(int itemIndex, MenuItem updatedItem) {
         if (itemIndex < 0 || itemIndex >= paginationItems.size()) return;
 
-        // Actualizar en la lista de items
         paginationItems.set(itemIndex, updatedItem);
 
-        // Si el item está visible en la página actual, actualizarlo
         Player currentViewer = getViewer();
         if (currentViewer != null) {
             int currentPage = getCurrentPage(currentViewer);
             int startIndex = (currentPage - 1) * maxItemsPerPage;
             int endIndex = Math.min(startIndex + maxItemsPerPage, paginationItems.size());
 
-            // Verificar si el item está en la página actual
             if (itemIndex >= startIndex && itemIndex < endIndex) {
                 int slotIndex = itemIndex - startIndex;
                 if (slotIndex < itemSlots.length) {
@@ -281,6 +280,42 @@ public class PaginationMenu extends Menu {
                 }
             }
         }
+    }
+
+    public void updateCurrentPageItemInPlace(int slot, MenuItem updatedItem) {
+        Player currentViewer = getViewer();
+        if (currentViewer == null) {
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (online.getOpenInventory().getTopInventory() == super.inventory) {
+                    currentViewer = online;
+                    super.setViewer(currentViewer);
+                    break;
+                }
+            }
+        }
+
+        if (currentViewer != null) {
+            int currentPage = getCurrentPage(currentViewer);
+            int startIndex = (currentPage - 1) * maxItemsPerPage;
+
+            // Encontrar qué slot del itemSlots array corresponde al slot dado
+            int slotIndex = -1;
+            for (int i = 0; i < itemSlots.length; i++) {
+                if (itemSlots[i] == slot) {
+                    slotIndex = i;
+                    break;
+                }
+            }
+
+            if (slotIndex != -1) {
+                int globalIndex = startIndex + slotIndex;
+                if (globalIndex >= 0 && globalIndex < paginationItems.size()) {
+                    updatePaginationItemInPlace(globalIndex, updatedItem);
+                    return;
+                }
+            }
+        }
+        updateItemInPlace(slot, updatedItem);
     }
 
     /**

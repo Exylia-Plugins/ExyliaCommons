@@ -398,8 +398,8 @@ public class MenuItem {
     @Override
     public MenuItem clone() {
         MenuItem clone = new MenuItem(this.itemStack.clone());
-        clone.clickHandler = this.clickHandler;
-        clone.menuItemId = this.menuItemId;
+        clone.clickHandler = this.clickHandler; // Copiamos la referencia directa
+        clone.menuItemId = this.menuItemId + "_clone_" + System.currentTimeMillis(); // ID único para debug
         clone.rawName = this.rawName;
         clone.rawMaterialString = this.rawMaterialString;
         clone.materialPlaceholderPlayer = this.materialPlaceholderPlayer;

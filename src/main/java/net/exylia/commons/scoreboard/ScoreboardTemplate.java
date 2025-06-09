@@ -1,123 +1,66 @@
 package net.exylia.commons.scoreboard;
 
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
 /**
- * Template definition for a scoreboard that can be applied to multiple players.
- * This is the reusable configuration that defines how a scoreboard looks and behaves.
+ * Template simplificado para scoreboards
  */
 public class ScoreboardTemplate {
 
     private final String id;
-    private final Map<Integer, LineTemplate> lines;
-    private final ContentProvider titleProvider;
+    private final String title;
+    private final Map<Integer, String> lines;
     private final int updateTicks;
+    private Function<Player, Object> contextProvider;
 
-    ScoreboardTemplate(String id, ContentProvider titleProvider, Map<Integer, LineTemplate> lines, int updateTicks) {
+    public ScoreboardTemplate(String id, String title, Map<Integer, String> lines, int updateTicks) {
         this.id = id;
-        this.titleProvider = titleProvider;
-        this.lines = new HashMap<>(lines);
+        this.title = title;
+        this.lines = lines;
         this.updateTicks = updateTicks;
+        this.contextProvider = null;
     }
 
-    /**
-     * Gets the template ID.
-     *
-     * @return The template ID
-     */
+    public ScoreboardTemplate(String id, String title, Map<Integer, String> lines, int updateTicks, Function<Player, Object> contextProvider) {
+        this.id = id;
+        this.title = title;
+        this.lines = lines;
+        this.updateTicks = updateTicks;
+        this.contextProvider = contextProvider;
+    }
+
     public String getId() {
         return id;
     }
 
-    /**
-     * Gets the update frequency in ticks.
-     *
-     * @return The update frequency
-     */
+    public String getTitle() {
+        return title;
+    }
+
+    public Map<Integer, String> getLines() {
+        return lines;
+    }
+
     public int getUpdateTicks() {
         return updateTicks;
     }
 
-    /**
-     * Gets the title for a specific player.
-     *
-     * @param player The player
-     * @return The title component
-     */
-    public Component getTitle(Player player) {
-        return titleProvider.getContent(player);
+    public boolean shouldUpdate() {
+        return updateTicks > 0;
     }
 
-    /**
-     * Gets all line templates.
-     *
-     * @return The line templates
-     */
-    public Map<Integer, LineTemplate> getLines() {
-        return lines;
+    public Object getContext(Player player) {
+        return contextProvider != null ? contextProvider.apply(player) : null;
     }
 
-    /**
-     * Gets a specific line template.
-     *
-     * @param position The line position
-     * @return The line template, or null if none exists at this position
-     */
-    public LineTemplate getLine(int position) {
-        return lines.get(position);
+    public void setContextProvider(Function<Player, Object> contextProvider) {
+        this.contextProvider = contextProvider;
     }
 
-    /**
-     * Represents a line template in the scoreboard.
-     */
-    public static class LineTemplate {
-        private final ContentProvider contentProvider;
-        private final int score;
-        private final Function<String, String> processor;
-
-        /**
-         * Creates a new line template.
-         *
-         * @param contentProvider The content provider
-         * @param score The score value
-         * @param processor Optional processor function
-         */
-        public LineTemplate(ContentProvider contentProvider, int score, Function<String, String> processor) {
-            this.contentProvider = contentProvider;
-            this.score = score;
-            this.processor = processor;
-        }
-
-        /**
-         * Gets the content for a specific player.
-         *
-         * @param player The player
-         * @return The content component
-         */
-        public Component getContent(Player player) {
-            Component content = contentProvider.getContent(player);
-
-            if (processor != null && content != null) {
-                String raw = ScoreboardUtil.serializeComponent(content);
-                raw = processor.apply(raw);
-                return ScoreboardUtil.deserializeComponent(raw);
-            }
-
-            return content;
-        }
-
-        /**
-         * Gets the score value.
-         *
-         * @return The score
-         */
-        public int getScore() {
-            return score;
-        }
+    public boolean hasContext() {
+        return contextProvider != null;
     }
 }

@@ -65,7 +65,11 @@ public class MenuManager implements Listener {
 
             // 3. Ejecutar el handler de clic si está definido (siempre se ejecuta)
             if (item.getClickHandler() != null) {
-                item.getClickHandler().accept(clickInfo);
+                try {
+                    item.getClickHandler().accept(clickInfo);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -117,6 +121,9 @@ public class MenuManager implements Listener {
      */
     static void registerOpenMenu(Player player, Menu menu) {
         openMenus.put(player.getUniqueId(), menu);
+        if (menu instanceof PaginationMenu) {
+            openPaginationMenus.put(player.getUniqueId(), (PaginationMenu) menu);
+        }
     }
 
     /**

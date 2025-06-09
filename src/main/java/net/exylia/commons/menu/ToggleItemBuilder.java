@@ -1,6 +1,7 @@
 package net.exylia.commons.menu;
 
 import net.exylia.commons.utils.MessageUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.function.Consumer;
@@ -61,8 +62,15 @@ public class ToggleItemBuilder {
             boolean newValue = !currentValue;
             setter.accept(newValue);
 
-            // Actualizar el item inmediatamente
-            updateItemState(item);
+            // Crear un nuevo item con el estado actualizado
+            MenuItem updatedItem = new MenuItem(material);
+            updateItemState(updatedItem);
+
+            // CRITICAL: Preserve the click handler by recreating it with the same logic
+            updatedItem.setClickHandler(clickInfo.item().getClickHandler());
+
+            // Actualizar el item en el menú inmediatamente
+            clickInfo.updateThisItem(updatedItem);
 
             // Notificar al jugador
             if (player != null) {
@@ -74,9 +82,6 @@ public class ToggleItemBuilder {
             if (onUpdate != null) {
                 onUpdate.run();
             }
-
-            // Actualizar en el menú (esto se puede llamar desde el click handler)
-            // clickInfo.menu().updateItemInPlace(clickInfo.slot(), item);
         });
 
         return item;

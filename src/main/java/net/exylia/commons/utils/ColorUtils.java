@@ -3,6 +3,7 @@ package net.exylia.commons.utils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -152,6 +153,54 @@ public class ColorUtils {
             case "&f" -> "<white>";
             default -> "<#ffffff>";
         };
+    }
+
+    /**
+     * Quita todos los códigos de color y formato de un string
+     * @param message Mensaje con códigos de color
+     * @return String sin códigos de color ni formato
+     */
+    public static String stripColors(String message) {
+        if (message == null || message.isEmpty()) {
+            return "";
+        }
+
+        // Convertir § a & para normalizar
+        message = message.replace('§', '&');
+
+        // Quitar códigos hexadecimales &#ffffff
+        message = message.replaceAll("&#[0-9a-fA-F]{6}", "");
+
+        // Quitar códigos MiniMessage <#ffffff>
+        message = message.replaceAll("<#[0-9a-fA-F]{6}>", "");
+
+        // Quitar códigos MiniMessage con nombres <color>
+        message = message.replaceAll("</?(?:black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|aqua|red|light_purple|yellow|white)>", "");
+
+        // Quitar códigos de formato MiniMessage
+        message = message.replaceAll("</?(?:obfuscated|bold|strikethrough|underlined|italic|reset)>", "");
+
+        // Quitar códigos simples &x (colores y formato)
+        message = message.replaceAll("&[0-9a-fA-FklmnoprKLMNOPR]", "");
+
+        // Quitar otros códigos MiniMessage comunes
+        message = message.replaceAll("</?(?:b|i|u|st|obf|r)>", "");
+
+        return message;
+    }
+
+    /**
+     * Quita todos los colores y formato de un Component y lo convierte a string plano
+     * @param component Componente con colores y formato
+     * @return String sin colores ni formato
+     */
+    public static String stripColors(Component component) {
+        if (component == null) {
+            return "";
+        }
+
+        // Serializar el componente a texto plano
+        return PlainTextComponentSerializer.plainText().serialize(component);
     }
 
     public static void clearCache() {

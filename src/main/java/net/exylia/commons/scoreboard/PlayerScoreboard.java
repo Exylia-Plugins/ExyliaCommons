@@ -1,223 +1,253 @@
 package net.exylia.commons.scoreboard;
 
+import me.clip.placeholderapi.PlaceholderAPI;
+import net.exylia.commons.config.ConfigManager;
+import net.exylia.commons.placeholders.PlaceholderRegistry;
+import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scoreboard.*;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static net.exylia.commons.utils.DebugUtils.logWarn;
-
 /**
- * Represents an active scoreboard instance for a player.
- * This applies a ScoreboardTemplate to a specific player.
+ * Scoreboard individual con soporte de contexto personalizado
  */
 public class PlayerScoreboard {
 
     private final Plugin plugin;
     private final Player player;
     private final ScoreboardTemplate template;
+    private final ConfigManager configManager;
+    private final boolean placeholderAPIEnabled;
     private final Scoreboard scoreboard;
     private final Objective objective;
-    private int taskId = -1;
+
+    // Cache para equipos y contenido previo
+    private final Map<Integer, Team> teamCache = new HashMap<>();
+    private final Map<Integer, String> lastContent = new HashMap<>();
+
     private boolean visible = false;
+    private long lastUpdate = 0;
+    private Object cachedContext = null; // Cache del contexto
+    private long lastContextUpdate = 0; // Tiempo de última actualización del contexto
 
     private static final ScoreboardManager SCOREBOARD_MANAGER = Bukkit.getScoreboardManager();
     private static final String OBJECTIVE_NAME = "exylia";
 
-    /**
-     * Creates a new PlayerScoreboard.
-     *
-     * @param plugin The plugin instance
-     * @param player The player
-     * @param template The scoreboard template
-     */
-    PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template) {
+    public PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template,
+                            ConfigManager configManager, boolean placeholderAPIEnabled) {
         this.plugin = plugin;
         this.player = player;
         this.template = template;
+        this.configManager = configManager;
+        this.placeholderAPIEnabled = placeholderAPIEnabled;
 
-        // Create the scoreboard
         this.scoreboard = SCOREBOARD_MANAGER.getNewScoreboard();
-        Component title = template.getTitle(player);
-        this.objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, "dummy", title);
-        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        // Start the update task if needed
-        if (template.getUpdateTicks() > 0) {
-            startUpdateTask();
-        }
+        // Procesar título con colores, placeholders y contexto
+        String processedTitle = processText(template.getTitle());
+        Component titleComponent = ColorUtils.parse(processedTitle);
+
+        this.objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, "dummy", titleComponent);
+        this.objective.setDisplaySlot(DisplaySlot.SIDEBAR);
     }
 
     /**
-     * Shows the scoreboard to the player.
-     *
-     * @return This instance for chaining
+     * Obtiene el contexto actual para el jugador
      */
+    private Object getCurrentContext() {
+        // Actualizar contexto cada segundo como máximo
+        long currentTime = System.currentTimeMillis();
+        if (cachedContext == null || currentTime - lastContextUpdate > 1000) {
+            cachedContext = template.getContext(player);
+            lastContextUpdate = currentTime;
+        }
+        return cachedContext;
+    }
+
+    /**
+     * Procesa texto aplicando colores predefinidos, placeholders custom con contexto y PlaceholderAPI
+     */
+    private String processText(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+
+        // 1. Aplicar colores predefinidos del ConfigManager
+        String processed = configManager.applyPresetsToString(text);
+
+        // 2. Aplicar placeholders custom con contexto usando PlaceholderRegistry
+        Object context = getCurrentContext();
+        processed = PlaceholderRegistry.process(processed, context, player);
+
+        // 3. Aplicar PlaceholderAPI si está disponible
+        if (placeholderAPIEnabled) {
+            try {
+                processed = PlaceholderAPI.setPlaceholders(player, processed);
+            } catch (Exception e) {
+                // Ignorar errores de PlaceholderAPI
+            }
+        }
+
+        return processed;
+    }
+
+    // ... resto del código permanece igual ...
+
     public PlayerScoreboard show() {
-        if (visible) return this;
+        if (visible || !player.isOnline()) return this;
 
         visible = true;
         update();
         player.setScoreboard(scoreboard);
-
-        if (taskId == -1 && template.getUpdateTicks() > 0) {
-            startUpdateTask();
-        }
-
         return this;
     }
 
-    /**
-     * Hides the scoreboard from the player.
-     *
-     * @return This instance for chaining
-     */
     public PlayerScoreboard hide() {
         if (!visible) return this;
 
         visible = false;
-        player.setScoreboard(SCOREBOARD_MANAGER.getMainScoreboard());
-
-        if (taskId != -1) {
-            Bukkit.getScheduler().cancelTask(taskId);
-            taskId = -1;
+        if (player.isOnline()) {
+            player.setScoreboard(SCOREBOARD_MANAGER.getMainScoreboard());
         }
-
         return this;
     }
 
-    /**
-     * Toggles the visibility of the scoreboard.
-     *
-     * @return This instance for chaining
-     */
-    public PlayerScoreboard toggle() {
-        return visible ? hide() : show();
-    }
-
-    /**
-     * Updates the scoreboard content.
-     *
-     * @return This instance for chaining
-     */
     public PlayerScoreboard update() {
-        if (!visible) return this;
-        if (!player.isOnline()) {
+        if (!visible || !player.isOnline()) {
             destroy();
             return this;
         }
 
+        // Verificar si debe actualizarse según el tiempo configurado
+        long currentTime = System.currentTimeMillis();
+        if (template.shouldUpdate()) {
+            long updateInterval = template.getUpdateTicks() * 50; // Convertir ticks a ms
+            if (currentTime - lastUpdate < updateInterval) {
+                return this; // No es momento de actualizar aún
+            }
+        }
+
+        lastUpdate = currentTime;
+
         try {
-            // Update the title
-            objective.displayName(template.getTitle(player));
+            // Actualizar título con contexto
+            String processedTitle = processText(template.getTitle());
+            Component titleComponent = ColorUtils.parse(processedTitle);
+            objective.displayName(titleComponent);
 
-            // Clear existing scores
-            for (String entry : new HashSet<>(scoreboard.getEntries())) {
-                scoreboard.resetScores(entry);
-            }
-
-            // Update all lines
-            Map<Integer, ScoreboardTemplate.LineTemplate> lines = template.getLines();
-            for (Map.Entry<Integer, ScoreboardTemplate.LineTemplate> entry : lines.entrySet()) {
+            // Actualizar líneas con contexto
+            Map<Integer, String> lines = template.getLines();
+            for (Map.Entry<Integer, String> entry : lines.entrySet()) {
                 int position = entry.getKey();
-                ScoreboardTemplate.LineTemplate lineTemplate = entry.getValue();
-                Component content = lineTemplate.getContent(player);
+                String lineText = entry.getValue();
 
-                // Use a team to set the line content
-                String entryName = getUniqueEntryName(position);
-                Team team = scoreboard.getTeam("line" + position);
-                if (team == null) {
-                    team = scoreboard.registerNewTeam("line" + position);
-                }
-
-                team.prefix(content);
-                team.addEntry(entryName);
-                objective.getScore(entryName).setScore(lineTemplate.getScore());
+                updateLine(position, lineText);
             }
+
+            // Limpiar líneas no usadas
+            cleanupUnusedLines(lines.keySet());
+
         } catch (Exception e) {
-            logWarn("Error updating scoreboard for player " + player.getName() + ": " + e.getMessage());
+            plugin.getLogger().warning("Error actualizando scoreboard para " + player.getName() + ": " + e.getMessage());
         }
 
         return this;
     }
 
-    /**
-     * Destroys this scoreboard, cleaning up resources.
-     */
+    private void updateLine(int position, String lineText) {
+        // Procesar texto con colores, placeholders y contexto
+        String processedText = processText(lineText);
+
+        // Verificar si el contenido cambió
+        String previousContent = lastContent.get(position);
+        if (processedText.equals(previousContent)) {
+            return; // Sin cambios
+        }
+
+        // Actualizar cache
+        lastContent.put(position, processedText);
+
+        // Obtener o crear equipo
+        Team team = teamCache.computeIfAbsent(position, pos -> {
+            String teamName = "line" + pos;
+            Team newTeam = scoreboard.getTeam(teamName);
+            if (newTeam == null) {
+                newTeam = scoreboard.registerNewTeam(teamName);
+            }
+            return newTeam;
+        });
+
+        // Aplicar contenido al equipo
+        Component lineComponent = ColorUtils.parse(processedText);
+        team.prefix(lineComponent);
+
+        String entryName = getUniqueEntryName(position);
+        if (!team.hasEntry(entryName)) {
+            team.addEntry(entryName);
+        }
+
+        // Configurar score (líneas más arriba tienen score más alto)
+        Score score = objective.getScore(entryName);
+        score.setScore(template.getLines().size() - position);
+    }
+
+    private void cleanupUnusedLines(java.util.Set<Integer> activeLines) {
+        teamCache.entrySet().removeIf(entry -> {
+            int position = entry.getKey();
+            if (!activeLines.contains(position)) {
+                Team team = entry.getValue();
+                try {
+                    String entryName = getUniqueEntryName(position);
+                    scoreboard.resetScores(entryName);
+                    team.unregister();
+                } catch (Exception ignored) {}
+                lastContent.remove(position);
+                return true;
+            }
+            return false;
+        });
+    }
+
     public void destroy() {
         hide();
 
-        // Clean up objective and teams
         try {
-            objective.unregister();
-            for (Team team : scoreboard.getTeams()) {
+            // Limpiar equipos
+            for (Team team : teamCache.values()) {
                 team.unregister();
             }
-        } catch (Exception ignored) {
-            // Ignore exceptions during cleanup
-        }
+            teamCache.clear();
+            lastContent.clear();
+
+            // Limpiar objetivo
+            objective.unregister();
+        } catch (Exception ignored) {}
     }
 
-    /**
-     * Gets the player this scoreboard belongs to.
-     *
-     * @return The player
-     */
     public Player getPlayer() {
         return player;
     }
 
-    /**
-     * Gets the UUID of the player this scoreboard belongs to.
-     *
-     * @return The player UUID
-     */
     public UUID getPlayerUUID() {
         return player.getUniqueId();
     }
 
-    /**
-     * Gets the template this scoreboard is based on.
-     *
-     * @return The template
-     */
     public ScoreboardTemplate getTemplate() {
         return template;
     }
 
-    /**
-     * Checks if the scoreboard is visible.
-     *
-     * @return true if visible, false if hidden
-     */
     public boolean isVisible() {
         return visible;
     }
 
-    /**
-     * Gets a unique entry name for a line.
-     *
-     * @param line The line position
-     * @return A unique entry name
-     */
     private String getUniqueEntryName(int line) {
-        // Use color codes to create unique entries for each line
         char[] colors = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
         return "§" + colors[line % colors.length] + "§r";
-    }
-
-    /**
-     * Starts the update task.
-     */
-    private void startUpdateTask() {
-        int updateTicks = template.getUpdateTicks();
-        if (updateTicks <= 0) return;
-
-        taskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this::update, updateTicks, updateTicks);
     }
 }

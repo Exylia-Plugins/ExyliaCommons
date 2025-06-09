@@ -1,5 +1,6 @@
 package net.exylia.commons.menu;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 
@@ -105,7 +106,12 @@ public record MenuClickInfo(Player player, ClickType clickType, int slot, Menu m
      * Actualiza el item en este slot inmediatamente
      */
     public void updateThisItem(MenuItem newItem) {
-        menu.updateItemInPlace(slot, newItem);
+        if (menu instanceof PaginationMenu) {
+            ((PaginationMenu) menu).updateCurrentPageItemInPlace(slot, newItem);
+        } else {
+            menu.updateItemInPlace(slot, newItem);
+        }
+
     }
 
     /**

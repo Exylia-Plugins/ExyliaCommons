@@ -8,19 +8,15 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-/**
- * Builder para items de cooldown/valores numéricos
- */
+import static net.exylia.commons.utils.PredefinedColors.*;
+
 public class NumericItemBuilder {
     private String name;
     private String material;
     private String unit;
     private int minValue = -1;
     private int maxValue = Integer.MAX_VALUE;
-    private int[] increments = {1, 10}; // normal, shift
-    private String colorPrimary = "§e";
-    private String colorSecondary = "§7";
-    private String colorSuccess = "§a";
+    private int[] increments = {1, 10};
     private Consumer<Integer> setter;
     private Supplier<Integer> getter;
     private Player player;
@@ -42,13 +38,6 @@ public class NumericItemBuilder {
 
     public NumericItemBuilder increments(int normal, int shift) {
         this.increments = new int[]{normal, shift};
-        return this;
-    }
-
-    public NumericItemBuilder colors(String primary, String secondary, String success) {
-        this.colorPrimary = primary;
-        this.colorSecondary = secondary;
-        this.colorSuccess = success;
         return this;
     }
 
@@ -86,10 +75,12 @@ public class NumericItemBuilder {
             int newValue = calculateNewValue(currentValue, clickInfo.clickType());
 
             setter.accept(newValue);
-            updateItemState(item);
+
+            MenuItem updatedItem = this.build();
+            clickInfo.updateThisItem(updatedItem);
 
             if (player != null) {
-                MessageUtils.sendMessageAsync(player, colorSuccess + name + " set to " +
+                MessageUtils.sendMessageAsync(player, COLOR_SUCCESS + name + " set to " +
                         displayFormatter.apply(newValue) + "!");
             }
 
@@ -103,15 +94,15 @@ public class NumericItemBuilder {
 
     private void updateItemState(MenuItem item) {
         int currentValue = getter.get();
-        item.setName(colorPrimary + name);
+        item.setName(COLOR_PRIMARY + name);
         item.setLore(
-                "Current: " + colorSecondary + displayFormatter.apply(currentValue),
+                COLOR_LETTERS + "Current: " + COLOR_INFO + displayFormatter.apply(currentValue),
                 "",
-                colorSecondary + "Left-click: +" + increments[0] + " " + unit,
-                colorSecondary + "Right-click: -" + increments[0] + " " + unit,
-                colorSecondary + "Shift+Left-click: +" + increments[1] + " " + unit,
-                colorSecondary + "Shift+Right-click: -" + increments[1] + " " + unit,
-                colorSecondary + "Middle-click: Reset to " + (minValue == -1 ? "disabled" : "default")
+                COLOR_SECONDARY + " | " + COLOR_LETTERS + "Left-click:" + COLOR_INFO + " +" + increments[0] + " " + unit,
+                COLOR_SECONDARY + " | " + COLOR_LETTERS + "Right-click:" + COLOR_INFO + " -" + COLOR_INFO + increments[0] + " " + unit,
+                COLOR_SECONDARY + " | " + COLOR_LETTERS + "Shift+Left-click:" + COLOR_INFO + " +" + COLOR_INFO + increments[1] + " " + unit,
+                COLOR_SECONDARY + " | " + COLOR_LETTERS + "Shift+Right-click:" + COLOR_INFO + " -" + COLOR_INFO + increments[1] + " " + unit,
+                COLOR_SECONDARY + " | " + COLOR_LETTERS + "Middle-click: Reset to " + COLOR_INFO + (minValue == -1 ? "disabled" : "default")
         );
     }
 

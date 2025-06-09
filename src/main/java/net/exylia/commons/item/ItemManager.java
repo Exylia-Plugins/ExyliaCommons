@@ -110,7 +110,6 @@ public class ItemManager implements Listener {
      */
     public static void reloadItemConfiguration(String id, ItemConfiguration config) {
         itemConfigurations.put(id.toLowerCase(), config);
-        Bukkit.getLogger().info("Reloaded item configuration: " + id);
     }
 
     /**
@@ -120,7 +119,6 @@ public class ItemManager implements Listener {
     public static void reloadAllConfigurations(ConfigurationSection configSection) {
         itemConfigurations.clear();
         registerItemConfigurations(configSection);
-        Bukkit.getLogger().info("Reloaded " + itemConfigurations.size() + " item configurations");
     }
 
     /**

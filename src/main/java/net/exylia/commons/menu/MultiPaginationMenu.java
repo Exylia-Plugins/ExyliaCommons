@@ -299,21 +299,6 @@ public class MultiPaginationMenu extends Menu {
         });
     }
 
-    private void processSectionForPlayer(Player player, PaginationSection section, int currentPage) {
-        try {
-            // Aplicar filler de sección
-            applySectionFiller(player, section);
-
-            // Colocar items de la página
-            placeSectionItems(player, section, currentPage);
-
-            // Colocar botones de navegación
-            placeSectionNavigation(player, section, currentPage);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     private void applySectionFiller(Player player, PaginationSection section) {
         if (section.getFillerItem() == null) return;
 
@@ -381,8 +366,18 @@ public class MultiPaginationMenu extends Menu {
 
     private void placeSectionNavigation(Player player, PaginationSection section, int currentPage) {
         String sectionName = section.getName();
+        int totalPages = section.getTotalPages();
 
-        // Botón anterior
+        super.items.remove(section.getPreviousButtonSlot());
+        super.items.remove(section.getNextButtonSlot());
+        if (currentPage <= 1) {
+            applyFillerToSlot(player, section.getPreviousButtonSlot());
+        }
+
+        if (currentPage >= totalPages) {
+            applyFillerToSlot(player, section.getNextButtonSlot());
+        }
+
         if (currentPage > 1 && section.getPreviousButton() != null) {
             try {
                 MenuItem prevButton = section.getPreviousButton().clone();
@@ -396,8 +391,7 @@ public class MultiPaginationMenu extends Menu {
             }
         }
 
-        // Botón siguiente
-        if (currentPage < section.getTotalPages() && section.getNextButton() != null) {
+        if (currentPage < totalPages && section.getNextButton() != null) {
             try {
                 MenuItem nextButton = section.getNextButton().clone();
                 if (nextButton.usesPlaceholders()) {
@@ -409,6 +403,36 @@ public class MultiPaginationMenu extends Menu {
                 e.printStackTrace();
             }
         }
+    }
+
+    private void processSectionForPlayer(Player player, PaginationSection section, int currentPage) {
+        try {
+            clearSectionSlots(section);
+            applySectionFiller(player, section);
+            placeSectionItems(player, section, currentPage);
+            placeSectionNavigation(player, section, currentPage);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void applyFillerToSlot(Player player, int slot) {
+        if (super.globalFiller != null) {
+            MenuItem filler = super.globalFiller.clone();
+            if (filler.usesPlaceholders()) {
+                filler.updatePlaceholders(player);
+            }
+            super.items.put(slot, filler);
+        }
+    }
+
+    private void clearSectionSlots(PaginationSection section) {
+        for (int slot : section.getSlots()) {
+            super.items.remove(slot);
+        }
+
+        super.items.remove(section.getPreviousButtonSlot());
+        super.items.remove(section.getNextButtonSlot());
     }
 
     // ==================== ACTUALIZACIONES DINÁMICAS ====================

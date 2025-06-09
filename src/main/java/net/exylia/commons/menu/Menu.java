@@ -450,14 +450,26 @@ public class Menu {
      * @param updatedItem Nuevo item actualizado
      */
     public void updateItemInPlace(int slot, MenuItem updatedItem) {
-        if (slot < 0 || slot >= size || inventory == null || viewer == null) return;
+        if (slot < 0 || slot >= size || inventory == null) {
+            return;
+        }
+
+        Player currentPlayer = viewer;
+        if (currentPlayer == null) {
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (online.getOpenInventory().getTopInventory() == inventory) {
+                    currentPlayer = online;
+                    break;
+                }
+            }
+        }
 
         // Actualizar en el mapa de items
         items.put(slot, updatedItem);
 
         // Procesar placeholders si es necesario
-        if (updatedItem.usesPlaceholders()) {
-            updatedItem.updatePlaceholders(viewer);
+        if (updatedItem.usesPlaceholders() && currentPlayer != null) {
+            updatedItem.updatePlaceholders(currentPlayer);
         }
 
         // Actualizar inmediatamente en el inventario visible
@@ -504,5 +516,9 @@ public class Menu {
                 }
             }
         });
+    }
+
+    public void setViewer(Player viewer) {
+        this.viewer = viewer;
     }
 }
