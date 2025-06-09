@@ -135,16 +135,8 @@ public class EditableMenu extends Menu {
 
         if (item == null || item.getType().isAir()) {
             editableItems.remove(slot);
-            // Colocar filler si existe
-            if (globalFiller != null) {
-                MenuItem filler = globalFiller.clone();
-                if (viewer != null && filler.usesPlaceholders()) {
-                    filler.updatePlaceholders(viewer);
-                }
-                super.items.put(slot, filler);
-            } else {
-                super.items.remove(slot);
-            }
+            // NO colocar filler automáticamente - dejar el slot vacío para que pueda recibir nuevos items
+            super.items.remove(slot);
 
             if (onItemRemoved != null && oldItem != null) {
                 onItemRemoved.accept(slot, oldItem);
@@ -273,6 +265,7 @@ public class EditableMenu extends Menu {
     protected void applyFillers(Player player) {
         if (globalFiller != null) {
             for (int i = 0; i < size; i++) {
+                // Solo aplicar filler si no es un slot editable y no tiene item ya asignado
                 if (!editableSlots.contains(i) && !items.containsKey(i)) {
                     MenuItem filler = globalFiller.clone();
                     if (filler.usesPlaceholders()) {
