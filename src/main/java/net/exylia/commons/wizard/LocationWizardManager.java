@@ -163,25 +163,8 @@ public class LocationWizardManager implements Listener {
             return;
         }
 
-        // Obtener la ubicación del click
-        Location location = null;
-
-        // Para BlockSelectionWizard, solo permitir clicks en bloques, no en aire
-        if (wizard.getType() == LocationWizard.WizardType.BLOCK_SELECTION) {
-            if (event.getClickedBlock() != null) {
-                location = event.getClickedBlock().getLocation();
-            } else {
-                event.setCancelled(true);
-                return;
-            }
-        } else {
-            // Para otros tipos de wizard (como PositionSelection), permitir aire
-            if (event.getClickedBlock() != null) {
-                location = event.getClickedBlock().getLocation();
-            } else if (action == Action.LEFT_CLICK_AIR || action == Action.RIGHT_CLICK_AIR) {
-                location = player.getLocation();
-            }
-        }
+        // Obtener la ubicación del click según el tipo de wizard
+        Location location = getLocationForWizard(wizard, event, player);
 
         if (location == null) {
             return;
@@ -199,6 +182,41 @@ public class LocationWizardManager implements Listener {
         }
     }
 
+    /**
+     * Obtiene la ubicación apropiada según el tipo de wizard
+     */
+    private Location getLocationForWizard(LocationWizard wizard, PlayerInteractEvent event, Player player) {
+        if (wizard.getType() == LocationWizard.WizardType.BLOCK_SELECTION) {
+            // Para BlockSelectionWizard, solo permitir clicks en bloques
+            if (event.getClickedBlock() != null) {
+                return event.getClickedBlock().getLocation();
+            } else {
+                return null; // No permitir clicks en aire para selección de bloques
+            }
+        } else if (wizard.getType() == LocationWizard.WizardType.POSITION_SELECTION) {
+            // Para PositionSelectionWizard, usar la ubicación exacta del jugador
+            // Esto incluye coordenadas decimales, yaw y pitch
+            Location playerLocation = player.getLocation().clone();
+
+            // Ajustar la altura al suelo si el jugador está mirando un bloque
+            if (event.getClickedBlock() != null) {
+                // Usar la Y del bloque + 1 para que el jugador esté sobre el bloque
+                playerLocation.setY(event.getClickedBlock().getLocation().getY() + 1.0);
+            }
+
+            return playerLocation;
+        } else {
+            // Para otros tipos, comportamiento por defecto
+            if (event.getClickedBlock() != null) {
+                return event.getClickedBlock().getLocation();
+            } else if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_AIR) {
+                return player.getLocation();
+            }
+        }
+
+        return null;
+    }
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         // Limpiar wizard cuando el jugador se desconecte
@@ -210,13 +228,6 @@ public class LocationWizardManager implements Listener {
     }
 
     private LocationWizard.ClickType getClickType(Action action, boolean sneaking) {
-        // Debug más detallado
-        Player debugPlayer = null;
-        for (LocationWizard wizard : activeWizards.values()) {
-            debugPlayer = wizard.getPlayer();
-            break;
-        }
-
         switch (action) {
             case LEFT_CLICK_BLOCK:
             case LEFT_CLICK_AIR:
