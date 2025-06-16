@@ -1,7 +1,12 @@
 package net.exylia.commons.item;
 
 import net.exylia.commons.actions.ActionSource;
+import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.utils.SoundUtils;
+import net.exylia.commons.utils.ParticleUtils;
+import net.exylia.commons.utils.FireworkUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -10,6 +15,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -21,12 +28,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 
 /**
  * Sistema de gestión optimizado:
  * - Registro de configuraciones en memoria (Map<String, ItemConfiguration>)
  * - Solo persiste ID y datos críticos en NBT
+ * - Integración con sistema de cooldown persistente
+ * - Integración con efectos de sonido, partículas y fuegos artificiales
  * - Mejor rendimiento y flexibilidad
+ * - Soporte para items movibles en inventario
  */
 public class ItemManager implements Listener {
     private static JavaPlugin plugin;
@@ -34,6 +45,9 @@ public class ItemManager implements Listener {
     private static final Map<UUID, Long> lastClickTime = new ConcurrentHashMap<>();
     private static boolean initialized = false;
     private static NamespacedKey itemIdKey;
+
+    // Callbacks para manejo de cooldown
+    private static BiConsumer<Player, String> cooldownMessageHandler;
 
     // Cooldown para prevenir doble clic
     private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
@@ -47,8 +61,21 @@ public class ItemManager implements Listener {
         itemIdKey = new NamespacedKey(plugin, "interactive_item_id");
         Bukkit.getPluginManager().registerEvents(new ItemManager(), plugin);
 
+        // Inicializar sistema de cooldown
+        CooldownManager.initialize(plugin);
+
         startClickTimeCleanupTask();
         initialized = true;
+    }
+
+    // ===== CONFIGURACIÓN DE CALLBACKS =====
+
+    /**
+     * Establece el manejador de mensajes de cooldown
+     * @param handler Función que recibe (Player, mensaje) para mostrar al jugador
+     */
+    public static void setCooldownMessageHandler(BiConsumer<Player, String> handler) {
+        cooldownMessageHandler = handler;
     }
 
     // ===== REGISTRO DE CONFIGURACIONES =====
@@ -237,16 +264,108 @@ public class ItemManager implements Listener {
         return getItemFromStack(itemStack) != null;
     }
 
+    // ===== MÉTODOS DE COOLDOWN =====
+
+    /**
+     * Verifica si un jugador puede usar un ítem (considerando cooldown)
+     * @param player Jugador
+     * @param itemId ID del ítem
+     * @return true si puede usarlo
+     */
+    public static boolean canPlayerUseItem(Player player, String itemId) {
+        if (!CooldownManager.isInitialized()) {
+            return true; // Si no hay sistema de cooldown, permitir uso
+        }
+
+        return !CooldownManager.getInstance().hasCooldown(player, itemId);
+    }
+
+    /**
+     * Establece un cooldown para un jugador e ítem específico
+     * @param player Jugador
+     * @param itemId ID del ítem
+     * @param seconds Segundos de cooldown
+     */
+    public static void setCooldown(Player player, String itemId, int seconds) {
+        if (CooldownManager.isInitialized()) {
+            CooldownManager.getInstance().setCooldown(player, itemId, seconds);
+        }
+    }
+
+    /**
+     * Obtiene el tiempo restante de cooldown
+     * @param player Jugador
+     * @param itemId ID del ítem
+     * @return Segundos restantes
+     */
+    public static int getRemainingCooldown(Player player, String itemId) {
+        if (!CooldownManager.isInitialized()) {
+            return 0;
+        }
+        return CooldownManager.getInstance().getRemainingCooldown(player, itemId);
+    }
+
+    /**
+     * Remueve el cooldown de un jugador para un ítem
+     * @param player Jugador
+     * @param itemId ID del ítem
+     */
+    public static void removeCooldown(Player player, String itemId) {
+        if (CooldownManager.isInitialized()) {
+            CooldownManager.getInstance().removeCooldown(player, itemId);
+        }
+    }
+
+    // ===== MÉTODOS DE EFECTOS =====
+
+    /**
+     * Ejecuta los efectos visuales y sonoros del ítem
+     * @param player Jugador que usó el ítem
+     * @param location Ubicación donde ejecutar los efectos
+     * @param config Configuración del ítem
+     */
+    private static void executeItemEffects(Player player, Location location, ItemConfiguration config) {
+        // Ejecutar sonido
+        if (config.hasSound()) {
+            SoundUtils.playSound(player, config.getSoundOnUse());
+        }
+
+        // Ejecutar partículas
+        if (config.hasParticles()) {
+            ParticleUtils.spawnParticles(location, config.getParticlesOnUse());
+        }
+
+        // Ejecutar fuegos artificiales
+        if (config.hasFirework()) {
+            if (config.shouldLaunchFireworkOnUse()) {
+                // Fuego artificial aleatorio
+                FireworkUtils.launchRandomFirework(location.clone().add(0, 1, 0));
+            } else if (config.getFireworkOnUse() != null && !config.getFireworkOnUse().trim().isEmpty()) {
+                // Fuego artificial configurado
+                FireworkUtils.launchFirework(location.clone().add(0, 1, 0), config.getFireworkOnUse());
+            }
+        }
+    }
+
     // ===== UTILIDADES =====
 
     /**
      * Obtiene estadísticas del sistema
      */
     public static String getStats() {
+        String cooldownStats = CooldownManager.isInitialized() ?
+                CooldownManager.getInstance().getStats() : "Cooldown system disabled";
+
+        int itemsWithEffects = (int) itemConfigurations.values().stream()
+                .mapToLong(config -> config.hasEffects() ? 1 : 0)
+                .sum();
+
         return String.format(
-                "Registered configurations: %d, Click times tracked: %d players",
+                "Registered configurations: %d, Items with effects: %d, Click times tracked: %d players, %s",
                 itemConfigurations.size(),
-                lastClickTime.size()
+                itemsWithEffects,
+                lastClickTime.size(),
+                cooldownStats
         );
     }
 
@@ -261,10 +380,30 @@ public class ItemManager implements Listener {
             if (config.getMaxUses() == 0) {
                 Bukkit.getLogger().warning("Item configuration '" + id + "' has 0 max uses (will be unusable)");
             }
+            if (config.getCooldownSeconds() < 0) {
+                Bukkit.getLogger().warning("Item configuration '" + id + "' has negative cooldown");
+            }
+
+            // Validar configuración de efectos
+            if (config.hasSound()) {
+                // Podrías agregar validación específica para sonidos aquí
+                String sound = config.getSoundOnUse();
+                if (sound != null && !sound.contains("|")) {
+                    Bukkit.getLogger().info("Item '" + id + "' has simple sound format: " + sound);
+                }
+            }
+
+            if (config.hasParticles()) {
+                // Podrías agregar validación específica para partículas aquí
+                String particles = config.getParticlesOnUse();
+                if (particles != null && !particles.contains("|")) {
+                    Bukkit.getLogger().info("Item '" + id + "' has simple particle format: " + particles);
+                }
+            }
         });
     }
 
-    // ===== EVENTOS (sin cambios significativos) =====
+    // ===== EVENTOS =====
 
     private static void startClickTimeCleanupTask() {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, ItemManager::cleanupOldClickTimes, 1200L, 1200L);
@@ -275,7 +414,7 @@ public class ItemManager implements Listener {
         lastClickTime.entrySet().removeIf(entry -> currentTime - entry.getValue() > 60000);
     }
 
-    private static boolean canPlayerUseItem(UUID playerId) {
+    private static boolean canPlayerClick(UUID playerId) {
         long currentTime = System.currentTimeMillis();
         Long lastClick = lastClickTime.get(playerId);
 
@@ -297,8 +436,18 @@ public class ItemManager implements Listener {
         if (interactiveItem == null) return;
 
         // Prevención de doble clic
-        if (!canPlayerUseItem(player.getUniqueId())) {
+        if (!canPlayerClick(player.getUniqueId())) {
             return;
+        }
+
+        // Verificar cooldown antes que cualquier otra cosa
+        if (interactiveItem.getConfiguration().hasCooldown()) {
+            if (!canPlayerUseItem(player, interactiveItem.getId())) {
+                int remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
+                handleCooldownMessage(player, interactiveItem, remainingSeconds);
+                event.setCancelled(true);
+                return;
+            }
         }
 
         // Verificar si el ítem tiene usos restantes
@@ -327,25 +476,152 @@ public class ItemManager implements Listener {
         InteractiveItem interactiveItem = getItemFromStack(clickedItem);
         if (interactiveItem == null) return;
 
-        // Prevención de doble clic
-        if (!canPlayerUseItem(player.getUniqueId())) {
+        if (isMovementClick(event, interactiveItem.getConfiguration())) {
             return;
         }
 
-        // Verificar usos restantes
+        if (!canPlayerClick(player.getUniqueId())) {
+            return;
+        }
+
+        // Verificar cooldown
+        if (interactiveItem.getConfiguration().hasCooldown()) {
+            if (!canPlayerUseItem(player, interactiveItem.getId())) {
+                int remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
+                handleCooldownMessage(player, interactiveItem, remainingSeconds);
+                event.setCancelled(true);
+                return;
+            }
+        }
+
+        // Verificar si el ítem tiene usos restantes
         if (!interactiveItem.hasUsesRemaining()) {
             player.sendMessage("§cEste ítem ya no tiene usos restantes.");
             event.setCancelled(true);
             return;
         }
 
-        // Cancelar evento si está configurado
+        // Cancelar evento si está configurado (solo para clics de uso)
         if (interactiveItem.shouldCancelEvent()) {
             event.setCancelled(true);
         }
 
         ItemClickInfo clickInfo = createInventoryClickInfo(event, player, clickedItem);
-        processInventoryItemInteraction(event, interactiveItem, clickInfo);
+        processItemInteractionFromInventory(player, event, interactiveItem, clickInfo);
+    }
+
+    /**
+     * Maneja el arrastre de items interactivos en inventarios
+     * Este evento se dispara cuando el jugador arrastra un item a través de múltiples slots
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        ItemStack draggedItem = event.getOldCursor();
+        if (draggedItem == null) return;
+
+        InteractiveItem interactiveItem = getItemFromStack(draggedItem);
+        if (interactiveItem == null) return;
+
+        // Verificar si el item permite movimiento por arrastre
+        if (!interactiveItem.getConfiguration().allowsMovement()) {
+            event.setCancelled(true);
+            return;
+        }
+    }
+
+    /**
+     * Determina si un clic en inventario es para mover el item o para usarlo
+     * @param event Evento de clic en inventario
+     * @param config Configuración del item para verificar permisos
+     * @return true si es un clic de movimiento, false si es de uso
+     */
+    private boolean isMovementClick(InventoryClickEvent event, ItemConfiguration config) {
+        ClickType click = event.getClick();
+
+        if (!config.allowsMovement()) {
+            return false;
+        }
+
+        return switch (click) {
+            case SHIFT_LEFT, SHIFT_RIGHT -> config.allowsShiftClick();
+            case NUMBER_KEY -> config.allowsNumberKeys();
+            case DROP, CONTROL_DROP -> config.allowsDrop();
+            case SWAP_OFFHAND -> config.allowsSwapToOffhand();
+            case LEFT, RIGHT -> config.allowsMovement() && isPickupOrPlaceClick(event);
+            case MIDDLE -> config.allowsMovement() &&
+                    event.getWhoClicked().getGameMode() == org.bukkit.GameMode.CREATIVE;
+            case DOUBLE_CLICK -> config.allowsMovement();
+            default -> false;
+        };
+    }
+
+    /**
+     * Determina si un LEFT/RIGHT click es para recoger/colocar items
+     * @param event Evento de clic
+     * @return true si es movimiento, false si es uso
+     */
+    private boolean isPickupOrPlaceClick(InventoryClickEvent event) {
+        ItemStack cursor = event.getCursor();
+        ItemStack clicked = event.getCurrentItem();
+
+        // Si el cursor tiene un item, probablemente está colocando/intercambiando
+        if (cursor != null && !cursor.getType().isAir()) {
+            return true;
+        }
+
+        // Si hace clic en un slot vacío, no es uso de item
+        if (clicked == null || clicked.getType().isAir()) {
+            return true;
+        }
+
+        // Si está en el inventario del jugador (no en una GUI personalizada),
+        // LEFT/RIGHT normalmente son para recoger
+        if (event.getClickedInventory() == event.getWhoClicked().getInventory()) {
+            // Permitir el movimiento si está en el inventario principal
+            return true;
+        }
+
+        // Si está en una GUI personalizada, LEFT/RIGHT probablemente son para usar
+        return false;
+    }
+
+    /**
+     * Maneja el mensaje de cooldown
+     */
+    private void handleCooldownMessage(Player player, InteractiveItem item, int remainingSeconds) {
+        String message = item.getConfiguration().getCooldownMessage();
+        if (message != null && !message.isEmpty()) {
+            // Formatear tiempo
+            String timeFormat = formatTime(remainingSeconds);
+            message = message.replace("%time%", timeFormat)
+                    .replace("%seconds%", String.valueOf(remainingSeconds));
+
+            // Usar handler personalizado si existe
+            if (cooldownMessageHandler != null) {
+                cooldownMessageHandler.accept(player, message);
+            } else {
+                player.sendMessage(message);
+            }
+        }
+    }
+
+    /**
+     * Formatea el tiempo de cooldown en formato legible
+     */
+    private String formatTime(int seconds) {
+        if (seconds < 60) {
+            return seconds + "s";
+        } else if (seconds < 3600) {
+            int minutes = seconds / 60;
+            int secs = seconds % 60;
+            return minutes + "m" + (secs > 0 ? " " + secs + "s" : "");
+        } else {
+            int hours = seconds / 3600;
+            int minutes = (seconds % 3600) / 60;
+            return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
+        }
     }
 
     // ===== MÉTODOS PRIVADOS DE PROCESAMIENTO =====
@@ -369,46 +645,66 @@ public class ItemManager implements Listener {
     }
 
     private void processItemInteraction(Player player, ItemStack itemStack, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
+        // PRIMERO: Ejecutar efectos visuales y sonoros
+        executeItemEffects(player, player.getLocation(), interactiveItem.getConfiguration());
+
         boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
 
         if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            // Establecer cooldown si está configurado
+            if (interactiveItem.getConfiguration().hasCooldown()) {
+                setCooldown(player, interactiveItem.getId(), interactiveItem.getConfiguration().getCooldownSeconds());
+            }
+
             // Consumir un uso del ítem
             boolean hasUsesLeft = interactiveItem.consumeUse();
 
             if (!hasUsesLeft) {
-                // ARREGLO: Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
+                // Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
                 removeOrReduceItemFromHand(player, itemStack);
                 player.sendMessage("§7El ítem se ha agotado.");
                 return; // Salir inmediatamente después de eliminar
             }
 
-            // ARREGLO: Solo actualizar si quedan usos
+            // Solo actualizar si quedan usos
             updateItemInHand(player, itemStack, interactiveItem);
         }
 
-        // ARREGLO: Consumir item completo si está configurado (después de procesar usos)
+        // Consumir item completo si está configurado (después de procesar usos)
         if (interactiveItem.shouldConsumeOnUse()) {
             removeOrReduceItemFromHand(player, itemStack);
         }
     }
 
-    private void processInventoryItemInteraction(InventoryClickEvent event, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
-        Player player = (Player) event.getWhoClicked();
+    private void processItemInteractionFromInventory(Player player, InventoryClickEvent event, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
+        // PRIMERO: Ejecutar efectos visuales y sonoros
+        executeItemEffects(player, player.getLocation(), interactiveItem.getConfiguration());
+
         boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
 
         if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            // Establecer cooldown si está configurado
+            if (interactiveItem.getConfiguration().hasCooldown()) {
+                setCooldown(player, interactiveItem.getId(), interactiveItem.getConfiguration().getCooldownSeconds());
+            }
+
             // Consumir un uso del ítem
             boolean hasUsesLeft = interactiveItem.consumeUse();
 
             if (!hasUsesLeft) {
-                // ARREGLO: Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
+                // Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
                 removeOrReduceItemFromInventory(event);
                 player.sendMessage("§7El ítem se ha agotado.");
                 return; // Salir inmediatamente después de eliminar
             }
 
-            // ARREGLO: Solo actualizar si quedan usos
+            // Solo actualizar si quedan usos (en inventario)
             updateItemInInventory(event, interactiveItem);
+        }
+
+        // Consumir item completo si está configurado (después de procesar usos)
+        if (interactiveItem.shouldConsumeOnUse()) {
+            removeOrReduceItemFromInventory(event);
         }
     }
 
@@ -471,22 +767,21 @@ public class ItemManager implements Listener {
 
     private void updateItemInInventory(InventoryClickEvent event, InteractiveItem interactiveItem) {
         if (interactiveItem.hasLimitedUses()) {
-            ItemStack clickedItem = event.getCurrentItem();
+            ItemStack currentItem = event.getCurrentItem();
+            if (currentItem == null) return;
 
-            if (clickedItem != null && clickedItem.getAmount() > 1 && interactiveItem.isStackable()) {
-                clickedItem.setAmount(clickedItem.getAmount() - 1);
-                event.setCurrentItem(clickedItem);
+            if (currentItem.getAmount() > 1 && interactiveItem.isStackable()) {
+                currentItem.setAmount(currentItem.getAmount() - 1);
+                event.setCurrentItem(currentItem);
 
+                // Agregar el item actualizado al inventario si hay espacio
                 ItemStack updatedStack = interactiveItem.getItemStack();
                 updatedStack.setAmount(1);
-
                 Player player = (Player) event.getWhoClicked();
                 player.getInventory().addItem(updatedStack);
             } else {
                 ItemStack updatedStack = interactiveItem.getItemStack();
-                if (clickedItem != null) {
-                    updatedStack.setAmount(clickedItem.getAmount());
-                }
+                updatedStack.setAmount(currentItem.getAmount());
                 event.setCurrentItem(updatedStack);
             }
         }
@@ -505,6 +800,10 @@ public class ItemManager implements Listener {
     public static void shutdown() {
         clearClickTimes();
         itemConfigurations.clear();
+
+        // Shutdown cooldown system
+        CooldownManager.shutdown();
+
         initialized = false;
     }
 }

@@ -264,6 +264,13 @@ public class ConfirmationManager implements Listener {
             return ValidationResult.valid();
         };
 
+        public static final InputValidator ALPHANUMERIC_WITH_HYPHENS = input -> {
+            if (!input.matches("^[a-zA-Z0-9-]+$")) {
+                return ValidationResult.invalid("The input must only contain letters, numbers, and hyphens.");
+            }
+            return ValidationResult.valid();
+        };
+
         /**
          * Comb         ina múltiples validadores
          */

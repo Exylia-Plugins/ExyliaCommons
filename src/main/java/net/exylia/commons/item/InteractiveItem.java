@@ -363,7 +363,9 @@ public class InteractiveItem {
                     .withData("clickType", clickInfo.clickType())
                     .withData("slot", clickInfo.slot())
                     .withData("item", this)
-                    .withData("itemStack", clickInfo.itemStack());
+                    .withData("itemStack", clickInfo.itemStack())
+                    .withData("itemConfiguration", this.getConfiguration());
+
             return GlobalActionManager.executeAction(getAction(), context);
         }
         return false;

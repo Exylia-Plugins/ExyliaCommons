@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
+import static net.exylia.commons.utils.MenuUtils.parseSlots;
 
 public class PaginationMenu extends Menu {
 
@@ -40,6 +41,16 @@ public class PaginationMenu extends Menu {
 
         this.paginationItems = new ArrayList<>();
         this.itemSlots = itemSlots;
+        this.maxItemsPerPage = itemSlots.length;
+
+        initializeDefaultButtons(rows);
+        super.setCloseHandler(this::onPlayerCloseMenu);
+    }
+    public PaginationMenu(String baseTitle, int rows, String slots) {
+        super(baseTitle, rows);
+
+        this.paginationItems = new ArrayList<>();
+        this.itemSlots = parseSlots(slots, rows);
         this.maxItemsPerPage = itemSlots.length;
 
         initializeDefaultButtons(rows);

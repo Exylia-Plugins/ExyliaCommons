@@ -2,7 +2,7 @@ package net.exylia.commons.config;
 
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
+import net.kyori.adventure.text.TextReplacementConfig;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -12,23 +12,17 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import static net.exylia.commons.utils.DebugUtils.logInfo;
 
 /**
  * Manejador de configuraciones para plugins de Exylia
- * Permite administrar múltiples archivos de configuración YAML con sistema de presets de colores
+ * Permite administrar múltiples archivos de configuración YAML con sistema de presets de colores global
  */
 public class ConfigManager {
     private final JavaPlugin plugin;
     private static final Map<String, FileConfiguration> configs = new HashMap<>();
-    private static final Map<String, String> colorPresets = new HashMap<>();
     private String prefix = "";
-
-    // Patrón para detectar presets: {preset_name}
-    private static final Pattern PRESET_PATTERN = Pattern.compile("\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}");
 
     /**
      * Constructor del ConfigManager
@@ -37,77 +31,12 @@ public class ConfigManager {
      */
     public ConfigManager(JavaPlugin plugin, List<String> files) {
         this.plugin = plugin;
-        loadColorPresets();
+        ColorUtils.initializePresets(plugin);
         for (String file : files) {
             loadConfig(file);
         }
         if (configs.containsKey("messages")) {
             this.prefix = getConfig("messages").getString("prefix", "");
-        }
-    }
-
-    private void loadColorPresets() {
-        File configFile = new File(plugin.getDataFolder(), "colors.yml");
-
-        if (!configFile.exists()) {
-            createDefaultColorPresets(configFile);
-        }
-
-        // Cargar presets en memoria
-        FileConfiguration colorConfig = YamlConfiguration.loadConfiguration(configFile);
-        colorPresets.clear();
-
-        for (String key : colorConfig.getKeys(false)) {
-            String value = colorConfig.getString(key);
-            if (value != null) {
-                colorPresets.put(key.toLowerCase(), value);
-            }
-        }
-        logInfo("Se cargaron " + colorPresets.size() + " presets de colores.");
-    }
-
-    private void createDefaultColorPresets(File configFile) {
-        try {
-            configFile.getParentFile().mkdirs();
-            configFile.createNewFile();
-
-            FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-
-            // Colores principales
-            config.set("primary", "<#8a51c4>");
-            config.set("secondary", "<#aa76de>");
-            config.set("secondary_light", "<#b48fd9>");
-
-            // Colores de texto
-            config.set("letters", "<#e7cfff>");
-            config.set("letters_black", "<#a89ab5>");
-
-            // Colores de estados
-            config.set("error", "<#a33b53>");
-            config.set("success", "<#8fffc1>");
-            config.set("success_light", "<#a1ffc3>");
-            config.set("warning", "<#ff9500>");
-            config.set("warning_light", "<#ffd2a8>");
-            config.set("info", "<#59a4ff>");
-            config.set("info_light", "<#7db7ff>");
-
-            // Colores adicionales comunes
-            config.set("accent", "<#ff6b9d>");
-            config.set("neutral", "<#6c757d>");
-            config.set("highlight", "<#ffd700>");
-            config.set("muted", "<#868e96>");
-
-            // Gradientes (para usar con MiniMessage)
-            config.set("gradient_primary", "<gradient:#8a51c4:#aa76de>");
-            config.set("gradient_success", "<gradient:#8fffc1:#a1ffc3>");
-            config.set("gradient_warning", "<gradient:#ff9500:#ffd2a8>");
-            config.set("gradient_error", "<gradient:#a33b53:#ff6b9d>");
-
-            config.save(configFile);
-            logInfo("Archivo colors.yml creado con presets por defecto");
-
-        } catch (IOException e) {
-            plugin.getLogger().severe("Error creando archivo colors.yml: " + e.getMessage());
         }
     }
 
@@ -125,12 +54,52 @@ public class ConfigManager {
     }
 
     /**
-     * Obtiene un mensaje personalizado con soporte para presets de colores
+     * Obtiene un mensaje personalizado con soporte para presets de colores y Components
+     * Soporta tanto String como Component como valores de reemplazo
      * @param path La ruta del mensaje en el archivo de mensajes
-     * @param replacements Los reemplazos de placeholders
+     * @param replacements Los reemplazos de placeholders (String placeholder, Object value, ...)
      * @return El componente del mensaje personalizado
      */
-    public Component getMessage(String path, String... replacements) {
+    public Component getMessage(String path, Object... replacements) {
+        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+
+        // Aplicar prefix antes de convertir a Component
+        message = applyPrefix(message);
+
+        // Convertir el mensaje base a Component
+        Component component = ColorUtils.parse(message);
+
+        // Aplicar replacements usando TextReplacementConfig
+        for (int i = 0; i < replacements.length - 1; i += 2) {
+            String placeholder = replacements[i].toString();
+            Object value = replacements[i + 1];
+
+            Component replacement;
+            if (value instanceof Component) {
+                replacement = (Component) value;
+            } else {
+                // Si es String u otro objeto, parsearlo con ColorUtils
+                replacement = ColorUtils.parse(value.toString());
+            }
+
+            component = component.replaceText(
+                    TextReplacementConfig.builder()
+                            .match(placeholder)
+                            .replacement(replacement)
+                            .build()
+            );
+        }
+
+        return component;
+    }
+
+    /**
+     * Obtiene un mensaje personalizado con soporte para presets de colores (versión original)
+     * @param path La ruta del mensaje en el archivo de mensajes
+     * @param replacements Los reemplazos de placeholders (solo String)
+     * @return El componente del mensaje personalizado
+     */
+    public Component getMessageString(String path, String... replacements) {
         String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
 
         for (int i = 0; i < replacements.length - 1; i += 2) {
@@ -138,8 +107,6 @@ public class ConfigManager {
         }
 
         message = applyPrefix(message);
-        message = applyColorPresets(message);
-
         return ColorUtils.parse(message);
     }
 
@@ -151,35 +118,55 @@ public class ConfigManager {
     public Component getMessage(String path) {
         String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
         message = applyPrefix(message);
-        message = applyColorPresets(message);
         return ColorUtils.parse(message);
     }
 
     /**
-     * Aplica los presets de colores al mensaje
-     * @param message El mensaje con presets {preset_name}
-     * @return El mensaje con presets reemplazados por códigos de color
+     * Obtiene un mensaje como string (sin convertir a Component) con presets aplicados
+     * Útil para casos donde necesitas el string procesado
+     * @param path La ruta del mensaje en el archivo de mensajes
+     * @param replacements Los reemplazos de placeholders
+     * @return El string del mensaje con presets y placeholders aplicados
      */
-    public static String applyColorPresets(String message) {
-        if (message == null || message.isEmpty()) {
-            return message;
+    public String getMessageStringOnly(String path, String... replacements) {
+        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+
+        for (int i = 0; i < replacements.length - 1; i += 2) {
+            message = message.replace(replacements[i], replacements[i + 1]);
         }
 
-        Matcher matcher = PRESET_PATTERN.matcher(message);
-        StringBuilder result = new StringBuilder();
+        message = applyPrefix(message);
+        return ColorUtils.parseToString(message);
+    }
 
-        while (matcher.find()) {
-            String presetName = matcher.group(1).toLowerCase();
-            String colorCode = colorPresets.get(presetName);
+    /**
+     * Obtiene un mensaje como string (sin convertir a Component) con presets aplicados
+     * @param path La ruta del mensaje en el archivo de mensajes
+     * @return El string del mensaje con presets aplicados
+     */
+    public String getMessageStringOnly(String path) {
+        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+        message = applyPrefix(message);
+        return ColorUtils.parseToString(message);
+    }
 
-            if (colorCode != null) {
-                matcher.appendReplacement(result, Matcher.quoteReplacement(colorCode));
-            } else {
-                matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group(0)));
+    /**
+     * Versión avanzada que permite especificar si usar Components o String processing
+     * @param path La ruta del mensaje
+     * @param useComponentReplacement Si usar Component replacement (true) o String replacement (false)
+     * @param replacements Los reemplazos
+     * @return El componente del mensaje
+     */
+    public Component getMessage(String path, boolean useComponentReplacement, Object... replacements) {
+        if (useComponentReplacement) {
+            return getMessage(path, replacements);
+        } else {
+            String[] stringReplacements = new String[replacements.length];
+            for (int i = 0; i < replacements.length; i++) {
+                stringReplacements[i] = replacements[i].toString();
             }
+            return getMessageString(path, stringReplacements);
         }
-        matcher.appendTail(result);
-        return result.toString();
     }
 
     /**
@@ -217,9 +204,9 @@ public class ConfigManager {
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);
         configs.put(fileName, config);
 
-        // Si se recarga colors.yml, actualizar presets
+        // Si se recarga colors.yml, actualizar presets en ColorUtils
         if ("colors".equals(fileName)) {
-            loadColorPresets();
+            ColorUtils.reloadPresets();
         }
     }
 
@@ -229,7 +216,7 @@ public class ConfigManager {
     public void reloadAllConfigs() {
         // Primero recargar colors.yml para actualizar presets
         if (configs.containsKey("colors")) {
-            loadColorPresets();
+            ColorUtils.reloadPresets();
         }
 
         for (String fileName : configs.keySet()) {
@@ -239,32 +226,6 @@ public class ConfigManager {
         if (configs.containsKey("messages")) {
             this.prefix = getConfig("messages").getString("prefix", "");
         }
-    }
-
-    /**
-     * Obtiene un preset de color específico
-     * @param presetName Nombre del preset
-     * @return El código de color del preset, o null si no existe
-     */
-    public String getColorPreset(String presetName) {
-        return colorPresets.get(presetName.toLowerCase());
-    }
-
-    /**
-     * Obtiene todos los presets de colores disponibles
-     * @return Mapa con todos los presets de colores
-     */
-    public Map<String, String> getAllColorPresets() {
-        return new HashMap<>(colorPresets);
-    }
-
-    /**
-     * Aplica presets de colores a un mensaje personalizado (útil para otros usos)
-     * @param message Mensaje con presets {preset_name}
-     * @return Mensaje con presets aplicados
-     */
-    public String applyPresetsToString(String message) {
-        return applyColorPresets(message);
     }
 
     /**

@@ -95,7 +95,7 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         }
 
         String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
-        return executeSubCommand(sender, subCommand, label, subArgs);
+        return executeSubCommand(sender, label, subCommand, subArgs);
     }
 
     @Override

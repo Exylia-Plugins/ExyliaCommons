@@ -1,5 +1,6 @@
 package net.exylia.commons.menu;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -168,10 +169,16 @@ public class MenuBuilder {
             paginationMenu.setNextPageButton(nextButton, nextSlot);
         }
 
-        ConfigurationSection fillerSection = menuSection.getConfigurationSection("filler");
+        ConfigurationSection fillerSection = menuSection.getConfigurationSection("global_filler");
         if (fillerSection != null) {
             MenuItem fillerItem = buildMenuItem(fillerSection, player);
             paginationMenu.setGlobalFiller(fillerItem);
+        }
+
+        ConfigurationSection sectionFillerSection = menuSection.getConfigurationSection("section_filler");
+        if (sectionFillerSection != null) {
+            MenuItem sectionFillerItem = buildMenuItem(sectionFillerSection, player);
+            paginationMenu.setItemSlotsFillerItem(sectionFillerItem);
         }
 
         return paginationMenu;
@@ -264,8 +271,20 @@ public class MenuBuilder {
             menuItem.setName(itemSection.getString("name"));
         }
 
+        // Soporte mejorado para amount con placeholders
         if (itemSection.contains("amount")) {
-            menuItem.setAmount(itemSection.getInt("amount", 1));
+            Object amountValue = itemSection.get("amount");
+
+            if (amountValue instanceof String amountString) {
+                // Si es un string, podría contener placeholders
+                menuItem.setAmount(amountString);
+            } else if (amountValue instanceof Integer) {
+                // Si es un entero directo
+                menuItem.setAmount((Integer) amountValue);
+            } else {
+                // Fallback: convertir a string y tratar como tal
+                menuItem.setAmount(String.valueOf(amountValue));
+            }
         }
 
         if (itemSection.contains("glow")) {

@@ -1,6 +1,7 @@
 package net.exylia.commons.utils;
 
 import net.exylia.commons.config.ConfigManager;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -13,8 +14,8 @@ public class TitleUtils {
         if (!enabled) return;
         String title = section.getString("title");
         String subtitle = section.getString("subtitle");
-        title = ConfigManager.applyColorPresets(title);
-        subtitle = ConfigManager.applyColorPresets(subtitle);
+        title = ColorUtils.applyColorPresets(title);
+        subtitle = ColorUtils.applyColorPresets(subtitle);
         if (title != null) {
             for (int i = 0; i < replacements.length - 1; i += 2) {
                 title = title.replace(replacements[i], replacements[i + 1]);
@@ -36,8 +37,8 @@ public class TitleUtils {
         if (!enabled) return;
         String title = section.getString("title");
         String subtitle = section.getString("subtitle");
-        title = ConfigManager.applyColorPresets(title);
-        subtitle = ConfigManager.applyColorPresets(subtitle);
+        title = ColorUtils.applyColorPresets(title);
+        subtitle = ColorUtils.applyColorPresets(subtitle);
         if (title != null) {
             for (int i = 0; i < replacements.length - 1; i += 2) {
                 title = title.replace(replacements[i], replacements[i + 1]);

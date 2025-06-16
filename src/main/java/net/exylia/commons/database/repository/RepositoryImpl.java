@@ -24,7 +24,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.save(entity);
         } catch (Exception e) {
-            throw new RuntimeException("Error guardando entidad", e);
+            throw new RuntimeException("Error guardando entidad " + e.getMessage(), e);
         }
     }
 

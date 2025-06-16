@@ -34,13 +34,14 @@ import static net.exylia.commons.utils.SkullUtils.*;
  */
 public class MenuItem {
 
-    private final ItemStack itemStack;
+    private ItemStack itemStack;
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
     private Consumer<MenuClickInfo> clickHandler;
     private String menuItemId;
     private String rawName;
     private List<String> rawLore;
     private String rawMaterialString; // Para guardar el material original con placeholders
+    private String rawAmountString; // Para guardar la cantidad original con placeholders
     private Player materialPlaceholderPlayer; // Jugador para procesar placeholders del material
     private boolean usePlaceholders = false;
     private boolean dynamicUpdate = false;
@@ -118,6 +119,40 @@ public class MenuItem {
     }
 
     /**
+     * Procesa los placeholders en el string de cantidad
+     * @param amountString String de cantidad con placeholders
+     * @param player Jugador para procesar los placeholders
+     * @return Cantidad procesada y limitada entre 1 y 64
+     */
+    private int processPlaceholdersInAmount(String amountString, Player player) {
+        if (amountString == null || amountString.isEmpty()) {
+            return 1;
+        }
+
+        String processed = amountString;
+        Player targetPlayer = (placeholderPlayer != null) ? placeholderPlayer : player;
+
+        // Procesar placeholders personalizados usando el nuevo sistema
+        processed = PlaceholderRegistry.process(processed, placeholderContext, targetPlayer);
+
+        // Procesar PlaceholderAPI si está disponible
+        if (isPlaceholderAPIEnabled()) {
+            processed = PlaceholderAPI.setPlaceholders(targetPlayer, processed);
+        }
+
+        // Intentar convertir a número
+        try {
+            int amount = Integer.parseInt(processed.trim());
+            // Limitar entre 1 y 64
+            return Math.max(1, Math.min(64, amount));
+        } catch (NumberFormatException e) {
+            // Si no se puede parsear, devolver 1
+            logWarn("Invalid amount value: " + processed + ", using 1");
+            return 1;
+        }
+    }
+
+    /**
      * Crea un ItemStack basado en un string
      * @param materialString String que puede ser un material o cabeza personalizada
      * @return ItemStack creado
@@ -150,6 +185,12 @@ public class MenuItem {
             logWarn("Invalid material: " + materialString + ", using STONE");
             return new ItemStack(Material.STONE);
         }
+    }
+
+    public MenuItem setMaterial(String materialString) {
+        this.rawMaterialString = materialString;
+        this.itemStack = createItemFromString(materialString);
+        return this;
     }
 
     /**
@@ -244,6 +285,28 @@ public class MenuItem {
      */
     public MenuItem setAmount(int amount) {
         itemStack.setAmount(Math.max(1, Math.min(64, amount)));
+        return this;
+    }
+
+    /**
+     * Establece la cantidad del ítem usando un string (soporta placeholders)
+     * @param amountString String de cantidad (puede contener placeholders como %players_count%)
+     * @return El mismo ítem (para encadenamiento)
+     */
+    public MenuItem setAmount(String amountString) {
+        this.rawAmountString = amountString;
+        if (materialPlaceholderPlayer != null) {
+            int amount = processPlaceholdersInAmount(amountString, materialPlaceholderPlayer);
+            itemStack.setAmount(amount);
+        } else {
+            try {
+                int amount = Integer.parseInt(amountString.trim());
+                itemStack.setAmount(Math.max(1, Math.min(64, amount)));
+            } catch (NumberFormatException e) {
+                itemStack.setAmount(1);
+            }
+        }
+
         return this;
     }
 
@@ -402,6 +465,7 @@ public class MenuItem {
         clone.menuItemId = this.menuItemId + "_clone_" + System.currentTimeMillis(); // ID único para debug
         clone.rawName = this.rawName;
         clone.rawMaterialString = this.rawMaterialString;
+        clone.rawAmountString = this.rawAmountString;
         clone.materialPlaceholderPlayer = this.materialPlaceholderPlayer;
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -597,6 +661,18 @@ public class MenuItem {
     }
 
     /**
+     * Actualiza la cantidad del ítem procesando los placeholders
+     * @param player Jugador para procesar los placeholders
+     */
+    public void updateAmount(Player player) {
+        if (rawAmountString == null) return;
+
+        Player targetPlayer = (placeholderPlayer != null) ? placeholderPlayer : player;
+        int amount = processPlaceholdersInAmount(rawAmountString, targetPlayer);
+        itemStack.setAmount(amount);
+    }
+
+    /**
      * Procesa placeholders en el material y actualiza el ItemStack
      * Útil para cuando se establece el contexto después de crear el item
      */
@@ -682,6 +758,8 @@ public class MenuItem {
         }
 
         itemStack.setItemMeta(meta);
+
+        updateAmount(player);
     }
 
     /**

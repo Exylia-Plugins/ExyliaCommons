@@ -2,7 +2,9 @@ package net.exylia.commons.utils;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 
 public class LocationUtils {
 
@@ -142,5 +144,48 @@ public class LocationUtils {
                 SEPARATOR,
                 location.getZ()
         );
+    }
+
+    public static Location findSafeLocation(Location center, int searchRadius) {
+        World world = center.getWorld();
+        int centerX = center.getBlockX();
+        int centerY = center.getBlockY();
+        int centerZ = center.getBlockZ();
+
+        for (int y = centerY; y <= centerY + searchRadius && y < world.getMaxHeight() - 2; y++) {
+            Location checkLoc = new Location(world, centerX + 0.5, y, centerZ + 0.5);
+            if (isSafeLocation(checkLoc)) {
+                return checkLoc;
+            }
+        }
+
+        for (int y = centerY - 1; y >= centerY - searchRadius && y > world.getMinHeight(); y--) {
+            Location checkLoc = new Location(world, centerX + 0.5, y, centerZ + 0.5);
+            if (isSafeLocation(checkLoc)) {
+                return checkLoc;
+            }
+        }
+
+        return null;
+    }
+
+    public static boolean isSafeLocation(Location loc) {
+        World world = loc.getWorld();
+        int x = loc.getBlockX();
+        int y = loc.getBlockY();
+        int z = loc.getBlockZ();
+
+        Block feet = world.getBlockAt(x, y, z);
+        Block head = world.getBlockAt(x, y + 1, z);
+        Block ground = world.getBlockAt(x, y - 1, z);
+
+        boolean feetSafe = feet.getType().isAir() || !feet.getType().isSolid();
+        boolean headSafe = head.getType().isAir() || !head.getType().isSolid();
+
+        boolean groundSafe = ground.getType().isSolid() &&
+                ground.getType() != Material.LAVA &&
+                !ground.getType().name().contains("PRESSURE_PLATE");
+
+        return feetSafe && headSafe && groundSafe;
     }
 }

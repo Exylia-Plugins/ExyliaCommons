@@ -78,26 +78,18 @@ public class PlayerScoreboard {
             return "";
         }
 
-        // 1. Aplicar colores predefinidos del ConfigManager
-        String processed = configManager.applyPresetsToString(text);
-
-        // 2. Aplicar placeholders custom con contexto usando PlaceholderRegistry
+        String processed = ColorUtils.applyColorPresets(text);
         Object context = getCurrentContext();
         processed = PlaceholderRegistry.process(processed, context, player);
-
-        // 3. Aplicar PlaceholderAPI si está disponible
         if (placeholderAPIEnabled) {
             try {
                 processed = PlaceholderAPI.setPlaceholders(player, processed);
             } catch (Exception e) {
-                // Ignorar errores de PlaceholderAPI
             }
         }
 
         return processed;
     }
-
-    // ... resto del código permanece igual ...
 
     public PlayerScoreboard show() {
         if (visible || !player.isOnline()) return this;

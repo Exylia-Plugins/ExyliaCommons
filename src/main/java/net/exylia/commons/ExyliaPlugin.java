@@ -7,10 +7,8 @@ import net.exylia.commons.menu.MenuActionManager;
 import net.exylia.commons.menu.MenuManager;
 import net.exylia.commons.placeholders.PlaceholderRegistry;
 import net.exylia.commons.redis.RedisIntegration;
-import net.exylia.commons.utils.AdapterFactory;
-import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.ConfirmationManager;
-import net.exylia.commons.utils.OldColorUtils;
+import net.exylia.commons.utils.*;
+import net.exylia.commons.wizard.LocationWizardManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -72,47 +70,30 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     private void initializeExylia() {
-        MenuManager.initialize(this);
-        ItemManager.initialize(this);
-        ConfirmationManager.initialize(this);
-        AdapterFactory.initialize(this);
-        BungeeMessageSender.initialize(this);
-
-        // Inicializar sistema de base de datos
         try {
-            DatabaseManager.initialize(this);
-            logInfo("Sistema de base de datos inicializado correctamente");
+            AdapterFactory.initialize(this);
+//            MenuManager.initialize(this);
+//            ItemManager.initialize(this);
+//            ConfirmationManager.initialize(this);
+//            BungeeMessageSender.initialize(this);
+//            LocationWizardManager.initialize(this);
+//            DatabaseManager.initialize(this);
+//            RedisIntegration.initializeRedis(this);
         } catch (Exception e) {
-            logInfo("Error inicializando sistema de base de datos: " + e.getMessage());
+            logInfo("Error inicializando un sistema: " + e.getMessage());
         }
-
-        // Integración automática de Redis
-        if (getConfig().getBoolean("redis.auto-initialize", true)) {
-            try {
-                RedisIntegration.initializeRedis(this);
-            } catch (Exception e) {
-                logInfo("Redis no se pudo inicializar automáticamente (esto es normal si no está configurado): " + e.getMessage());
-            }
-        }
-
         checkOptionalDependencies();
         logInfo("Núcleo Exylia inicializado correctamente");
     }
 
     private void checkOptionalDependencies() {
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            logInfo("PlaceholderAPI detectado. Soporte de placeholders activado en menús.");
+            logInfo("PlaceholderAPI detectado.");
         }
-
-        // Verificar si Redis está disponible
         try {
             Class.forName("redis.clients.jedis.Jedis");
-            logInfo("Jedis detectado. Soporte de Redis disponible.");
-        } catch (ClassNotFoundException e) {
-            logInfo("Jedis no encontrado. Funciones de Redis no estarán disponibles.");
+        } catch (ClassNotFoundException ignored) {
         }
-
-        // Verificar drivers de base de datos
         checkDatabaseDrivers();
     }
 
@@ -120,45 +101,32 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         // Verificar H2
         try {
             Class.forName("org.h2.Driver");
-            logInfo("Driver H2 detectado. Soporte de base de datos H2 disponible.");
-        } catch (ClassNotFoundException e) {
-            logInfo("Driver H2 no encontrado.");
+        } catch (ClassNotFoundException ignored) {
         }
 
         // Verificar MySQL
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            logInfo("Driver MySQL detectado. Soporte de MySQL/MariaDB disponible.");
         } catch (ClassNotFoundException e) {
             try {
                 Class.forName("com.mysql.jdbc.Driver");
-                logInfo("Driver MySQL legacy detectado. Soporte de MySQL/MariaDB disponible.");
-            } catch (ClassNotFoundException ex) {
-                logInfo("Driver MySQL no encontrado.");
+            } catch (ClassNotFoundException ignored) {
             }
         }
 
-        // Verificar MongoDB
         try {
             Class.forName("com.mongodb.client.MongoClient");
-            logInfo("Driver MongoDB detectado. Soporte de MongoDB disponible.");
-        } catch (ClassNotFoundException e) {
-            logInfo("Driver MongoDB no encontrado.");
+        } catch (ClassNotFoundException ignored) {
         }
 
-        // Verificar HikariCP
         try {
             Class.forName("com.zaxxer.hikari.HikariDataSource");
-            logInfo("HikariCP detectado. Pool de conexiones optimizado disponible.");
-        } catch (ClassNotFoundException e) {
-            logInfo("HikariCP no encontrado. Se recomienda para mejor rendimiento con MySQL.");
+        } catch (ClassNotFoundException ignored) {
         }
     }
 
     private void shutdownExylia() {
         logInfo("Limpiando recursos globales de Exylia");
-
-        // Cerrar base de datos
         try {
             if (DatabaseManager.getInstance() != null) {
                 DatabaseManager.getInstance().shutdown();
@@ -166,10 +134,14 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         } catch (Exception e) {
             logInfo("Error cerrando sistema de base de datos: " + e.getMessage());
         }
-
-        // Cerrar Redis si fue inicializado automáticamente
+        try {
+            if (LocationWizardManager.getInstance() != null) {
+                LocationWizardManager.getInstance().cleanup();
+            }
+        } catch (Exception e) {
+            logInfo("Error limpiando wizards: " + e.getMessage());
+        }
         RedisIntegration.shutdownRedis();
-
         ColorUtils.shutdown();
         OldColorUtils.shutdown();
         AdapterFactory.close();
