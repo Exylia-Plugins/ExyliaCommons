@@ -151,7 +151,13 @@ public class PaginationMenu extends Menu {
             }
         }
 
+        // Actualizar el título
         super.title = net.exylia.commons.utils.ColorUtils.parse(newTitle);
+
+        // Si el inventario ya está abierto, reabrirlo con el nuevo título
+        if (super.inventory != null && super.viewer != null) {
+            reopenWithNewTitle(player);
+        }
     }
 
     private void buildPage(Player player, int page, int maxPages) {
@@ -477,5 +483,22 @@ public class PaginationMenu extends Menu {
     public PaginationMenu setBorderFiller(MenuItem borderItem) {
         super.setBorderFiller(borderItem);
         return this;
+    }
+
+    private void reopenWithNewTitle(Player player) {
+        org.bukkit.inventory.Inventory newInventory = super.inventoryAdapter.createInventory(super.size, super.title);
+
+        // Copiar todos los items actuales al nuevo inventario
+        for (int i = 0; i < super.size; i++) {
+            if (super.inventory.getItem(i) != null) {
+                newInventory.setItem(i, super.inventory.getItem(i));
+            }
+        }
+
+        // Actualizar la referencia del inventario
+        super.inventory = newInventory;
+
+        // Reabrir el inventario para el jugador
+        player.openInventory(super.inventory);
     }
 }
