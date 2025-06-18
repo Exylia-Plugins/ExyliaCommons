@@ -5,7 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
-import org.bukkit.Bukkit;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.lang.reflect.Field;
@@ -278,7 +278,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 String columnName = column.name().isEmpty() ? field.getName() : column.name();
                 String sqlType = getMySQLType(field.getType(), column);
-                Bukkit.getLogger().info("Usando: " + sqlType + " para " + columnName);
+                DebugUtils.logInfo("Usando: " + sqlType + " para " + columnName);
 
                 sql.append("`").append(columnName).append("` ").append(sqlType);
 

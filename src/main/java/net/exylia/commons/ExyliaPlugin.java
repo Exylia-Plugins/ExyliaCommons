@@ -3,6 +3,7 @@ package net.exylia.commons;
 import net.exylia.commons.command.BungeeMessageSender;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.item.ItemManager;
+import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.menu.MenuActionManager;
 import net.exylia.commons.menu.MenuManager;
 import net.exylia.commons.placeholders.PlaceholderRegistry;
@@ -79,6 +80,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 //            LocationWizardManager.initialize(this);
 //            DatabaseManager.initialize(this);
 //            RedisIntegration.initializeRedis(this);
+//            CooldownManager.initialize(this);
         } catch (Exception e) {
             logInfo("Error inicializando un sistema: " + e.getMessage());
         }

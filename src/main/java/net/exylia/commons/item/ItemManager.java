@@ -2,6 +2,7 @@ package net.exylia.commons.item;
 
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.SoundUtils;
 import net.exylia.commons.utils.ParticleUtils;
 import net.exylia.commons.utils.FireworkUtils;
@@ -15,6 +16,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -38,6 +40,7 @@ import java.util.function.BiConsumer;
  * - Integración con efectos de sonido, partículas y fuegos artificiales
  * - Mejor rendimiento y flexibilidad
  * - Soporte para items movibles en inventario
+ * - Fix para items "user" que no deben activarse al moverlos desde inventarios
  */
 public class ItemManager implements Listener {
     private static JavaPlugin plugin;
@@ -60,9 +63,6 @@ public class ItemManager implements Listener {
         plugin = javaPlugin;
         itemIdKey = new NamespacedKey(plugin, "interactive_item_id");
         Bukkit.getPluginManager().registerEvents(new ItemManager(), plugin);
-
-        // Inicializar sistema de cooldown
-        CooldownManager.initialize(plugin);
 
         startClickTimeCleanupTask();
         initialized = true;
@@ -167,7 +167,7 @@ public class ItemManager implements Listener {
     public static InteractiveItem createItem(String id) {
         ItemConfiguration config = getItemConfiguration(id);
         if (config == null) {
-            Bukkit.getLogger().warning("No configuration found for item ID: " + id);
+            DebugUtils.logWarn("No configuration found for item ID: " + id);
             return null;
         }
         return new InteractiveItem(id, config);
@@ -183,7 +183,7 @@ public class ItemManager implements Listener {
     public static InteractiveItem createItem(String id, Player player) {
         ItemConfiguration config = getItemConfiguration(id);
         if (config == null) {
-            Bukkit.getLogger().warning("No configuration found for item ID: " + id);
+            DebugUtils.logWarn("No configuration found for item ID: " + id);
             return null;
         }
         return new InteractiveItem(id, config, player);
@@ -249,7 +249,7 @@ public class ItemManager implements Listener {
         // Buscar configuración en memoria
         ItemConfiguration config = getItemConfiguration(itemId);
         if (config == null) {
-            Bukkit.getLogger().warning("Configuration not found for item ID: " + itemId + ". Item may be outdated.");
+            DebugUtils.logWarn("Configuration not found for item ID: " + itemId + ". Item may be outdated.");
             return null;
         }
 
@@ -325,82 +325,21 @@ public class ItemManager implements Listener {
      * @param config Configuración del ítem
      */
     private static void executeItemEffects(Player player, Location location, ItemConfiguration config) {
-        // Ejecutar sonido
         if (config.hasSound()) {
             SoundUtils.playSound(player, config.getSoundOnUse());
         }
 
-        // Ejecutar partículas
         if (config.hasParticles()) {
             ParticleUtils.spawnParticles(location, config.getParticlesOnUse());
         }
 
-        // Ejecutar fuegos artificiales
         if (config.hasFirework()) {
             if (config.shouldLaunchFireworkOnUse()) {
-                // Fuego artificial aleatorio
                 FireworkUtils.launchRandomFirework(location.clone().add(0, 1, 0));
             } else if (config.getFireworkOnUse() != null && !config.getFireworkOnUse().trim().isEmpty()) {
-                // Fuego artificial configurado
                 FireworkUtils.launchFirework(location.clone().add(0, 1, 0), config.getFireworkOnUse());
             }
         }
-    }
-
-    // ===== UTILIDADES =====
-
-    /**
-     * Obtiene estadísticas del sistema
-     */
-    public static String getStats() {
-        String cooldownStats = CooldownManager.isInitialized() ?
-                CooldownManager.getInstance().getStats() : "Cooldown system disabled";
-
-        int itemsWithEffects = (int) itemConfigurations.values().stream()
-                .mapToLong(config -> config.hasEffects() ? 1 : 0)
-                .sum();
-
-        return String.format(
-                "Registered configurations: %d, Items with effects: %d, Click times tracked: %d players, %s",
-                itemConfigurations.size(),
-                itemsWithEffects,
-                lastClickTime.size(),
-                cooldownStats
-        );
-    }
-
-    /**
-     * Valida que todas las configuraciones registradas sean válidas
-     */
-    public static void validateConfigurations() {
-        itemConfigurations.forEach((id, config) -> {
-            if (config.getMaterial() == null || config.getMaterial().isEmpty()) {
-                Bukkit.getLogger().warning("Item configuration '" + id + "' has invalid material");
-            }
-            if (config.getMaxUses() == 0) {
-                Bukkit.getLogger().warning("Item configuration '" + id + "' has 0 max uses (will be unusable)");
-            }
-            if (config.getCooldownSeconds() < 0) {
-                Bukkit.getLogger().warning("Item configuration '" + id + "' has negative cooldown");
-            }
-
-            // Validar configuración de efectos
-            if (config.hasSound()) {
-                // Podrías agregar validación específica para sonidos aquí
-                String sound = config.getSoundOnUse();
-                if (sound != null && !sound.contains("|")) {
-                    Bukkit.getLogger().info("Item '" + id + "' has simple sound format: " + sound);
-                }
-            }
-
-            if (config.hasParticles()) {
-                // Podrías agregar validación específica para partículas aquí
-                String particles = config.getParticlesOnUse();
-                if (particles != null && !particles.contains("|")) {
-                    Bukkit.getLogger().info("Item '" + id + "' has simple particle format: " + particles);
-                }
-            }
-        });
     }
 
     // ===== EVENTOS =====
@@ -476,7 +415,16 @@ public class ItemManager implements Listener {
         InteractiveItem interactiveItem = getItemFromStack(clickedItem);
         if (interactiveItem == null) return;
 
+        // VERIFICACIÓN TEMPRANA: En modo creativo, NUNCA activar items desde inventario
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE &&
+                event.getClickedInventory() == player.getInventory()) {
+            // En creativo, permitir movimiento normal sin activar
+            return;
+        }
+
+        // NUEVO: Verificar si es un clic de movimiento ANTES de verificar cooldown
         if (isMovementClick(event, interactiveItem.getConfiguration())) {
+            // Es un movimiento permitido, no activar el item
             return;
         }
 
@@ -533,58 +481,76 @@ public class ItemManager implements Listener {
 
     /**
      * Determina si un clic en inventario es para mover el item o para usarlo
+     * Mejor detección para items de tipo "user" y modo creativo
+     *
      * @param event Evento de clic en inventario
      * @param config Configuración del item para verificar permisos
      * @return true si es un clic de movimiento, false si es de uso
      */
     private boolean isMovementClick(InventoryClickEvent event, ItemConfiguration config) {
+        Player player = (Player) event.getWhoClicked();
         ClickType click = event.getClick();
 
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+            return true;
+        }
         if (!config.allowsMovement()) {
             return false;
         }
+        switch (click) {
+            case SHIFT_LEFT, SHIFT_RIGHT:
+                return config.allowsShiftClick();
+            case NUMBER_KEY:
+                return config.allowsNumberKeys();
+            case DROP, CONTROL_DROP:
+                return config.allowsDrop();
+            case SWAP_OFFHAND:
+                return config.allowsSwapToOffhand();
+            case DOUBLE_CLICK:
+                return config.allowsMovement();
+            case MIDDLE:
+                return config.allowsMovement() &&
+                        player.getGameMode() == org.bukkit.GameMode.CREATIVE;
+        }
+        if (click == ClickType.LEFT || click == ClickType.RIGHT) {
+            return isPickupOrPlaceClick(event, config);
+        }
 
-        return switch (click) {
-            case SHIFT_LEFT, SHIFT_RIGHT -> config.allowsShiftClick();
-            case NUMBER_KEY -> config.allowsNumberKeys();
-            case DROP, CONTROL_DROP -> config.allowsDrop();
-            case SWAP_OFFHAND -> config.allowsSwapToOffhand();
-            case LEFT, RIGHT -> config.allowsMovement() && isPickupOrPlaceClick(event);
-            case MIDDLE -> config.allowsMovement() &&
-                    event.getWhoClicked().getGameMode() == org.bukkit.GameMode.CREATIVE;
-            case DOUBLE_CLICK -> config.allowsMovement();
-            default -> false;
-        };
+        return false;
     }
 
     /**
      * Determina si un LEFT/RIGHT click es para recoger/colocar items
+     * Items "user" solo se activan desde su propio inventario, nunca en GUIs
+     *
      * @param event Evento de clic
+     * @param config Configuración del item
      * @return true si es movimiento, false si es uso
      */
-    private boolean isPickupOrPlaceClick(InventoryClickEvent event) {
+    private boolean isPickupOrPlaceClick(InventoryClickEvent event, ItemConfiguration config) {
         ItemStack cursor = event.getCursor();
         ItemStack clicked = event.getCurrentItem();
 
-        // Si el cursor tiene un item, probablemente está colocando/intercambiando
         if (cursor != null && !cursor.getType().isAir()) {
             return true;
         }
 
-        // Si hace clic en un slot vacío, no es uso de item
         if (clicked == null || clicked.getType().isAir()) {
             return true;
         }
 
-        // Si está en el inventario del jugador (no en una GUI personalizada),
-        // LEFT/RIGHT normalmente son para recoger
-        if (event.getClickedInventory() == event.getWhoClicked().getInventory()) {
-            // Permitir el movimiento si está en el inventario principal
+        if (event.getClickedInventory() != event.getWhoClicked().getInventory()) {
             return true;
         }
 
-        // Si está en una GUI personalizada, LEFT/RIGHT probablemente son para usar
-        return false;
+        Player player = (Player) event.getWhoClicked();
+        int slot = event.getSlot();
+
+        if (player.getGameMode() == org.bukkit.GameMode.CREATIVE) {
+            return true;
+        }
+
+        return config.allowsMovement();
     }
 
     /**
