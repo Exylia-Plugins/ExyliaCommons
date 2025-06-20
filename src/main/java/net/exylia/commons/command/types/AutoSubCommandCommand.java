@@ -94,8 +94,15 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
             return true;
         }
 
-        String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
-        return executeSubCommand(sender, label, subCommand, subArgs);
+        SubCommandContext context = new SubCommandContext(
+                sender,
+                subCommand,
+                label,
+                Arrays.copyOfRange(args, 1, args.length), 
+                args
+        );
+
+        return executeSubCommand(context);
     }
 
     @Override
@@ -112,7 +119,15 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
                 return super.onTabComplete(sender, command, alias, args);
             }
 
-            return tabCompleteSubCommand(sender, subCommand, subArgs);
+            SubCommandContext context = new SubCommandContext(
+                    sender,
+                    subCommand,
+                    alias,
+                    subArgs,
+                    args
+            );
+
+            return tabCompleteSubCommand(context);
         }
 
         return super.onTabComplete(sender, command, alias, args);
@@ -167,10 +182,9 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         sender.sendMessage("");
     }
 
-    // Métodos abstractos que deben implementar las subclases
     protected abstract String getSubCommandPermission(String subCommand);
-    protected abstract boolean executeSubCommand(CommandSender sender, String label, String subCommand, String[] args);
-    protected abstract List<String> tabCompleteSubCommand(CommandSender sender, String subCommand, String[] args);
+    protected abstract boolean executeSubCommand(SubCommandContext context);
+    protected abstract List<String> tabCompleteSubCommand(SubCommandContext context);
 
     protected SubCommandInfo getSubCommandInfo(String subCommand) {
         return subCommandInfoMap.get(subCommand.toLowerCase());
@@ -178,5 +192,33 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
 
     protected Collection<SubCommandInfo> getAllSubCommands() {
         return subCommandInfoMap.values();
+    }
+
+    public static class SubCommandContext {
+        private final CommandSender sender;
+        private final String subCommand;
+        private final String label;
+        private final String[] subArgs;
+        private final String[] fullArgs;
+
+        public SubCommandContext(CommandSender sender, String subCommand, String label, String[] subArgs, String[] fullArgs) {
+            this.sender = sender;
+            this.subCommand = subCommand;
+            this.label = label;
+            this.subArgs = subArgs;
+            this.fullArgs = fullArgs;
+        }
+
+        public CommandSender getSender() { return sender; }
+        public String getSubCommand() { return subCommand; }
+        public String getLabel() { return label; }
+        public String[] getSubArgs() { return subArgs; }
+        public String[] getFullArgs() { return fullArgs; }
+
+        // Métodos de conveniencia
+        public Player getPlayer() { return sender instanceof Player ? (Player) sender : null; }
+        public boolean isPlayer() { return sender instanceof Player; }
+        public int getSubArgsLength() { return subArgs.length; }
+        public String getSubArg(int index) { return index < subArgs.length ? subArgs[index] : null; }
     }
 }
