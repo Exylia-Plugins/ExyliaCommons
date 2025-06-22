@@ -89,28 +89,16 @@ public class ActionContext {
         return slot != null ? slot : -1;
     }
 
-    /**
-     * Verifica si el clic fue con botón izquierdo
-     * @return true si fue con botón izquierdo
-     */
     public boolean isLeftClick() {
         ClickType clickType = getClickType();
         return clickType == ClickType.LEFT || clickType == ClickType.SHIFT_LEFT;
     }
 
-    /**
-     * Verifica si el clic fue con botón derecho
-     * @return true si fue con botón derecho
-     */
     public boolean isRightClick() {
         ClickType clickType = getClickType();
         return clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT;
     }
 
-    /**
-     * Verifica si el clic fue con shift
-     * @return true si fue con shift
-     */
     public boolean isShiftClick() {
         ClickType clickType = getClickType();
         return clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT;

@@ -16,6 +16,8 @@ public class TimeFormatter {
     private Format defaultFormat = Format.HUMAN_READABLE;
     private boolean showZeroValues = false;
     private boolean showMilliseconds = false;
+    private String minValueText = null;
+    private double minThreshold = 0.0;
 
     // Constructores
     public TimeFormatter() {}
@@ -37,6 +39,37 @@ public class TimeFormatter {
 
     public TimeFormatter showMilliseconds(boolean show) {
         this.showMilliseconds = show;
+        return this;
+    }
+
+    /**
+     * Establece el texto a mostrar cuando el tiempo es menor o igual al umbral mínimo
+     * @param text Texto a mostrar (ej: "AHORA", "Recién", "0s")
+     * @param threshold Umbral en segundos (por defecto 0.0)
+     * @return this para encadenamiento fluido
+     */
+    public TimeFormatter whenMin(String text, double threshold) {
+        this.minValueText = text;
+        this.minThreshold = threshold;
+        return this;
+    }
+
+    /**
+     * Establece el texto a mostrar cuando el tiempo es 0
+     * @param text Texto a mostrar (ej: "AHORA", "Recién", "0s")
+     * @return this para encadenamiento fluido
+     */
+    public TimeFormatter whenMin(String text) {
+        return whenMin(text, 0.0);
+    }
+
+    /**
+     * Limpia la configuración de valor mínimo
+     * @return this para encadenamiento fluido
+     */
+    public TimeFormatter clearMin() {
+        this.minValueText = null;
+        this.minThreshold = 0.0;
         return this;
     }
 
@@ -62,6 +95,11 @@ public class TimeFormatter {
     }
 
     public String format(double timeInSeconds, Format format) {
+        // Verificar si debe mostrar el texto de valor mínimo
+        if (minValueText != null && timeInSeconds <= minThreshold) {
+            return minValueText;
+        }
+
         switch (format) {
             case HUMAN_READABLE:
                 return formatHumanReadable(timeInSeconds);
@@ -174,5 +212,30 @@ public class TimeFormatter {
 
     public static String quickApproximate(double seconds) {
         return new TimeFormatter().format(seconds, Format.APPROXIMATE);
+    }
+
+    // Métodos utilitarios estáticos con valor mínimo
+    public static String quickFormatWithMin(long seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds);
+    }
+
+    public static String quickFormatWithMin(int seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds);
+    }
+
+    public static String quickFormatWithMin(double seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds);
+    }
+
+    public static String quickDigitalWithMin(long seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
+    }
+
+    public static String quickDigitalWithMin(int seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
+    }
+
+    public static String quickDigitalWithMin(double seconds, String minText) {
+        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
     }
 }

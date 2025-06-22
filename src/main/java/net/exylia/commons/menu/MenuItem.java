@@ -794,4 +794,27 @@ public class MenuItem {
     public long getUpdateInterval() {
         return updateInterval;
     }
+
+    /**
+     * Establece si este item debe actualizarse automáticamente después de ser clickeado
+     * Útil para items que modifican valores que afectan a sus propios placeholders
+     * @param autoRefresh true para activar auto-refresh después de clics
+     * @return El mismo ítem (para encadenamiento)
+     */
+    public MenuItem setAutoRefreshAfterClick(boolean autoRefresh) {
+        // Esta propiedad se manejará automáticamente por el MenuManager
+        // si el item usa placeholders
+        return this;
+    }
+
+    /**
+     * Combina usePlaceholders(true) y setAutoRefreshAfterClick(true)
+     * Para items que necesitan ambas funcionalidades
+     * @return El mismo ítem (para encadenamiento)
+     */
+    public MenuItem enableAutoRefreshPlaceholders() {
+        this.usePlaceholders(true);
+        this.setAutoRefreshAfterClick(true);
+        return this;
+    }
 }

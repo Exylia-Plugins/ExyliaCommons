@@ -87,6 +87,17 @@ public class MenuBuilder {
     }
 
     /**
+     * Crea un menú paginado a partir de una sección de configuración
+     * @param menuSection Sección de configuración del menú
+     * @param player Jugador para el que se crea el menú
+     * @param itemSlots Posiciones donde colocar los ítems paginados
+     * @return Menú paginado creado o null si no existe la configuración
+     */
+    public PaginationMenu buildPaginationMenu(ConfigurationSection menuSection, Player player, String itemSlots) {
+        return buildPaginationMenuFromSection(menuSection, player, itemSlots);
+    }
+
+    /**
      * Implementación interna para crear un menú desde cualquier tipo de configuración
      */
     private Menu buildMenuFromSection(ConfigurationSection menuSection, Player player) {
@@ -143,11 +154,16 @@ public class MenuBuilder {
     /**
      * Implementación interna para crear un menú paginado desde cualquier tipo de configuración
      */
-    private PaginationMenu buildPaginationMenuFromSection(ConfigurationSection menuSection, Player player, int... itemSlots) {
+    private PaginationMenu buildPaginationMenuFromSection(ConfigurationSection menuSection, Player player, Object itemSlots) {
         String title = menuSection.getString("title", "Menu");
         int rows = menuSection.getInt("rows", 6);
 
-        PaginationMenu paginationMenu = new PaginationMenu(title, rows, itemSlots);
+        PaginationMenu paginationMenu;
+        if (itemSlots instanceof String) {
+            paginationMenu = new PaginationMenu(title, rows, (String) itemSlots);
+        } else {
+            paginationMenu = new PaginationMenu(title, rows, (int[]) itemSlots);
+        }
 
         ConfigurationSection prevSection = menuSection.getConfigurationSection("prev_button");
         if (prevSection != null) {
@@ -323,5 +339,4 @@ public class MenuBuilder {
             }
         }
     }
-
 }

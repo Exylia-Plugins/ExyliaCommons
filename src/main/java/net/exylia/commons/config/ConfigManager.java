@@ -61,33 +61,30 @@ public class ConfigManager {
      * @return El componente del mensaje personalizado
      */
     public Component getMessage(String path, Object... replacements) {
-        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+        String message = this.getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+        message = this.applyPrefix(message);
 
-        // Aplicar prefix antes de convertir a Component
-        message = applyPrefix(message);
+        // Primero hacer reemplazos de String en el texto crudo
+        for(int i = 0; i < replacements.length - 1; i += 2) {
+            Object value = replacements[i + 1];
+            if (!(value instanceof Component)) {
+                String placeholder = replacements[i].toString();
+                message = message.replace(placeholder, value.toString());
+            }
+        }
 
-        // Convertir el mensaje base a Component
         Component component = ColorUtils.parse(message);
 
-        // Aplicar replacements usando TextReplacementConfig
-        for (int i = 0; i < replacements.length - 1; i += 2) {
-            String placeholder = replacements[i].toString();
+        // Luego aplicar reemplazos de Component
+        for(int i = 0; i < replacements.length - 1; i += 2) {
             Object value = replacements[i + 1];
-
-            Component replacement;
             if (value instanceof Component) {
-                replacement = (Component) value;
-            } else {
-                // Si es String u otro objeto, parsearlo con ColorUtils
-                replacement = ColorUtils.parse(value.toString());
+                String placeholder = replacements[i].toString();
+                component = component.replaceText(TextReplacementConfig.builder()
+                        .match(placeholder)
+                        .replacement((Component) value)
+                        .build());
             }
-
-            component = component.replaceText(
-                    TextReplacementConfig.builder()
-                            .match(placeholder)
-                            .replacement(replacement)
-                            .build()
-            );
         }
 
         return component;

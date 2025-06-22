@@ -3,6 +3,8 @@ package net.exylia.commons.menu;
 import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -18,7 +20,7 @@ public class ToggleItemBuilder {
     private Player player;
     private Runnable onUpdate;
     private Supplier<Boolean> condition;
-    private String denyMessage;
+    private List<String> denyMessages;
 
     public ToggleItemBuilder(String name) {
         this.name = name;
@@ -55,7 +57,12 @@ public class ToggleItemBuilder {
     }
 
     public ToggleItemBuilder denyMessage(String denyMessage) {
-        this.denyMessage = denyMessage;
+        this.denyMessages = List.of(denyMessage);
+        return this;
+    }
+
+    public ToggleItemBuilder denyMessages(List<String> denyMessages) {
+        this.denyMessages = new ArrayList<>(denyMessages);
         return this;
     }
 
@@ -66,8 +73,10 @@ public class ToggleItemBuilder {
         item.setClickHandler(clickInfo -> {
             // Verificar condición antes de permitir el toggle
             if (condition != null && !condition.get()) {
-                if (player != null && denyMessage != null) {
-                    MessageUtils.sendMessageAsync(player, COLOR_ERROR + denyMessage);
+                if (player != null && denyMessages != null && !denyMessages.isEmpty()) {
+                    for (String message : denyMessages) {
+                        MessageUtils.sendMessageAsync(player, COLOR_ERROR + message);
+                    }
                 }
                 return; // No hacer nada si la condición no se cumple
             }
@@ -113,12 +122,21 @@ public class ToggleItemBuilder {
                     COLOR_SECONDARY + "Click to " + (currentValue ? "disable" : "enable")
             );
         } else {
-            item.setLore(
-                    "Status: " + (currentValue ? COLOR_SUCCESS + "Enabled" : COLOR_ERROR + "Disabled"),
-                    "",
-                    COLOR_ERROR + (denyMessage != null ? denyMessage : "Cannot toggle this item"),
-                    COLOR_SECONDARY + "Condition not met"
-            );
+            List<String> loreLines = new ArrayList<>();
+            loreLines.add("Status: " + (currentValue ? COLOR_SUCCESS + "Enabled" : COLOR_ERROR + "Disabled"));
+            loreLines.add("");
+
+            if (denyMessages != null && !denyMessages.isEmpty()) {
+                for (String message : denyMessages) {
+                    loreLines.add(COLOR_ERROR + message);
+                }
+            } else {
+                loreLines.add(COLOR_ERROR + "Cannot toggle this item");
+            }
+
+            loreLines.add(COLOR_SECONDARY + "Condition not met");
+
+            item.setLore(loreLines.toArray(new String[0]));
         }
     }
 }

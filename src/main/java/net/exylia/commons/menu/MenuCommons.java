@@ -23,11 +23,11 @@ public class MenuCommons {
      * @param title Título del menú
      * @param confirmAction Acción a ejecutar si confirma
      * @param cancelAction Acción a ejecutar si cancela (opcional)
-     * @param returnMenu Menú al que volver después de la acción (opcional)
+     * @param returnAction Acción para volver al menú anterior (opcional)
      * @return Menú de confirmación configurado
      */
     public static Menu createConfirmationMenu(String title, Consumer<Player> confirmAction,
-                                              Consumer<Player> cancelAction, Menu returnMenu) {
+                                              Consumer<Player> cancelAction, Consumer<Player> returnAction) {
         Menu menu = new Menu(title, 3);
 
         // Botón de confirmar (verde)
@@ -46,10 +46,10 @@ public class MenuCommons {
                         confirmAction.accept(player);
                     }
 
-                    if (returnMenu != null) {
+                    if (returnAction != null) {
                         // Volver al menú después de un pequeño delay
                         MenuManager.getPlugin().getServer().getScheduler()
-                                .runTaskLater(MenuManager.getPlugin(), () -> returnMenu.open(player), 3L);
+                                .runTaskLater(MenuManager.getPlugin(), () -> returnAction.accept(player), 3L);
                     }
                 });
 
@@ -69,10 +69,10 @@ public class MenuCommons {
                         cancelAction.accept(player);
                     }
 
-                    if (returnMenu != null) {
+                    if (returnAction != null) {
                         // Volver al menú inmediatamente
                         MenuManager.getPlugin().getServer().getScheduler()
-                                .runTaskLater(MenuManager.getPlugin(), () -> returnMenu.open(player), 1L);
+                                .runTaskLater(MenuManager.getPlugin(), () -> returnAction.accept(player), 1L);
                     }
                 });
 
@@ -95,14 +95,14 @@ public class MenuCommons {
      * @param message Mensaje a mostrar en el centro
      * @param confirmAction Acción a ejecutar si confirma
      * @param cancelAction Acción a ejecutar si cancela (opcional)
-     * @param returnMenu Menú al que volver después de la acción (opcional)
+     * @param returnAction Acción para volver al menú anterior (opcional)
      * @return Menú de confirmación configurado
      */
     public static Menu createConfirmationMenuWithMessage(String title, String message,
                                                          Consumer<Player> confirmAction,
                                                          Consumer<Player> cancelAction,
-                                                         Menu returnMenu) {
-        Menu menu = createConfirmationMenu(title, confirmAction, cancelAction, returnMenu);
+                                                         Consumer<Player> returnAction) {
+        Menu menu = createConfirmationMenu(title, confirmAction, cancelAction, returnAction);
 
         // Item informativo en el centro
         MenuItem messageItem = new MenuItem("PAPER")
@@ -123,11 +123,11 @@ public class MenuCommons {
      * @param title Título del menú
      * @param itemToDelete Nombre del item a eliminar
      * @param deleteAction Acción a ejecutar si confirma la eliminación
-     * @param returnMenu Menú al que volver después de la acción
+     * @param returnAction Acción para volver al menú anterior
      * @return Menú de confirmación de eliminación
      */
     public static Menu createDeleteConfirmationMenu(String title, String itemToDelete,
-                                                    Consumer<Player> deleteAction, Menu returnMenu) {
+                                                    Consumer<Player> deleteAction, Consumer<Player> returnAction) {
         return createConfirmationMenuWithMessage(
                 title,
                 "¿Estás seguro de que quieres eliminar " + itemToDelete + "?|Esta acción no se puede deshacer.",
@@ -140,7 +140,7 @@ public class MenuCommons {
                 player -> {
                     MessageUtils.sendMessageAsync(player, COLOR_INFO + "Eliminación cancelada.");
                 },
-                returnMenu
+                returnAction
         );
     }
 
@@ -150,10 +150,10 @@ public class MenuCommons {
      * Crea un item de eliminación estándar
      * @param itemName Nombre del item a eliminar
      * @param deleteAction Acción a ejecutar al confirmar eliminación
-     * @param returnMenu Menú actual para volver después de la confirmación
+     * @param returnAction Acción para volver al menú después de la confirmación
      * @return Item de eliminación configurado
      */
-    public static MenuItem createDeleteItem(String itemName, Consumer<Player> deleteAction, Menu returnMenu) {
+    public static MenuItem createDeleteItem(String itemName, Consumer<Player> deleteAction, Consumer<Player> returnAction) {
         return new MenuItem(TEXTURE_DELETE)
                 .setName(COLOR_ERROR + "🗑 Eliminar " + itemName)
                 .setLore(
@@ -168,7 +168,7 @@ public class MenuCommons {
                             "Confirmar Eliminación",
                             itemName,
                             deleteAction,
-                            returnMenu
+                            returnAction
                     );
                     confirmMenu.open(clickInfo.player());
                 });
@@ -178,13 +178,13 @@ public class MenuCommons {
      * Crea un item de eliminación con condición
      * @param itemName Nombre del item a eliminar
      * @param deleteAction Acción a ejecutar al confirmar eliminación
-     * @param returnMenu Menú actual para volver después de la confirmación
+     * @param returnAction Acción para volver al menú después de la confirmación
      * @param canDeleteCheck Función que determina si se puede eliminar
      * @param denyMessage Mensaje si no se puede eliminar
      * @return Item de eliminación configurado
      */
     public static MenuItem createConditionalDeleteItem(String itemName, Consumer<Player> deleteAction,
-                                                       Menu returnMenu, Supplier<Boolean> canDeleteCheck,
+                                                       Consumer<Player> returnAction, Supplier<Boolean> canDeleteCheck,
                                                        String denyMessage) {
         return new MenuItem(TEXTURE_DELETE)
                 .setName(COLOR_ERROR + "🗑 Eliminar " + itemName)
@@ -206,7 +206,7 @@ public class MenuCommons {
                             "Confirmar Eliminación",
                             itemName,
                             deleteAction,
-                            returnMenu
+                            returnAction
                     );
                     confirmMenu.open(clickInfo.player());
                 });
@@ -268,10 +268,10 @@ public class MenuCommons {
 
     /**
      * Crea un item de cancelar/descartar cambios
-     * @param returnMenu Menú al que volver
+     * @param returnAction Acción para volver al menú anterior
      * @return Item de cancelar configurado
      */
-    public static MenuItem createCancelItem(Menu returnMenu) {
+    public static MenuItem createCancelItem(Consumer<Player> returnAction) {
         return new MenuItem(TEXTURE_CANCEL)
                 .setName(COLOR_ERROR + "✗ Cancelar")
                 .setLore(
@@ -281,10 +281,10 @@ public class MenuCommons {
                 .hideAllAttributes()
                 .setClickHandler(clickInfo -> {
                     MessageUtils.sendMessageAsync(clickInfo.player(), COLOR_INFO + "Cambios descartados.");
-                    if (returnMenu != null) {
+                    if (returnAction != null) {
                         clickInfo.player().closeInventory();
                         MenuManager.getPlugin().getServer().getScheduler()
-                                .runTaskLater(MenuManager.getPlugin(), () -> returnMenu.open(clickInfo.player()), 1L);
+                                .runTaskLater(MenuManager.getPlugin(), () -> returnAction.accept(clickInfo.player()), 1L);
                     } else {
                         clickInfo.player().closeInventory();
                     }
@@ -293,17 +293,17 @@ public class MenuCommons {
 
     /**
      * Crea un item de volver/regresar
-     * @param returnMenu Menú al que volver
+     * @param returnAction Acción para volver al menú anterior
      * @return Item de volver configurado
      */
-    public static MenuItem createBackItem(Menu returnMenu) {
+    public static MenuItem createBackItem(Consumer<Player> returnAction) {
         return new MenuItem(TEXTURE_BACK)
                 .setName(COLOR_ERROR + "↓ Volver")
                 .setLore(COLOR_LETTERS + "Haz clic para volver")
                 .hideAllAttributes()
                 .setClickHandler(clickInfo -> {
-                    if (returnMenu != null) {
-                        returnMenu.open(clickInfo.player());
+                    if (returnAction != null) {
+                        returnAction.accept(clickInfo.player());
                     } else {
                         clickInfo.player().closeInventory();
                     }
@@ -381,11 +381,11 @@ public class MenuCommons {
      * @param title Título del menú
      * @param options Lista de opciones a mostrar
      * @param onSelect Callback cuando se selecciona una opción (recibe el índice)
-     * @param returnMenu Menú al que volver después de seleccionar
+     * @param returnAction Acción para volver al menú anterior después de seleccionar
      * @return Menú de selección configurado
      */
     public static Menu createSelectionMenu(String title, List<String> options,
-                                           Consumer<Integer> onSelect, Menu returnMenu) {
+                                           Consumer<Integer> onSelect, Consumer<Player> returnAction) {
         int rows = Math.min(6, Math.max(3, (int) Math.ceil((double) options.size() / 7) + 2));
         Menu menu = new Menu(title, rows);
 
@@ -408,9 +408,9 @@ public class MenuCommons {
                             onSelect.accept(index);
                         }
                         clickInfo.player().closeInventory();
-                        if (returnMenu != null) {
+                        if (returnAction != null) {
                             MenuManager.getPlugin().getServer().getScheduler()
-                                    .runTaskLater(MenuManager.getPlugin(), () -> returnMenu.open(clickInfo.player()), 1L);
+                                    .runTaskLater(MenuManager.getPlugin(), () -> returnAction.accept(clickInfo.player()), 1L);
                         }
                     });
 
@@ -423,9 +423,9 @@ public class MenuCommons {
             }
         }
 
-        // Botón de volver si hay menú de retorno
-        if (returnMenu != null) {
-            menu.setItem(rows * 9 - 5, createBackItem(returnMenu));
+        // Botón de volver si hay acción de retorno
+        if (returnAction != null) {
+            menu.setItem(rows * 9 - 5, createBackItem(returnAction));
         }
 
         return menu;

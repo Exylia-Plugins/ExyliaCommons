@@ -1,11 +1,6 @@
 package net.exylia.commons;
 
-import net.exylia.commons.command.BungeeMessageSender;
 import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.item.ItemManager;
-import net.exylia.commons.item.cooldown.CooldownManager;
-import net.exylia.commons.menu.MenuActionManager;
-import net.exylia.commons.menu.MenuManager;
 import net.exylia.commons.placeholders.PlaceholderRegistry;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
@@ -148,7 +143,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         OldColorUtils.shutdown();
         AdapterFactory.close();
         PlaceholderRegistry.clear();
-        MenuActionManager.unregisterPluginActions(this);
     }
 
     /**

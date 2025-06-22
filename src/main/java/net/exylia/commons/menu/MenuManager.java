@@ -14,7 +14,7 @@ import java.util.*;
 
 /**
  * Sistema de gestión de menús interactivos para plugins de Exylia
- * Ahora con soporte para menús editables
+ * Ahora con soporte para menús editables y actualización automática de placeholders
  */
 public class MenuManager implements Listener {
     private static JavaPlugin plugin;
@@ -72,17 +72,61 @@ public class MenuManager implements Listener {
             if (!actionExecuted && !item.getCommands().isEmpty()) {
                 Bukkit.getScheduler().runTask(plugin, () -> {
                     item.executeCommands(player);
+                    // Actualizar item después de ejecutar comandos si usa placeholders
+                    scheduleItemPlaceholderUpdate(menu, event.getSlot(), item, player);
                 });
+            } else if (actionExecuted) {
+                // Si se ejecutó una acción, programar actualización de placeholders
+                scheduleItemPlaceholderUpdate(menu, event.getSlot(), item, player);
             }
 
             // 3. Ejecutar el handler de clic si está definido (siempre se ejecuta)
             if (item.getClickHandler() != null) {
                 try {
                     item.getClickHandler().accept(clickInfo);
+                    scheduleItemPlaceholderUpdate(menu, event.getSlot(), item, player);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
+        }
+    }
+
+    /**
+     * Programa la actualización de placeholders de un item después de una acción
+     */
+    private void scheduleItemPlaceholderUpdate(Menu menu, int slot, MenuItem item, Player player) {
+        if (item.usesPlaceholders()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                updateItemPlaceholders(menu, slot, item, player);
+            }, 1L);
+        }
+    }
+
+    /**
+     * Actualiza los placeholders de un item específico
+     */
+    private void updateItemPlaceholders(Menu menu, int slot, MenuItem item, Player player) {
+        try {
+            if (menu.getViewer() != player || !player.isOnline()) {
+                return;
+            }
+
+            MenuItem updatedItem = item.clone();
+            updatedItem.updatePlaceholders(player);
+
+            if (menu instanceof PaginationMenu paginationMenu) {
+                paginationMenu.updateCurrentPageItemInPlace(slot, updatedItem);
+            } else if (menu instanceof EditableMenu editableMenu) {
+                if (!editableMenu.isSlotEditable(slot)) {
+                    menu.updateItemInPlace(slot, updatedItem);
+                }
+            } else {
+                menu.updateItemInPlace(slot, updatedItem);
+            }
+
+        } catch (Exception e) {
+            // e.printStackTrace();
         }
     }
 
@@ -117,12 +161,19 @@ public class MenuManager implements Listener {
                 if (!actionExecuted && !item.getCommands().isEmpty()) {
                     Bukkit.getScheduler().runTask(plugin, () -> {
                         item.executeCommands(player);
+                        // Actualizar item después de ejecutar comandos si usa placeholders
+                        scheduleItemPlaceholderUpdate(editableMenu, slot, item, player);
                     });
+                } else if (actionExecuted) {
+                    // Si se ejecutó una acción, programar actualización de placeholders
+                    scheduleItemPlaceholderUpdate(editableMenu, slot, item, player);
                 }
 
                 if (item.getClickHandler() != null) {
                     try {
                         item.getClickHandler().accept(clickInfo);
+                        // Actualizar item después del click handler si usa placeholders
+                        scheduleItemPlaceholderUpdate(editableMenu, slot, item, player);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -140,6 +191,70 @@ public class MenuManager implements Listener {
         // Cualquier otro caso, cancelar por seguridad
         else {
             event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Actualiza todos los items con placeholders de un menú específico
+     * Útil para actualizaciones masivas después de cambios importantes
+     */
+    public static void refreshMenuPlaceholders(Player player) {
+        Menu menu = openMenus.get(player.getUniqueId());
+        if (menu == null || menu.getViewer() != player) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            try {
+                // Obtener todos los items que usan placeholders
+                Map<Integer, MenuItem> itemsToUpdate = new HashMap<>();
+
+                for (Map.Entry<Integer, MenuItem> entry : menu.getItems().entrySet()) {
+                    MenuItem item = entry.getValue();
+                    if (item != null && item.usesPlaceholders()) {
+                        MenuItem updatedItem = item.clone();
+                        updatedItem.updatePlaceholders(player);
+                        itemsToUpdate.put(entry.getKey(), updatedItem);
+                    }
+                }
+
+                // Actualizar todos los items de una vez
+                if (!itemsToUpdate.isEmpty()) {
+                    menu.updateItemsInPlace(itemsToUpdate);
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }, 1L);
+    }
+
+    /**
+     * Actualiza un item específico con placeholders por su slot
+     * Útil para actualizaciones específicas desde acciones externas
+     */
+    public static void refreshItemPlaceholders(Player player, int slot) {
+        Menu menu = openMenus.get(player.getUniqueId());
+        if (menu == null || menu.getViewer() != player) {
+            return;
+        }
+
+        MenuItem item = menu.getItem(slot);
+        if (item != null && item.usesPlaceholders()) {
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                try {
+                    MenuItem updatedItem = item.clone();
+                    updatedItem.updatePlaceholders(player);
+
+                    if (menu instanceof PaginationMenu paginationMenu) {
+                        paginationMenu.updateCurrentPageItemInPlace(slot, updatedItem);
+                    } else {
+                        menu.updateItemInPlace(slot, updatedItem);
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, 1L);
         }
     }
 
@@ -436,5 +551,14 @@ public class MenuManager implements Listener {
      */
     public static boolean hasEditableMenuOpen(Player player) {
         return openEditableMenus.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * Obtiene el menú actualmente abierto por un jugador
+     * @param player Jugador
+     * @return Menú abierto o null si no tiene uno abierto
+     */
+    public static Menu getOpenMenu(Player player) {
+        return openMenus.get(player.getUniqueId());
     }
 }
