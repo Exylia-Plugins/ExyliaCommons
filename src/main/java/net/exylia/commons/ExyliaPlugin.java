@@ -68,6 +68,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     private void initializeExylia() {
         try {
             AdapterFactory.initialize(this);
+            ActionBarUtils.init(this);
+            BossbarUtils.init(this);
+            TitleUtils.init(this);
 //            MenuManager.initialize(this);
 //            ItemManager.initialize(this);
 //            ConfirmationManager.initialize(this);
