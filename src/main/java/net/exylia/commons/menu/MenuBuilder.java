@@ -165,6 +165,7 @@ public class MenuBuilder {
             paginationMenu = new PaginationMenu(title, rows, (int[]) itemSlots);
         }
 
+        // Configurar botón de página anterior
         ConfigurationSection prevSection = menuSection.getConfigurationSection("prev_button");
         if (prevSection != null) {
             MenuItem prevButton = buildMenuItem(prevSection, player);
@@ -175,6 +176,7 @@ public class MenuBuilder {
             paginationMenu.setPreviousPageButton(prevButton, prevSlot);
         }
 
+        // Configurar botón de página siguiente
         ConfigurationSection nextSection = menuSection.getConfigurationSection("next_button");
         if (nextSection != null) {
             MenuItem nextButton = buildMenuItem(nextSection, player);
@@ -185,16 +187,39 @@ public class MenuBuilder {
             paginationMenu.setNextPageButton(nextButton, nextSlot);
         }
 
+        // Configurar filler global
         ConfigurationSection fillerSection = menuSection.getConfigurationSection("global_filler");
         if (fillerSection != null) {
             MenuItem fillerItem = buildMenuItem(fillerSection, player);
             paginationMenu.setGlobalFiller(fillerItem);
         }
 
+        // Configurar filler de sección
         ConfigurationSection sectionFillerSection = menuSection.getConfigurationSection("section_filler");
         if (sectionFillerSection != null) {
             MenuItem sectionFillerItem = buildMenuItem(sectionFillerSection, player);
             paginationMenu.setItemSlotsFillerItem(sectionFillerItem);
+        }
+
+        // NUEVA FUNCIONALIDAD: Cargar items normales (no paginados)
+        ConfigurationSection itemsSection = menuSection.getConfigurationSection("items");
+        if (itemsSection != null) {
+            for (String itemKey : itemsSection.getKeys(false)) {
+                ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
+                if (itemSection != null) {
+                    MenuItem menuItem = buildMenuItem(itemSection, player);
+
+                    // Obtener los slots para este ítem
+                    List<Integer> slots = getItemSlots(itemSection, rows);
+
+                    // Colocar el ítem en todos los slots especificados usando setItem (no paginados)
+                    for (int slot : slots) {
+                        if (slot >= 0 && slot < rows * 9) {
+                            paginationMenu.setItem(slot, menuItem);
+                        }
+                    }
+                }
+            }
         }
 
         return paginationMenu;
