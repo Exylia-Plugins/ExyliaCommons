@@ -1,6 +1,7 @@
 package net.exylia.commons;
 
 import net.exylia.commons.database.DatabaseManager;
+import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderRegistry;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
@@ -12,13 +13,20 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.HashSet;
 import java.util.Set;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.*;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
     private static boolean initialized = false;
     private static final Set<ExyliaPlugin> registeredPlugins = new HashSet<>();
     private BukkitAudiences adventure;
     private static ExyliaPlugin instance;
+
+    private LicenseManager licenseManager;
+    private final boolean requiresLicense;
+
+    protected ExyliaPlugin(boolean requiresLicense) {
+        this.requiresLicense = requiresLicense;
+    }
 
     @Override
     public final void onEnable() {
@@ -31,8 +39,18 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             initialized = true;
         }
 
-        onExyliaEnable();
-        logInfo("Plugin Exylia habilitado correctamente: " + getDescription().getName());
+        licenseManager = new LicenseManager(this, requiresLicense);
+        licenseManager.initializeAndVerify()
+                .thenRun(() -> {
+                    Bukkit.getScheduler().runTask(this, this::enablePlugin);
+                })
+                .exceptionally(throwable -> {
+                    Bukkit.getScheduler().runTask(this, () -> {
+                        logError("License verification failed: " + throwable.getMessage());
+                        getServer().getPluginManager().disablePlugin(this);
+                    });
+                    return null;
+                });
     }
 
     @Override
@@ -54,15 +72,31 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         logInfo("Plugin Exylia deshabilitado: " + getDescription().getName());
     }
 
+    private void enablePlugin() {
+        try {
+            onExyliaEnable();
+            logSuccess("Plugin Exylia habilitado correctamente: " + getDescription().getName());
+        } catch (Exception e) {
+            logError("Error habilitando plugin: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+        }
+    }
+
+    protected final boolean shouldOperate() {
+        return licenseManager != null && licenseManager.isVerified();
+    }
+
+    protected final void requireLicense(String feature) {
+        if (licenseManager == null || !licenseManager.isVerified()) {
+            throw new SecurityException("La función '" + feature + "' requiere una licencia válida");
+        }
+    }
+
     public BukkitAudiences adventure() {
         if (this.adventure == null) {
             throw new IllegalStateException("Attempted to access Adventure when the plugin was disabled!");
         }
         return this.adventure;
-    }
-
-    public BukkitAudiences getAudience() {
-        return adventure();
     }
 
     private void initializeExylia() {
@@ -71,14 +105,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             ActionBarUtils.init(this);
             BossbarUtils.init(this);
             TitleUtils.init(this);
-//            MenuManager.initialize(this);
-//            ItemManager.initialize(this);
-//            ConfirmationManager.initialize(this);
-//            BungeeMessageSender.initialize(this);
-//            LocationWizardManager.initialize(this);
-//            DatabaseManager.initialize(this);
-//            RedisIntegration.initializeRedis(this);
-//            CooldownManager.initialize(this);
         } catch (Exception e) {
             logInfo("Error inicializando un sistema: " + e.getMessage());
         }
@@ -98,13 +124,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     private void checkDatabaseDrivers() {
-        // Verificar H2
         try {
             Class.forName("org.h2.Driver");
         } catch (ClassNotFoundException ignored) {
         }
 
-        // Verificar MySQL
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
         } catch (ClassNotFoundException e) {
@@ -148,12 +172,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         PlaceholderRegistry.clear();
     }
 
-    /**
-     * Obtiene la instancia de un plugin Exylia registrado por su clase.
-     *
-     * @param pluginClass La clase del plugin que se desea obtener
-     * @return La instancia del plugin o null si no está registrado
-     */
     @SuppressWarnings("unchecked")
     public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
         for (ExyliaPlugin plugin : registeredPlugins) {
@@ -170,35 +188,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     public static boolean isPlaceholderAPIEnabled() {
         return Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
-    }
-
-    /**
-     * Verifica si Redis está disponible y funcionando
-     */
-    public static boolean isRedisAvailable() {
-        try {
-            return net.exylia.commons.redis.RedisManager.isAvailable();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Verifica si el sistema de base de datos está disponible
-     */
-    public static boolean isDatabaseAvailable() {
-        try {
-            return DatabaseManager.getInstance() != null && DatabaseManager.getInstance().isConnected();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Obtiene el manager de base de datos
-     */
-    public static DatabaseManager getDatabaseManager() {
-        return DatabaseManager.getInstance();
     }
 
     protected abstract void onExyliaEnable();

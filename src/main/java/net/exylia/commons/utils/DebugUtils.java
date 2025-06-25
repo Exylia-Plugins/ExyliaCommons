@@ -65,6 +65,14 @@ public class DebugUtils {
     }
 
     /**
+     * Registra un mensaje informativo
+     * @param message Mensaje informativo
+     */
+    public static void logSuccess(String message){
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#8fffc1>[SUCCESS] " + message)));
+    }
+
+    /**
      * Registra un mensaje con el prefijo actual
      * @param message Mensaje a registrar
      */

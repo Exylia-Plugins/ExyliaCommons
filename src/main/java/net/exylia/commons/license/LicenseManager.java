@@ -1,0 +1,302 @@
+package net.exylia.commons.license;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.Bukkit;
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.concurrent.CompletableFuture;
+
+public class LicenseManager {
+    private static final String LICENSE_API_URL = "https://license-api.exylia.net/api/licenses/verify/";
+    private static final String USER_AGENT = "MinecraftPlugin/1.0";
+
+    private final ExyliaPlugin plugin;
+    private final boolean isRequired;
+    private LicenseConfig licenseConfig;
+    private String licenseKey;
+    private boolean isVerified = false;
+    private boolean isValidating = false;
+
+    public LicenseManager(ExyliaPlugin plugin, boolean isRequired) {
+        this.plugin = plugin;
+        this.isRequired = isRequired;
+    }
+
+    public CompletableFuture<Void> initializeAndVerify() {
+        if (!isRequired) {
+            isVerified = true;
+            DebugUtils.logSuccess("This plugin is free. No license required.");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (!initializeLicense()) {
+            return CompletableFuture.failedFuture(
+                    new RuntimeException("Error initializing license system")
+            );
+        }
+
+        return verifyLicense().thenCompose(result -> {
+            if (result.isValid()) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return CompletableFuture.failedFuture(
+                        new RuntimeException("License verification failed: " + result.getMessage())
+                );
+            }
+        });
+    }
+
+    private boolean initializeLicense() {
+        try {
+            licenseConfig = new LicenseConfig(plugin);
+            licenseKey = licenseConfig.getLicenseKey();
+
+            if (licenseKey == null || licenseKey.trim().isEmpty()) {
+                DebugUtils.logError("LICENSE REQUIRED - CONFIG REQUIRED");
+                DebugUtils.logError("This plugin requires a license key.");
+                DebugUtils.logError("Configure your license key in plugins/" + plugin.getName() + "/license.yml");
+                DebugUtils.logError("Join our Discord for help: https://discord.exylia.net/");
+                return false;
+            }
+
+            DebugUtils.logInfo("License system initialized for: " + plugin.getName());
+            return true;
+        } catch (Exception e) {
+            DebugUtils.logError("Error inicializando sistema de licencias: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private CompletableFuture<LicenseResult> verifyLicense() {
+        if (isValidating) {
+            return CompletableFuture.completedFuture(
+                    new LicenseResult(false, "Validación ya en progreso", LicenseResult.ErrorType.VALIDATION_IN_PROGRESS)
+            );
+        }
+
+        if (!isRequired) {
+            // Plugin gratuito - siempre válido
+            isVerified = true;
+            return CompletableFuture.completedFuture(
+                    new LicenseResult(true, "Plugin gratuito - no requiere licencia", LicenseResult.ErrorType.NONE)
+            );
+        }
+
+        if (licenseKey == null || licenseKey.trim().isEmpty()) {
+            return CompletableFuture.completedFuture(
+                    new LicenseResult(false, "Licencia requerida pero no configurada", LicenseResult.ErrorType.MISSING_LICENSE)
+            );
+        }
+
+        isValidating = true;
+        DebugUtils.logInfo("Verifying license: " + maskLicenseKey(licenseKey));
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                LicenseResult result = performLicenseVerification();
+                handleLicenseResult(result);
+                return result;
+            } catch (Exception e) {
+                DebugUtils.logError("Error verificando licencia: " + e.getMessage());
+                return new LicenseResult(false, "Error interno: " + e.getMessage(), LicenseResult.ErrorType.CONNECTION_ERROR);
+            } finally {
+                isValidating = false;
+            }
+        });
+    }
+
+    private void handleLicenseResult(LicenseResult result) {
+        if (result.isValid()) {
+            isVerified = true;
+            DebugUtils.logSuccess("Licencia válida para " + plugin.getName());
+        } else {
+            isVerified = false;
+            DebugUtils.logError("❌ LICENCIA INVÁLIDA para " + plugin.getName());
+            DebugUtils.logError("🚫 Razón: " + result.getMessage());
+
+            switch (result.getErrorType()) {
+                case INVALID_LICENSE:
+                    DebugUtils.logError("Your license key is invalid or has expired.");
+                    DebugUtils.logError("Join our Discord server to get a new license key. https://discord.exylia.net/");
+                    break;
+                case CONNECTION_ERROR:
+                    DebugUtils.logError("Error with the connection to the license server.");
+                    DebugUtils.logError("Check your internet connection and try again.");
+                    break;
+                case SERVER_ERROR:
+                    DebugUtils.logError("Error in the license server.");
+                    DebugUtils.logError("Please try again later or contact the support team. https://discord.exylia.net/");
+                    break;
+                default:
+                    DebugUtils.logError("Unknown error type: " + result.getErrorType());
+                    break;
+            }
+
+            DebugUtils.logError("Plugin will be disabled due to invalid license.");
+        }
+    }
+
+    private String maskLicenseKey(String key) {
+        if (key == null || key.length() < 10) {
+            return "***";
+        }
+        return key.substring(0, 5) + "-*****-*****-*****-" + key.substring(key.length() - 5);
+    }
+
+    private LicenseResult performLicenseVerification() {
+        try {
+            // Generar HWID del servidor
+            String serverHWID = generateServerHWID();
+            String serverIP = getServerIP();
+
+            // Crear payload JSON
+            JsonObject payload = new JsonObject();
+            payload.addProperty("key", licenseKey);
+            payload.addProperty("hwid", serverHWID);
+            payload.addProperty("plugin_version", plugin.getDescription().getVersion());
+            payload.addProperty("server_name", Bukkit.getServer().getName());
+            payload.addProperty("minecraft_version", Bukkit.getVersion());
+
+            // Realizar petición HTTP
+            HttpURLConnection connection = createConnection();
+            sendPayload(connection, payload.toString());
+
+            int responseCode = connection.getResponseCode();
+            String responseBody = readResponse(connection);
+
+            DebugUtils.logInfo("Respuesta del servidor de licencias: " + responseCode);
+
+            // Procesar respuesta
+            if (responseCode == 200) {
+                JsonObject response = new Gson().fromJson(responseBody, JsonObject.class);
+                boolean valid = response.get("valid").getAsBoolean();
+                String message = response.get("message").getAsString();
+
+                if (valid) {
+                    DebugUtils.logSuccess("Licencia verificada exitosamente para " + plugin.getName());
+                    return new LicenseResult(true, message, LicenseResult.ErrorType.NONE);
+                } else {
+                    DebugUtils.logError("Licencia inválida para " + plugin.getName() + ": " + message);
+                    return new LicenseResult(false, message, LicenseResult.ErrorType.INVALID_LICENSE);
+                }
+            } else {
+                String errorMsg = "Error del servidor: " + responseCode + " - " + responseBody;
+                DebugUtils.logError(errorMsg);
+                return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
+            }
+
+        } catch (IOException e) {
+            String errorMsg = "Error de conexión con servidor de licencias: " + e.getMessage();
+            DebugUtils.logError(errorMsg);
+            return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.CONNECTION_ERROR);
+        } catch (Exception e) {
+            String errorMsg = "Error inesperado: " + e.getMessage();
+            DebugUtils.logError(errorMsg);
+            return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.UNEXPECTED_ERROR);
+        }
+    }
+
+    private HttpURLConnection createConnection() throws IOException {
+        URL url = new URL(LICENSE_API_URL);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("User-Agent", USER_AGENT);
+        connection.setDoOutput(true);
+        connection.setConnectTimeout(10000);
+        connection.setReadTimeout(15000);
+
+        return connection;
+    }
+
+    private void sendPayload(HttpURLConnection connection, String payload) throws IOException {
+        try (OutputStream os = connection.getOutputStream()) {
+            byte[] input = payload.getBytes(StandardCharsets.UTF_8);
+            os.write(input, 0, input.length);
+        }
+    }
+
+    private String readResponse(HttpURLConnection connection) throws IOException {
+        InputStream inputStream = connection.getResponseCode() >= 400
+                ? connection.getErrorStream()
+                : connection.getInputStream();
+
+        if (inputStream == null) {
+            return "";
+        }
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            return response.toString();
+        }
+    }
+
+    private String generateServerHWID() {
+        try {
+            String hwid = System.getProperty("os.name", "unknown") +
+                    System.getProperty("os.arch", "unknown") +
+                    System.getProperty("os.version", "unknown") +
+                    System.getProperty("java.version", "unknown") +
+                    System.getProperty("java.vendor", "unknown") +
+                    Bukkit.getVersion() +
+                    Bukkit.getBukkitVersion() +
+                    plugin.getDataFolder().getAbsolutePath();
+
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(hwid.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) {
+                    hexString.append('0');
+                }
+                hexString.append(hex);
+            }
+
+            return hexString.toString().toUpperCase();
+
+        } catch (Exception e) {
+            DebugUtils.logError("Error generando HWID: " + e.getMessage());
+            // Fallback HWID
+            return "FALLBACK-" + plugin.getName().hashCode();
+        }
+    }
+
+    private String getServerIP() {
+        try {
+            return Bukkit.getIp().isEmpty() ? "localhost" : Bukkit.getIp();
+        } catch (Exception e) {
+            return "unknown";
+        }
+    }
+
+    public boolean isVerified() {
+        return isVerified;
+    }
+
+    public boolean isRequired() {
+        return isRequired;
+    }
+
+    public boolean isValidating() {
+        return isValidating;
+    }
+
+    public LicenseConfig getLicenseConfig() {
+        return licenseConfig;
+    }
+}
