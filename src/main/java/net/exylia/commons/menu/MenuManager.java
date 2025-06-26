@@ -16,6 +16,7 @@ import java.util.*;
  * Sistema de gestión de menús interactivos para plugins de Exylia
  * Ahora con soporte para menús editables y actualización automática de placeholders
  */
+@Deprecated
 public class MenuManager implements Listener {
     private static JavaPlugin plugin;
     private static final Map<UUID, Menu> openMenus = new HashMap<>();

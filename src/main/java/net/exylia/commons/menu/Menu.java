@@ -21,6 +21,7 @@ import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
 /**
  * Sistema de menús optimizado con cache y operaciones asíncronas
  */
+@Deprecated
 public class Menu {
 
     // Cache estático para inventarios reutilizables

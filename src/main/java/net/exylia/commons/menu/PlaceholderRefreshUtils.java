@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 /**
  * Utilidades para refrescar placeholders en menús desde acciones externas
  */
+@Deprecated
 public class PlaceholderRefreshUtils {
 
     /**

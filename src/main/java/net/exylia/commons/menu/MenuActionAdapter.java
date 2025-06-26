@@ -7,6 +7,7 @@ import net.exylia.commons.actions.GlobalActionManager;
 /**
  * Adaptador para integrar el sistema de menús con el sistema global de acciones
  */
+@Deprecated
 public class MenuActionAdapter {
 
     /**

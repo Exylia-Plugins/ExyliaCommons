@@ -12,6 +12,7 @@ import static net.exylia.commons.utils.PredefinedColors.*;
 import static net.exylia.commons.utils.PredefinedHeads.TEXTURE_DISABLE;
 import static net.exylia.commons.utils.PredefinedHeads.TEXTURE_ENABLE;
 
+@Deprecated
 public class ToggleItemBuilder {
     private String name;
     private String material;

@@ -9,6 +9,7 @@ import java.util.function.Function;
 /**
  * Información sobre un clic en un ítem de menú
  */
+@Deprecated
 public record MenuClickInfo(Player player, ClickType clickType, int slot, Menu menu, MenuItem item) {
     /**
      * Constructor de la información de clic

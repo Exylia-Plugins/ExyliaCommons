@@ -10,6 +10,7 @@ import java.util.function.Supplier;
 
 import static net.exylia.commons.utils.PredefinedColors.*;
 
+@Deprecated
 public class NumericItemBuilder {
     private String name;
     private String material;

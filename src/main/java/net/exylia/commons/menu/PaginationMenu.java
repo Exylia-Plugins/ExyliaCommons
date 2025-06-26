@@ -14,6 +14,7 @@ import java.util.function.Function;
 import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
 import static net.exylia.commons.utils.MenuUtils.parseSlots;
 
+@Deprecated
 public class PaginationMenu extends Menu {
 
     // Datos de paginación

@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 /**
  * Menú que permite editar items arrastrándolos desde el inventario del jugador
  */
+@Deprecated
 public class EditableMenu extends Menu {
 
     private final Set<Integer> editableSlots = new HashSet<>();

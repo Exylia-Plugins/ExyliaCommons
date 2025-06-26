@@ -32,6 +32,7 @@ import static net.exylia.commons.utils.SkullUtils.*;
 /**
  * Representa un ítem interactivo en un menú
  */
+@Deprecated
 public class MenuItem {
 
     private ItemStack itemStack;

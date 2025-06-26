@@ -7,6 +7,7 @@ import java.util.function.Function;
 /**
  * Gestor de placeholders personalizados para menús
  */
+@Deprecated
 public class CustomPlaceholderManager {
 
     private static final Map<String, Function<Object, String>> placeholders = new HashMap<>();

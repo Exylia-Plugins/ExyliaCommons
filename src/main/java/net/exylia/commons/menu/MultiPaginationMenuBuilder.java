@@ -13,6 +13,7 @@ import static net.exylia.commons.menu.MenuBuilder.buildMenuItem;
 /**
  * Constructor para menús multi-paginados desde configuración
  */
+@Deprecated
 public class MultiPaginationMenuBuilder {
 
     private final JavaPlugin plugin;

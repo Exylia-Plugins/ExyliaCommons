@@ -14,6 +14,7 @@ import static net.exylia.commons.utils.PredefinedHeads.*;
 /**
  * Utilidades estáticas para crear menús y items comunes del sistema
  */
+@Deprecated
 public class MenuCommons {
 
     // ==================== MENÚS DE CONFIRMACIÓN ====================

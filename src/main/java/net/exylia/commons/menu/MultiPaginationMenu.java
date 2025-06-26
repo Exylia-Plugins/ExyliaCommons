@@ -13,6 +13,7 @@ import java.util.function.Consumer;
 /**
  * Menú optimizado con múltiples secciones paginables independientes
  */
+@Deprecated
 public class MultiPaginationMenu extends Menu {
 
     /**
