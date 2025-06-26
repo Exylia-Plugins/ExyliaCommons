@@ -46,10 +46,10 @@ public class MenuBuilder {
      * Crea un menú a partir de la configuración con soporte para placeholders personalizados
      * @param menuConfig Configuración del menú (FileConfiguration)
      * @param player Jugador para el que se crea el menú
-     * @param placeholderContext Objeto de contexto para placeholders personalizados
+     * @param placeholderContext Objeto de contexto para placeholders personalizados (puede ser un array)
      * @return Menú creado o null si no existe la configuración
      */
-    public Menu buildMenu(FileConfiguration menuConfig, Player player, Object placeholderContext) {
+    public Menu buildMenu(FileConfiguration menuConfig, Player player, Object... placeholderContext) {
         return buildMenuFromSection(menuConfig, player, placeholderContext);
     }
 
@@ -57,33 +57,11 @@ public class MenuBuilder {
      * Crea un menú a partir de una sección de configuración con soporte para placeholders personalizados
      * @param menuSection Sección de configuración del menú
      * @param player Jugador para el que se crea el menú
-     * @param placeholderContext Objeto de contexto para placeholders personalizados
+     * @param placeholderContext Objeto de contexto para placeholders personalizados (puede ser un array)
      * @return Menú creado o null si no existe la configuración
      */
-    public Menu buildMenu(ConfigurationSection menuSection, Player player, Object placeholderContext) {
+    public Menu buildMenu(ConfigurationSection menuSection, Player player, Object... placeholderContext) {
         return buildMenuFromSection(menuSection, player, placeholderContext);
-    }
-
-    /**
-     * Crea un menú paginado a partir de la configuración
-     * @param menuConfig Configuración del menú (FileConfiguration)
-     * @param player Jugador para el que se crea el menú
-     * @param itemSlots Posiciones donde colocar los ítems paginados
-     * @return Menú paginado creado o null si no existe la configuración
-     */
-    public PaginationMenu buildPaginationMenu(FileConfiguration menuConfig, Player player, int... itemSlots) {
-        return buildPaginationMenuFromSection(menuConfig, player, itemSlots);
-    }
-
-    /**
-     * Crea un menú paginado a partir de una sección de configuración
-     * @param menuSection Sección de configuración del menú
-     * @param player Jugador para el que se crea el menú
-     * @param itemSlots Posiciones donde colocar los ítems paginados
-     * @return Menú paginado creado o null si no existe la configuración
-     */
-    public PaginationMenu buildPaginationMenu(ConfigurationSection menuSection, Player player, int... itemSlots) {
-        return buildPaginationMenuFromSection(menuSection, player, itemSlots);
     }
 
     /**
@@ -95,6 +73,17 @@ public class MenuBuilder {
      */
     public PaginationMenu buildPaginationMenu(ConfigurationSection menuSection, Player player, String itemSlots) {
         return buildPaginationMenuFromSection(menuSection, player, itemSlots);
+    }
+
+    /**
+     * Crea un menú paginado a partir de una sección de configuración
+     * @param menuSection Sección de configuración del menú
+     * @param player Jugador para el que se crea el menú
+     * @param itemSlots Posiciones donde colocar los ítems paginados
+     * @return Menú paginado creado o null si no existe la configuración
+     */
+    public PaginationMenu buildPaginationMenu(ConfigurationSection menuSection, Player player, String itemSlots, Object... placeholderContext) {
+        return buildPaginationMenuFromSection(menuSection, player, itemSlots, placeholderContext);
     }
 
     /**
@@ -128,17 +117,33 @@ public class MenuBuilder {
         // Cargar ítems
         ConfigurationSection itemsSection = menuSection.getConfigurationSection("items");
         if (itemsSection != null) {
+            System.out.println("=== PROCESANDO SECCIÓN ITEMS (MENU NORMAL) ===");
+            System.out.println("Contexto disponible: " + (placeholderContext != null ? placeholderContext.getClass().getSimpleName() : "null"));
+
             for (String itemKey : itemsSection.getKeys(false)) {
                 ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
                 if (itemSection != null) {
-                    MenuItem menuItem = placeholderContext != null
-                            ? buildMenuItem(itemSection, player, placeholderContext)
-                            : buildMenuItem(itemSection, player);
+                    System.out.println("Procesando item: " + itemKey);
 
-                    // Obtener los slots para este ítem
+                    MenuItem menuItem;
+                    if (placeholderContext != null) {
+                        if (placeholderContext instanceof Object[] contexts) {
+                            Object[] allContexts = new Object[contexts.length + 1];
+                            allContexts[0] = player;
+                            System.arraycopy(contexts, 0, allContexts, 1, contexts.length);
+                            System.out.println("Creando item con " + allContexts.length + " contextos expandidos");
+                            menuItem = buildMenuItem(itemSection, allContexts);
+                        } else {
+                            System.out.println("Creando item con contexto único");
+                            menuItem = buildMenuItem(itemSection, player, placeholderContext);
+                        }
+                    } else {
+                        System.out.println("Creando item solo con player");
+                        menuItem = buildMenuItem(itemSection, player);
+                    }
+
                     List<Integer> slots = getItemSlots(itemSection, rows);
 
-                    // Colocar el ítem en todos los slots especificados
                     for (int slot : slots) {
                         if (slot >= 0 && slot < rows * 9) {
                             menu.setItem(slot, menuItem);
@@ -146,6 +151,7 @@ public class MenuBuilder {
                     }
                 }
             }
+            System.out.println("=== FIN SECCIÓN ITEMS (MENU NORMAL) ===");
         }
 
         return menu;
@@ -154,7 +160,7 @@ public class MenuBuilder {
     /**
      * Implementación interna para crear un menú paginado desde cualquier tipo de configuración
      */
-    private PaginationMenu buildPaginationMenuFromSection(ConfigurationSection menuSection, Player player, Object itemSlots) {
+    private PaginationMenu buildPaginationMenuFromSection(ConfigurationSection menuSection, Player player, Object itemSlots, Object... placeholderContext) {
         String title = menuSection.getString("title", "Menu");
         int rows = menuSection.getInt("rows", 6);
 
@@ -201,18 +207,37 @@ public class MenuBuilder {
             paginationMenu.setItemSlotsFillerItem(sectionFillerItem);
         }
 
-        // NUEVA FUNCIONALIDAD: Cargar items normales (no paginados)
         ConfigurationSection itemsSection = menuSection.getConfigurationSection("items");
         if (itemsSection != null) {
+            System.out.println("=== PROCESANDO SECCIÓN ITEMS ===");
+            System.out.println("Contextos disponibles: " + (placeholderContext != null ? placeholderContext.length : 0));
+            if (placeholderContext != null) {
+                for (int i = 0; i < placeholderContext.length; i++) {
+                    System.out.println("Contexto [" + i + "]: " + (placeholderContext[i] != null ? placeholderContext[i].getClass().getSimpleName() : "null"));
+                }
+            }
+
             for (String itemKey : itemsSection.getKeys(false)) {
                 ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
                 if (itemSection != null) {
-                    MenuItem menuItem = buildMenuItem(itemSection, player);
+                    System.out.println("Procesando item: " + itemKey);
 
-                    // Obtener los slots para este ítem
+                    MenuItem menuItem;
+
+                    if (placeholderContext != null && placeholderContext.length > 0) {
+                        Object[] allContexts = new Object[placeholderContext.length + 1];
+                        allContexts[0] = player;
+                        System.arraycopy(placeholderContext, 0, allContexts, 1, placeholderContext.length);
+
+                        System.out.println("Creando item con " + allContexts.length + " contextos");
+                        menuItem = buildMenuItem(itemSection, allContexts);
+                    } else {
+                        System.out.println("Creando item solo con player");
+                        menuItem = buildMenuItem(itemSection, player);
+                    }
+
                     List<Integer> slots = getItemSlots(itemSection, rows);
 
-                    // Colocar el ítem en todos los slots especificados usando setItem (no paginados)
                     for (int slot : slots) {
                         if (slot >= 0 && slot < rows * 9) {
                             paginationMenu.setItem(slot, menuItem);
@@ -220,6 +245,7 @@ public class MenuBuilder {
                     }
                 }
             }
+            System.out.println("=== FIN SECCIÓN ITEMS ===");
         }
 
         return paginationMenu;
@@ -303,6 +329,24 @@ public class MenuBuilder {
 
     public static MenuItem buildMenuItem(ConfigurationSection itemSection, Player player, Object placeholderContext) {
         MenuItem menuItem = new MenuItem(itemSection.getString("material", "STONE"), player, placeholderContext);
+        applyItemConfig(menuItem, itemSection, player);
+        return menuItem;
+    }
+
+    public static MenuItem buildMenuItem(ConfigurationSection itemSection, Object... contexts) {
+        Player player = null;
+        for (Object context : contexts) {
+            if (context instanceof Player) {
+                player = (Player) context;
+                break;
+            }
+        }
+
+        if (player == null) {
+            throw new IllegalArgumentException("Se requiere al menos un Player en los contextos");
+        }
+
+        MenuItem menuItem = new MenuItem(itemSection.getString("material", "STONE"), player, contexts);
         applyItemConfig(menuItem, itemSection, player);
         return menuItem;
     }

@@ -21,6 +21,31 @@ public class PlaceholderRegistry {
     private static final Map<String, Function<Player, Object>> playerPlaceholders = new HashMap<>();
 
     /**
+     * Busca un objeto específico en el contexto (soporte para múltiples contextos)
+     * @param context Contexto (puede ser un objeto único o un array de objetos)
+     * @param type Tipo de clase a buscar
+     * @return Objeto del tipo especificado o null si no se encuentra
+     */
+    public static <T> T findInContext(Object context, Class<T> type) {
+        if (context == null) return null;
+
+        // Si el contexto es un array de objetos
+        if (context instanceof Object[] contexts) {
+            for (Object obj : contexts) {
+                if (type.isInstance(obj)) {
+                    return type.cast(obj);
+                }
+            }
+        }
+        // Si el contexto es un solo objeto
+        else if (type.isInstance(context)) {
+            return type.cast(context);
+        }
+
+        return null;
+    }
+
+    /**
      * Registra un placeholder que solo usa el contexto
      * @param placeholder Nombre del placeholder (sin %)
      * @param replacer Función que recibe el contexto y devuelve el valor (String, Component o cualquier objeto)
@@ -71,7 +96,7 @@ public class PlaceholderRegistry {
     /**
      * Procesa todos los placeholders en un texto
      * @param text Texto con placeholders
-     * @param context Contexto (puede ser null)
+     * @param context Contexto (puede ser null, un objeto único, o un array de objetos)
      * @param player Jugador (puede ser null)
      * @return Texto con placeholders procesados
      */
@@ -81,6 +106,7 @@ public class PlaceholderRegistry {
         }
 
         String result = text;
+        boolean foundAnyPlaceholder = false;
 
         // Procesar placeholders de contexto
         for (Map.Entry<String, Function<Object, Object>> entry : contextPlaceholders.entrySet()) {
@@ -88,9 +114,11 @@ public class PlaceholderRegistry {
             if (result.contains(placeholder)) {
                 try {
                     Object replacement = entry.getValue().apply(context);
-                    result = result.replace(placeholder, objectToString(replacement));
+                    String replacementStr = objectToString(replacement);
+                    result = result.replace(placeholder, replacementStr);
+                    foundAnyPlaceholder = true;
                 } catch (Exception e) {
-                    // En caso de error, mantener el placeholder original
+                    e.printStackTrace();
                     continue;
                 }
             }
@@ -102,9 +130,12 @@ public class PlaceholderRegistry {
             if (result.contains(placeholder)) {
                 try {
                     Object replacement = entry.getValue().apply(context, player);
-                    result = result.replace(placeholder, objectToString(replacement));
+                    String replacementStr = objectToString(replacement);
+                    result = result.replace(placeholder, replacementStr);
+                    foundAnyPlaceholder = true;
+
                 } catch (Exception e) {
-                    // En caso de error, mantener el placeholder original
+                    e.printStackTrace();
                     continue;
                 }
             }
@@ -116,9 +147,12 @@ public class PlaceholderRegistry {
             if (result.contains(placeholder)) {
                 try {
                     Object replacement = entry.getValue().apply(player);
-                    result = result.replace(placeholder, objectToString(replacement));
+                    String replacementStr = objectToString(replacement);
+                    result = result.replace(placeholder, replacementStr);
+                    foundAnyPlaceholder = true;
+
                 } catch (Exception e) {
-                    // En caso de error, mantener el placeholder original
+                    e.printStackTrace();
                     continue;
                 }
             }

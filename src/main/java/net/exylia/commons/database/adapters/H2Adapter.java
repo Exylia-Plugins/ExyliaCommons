@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.lang.reflect.Field;
@@ -16,7 +17,7 @@ public class H2Adapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
     private final ExyliaPlugin plugin;
-    private HikariDataSource dataSource; // Solo mantener HikariDataSource
+    private HikariDataSource dataSource;
 
     public H2Adapter(FileConfiguration config, ExyliaPlugin plugin) {
         this.config = config;
@@ -40,7 +41,7 @@ public class H2Adapter implements DatabaseAdapter {
         }
 
         HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setDriverClassName("org.h2.Driver"); // Especificar driver explícitamente
+        hikariConfig.setDriverClassName("org.h2.Driver");
         hikariConfig.setJdbcUrl(url);
         hikariConfig.setUsername(username);
         hikariConfig.setPassword(password);
@@ -296,6 +297,7 @@ public class H2Adapter implements DatabaseAdapter {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql.toString());
+            DebugUtils.logInfo("Tabla creada: " + tableName);
         }
     }
 
@@ -308,30 +310,67 @@ public class H2Adapter implements DatabaseAdapter {
 
         List<String> existingColumns = getTableColumns(entityClass);
         Field[] fields = entityClass.getDeclaredFields();
+        boolean hasUpdates = false;
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column column = field.getAnnotation(Column.class);
-                String columnName = column.name().isEmpty() ? field.getName() : column.name();
+        try (Connection conn = getConnection()) {
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    Column column = field.getAnnotation(Column.class);
+                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
 
-                if (!existingColumns.contains(columnName.toLowerCase())) {
-                    String sqlType = getSQLType(field.getType(), column);
-                    String alterSql = "ALTER TABLE " + getTableName(entityClass) +
-                            " ADD COLUMN " + columnName + " " + sqlType;
+                    if (!existingColumns.contains(columnName.toLowerCase())) {
+                        String sqlType = getSQLType(field.getType(), column);
+                        String alterSql = "ALTER TABLE " + getTableName(entityClass) +
+                                " ADD COLUMN " + columnName + " " + sqlType;
 
-                    if (!column.nullable()) {
-                        alterSql += " NOT NULL";
-                    }
+                        // Para nuevas columnas, siempre hacerlas nullable inicialmente
+                        // para evitar problemas con datos existentes
+                        if (!column.nullable() && !column.primaryKey()) {
+                            // Agregar como nullable primero
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(alterSql);
+                                DebugUtils.logInfo("Columna agregada (nullable): " + columnName);
+                                hasUpdates = true;
+                            }
 
-                    if (!column.defaultValue().isEmpty()) {
-                        alterSql += " DEFAULT '" + column.defaultValue() + "'";
-                    }
+                            // Si tiene valor por defecto, actualizar todos los registros existentes
+                            if (!column.defaultValue().isEmpty()) {
+                                String updateSql = "UPDATE " + getTableName(entityClass) +
+                                        " SET " + columnName + " = ? WHERE " + columnName + " IS NULL";
+                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                                    updateStmt.setString(1, column.defaultValue());
+                                    int updated = updateStmt.executeUpdate();
+                                    DebugUtils.logInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
+                                }
+                            }
 
-                    try (Connection conn = getConnection();
-                         Statement stmt = conn.createStatement()) {
-                        stmt.execute(alterSql);
+                            // Ahora hacer la columna NOT NULL si es necesario
+                            String alterNotNullSql = "ALTER TABLE " + getTableName(entityClass) +
+                                    " ALTER COLUMN " + columnName + " SET NOT NULL";
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(alterNotNullSql);
+                                DebugUtils.logInfo("Columna configurada como NOT NULL: " + columnName);
+                            }
+                        } else {
+                            // Agregar la columna normalmente
+                            if (!column.defaultValue().isEmpty()) {
+                                alterSql += " DEFAULT '" + column.defaultValue() + "'";
+                            }
+
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(alterSql);
+                                DebugUtils.logInfo("Columna agregada: " + columnName);
+                                hasUpdates = true;
+                            }
+                        }
                     }
                 }
+            }
+
+            if (hasUpdates) {
+                DebugUtils.logInfo("Actualización de tabla completada: " + getTableName(entityClass));
+            } else {
+                DebugUtils.logInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
             }
         }
     }
@@ -371,8 +410,6 @@ public class H2Adapter implements DatabaseAdapter {
 
     @Override
     public void beginTransaction() throws Exception {
-        // Para HikariCP, las transacciones se manejan por conexión individual
-        // Esto requeriría ThreadLocal o manejo específico por operación
         throw new UnsupportedOperationException("Transacciones por pool requieren implementación específica");
     }
 
@@ -448,7 +485,6 @@ public class H2Adapter implements DatabaseAdapter {
 
     private String getSQLType(Class<?> javaType, Column column) {
         if (javaType == String.class) {
-            // Si length es -1, usar TEXT automáticamente
             if (column.length() == -1 || column.length() > 8000) {
                 return "TEXT";
             }
@@ -469,7 +505,7 @@ public class H2Adapter implements DatabaseAdapter {
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "TIMESTAMP";
         } else {
-            return "TEXT"; // Usar TEXT por defecto para strings largos
+            return "TEXT";
         }
     }
 

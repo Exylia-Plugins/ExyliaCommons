@@ -48,7 +48,7 @@ public class MenuItem {
     private long updateInterval = 20L; // 1 segundo por defecto
     private Player placeholderPlayer = null; // Jugador específico para procesar los placeholders
     private List<String> commands = new ArrayList<>(); // Lista de comandos a ejecutar
-    private Object placeholderContext = null; // Objeto de contexto para placeholders personalizados
+    private Object[] placeholderContext = null; // Objeto de contexto para placeholders personalizados
 
     /**
      * Constructor del ítem de menú usando String
@@ -65,13 +65,28 @@ public class MenuItem {
         this.menuItemId = UUID.randomUUID().toString();
     }
 
-    public MenuItem(String materialString, Player player, Object placeholderContext) {
+    public MenuItem(String materialString, Player player, Object... placeholderContexts) {
+        if (placeholderContexts != null) {
+            Bukkit.getLogger().info("=== DEBUG CONTEXTOS ===");
+            Bukkit.getLogger().info("Número total de contextos: " + placeholderContexts.length);
+            for (int i = 0; i < placeholderContexts.length; i++) {
+                Object context = placeholderContexts[i];
+                if (context != null) {
+                    Bukkit.getLogger().info("Contexto [" + i + "]: " + context.getClass().getSimpleName() + " = " + context);
+                } else {
+                    Bukkit.getLogger().info("Contexto [" + i + "]: null");
+                }
+            }
+            Bukkit.getLogger().info("=======================");
+        }
+
         this.rawMaterialString = materialString;
         this.materialPlaceholderPlayer = player;
-        this.placeholderContext = placeholderContext;
+        this.placeholderContext = placeholderContexts;
         this.itemStack = createItemFromString(processPlaceholdersInMaterial(materialString, player));
         this.menuItemId = UUID.randomUUID().toString();
     }
+
 
     /**
      * Constructor del ítem de menú usando String con jugador específico para placeholders
@@ -470,6 +485,10 @@ public class MenuItem {
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
         }
+        if (this.placeholderContext != null) {
+            clone.placeholderContext = new Object[this.placeholderContext.length];
+            System.arraycopy(this.placeholderContext, 0, clone.placeholderContext, 0, this.placeholderContext.length);
+        }
         clone.usePlaceholders = this.usePlaceholders;
         clone.dynamicUpdate = this.dynamicUpdate;
         clone.updateInterval = this.updateInterval;
@@ -538,11 +557,11 @@ public class MenuItem {
 
     /**
      * Establece un objeto de contexto para procesar placeholders personalizados
-     * @param context Objeto de contexto (ej: Player target, Kit, KitCategory, etc.)
+     * @param contexts Objeto de contexto (ej: Player target, Kit, KitCategory, etc.)
      * @return El mismo ítem (para encadenamiento)
      */
-    public MenuItem setPlaceholderContext(Object context) {
-        this.placeholderContext = context;
+    public MenuItem setPlaceholderContext(Object... contexts) {
+        this.placeholderContext = contexts;
         return this;
     }
 
@@ -550,7 +569,7 @@ public class MenuItem {
      * Obtiene el objeto de contexto para placeholders personalizados
      * @return Objeto de contexto o null si no hay configurado
      */
-    public Object getPlaceholderContext() {
+    public Object[] getPlaceholderContext() {
         return placeholderContext;
     }
 

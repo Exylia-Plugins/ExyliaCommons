@@ -36,7 +36,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         boolean ssl = config.getBoolean("database.mysql.ssl", false);
         int poolSize = config.getInt("database.mysql.pool-size", 10);
 
-        String url = String.format("jdbc:mysql://%s:%d/%s?useSSL=%s&serverTimezone=UTC",
+        String url = String.format("jdbc:mysql://%s:%d/%s?useSSL=%s&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8",
                 host, port, database, ssl);
 
         hikariConfig.setJdbcUrl(url);
@@ -64,6 +64,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         // Probar conexión
         try (Connection testConnection = dataSource.getConnection()) {
             testConnection.prepareStatement("SELECT 1").executeQuery();
+            plugin.getLogger().info("Conexión MySQL establecida exitosamente");
         }
     }
 
@@ -88,7 +89,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         String tableName = getTableName(entity.getClass());
         Map<String, Object> values = entityToMap(entity);
 
-        StringBuilder sql = new StringBuilder("INSERT INTO " + tableName + " (");
+        StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
         StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
 
         List<Object> parameters = new ArrayList<>();
@@ -125,7 +126,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         String primaryKey = getPrimaryKeyField(entity.getClass());
         Object primaryKeyValue = values.get(primaryKey);
 
-        StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
+        StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
         List<Object> parameters = new ArrayList<>();
         boolean first = true;
 
@@ -159,7 +160,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         String primaryKey = getPrimaryKeyField(entity.getClass());
         Object primaryKeyValue = entityToMap(entity).get(primaryKey);
 
-        String sql = "DELETE FROM " + tableName + " WHERE `" + primaryKey + "` = ?";
+        String sql = "DELETE FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -174,7 +175,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         String tableName = getTableName(entityClass);
         String primaryKey = getPrimaryKeyField(entityClass);
 
-        String sql = "SELECT * FROM " + tableName + " WHERE `" + primaryKey + "` = ?";
+        String sql = "SELECT * FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -193,7 +194,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     @Override
     public <T> List<T> findAll(Class<T> entityClass) throws Exception {
         String tableName = getTableName(entityClass);
-        String sql = "SELECT * FROM " + tableName;
+        String sql = "SELECT * FROM `" + tableName + "`";
 
         List<T> results = new ArrayList<>();
 
@@ -213,7 +214,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     @Override
     public <T> List<T> findBy(Class<T> entityClass, String field, Object value) throws Exception {
         String tableName = getTableName(entityClass);
-        String sql = "SELECT * FROM " + tableName + " WHERE `" + field + "` = ?";
+        String sql = "SELECT * FROM `" + tableName + "` WHERE `" + field + "` = ?";
 
         List<T> results = new ArrayList<>();
 
@@ -297,19 +298,37 @@ public class MySQLAdapter implements DatabaseAdapter {
                     sql.append(" UNIQUE");
                 }
 
+                // Manejar valores por defecto específicos para MySQL
                 if (!column.defaultValue().isEmpty()) {
-                    sql.append(" DEFAULT '").append(column.defaultValue()).append("'");
+                    String defaultValue = column.defaultValue();
+
+                    // Para BOOLEAN, convertir true/false a 1/0
+                    if ((field.getType() == boolean.class || field.getType() == Boolean.class)) {
+                        if ("true".equalsIgnoreCase(defaultValue)) {
+                            sql.append(" DEFAULT 1");
+                        } else if ("false".equalsIgnoreCase(defaultValue)) {
+                            sql.append(" DEFAULT 0");
+                        }
+                    } else if ("CURRENT_TIMESTAMP".equalsIgnoreCase(defaultValue)) {
+                        sql.append(" DEFAULT CURRENT_TIMESTAMP");
+                    } else {
+                        sql.append(" DEFAULT '").append(defaultValue).append("'");
+                    }
                 }
 
                 first = false;
             }
         }
 
-        sql.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        sql.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql.toString());
+            DebugUtils.logInfo("Tabla creada exitosamente: " + tableName);
+        } catch (SQLException e) {
+            DebugUtils.logError("Error creando tabla " + tableName + ": " + e.getMessage());
+            throw e;
         }
     }
 
@@ -322,30 +341,66 @@ public class MySQLAdapter implements DatabaseAdapter {
 
         List<String> existingColumns = getTableColumns(entityClass);
         Field[] fields = entityClass.getDeclaredFields();
+        boolean hasUpdates = false;
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column column = field.getAnnotation(Column.class);
-                String columnName = column.name().isEmpty() ? field.getName() : column.name();
+        try (Connection conn = getConnection()) {
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    Column column = field.getAnnotation(Column.class);
+                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
 
-                if (!existingColumns.contains(columnName.toLowerCase())) {
-                    String sqlType = getMySQLType(field.getType(), column);
-                    String alterSql = "ALTER TABLE `" + getTableName(entityClass) +
-                            "` ADD COLUMN `" + columnName + "` " + sqlType;
+                    if (!existingColumns.contains(columnName.toLowerCase())) {
+                        String sqlType = getMySQLType(field.getType(), column);
+                        String alterSql = "ALTER TABLE `" + getTableName(entityClass) +
+                                "` ADD COLUMN `" + columnName + "` " + sqlType;
 
-                    if (!column.nullable()) {
-                        alterSql += " NOT NULL";
-                    }
+                        // Primero agregar como nullable
+                        try (Statement stmt = conn.createStatement()) {
+                            stmt.execute(alterSql);
+                            DebugUtils.logInfo("Columna agregada: " + columnName);
+                            hasUpdates = true;
+                        }
 
-                    if (!column.defaultValue().isEmpty()) {
-                        alterSql += " DEFAULT '" + column.defaultValue() + "'";
-                    }
+                        // Si tiene valor por defecto, actualizar registros existentes
+                        if (!column.defaultValue().isEmpty()) {
+                            String defaultValue = column.defaultValue();
+                            Object actualValue = defaultValue;
 
-                    try (Connection conn = getConnection();
-                         Statement stmt = conn.createStatement()) {
-                        stmt.execute(alterSql);
+                            // Convertir valores para tipos específicos
+                            if (field.getType() == boolean.class || field.getType() == Boolean.class) {
+                                if ("true".equalsIgnoreCase(defaultValue)) {
+                                    actualValue = 1;
+                                } else if ("false".equalsIgnoreCase(defaultValue)) {
+                                    actualValue = 0;
+                                }
+                            }
+
+                            String updateSql = "UPDATE `" + getTableName(entityClass) +
+                                    "` SET `" + columnName + "` = ? WHERE `" + columnName + "` IS NULL";
+                            try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                                updateStmt.setObject(1, actualValue);
+                                int updated = updateStmt.executeUpdate();
+                                DebugUtils.logInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
+                            }
+                        }
+
+                        // Hacer NOT NULL si es necesario
+                        if (!column.nullable() && !column.primaryKey()) {
+                            String alterNotNullSql = "ALTER TABLE `" + getTableName(entityClass) +
+                                    "` MODIFY COLUMN `" + columnName + "` " + sqlType + " NOT NULL";
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(alterNotNullSql);
+                                DebugUtils.logInfo("Columna configurada como NOT NULL: " + columnName);
+                            }
+                        }
                     }
                 }
+            }
+
+            if (hasUpdates) {
+                DebugUtils.logInfo("Actualización de tabla completada: " + getTableName(entityClass));
+            } else {
+                DebugUtils.logInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
             }
         }
     }
@@ -466,8 +521,14 @@ public class MySQLAdapter implements DatabaseAdapter {
             if (column.length() == -1) {
                 return "TEXT";
             }
-            if (column.length() > 8000) {
+            if (column.length() > 16777215) {
                 return "LONGTEXT";
+            }
+            if (column.length() > 65535) {
+                return "MEDIUMTEXT";
+            }
+            if (column.length() > 255) {
+                return "TEXT";
             }
             if (column.length() <= 0) {
                 return "VARCHAR(255)";
@@ -482,7 +543,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         } else if (javaType == float.class || javaType == Float.class) {
             return "FLOAT";
         } else if (javaType == boolean.class || javaType == Boolean.class) {
-            return "BOOLEAN";
+            return "TINYINT(1)"; // MySQL estándar para boolean
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "DATETIME";
         } else {
@@ -498,14 +559,29 @@ public class MySQLAdapter implements DatabaseAdapter {
         if (targetType == String.class) {
             return value.toString();
         } else if (targetType == int.class || targetType == Integer.class) {
+            if (value instanceof Number) {
+                return ((Number) value).intValue();
+            }
             return Integer.valueOf(value.toString());
         } else if (targetType == long.class || targetType == Long.class) {
+            if (value instanceof Number) {
+                return ((Number) value).longValue();
+            }
             return Long.valueOf(value.toString());
         } else if (targetType == double.class || targetType == Double.class) {
+            if (value instanceof Number) {
+                return ((Number) value).doubleValue();
+            }
             return Double.valueOf(value.toString());
         } else if (targetType == float.class || targetType == Float.class) {
+            if (value instanceof Number) {
+                return ((Number) value).floatValue();
+            }
             return Float.valueOf(value.toString());
         } else if (targetType == boolean.class || targetType == Boolean.class) {
+            if (value instanceof Number) {
+                return ((Number) value).intValue() != 0;
+            }
             return Boolean.valueOf(value.toString());
         }
 
