@@ -19,6 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logError;
 
 public class DatabaseManager {
     private static DatabaseManager instance;
@@ -170,19 +171,36 @@ public class DatabaseManager {
 
     /**
      * Obtiene un repositorio para una entidad
+     * CRÍTICO: Siempre crea un nuevo repositorio con el adapter actual
      */
     @SuppressWarnings("unchecked")
     public <T> Repository<T> getRepository(Class<T> entityClass) {
-        return (Repository<T>) repositories.computeIfAbsent(entityClass, clazz -> {
-            try {
-                Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
-                        DatabaseAdapter.class, Class.class, ExecutorService.class
-                );
-                return constructor.newInstance(adapter, clazz, executor);
-            } catch (Exception e) {
-                throw new RuntimeException("Error creando repositorio para " + clazz.getName(), e);
+        // CAMBIO IMPORTANTE: No usar cache durante reload
+        // Siempre crear una nueva instancia del repositorio
+        try {
+            Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
+                    DatabaseAdapter.class, Class.class, ExecutorService.class
+            );
+            Repository<T> newRepository = constructor.newInstance(adapter, entityClass, executor);
+
+            // Actualizar cache solo si la conexión está activa
+            if (adapter != null && adapter.isConnected()) {
+                repositories.put(entityClass, newRepository);
             }
-        });
+
+            return newRepository;
+        } catch (Exception e) {
+            logError("Error creando repositorio para " + entityClass.getName() + ": " + e.getMessage());
+            throw new RuntimeException("Error creando repositorio para " + entityClass.getName(), e);
+        }
+    }
+
+    /**
+     * Limpia el cache de repositorios - útil durante reload
+     */
+    public void clearRepositoryCache() {
+        logInfo("Limpiando cache de repositorios...");
+        repositories.clear();
     }
 
     /**
@@ -209,6 +227,38 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Reconecta a la base de datos - útil para reload
+     */
+    public void reconnect() {
+        logInfo("Reconectando a la base de datos...");
+
+        try {
+            // Limpiar repositorios existentes
+            clearRepositoryCache();
+
+            // Desconectar adapter anterior si existe
+            if (adapter != null) {
+                adapter.disconnect();
+            }
+
+            // Esperar un momento para que se liberen las conexiones
+            Thread.sleep(500);
+
+            // Recargar configuración
+            loadConfiguration();
+
+            // Reconectar
+            connectToDatabase();
+
+            logInfo("Reconexión a base de datos completada");
+
+        } catch (Exception e) {
+            logError("Error durante reconexión: " + e.getMessage());
+            throw new RuntimeException("Error durante reconexión", e);
+        }
+    }
+
     public DatabaseAdapter getAdapter() {
         return adapter;
     }
@@ -220,7 +270,7 @@ public class DatabaseManager {
     public void shutdown() {
         logInfo("Cerrando conexiones de base de datos...");
 
-        repositories.clear();
+        clearRepositoryCache();
 
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();

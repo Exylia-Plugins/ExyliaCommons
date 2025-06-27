@@ -16,18 +16,23 @@ import java.util.Set;
 import static net.exylia.commons.utils.DebugUtils.*;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
+
+    // ===== STATIC FIELDS =====
     private static boolean initialized = false;
     private static final Set<ExyliaPlugin> registeredPlugins = new HashSet<>();
-    private BukkitAudiences adventure;
     private static ExyliaPlugin instance;
 
+    // ===== INSTANCE FIELDS =====
+    private BukkitAudiences adventure;
     private LicenseManager licenseManager;
     private final boolean requiresLicense;
 
+    // ===== CONSTRUCTOR =====
     protected ExyliaPlugin(boolean requiresLicense) {
         this.requiresLicense = requiresLicense;
     }
 
+    // ===== BUKKIT LIFECYCLE =====
     @Override
     public final void onEnable() {
         this.adventure = BukkitAudiences.create(this);
@@ -41,9 +46,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
         licenseManager = new LicenseManager(this, requiresLicense);
         licenseManager.initializeAndVerify()
-                .thenRun(() -> {
-                    Bukkit.getScheduler().runTask(this, this::enablePlugin);
-                })
+                .thenRun(() -> Bukkit.getScheduler().runTask(this, this::enablePlugin))
                 .exceptionally(throwable -> {
                     Bukkit.getScheduler().runTask(this, () -> {
                         logError("License verification failed: " + throwable.getMessage());
@@ -56,7 +59,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onDisable() {
         registeredPlugins.remove(this);
-
         onExyliaDisable();
 
         if (this.adventure != null) {
@@ -82,6 +84,83 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
+    // ===== ABSTRACT METHODS (PARA IMPLEMENTAR) =====
+    protected abstract void onExyliaEnable();
+    protected abstract void onExyliaDisable();
+
+    // ===== RELOAD METHODS =====
+    public final boolean reloadDatabase() {
+        try {
+            logInfo("Recargando base de datos...");
+
+            if (DatabaseManager.getInstance() != null) {
+                DatabaseManager.getInstance().reconnect();
+            } else {
+                DatabaseManager.initialize(this);
+            }
+
+            if (DatabaseManager.getInstance().isConnected()) {
+                logSuccess("Base de datos recargada exitosamente");
+                onDatabaseReload();
+                return true;
+            } else {
+                logError("Error: No se pudo conectar a la base de datos");
+                return false;
+            }
+        } catch (Exception e) {
+            logError("Error recargando base de datos: " + e.getMessage());
+
+            // Intentar fallback: cerrar completamente y reinicializar
+            try {
+                logInfo("Intentando reinicialización completa de la base de datos...");
+                if (DatabaseManager.getInstance() != null) {
+                    DatabaseManager.getInstance().shutdown();
+                }
+
+                Thread.sleep(1000); // Dar tiempo para que se liberen recursos
+                DatabaseManager.initialize(this);
+
+                if (DatabaseManager.getInstance().isConnected()) {
+                    logSuccess("Reinicialización completa exitosa");
+                    onDatabaseReload();
+                    return true;
+                }
+            } catch (Exception fallbackError) {
+                logError("Error en reinicialización completa: " + fallbackError.getMessage());
+            }
+
+            return false;
+        }
+    }
+
+    public final boolean reloadAll() {
+        try {
+            logInfo("Recargando plugin " + getName() + "...");
+
+            reloadConfig();
+
+            if (!reloadDatabase()) {
+                logError("Error recargando base de datos");
+                return false;
+            }
+
+            onPluginReload();
+            logSuccess("Plugin recargado exitosamente");
+            return true;
+
+        } catch (Exception e) {
+            logError("Error recargando plugin: " + e.getMessage());
+            return false;
+        }
+    }
+
+    protected void onDatabaseReload() {
+    }
+
+    protected void onPluginReload() {
+    }
+
+    // ===== LICENSE METHODS =====
     protected final boolean shouldOperate() {
         return licenseManager != null && licenseManager.isVerified();
     }
@@ -92,6 +171,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
+    // ===== ADVENTURE API =====
     public BukkitAudiences adventure() {
         if (this.adventure == null) {
             throw new IllegalStateException("Attempted to access Adventure when the plugin was disabled!");
@@ -99,6 +179,26 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return this.adventure;
     }
 
+    // ===== STATIC UTILITY METHODS =====
+    @SuppressWarnings("unchecked")
+    public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
+        for (ExyliaPlugin plugin : registeredPlugins) {
+            if (pluginClass.isInstance(plugin)) {
+                return (T) plugin;
+            }
+        }
+        return null;
+    }
+
+    public static ExyliaPlugin getInstance() {
+        return instance;
+    }
+
+    public static boolean isPlaceholderAPIEnabled() {
+        return Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
+    }
+
+    // ===== PRIVATE INITIALIZATION METHODS =====
     private void initializeExylia() {
         try {
             AdapterFactory.initialize(this);
@@ -171,25 +271,4 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         AdapterFactory.close();
         PlaceholderRegistry.clear();
     }
-
-    @SuppressWarnings("unchecked")
-    public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
-        for (ExyliaPlugin plugin : registeredPlugins) {
-            if (pluginClass.isInstance(plugin)) {
-                return (T) plugin;
-            }
-        }
-        return null;
-    }
-
-    public static ExyliaPlugin getInstance() {
-        return instance;
-    }
-
-    public static boolean isPlaceholderAPIEnabled() {
-        return Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
-    }
-
-    protected abstract void onExyliaEnable();
-    protected abstract void onExyliaDisable();
 }

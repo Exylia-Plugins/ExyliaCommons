@@ -1,10 +1,12 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.placeholders.PlaceholderRegistry;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -18,6 +20,7 @@ import static net.exylia.commons.utils.DebugUtils.logInfo;
 /**
  * Manejador de configuraciones para plugins de Exylia
  * Permite administrar múltiples archivos de configuración YAML con sistema de presets de colores global
+ * y soporte integrado para placeholders con contexto
  */
 public class ConfigManager {
     private final JavaPlugin plugin;
@@ -52,6 +55,121 @@ public class ConfigManager {
         FileConfiguration config = YamlConfiguration.loadConfiguration(file);
         configs.put(fileName, config);
     }
+
+    // ========== MÉTODOS CON SOPORTE PARA CONTEXTO ==========
+
+    /**
+     * Obtiene un mensaje con soporte para placeholders con contexto
+     * @param path La ruta del mensaje en el archivo de mensajes
+     * @param context El contexto para los placeholders (puede ser null, un objeto, o array de objetos)
+     * @param player El jugador para placeholders específicos de jugador (puede ser null)
+     * @param replacements Reemplazos adicionales tradicionales (placeholder, value, ...)
+     * @return El componente del mensaje personalizado
+     */
+    public Component getMessageWithContext(String path, Object context, Player player, Object... replacements) {
+        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+
+        // 1. Aplicar prefix
+        message = applyPrefix(message);
+
+        // 2. Procesar placeholders con contexto ANTES de los reemplazos manuales
+        message = PlaceholderRegistry.process(message, context, player);
+
+        // 3. Aplicar reemplazos manuales de String
+        for(int i = 0; i < replacements.length - 1; i += 2) {
+            Object value = replacements[i + 1];
+            if (!(value instanceof Component)) {
+                String placeholder = replacements[i].toString();
+                message = message.replace(placeholder, value.toString());
+            }
+        }
+
+        // 4. Convertir a Component
+        Component component = ColorUtils.parse(message);
+
+        // 5. Aplicar reemplazos de Component
+        for(int i = 0; i < replacements.length - 1; i += 2) {
+            Object value = replacements[i + 1];
+            if (value instanceof Component) {
+                String placeholder = replacements[i].toString();
+                component = component.replaceText(TextReplacementConfig.builder()
+                        .match(placeholder)
+                        .replacement((Component) value)
+                        .build());
+            }
+        }
+
+        return component;
+    }
+
+    /**
+     * Versión simplificada solo con contexto (sin reemplazos adicionales)
+     * @param path La ruta del mensaje
+     * @param context El contexto para placeholders
+     * @param player El jugador (puede ser null)
+     * @return El componente del mensaje
+     */
+    public Component getMessageWithContext(String path, Object context, Player player) {
+        return getMessageWithContext(path, context, player, new Object[0]);
+    }
+
+    /**
+     * Versión solo con contexto (sin jugador)
+     * @param path La ruta del mensaje
+     * @param context El contexto para placeholders
+     * @return El componente del mensaje
+     */
+    public Component getMessageWithContext(String path, Object context) {
+        return getMessageWithContext(path, context, null, new Object[0]);
+    }
+
+    /**
+     * Obtiene un mensaje como string con contexto
+     * @param path La ruta del mensaje
+     * @param context El contexto para placeholders
+     * @param player El jugador (puede ser null)
+     * @param replacements Reemplazos adicionales
+     * @return El string del mensaje procesado
+     */
+    public String getMessageStringWithContext(String path, Object context, Player player, String... replacements) {
+        String message = getConfig("messages").getString(path, "{error}" + path + " not found in messages.yml");
+
+        // Aplicar prefix
+        message = applyPrefix(message);
+
+        // Procesar placeholders con contexto
+        message = PlaceholderRegistry.process(message, context, player);
+
+        // Aplicar reemplazos tradicionales
+        for (int i = 0; i < replacements.length - 1; i += 2) {
+            message = message.replace(replacements[i], replacements[i + 1]);
+        }
+
+        return ColorUtils.parseToString(message);
+    }
+
+    /**
+     * Versión simplificada de string con contexto
+     * @param path La ruta del mensaje
+     * @param context El contexto para placeholders
+     * @param player El jugador (puede ser null)
+     * @return El string del mensaje procesado
+     */
+    public String getMessageStringWithContext(String path, Object context, Player player) {
+        return getMessageStringWithContext(path, context, player, new String[0]);
+    }
+
+    /**
+     * Versión de string solo con contexto (sin jugador)
+     * @param path La ruta del mensaje
+     * @param context El contexto para placeholders
+     * @return El string del mensaje procesado
+     */
+    public String getMessageStringWithContext(String path, Object context) {
+        return getMessageStringWithContext(path, context, null, new String[0]);
+    }
+
+    // ========== MÉTODOS ORIGINALES (MANTENIDOS PARA COMPATIBILIDAD) ==========
 
     /**
      * Obtiene un mensaje personalizado con soporte para presets de colores y Components
@@ -165,6 +283,8 @@ public class ConfigManager {
             return getMessageString(path, stringReplacements);
         }
     }
+
+    // ========== MÉTODOS UTILITARIOS ==========
 
     /**
      * Aplica placeholders al mensaje
