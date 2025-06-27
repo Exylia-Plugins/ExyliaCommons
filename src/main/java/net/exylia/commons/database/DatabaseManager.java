@@ -12,14 +12,12 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.*;
 
 public class DatabaseManager {
     private static DatabaseManager instance;
@@ -27,6 +25,7 @@ public class DatabaseManager {
     private DatabaseAdapter adapter;
     private final ExecutorService executor;
     private final Map<Class<?>, Repository<?>> repositories;
+    private final Set<Class<?>> registeredEntities;
     private final MigrationManager migrationManager;
     private FileConfiguration databaseConfig;
 
@@ -34,6 +33,7 @@ public class DatabaseManager {
         this.plugin = plugin;
         this.executor = Executors.newFixedThreadPool(4);
         this.repositories = new HashMap<>();
+        this.registeredEntities = new HashSet<>(); // Nuevo
         this.migrationManager = new MigrationManager();
     }
 
@@ -104,8 +104,6 @@ public class DatabaseManager {
             config.set("database.enable-metrics", false);
 
             config.save(configFile);
-            logInfo("Archivo database.yml creado con configuración optimizada");
-
         } catch (IOException e) {
             plugin.getLogger().severe("Error creando archivo database.yml: " + e.getMessage());
         }
@@ -131,17 +129,13 @@ public class DatabaseManager {
             }
 
             adapter.connect();
-            logInfo("Conectado a la base de datos: " + type);
 
         } catch (Exception e) {
             plugin.getLogger().severe("Error conectando a la base de datos: " + e.getMessage());
-            // Fallback a H2 si falla la conexión principal
             if (!type.equals("H2")) {
-                logInfo("Intentando fallback a H2...");
                 try {
                     adapter = new H2Adapter(databaseConfig, plugin);
                     adapter.connect();
-                    logInfo("Fallback a H2 exitoso");
                 } catch (Exception fallbackError) {
                     plugin.getLogger().severe("Error en fallback a H2: " + fallbackError.getMessage());
                 }
@@ -149,57 +143,106 @@ public class DatabaseManager {
         }
     }
 
-    /**
-     * Registra una entidad para crear su tabla automáticamente
-     */
     public <T> void registerEntity(Class<T> entityClass) {
         if (!entityClass.isAnnotationPresent(Table.class)) {
             throw new IllegalArgumentException("La clase " + entityClass.getName() + " debe tener la anotación @Table");
         }
+
+        registeredEntities.add(entityClass);
 
         CompletableFuture.runAsync(() -> {
             try {
                 if (databaseConfig.getBoolean("database.auto-migrate", true)) {
                     migrationManager.createOrUpdateTable(adapter, entityClass);
                 }
-                logInfo("Entidad registrada: " + entityClass.getSimpleName());
             } catch (Exception e) {
                 plugin.getLogger().severe("Error registrando entidad " + entityClass.getName() + ": " + e.getMessage());
             }
         }, executor);
     }
 
-    /**
-     * Obtiene un repositorio para una entidad
-     * CRÍTICO: Siempre crea un nuevo repositorio con el adapter actual
-     */
-    @SuppressWarnings("unchecked")
-    public <T> Repository<T> getRepository(Class<T> entityClass) {
-        // CAMBIO IMPORTANTE: No usar cache durante reload
-        // Siempre crear una nueva instancia del repositorio
-        try {
-            Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
-                    DatabaseAdapter.class, Class.class, ExecutorService.class
-            );
-            Repository<T> newRepository = constructor.newInstance(adapter, entityClass, executor);
-
-            // Actualizar cache solo si la conexión está activa
-            if (adapter != null && adapter.isConnected()) {
-                repositories.put(entityClass, newRepository);
+    public void reregisterAllEntities() {
+        for (Class<?> entityClass : registeredEntities) {
+            try {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        if (databaseConfig.getBoolean("database.auto-migrate", true)) {
+                            migrationManager.createOrUpdateTable(adapter, entityClass);
+                        }
+                    } catch (Exception e) {
+                        logError("Error re-registrando entidad " + entityClass.getName() + ": " + e.getMessage());
+                    }
+                }, executor);
+            } catch (Exception e) {
+                logError("Error creando task para re-registrar " + entityClass.getName() + ": " + e.getMessage());
             }
-
-            return newRepository;
-        } catch (Exception e) {
-            logError("Error creando repositorio para " + entityClass.getName() + ": " + e.getMessage());
-            throw new RuntimeException("Error creando repositorio para " + entityClass.getName(), e);
         }
     }
 
-    /**
-     * Limpia el cache de repositorios - útil durante reload
-     */
+    @SuppressWarnings("unchecked")
+    public <T> Repository<T> getRepository(Class<T> entityClass) {
+        return (Repository<T>) repositories.computeIfAbsent(entityClass, clazz -> {
+            try {
+                Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
+                        DatabaseAdapter.class, Class.class, ExecutorService.class
+                );
+                return constructor.newInstance(adapter, clazz, executor);
+            } catch (Exception e) {
+                logError("Error creando repositorio para " + clazz.getName() + ": " + e.getMessage());
+                throw new RuntimeException("Error creando repositorio para " + clazz.getName(), e);
+            }
+        });
+    }
+
+    public void recreateAllRepositories() {
+        Set<Class<?>> entityClasses = new HashSet<>(repositories.keySet());
+        repositories.clear();
+        for (Class<?> entityClass : entityClasses) {
+            try {
+                Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
+                        DatabaseAdapter.class, Class.class, ExecutorService.class
+                );
+                Repository<?> newRepository = constructor.newInstance(adapter, entityClass, executor);
+                repositories.put(entityClass, newRepository);
+
+            } catch (Exception e) {
+                logError("Error recreando repositorio para " + entityClass.getName() + ": " + e.getMessage());
+            }
+        }
+
+        logInfo("Recreación de repositorios completada");
+    }
+
+    public boolean performCompleteReload() {
+        try {
+            logInfo("Reconnecting to database...");
+            reconnect();
+
+            if (!isConnected()) {
+                logError("Error: No se pudo establecer conexión a la base de datos");
+                return false;
+            }
+
+            logInfo("Re-registering all entities...");
+            reregisterAllEntities();
+
+            Thread.sleep(1000);
+
+            logInfo("Recreating all repositories...");
+            recreateAllRepositories();
+
+            logSuccess("=== RELOAD COMPLETED ===");
+            return true;
+
+        } catch (Exception e) {
+            logError("Error durante reload completo: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public void clearRepositoryCache() {
-        logInfo("Limpiando cache de repositorios...");
+        logInfo("Cleaning repository cache...");
         repositories.clear();
     }
 
@@ -228,31 +271,16 @@ public class DatabaseManager {
     }
 
     /**
-     * Reconecta a la base de datos - útil para reload
+     * Reconecta a la base de datos
      */
     public void reconnect() {
-        logInfo("Reconectando a la base de datos...");
-
         try {
-            // Limpiar repositorios existentes
-            clearRepositoryCache();
-
-            // Desconectar adapter anterior si existe
             if (adapter != null) {
                 adapter.disconnect();
             }
-
-            // Esperar un momento para que se liberen las conexiones
             Thread.sleep(500);
-
-            // Recargar configuración
             loadConfiguration();
-
-            // Reconectar
             connectToDatabase();
-
-            logInfo("Reconexión a base de datos completada");
-
         } catch (Exception e) {
             logError("Error durante reconexión: " + e.getMessage());
             throw new RuntimeException("Error durante reconexión", e);
@@ -267,10 +295,15 @@ public class DatabaseManager {
         return adapter != null && adapter.isConnected();
     }
 
+    public Set<Class<?>> getRegisteredEntities() {
+        return new HashSet<>(registeredEntities);
+    }
+
     public void shutdown() {
-        logInfo("Cerrando conexiones de base de datos...");
+        logInfo("Closing database connections...");
 
         clearRepositoryCache();
+        registeredEntities.clear();
 
         if (executor != null && !executor.isShutdown()) {
             executor.shutdown();

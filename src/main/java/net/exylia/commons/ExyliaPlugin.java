@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import static net.exylia.commons.utils.DebugUtils.*;
@@ -89,70 +90,65 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     protected abstract void onExyliaDisable();
 
     // ===== RELOAD METHODS =====
-    public final boolean reloadDatabase() {
-        try {
-            logInfo("Recargando base de datos...");
-
-            if (DatabaseManager.getInstance() != null) {
-                DatabaseManager.getInstance().reconnect();
-            } else {
-                DatabaseManager.initialize(this);
-            }
-
-            if (DatabaseManager.getInstance().isConnected()) {
-                logSuccess("Base de datos recargada exitosamente");
-                onDatabaseReload();
-                return true;
-            } else {
-                logError("Error: No se pudo conectar a la base de datos");
-                return false;
-            }
-        } catch (Exception e) {
-            logError("Error recargando base de datos: " + e.getMessage());
-
-            // Intentar fallback: cerrar completamente y reinicializar
-            try {
-                logInfo("Intentando reinicialización completa de la base de datos...");
-                if (DatabaseManager.getInstance() != null) {
-                    DatabaseManager.getInstance().shutdown();
-                }
-
-                Thread.sleep(1000); // Dar tiempo para que se liberen recursos
-                DatabaseManager.initialize(this);
-
-                if (DatabaseManager.getInstance().isConnected()) {
-                    logSuccess("Reinicialización completa exitosa");
-                    onDatabaseReload();
-                    return true;
-                }
-            } catch (Exception fallbackError) {
-                logError("Error en reinicialización completa: " + fallbackError.getMessage());
-            }
-
-            return false;
-        }
-    }
 
     public final boolean reloadAll() {
         try {
-            logInfo("Recargando plugin " + getName() + "...");
-
             reloadConfig();
-
             if (!reloadDatabase()) {
-                logError("Error recargando base de datos");
+                logError("Error en reload de base de datos");
+                return false;
+            }
+            try {
+                onPluginReload();
+            } catch (Exception e) {
+                logError("Error en reload personalizado: " + e.getMessage());
                 return false;
             }
 
-            onPluginReload();
-            logSuccess("Plugin recargado exitosamente");
+            logSuccess("=== RELOAD COMPLETED ===");
             return true;
 
         } catch (Exception e) {
-            logError("Error recargando plugin: " + e.getMessage());
+            logError("Error durante reload completo: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
+
+    /**
+     * SIMPLIFICADO: Reload de base de datos ahora es completamente automático
+     */
+    public final boolean reloadDatabase() {
+        try {
+            if (DatabaseManager.getInstance() != null) {
+                boolean success = DatabaseManager.getInstance().performCompleteReload();
+
+                if (success) {
+                    onDatabaseReload();
+                    return true;
+                } else {
+                    logError("Fallo en reload automático de base de datos");
+                    return false;
+                }
+            } else {
+                DatabaseManager.initialize(this);
+
+                if (DatabaseManager.getInstance().isConnected()) {
+                    onDatabaseReload();
+                    return true;
+                } else {
+                    logError("Error: No se pudo inicializar la base de datos");
+                    return false;
+                }
+            }
+        } catch (Exception e) {
+            logError("Error crítico en reload de base de datos: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // ===== HOOKS OPCIONALES PARA LOS PLUGINS =====
 
     protected void onDatabaseReload() {
     }
