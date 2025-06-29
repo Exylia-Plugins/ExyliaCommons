@@ -22,6 +22,7 @@ import static net.exylia.commons.utils.DebugUtils.logInfo;
  * Permite administrar múltiples archivos de configuración YAML con sistema de presets de colores global
  * y soporte integrado para placeholders con contexto
  */
+@Deprecated
 public class ConfigManager {
     private final JavaPlugin plugin;
     private static final Map<String, FileConfiguration> configs = new HashMap<>();
