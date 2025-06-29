@@ -42,7 +42,7 @@ public class LicenseConfig {
                 writer.write("# Join our Discord server for more information.\n");
                 writer.write("# https://discord.exylia.net/\n");
                 writer.write("#\n");
-                writer.write("# key: Tu clave de licencia (formato: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
+                writer.write("# key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
                 writer.write("# =================================================\n");
                 writer.write("\n");
                 writer.write("license:\n");

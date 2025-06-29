@@ -52,14 +52,25 @@ public abstract class PermissionCommand extends ExyliaCommand {
             return true;
         }
 
-        // Verificar permiso
-        if (permission != null && !hasPermission(sender, permission)) {
+        if (permission != null && !shouldSkipMainPermissionCheck(sender, args) && !hasPermission(sender, permission)) {
             onPermissionDenied(sender);
             return true;
         }
 
         // Ejecutar el comando
         return onCommand(sender, label, args);
+    }
+
+    /**
+     * Determina si se debe omitir la verificación del permiso principal
+     * Puede ser sobrescrito por subclases para implementar lógica específica
+     *
+     * @param sender Quien ejecuta el comando
+     * @param args Argumentos del comando
+     * @return true si se debe omitir la verificación del permiso principal
+     */
+    protected boolean shouldSkipMainPermissionCheck(CommandSender sender, String[] args) {
+        return false;
     }
 
     /**

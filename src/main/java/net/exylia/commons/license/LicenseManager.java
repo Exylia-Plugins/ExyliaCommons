@@ -115,11 +115,11 @@ public class LicenseManager {
     private void handleLicenseResult(LicenseResult result) {
         if (result.isValid()) {
             isVerified = true;
-            DebugUtils.logSuccess("Licencia válida para " + plugin.getName());
+            DebugUtils.logSuccess("Valid license for " + plugin.getName());
         } else {
             isVerified = false;
-            DebugUtils.logError("❌ LICENCIA INVÁLIDA para " + plugin.getName());
-            DebugUtils.logError("🚫 Razón: " + result.getMessage());
+            DebugUtils.logError("INVALID LICENSE FOR " + plugin.getName());
+            DebugUtils.logError("Reason: " + result.getMessage());
 
             switch (result.getErrorType()) {
                 case INVALID_LICENSE:
@@ -173,18 +173,30 @@ public class LicenseManager {
 
             DebugUtils.logInfo("Respuesta del servidor de licencias: " + responseCode);
 
-            // Procesar respuesta
-            if (responseCode == 200) {
-                JsonObject response = new Gson().fromJson(responseBody, JsonObject.class);
-                boolean valid = response.get("valid").getAsBoolean();
-                String message = response.get("message").getAsString();
+            if (responseCode == 200 || (responseCode == 404 && isValidJson(responseBody))) {
+                try {
+                    JsonObject response = new Gson().fromJson(responseBody, JsonObject.class);
 
-                if (valid) {
-                    DebugUtils.logSuccess("Licencia verificada exitosamente para " + plugin.getName());
-                    return new LicenseResult(true, message, LicenseResult.ErrorType.NONE);
-                } else {
-                    DebugUtils.logError("Licencia inválida para " + plugin.getName() + ": " + message);
-                    return new LicenseResult(false, message, LicenseResult.ErrorType.INVALID_LICENSE);
+                    if (response.has("valid") && response.has("message")) {
+                        boolean valid = response.get("valid").getAsBoolean();
+                        String message = response.get("message").getAsString();
+
+                        if (valid) {
+                            DebugUtils.logSuccess("Licencia verificada exitosamente para " + plugin.getName());
+                            return new LicenseResult(true, message, LicenseResult.ErrorType.NONE);
+                        } else {
+                            DebugUtils.logError("Licencia inválida para " + plugin.getName() + ": " + message);
+                            return new LicenseResult(false, message, LicenseResult.ErrorType.INVALID_LICENSE);
+                        }
+                    } else {
+                        String errorMsg = "Respuesta del servidor inválida: " + responseBody;
+                        DebugUtils.logError(errorMsg);
+                        return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
+                    }
+                } catch (Exception jsonException) {
+                    String errorMsg = "Error del servidor: " + responseCode + " - " + responseBody;
+                    DebugUtils.logError(errorMsg);
+                    return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
                 }
             } else {
                 String errorMsg = "Error del servidor: " + responseCode + " - " + responseBody;
@@ -200,6 +212,15 @@ public class LicenseManager {
             String errorMsg = "Error inesperado: " + e.getMessage();
             DebugUtils.logError(errorMsg);
             return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.UNEXPECTED_ERROR);
+        }
+    }
+
+    private boolean isValidJson(String jsonString) {
+        try {
+            new Gson().fromJson(jsonString, JsonObject.class);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
     }
 

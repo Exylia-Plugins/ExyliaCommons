@@ -54,7 +54,7 @@ public class RedisManager {
     /**
      * Inicializa el sistema de Redis
      */
-    public static synchronized void initialize(ExyliaPlugin plugin, RedisConfig config) {
+    public static synchronized void start(ExyliaPlugin plugin, RedisConfig config) {
         if (instance != null) {
             logError("RedisManager ya está inicializado!");
             return;

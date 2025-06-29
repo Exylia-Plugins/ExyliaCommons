@@ -94,10 +94,17 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     public final boolean reloadAll() {
         try {
             reloadConfig();
+
             if (!reloadDatabase()) {
                 logError("Error en reload de base de datos");
                 return false;
             }
+
+            if (!reloadRedis()) {
+                logError("Error en reload de Redis");
+                return false;
+            }
+
             try {
                 onPluginReload();
             } catch (Exception e) {
@@ -148,12 +155,84 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
+    /**
+     * NUEVO: Reload de Redis completamente automático
+     * Maneja tanto reinicios como inicializaciones por primera vez
+     */
+    public final boolean reloadRedis() {
+        try {
+            logInfo("Iniciando reload de Redis...");
+
+            boolean wasInitialized = RedisIntegration.isAutoInitialized();
+
+            if (wasInitialized) {
+                // Redis estaba inicializado, hacer reload completo
+                logInfo("Redis ya estaba inicializado, realizando reload completo...");
+                boolean success = RedisIntegration.performCompleteReload();
+
+                if (success) {
+                    logSuccess("Redis reinicializado correctamente");
+                } else {
+                    logError("Fallo en reload de Redis");
+                }
+
+                onRedisReload();
+                return success;
+
+            } else {
+                // Redis no estaba inicializado, verificar si ahora debería estarlo
+                logInfo("Redis no estaba inicializado, verificando configuración...");
+
+                // Intentar inicializar Redis (esto verificará la configuración)
+                RedisIntegration.init(this);
+
+                // Verificar el resultado
+                RedisIntegration.RedisStatus status = RedisIntegration.getStatus();
+
+                if (status.isEnabledInConfig()) {
+                    if (status.isFullyOperational()) {
+                        logSuccess("Redis habilitado y inicializado correctamente por primera vez");
+                        onRedisReload();
+                        return true;
+                    } else {
+                        logError("Redis habilitado en configuración pero falló la inicialización");
+                        onRedisReload();
+                        return false;
+                    }
+                } else {
+                    logInfo("Redis sigue deshabilitado en redis.yml");
+                    onRedisReload();
+                    return true; // No es error si está intencionalmente deshabilitado
+                }
+            }
+
+        } catch (Exception e) {
+            logError("Error crítico en reload de Redis: " + e.getMessage());
+            e.printStackTrace();
+
+            // Intentar llamar el hook incluso si hay error
+            try {
+                onRedisReload();
+            } catch (Exception hookError) {
+                logError("Error adicional en hook de Redis reload: " + hookError.getMessage());
+            }
+
+            return false;
+        }
+    }
+
     // ===== HOOKS OPCIONALES PARA LOS PLUGINS =====
 
     protected void onDatabaseReload() {
+        // Hook vacío por defecto - los plugins pueden sobrescribirlo
+    }
+
+    protected void onRedisReload() {
+        // Hook vacío por defecto - los plugins pueden sobrescribirlo
     }
 
     protected void onPluginReload() {
+        // Hook vacío por defecto - los plugins pueden sobrescribirlo
     }
 
     // ===== LICENSE METHODS =====

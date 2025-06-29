@@ -2,6 +2,7 @@ package net.exylia.commons.command.types;
 
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
+import net.exylia.commons.command.annotation.DefaultAction;
 import net.exylia.commons.utils.ColorUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,6 +17,7 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
 
     private final Map<String, SubCommandInfo> subCommandInfoMap = new HashMap<>();
     private CommandInfo mainCommandInfo;
+    private DefaultAction defaultAction;
 
     public AutoSubCommandCommand(JavaPlugin plugin, String name, String permission, boolean playerOnly) {
         super(plugin, name, permission, playerOnly);
@@ -27,12 +29,27 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         loadSubCommandInfo();
     }
 
+    @Override
+    protected boolean shouldSkipMainPermissionCheck(CommandSender sender, String[] args) {
+        if (args.length == 0 && defaultAction != null &&
+                defaultAction.value() == DefaultAction.ActionType.EXECUTE_SUBCOMMAND &&
+                !defaultAction.subcommand().isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
     private void loadSubCommandInfo() {
         Class<?> clazz = this.getClass();
 
         // Cargar información del comando principal
         if (clazz.isAnnotationPresent(CommandInfo.class)) {
             mainCommandInfo = clazz.getAnnotation(CommandInfo.class);
+        }
+
+        // Cargar configuración de acción por defecto
+        if (clazz.isAnnotationPresent(DefaultAction.class)) {
+            defaultAction = clazz.getAnnotation(DefaultAction.class);
         }
 
         // Cargar información de subcomandos
@@ -76,8 +93,33 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     @Override
     protected boolean onCommand(CommandSender sender, String label, String[] args) {
         if (args.length == 0) {
-            showHelp(sender, label);
-            return true;
+            if (defaultAction != null && defaultAction.value() == DefaultAction.ActionType.EXECUTE_SUBCOMMAND) {
+                String defaultSubCommand = defaultAction.subcommand();
+                if (!defaultSubCommand.isEmpty()) {
+                    String subPermission = getSubCommandPermission(defaultSubCommand);
+                    if (subPermission != null && !hasPermission(sender, subPermission)) {
+                        onPermissionDenied(sender);
+                        return true;
+                    }
+
+                    SubCommandInfo info = subCommandInfoMap.get(defaultSubCommand.toLowerCase());
+                    if (info != null && info.playerOnly() && !(sender instanceof Player)) {
+                        onPlayerOnly(sender);
+                        return true;
+                    }
+
+                    SubCommandContext context = new SubCommandContext(
+                            sender,
+                            defaultSubCommand,
+                            label,
+                            new String[0],
+                            new String[]{defaultSubCommand}
+                    );
+                    return executeSubCommand(context);
+                }
+            }
+
+            return executeNoArgs(sender, label);
         }
 
         String subCommand = args[0].toLowerCase();
@@ -98,11 +140,16 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
                 sender,
                 subCommand,
                 label,
-                Arrays.copyOfRange(args, 1, args.length), 
+                Arrays.copyOfRange(args, 1, args.length),
                 args
         );
 
         return executeSubCommand(context);
+    }
+
+    protected boolean executeNoArgs(CommandSender sender, String label) {
+        showHelp(sender, label);
+        return true;
     }
 
     @Override

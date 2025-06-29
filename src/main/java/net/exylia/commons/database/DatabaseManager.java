@@ -33,7 +33,7 @@ public class DatabaseManager {
         this.plugin = plugin;
         this.executor = Executors.newFixedThreadPool(4);
         this.repositories = new HashMap<>();
-        this.registeredEntities = new HashSet<>(); // Nuevo
+        this.registeredEntities = new HashSet<>();
         this.migrationManager = new MigrationManager();
     }
 
