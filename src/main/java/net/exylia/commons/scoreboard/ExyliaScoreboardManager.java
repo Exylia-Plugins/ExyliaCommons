@@ -1,9 +1,5 @@
 package net.exylia.commons.scoreboard;
 
-import net.exylia.commons.config.ConfigManager;
-import net.exylia.commons.placeholders.PlaceholderRegistry;
-import net.exylia.commons.utils.ColorUtils;
-import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -22,16 +18,14 @@ import static net.exylia.commons.utils.DebugUtils.logWarn;
 public class ExyliaScoreboardManager {
 
     private final Plugin plugin;
-    private final ConfigManager configManager;
     private final Map<String, ScoreboardTemplate> templates;
     private final Map<UUID, PlayerScoreboard> playerScoreboards;
     private final boolean placeholderAPIEnabled;
 
     private BukkitTask globalUpdateTask;
 
-    public ExyliaScoreboardManager(Plugin plugin, ConfigManager configManager) {
+    public ExyliaScoreboardManager(Plugin plugin) {
         this.plugin = plugin;
-        this.configManager = configManager;
         this.templates = new HashMap<>();
         this.playerScoreboards = new ConcurrentHashMap<>();
         this.placeholderAPIEnabled = checkPlaceholderAPI();
@@ -101,7 +95,7 @@ public class ExyliaScoreboardManager {
 
         // Crear y mostrar nuevo scoreboard
         PlayerScoreboard playerScoreboard = new PlayerScoreboard(
-                plugin, player, contextTemplate, configManager, placeholderAPIEnabled
+                plugin, player, contextTemplate, placeholderAPIEnabled
         );
         playerScoreboards.put(player.getUniqueId(), playerScoreboard);
         playerScoreboard.show();

@@ -1,7 +1,6 @@
 package net.exylia.commons.scoreboard;
 
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.placeholders.PlaceholderRegistry;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
@@ -22,7 +21,6 @@ public class PlayerScoreboard {
     private final Plugin plugin;
     private final Player player;
     private final ScoreboardTemplate template;
-    private final ConfigManager configManager;
     private final boolean placeholderAPIEnabled;
     private final Scoreboard scoreboard;
     private final Objective objective;
@@ -39,12 +37,10 @@ public class PlayerScoreboard {
     private static final ScoreboardManager SCOREBOARD_MANAGER = Bukkit.getScoreboardManager();
     private static final String OBJECTIVE_NAME = "exylia";
 
-    public PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template,
-                            ConfigManager configManager, boolean placeholderAPIEnabled) {
+    public PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template, boolean placeholderAPIEnabled) {
         this.plugin = plugin;
         this.player = player;
         this.template = template;
-        this.configManager = configManager;
         this.placeholderAPIEnabled = placeholderAPIEnabled;
 
         this.scoreboard = SCOREBOARD_MANAGER.getNewScoreboard();

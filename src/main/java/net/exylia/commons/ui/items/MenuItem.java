@@ -380,7 +380,6 @@ public class MenuItem {
             return new ItemStack(Material.STONE);
         }
 
-        // Handle custom heads
         if (materialString.startsWith("headbase-")) {
             String base64 = materialString.substring(9);
             return createHeadFromBase64(base64);

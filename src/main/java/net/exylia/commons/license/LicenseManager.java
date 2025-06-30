@@ -8,9 +8,12 @@ import org.bukkit.Bukkit;
 
 import java.io.*;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Enumeration;
 import java.util.concurrent.CompletableFuture;
 
 public class LicenseManager {
@@ -152,8 +155,7 @@ public class LicenseManager {
 
     private LicenseResult performLicenseVerification() {
         try {
-            // Generar HWID del servidor
-            String serverHWID = generateServerHWID();
+            String serverHWID = getHWID();
             String serverIP = getServerIP();
 
             // Crear payload JSON
@@ -265,35 +267,43 @@ public class LicenseManager {
         }
     }
 
-    private String generateServerHWID() {
+    private String getHWID() {
         try {
-            String hwid = System.getProperty("os.name", "unknown") +
-                    System.getProperty("os.arch", "unknown") +
-                    System.getProperty("os.version", "unknown") +
-                    System.getProperty("java.version", "unknown") +
-                    System.getProperty("java.vendor", "unknown") +
-                    Bukkit.getVersion() +
-                    Bukkit.getBukkitVersion() +
-                    plugin.getDataFolder().getAbsolutePath();
-
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(hwid.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
+            // Obtener MAC
+            StringBuilder macBuilder = new StringBuilder();
+            Enumeration<NetworkInterface> networks = NetworkInterface.getNetworkInterfaces();
+            while (networks.hasMoreElements()) {
+                NetworkInterface net = networks.nextElement();
+                byte[] mac = net.getHardwareAddress();
+                if (mac != null && mac.length > 0) {
+                    for (byte b : mac) {
+                        macBuilder.append(String.format("%02X", b));
+                    }
+                    break;
                 }
-                hexString.append(hex);
             }
 
-            return hexString.toString().toUpperCase();
+            String hostname = InetAddress.getLocalHost().getHostName();
+            String os = System.getProperty("os.name");
+            String user = System.getProperty("user.name");
+
+            String rawHWID = macBuilder + "-" + hostname + "-" + os + "-" + user;
+
+            // Hasheamos para que no sea legible directamente
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(rawHWID.getBytes(StandardCharsets.UTF_8));
+
+            // Convertimos a hex
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+
+            return hex.toString();
 
         } catch (Exception e) {
-            DebugUtils.logError("Error generando HWID: " + e.getMessage());
-            // Fallback HWID
-            return "FALLBACK-" + plugin.getName().hashCode();
+            e.printStackTrace();
+            return "UNKNOWN";
         }
     }
 
