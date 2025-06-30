@@ -1,8 +1,11 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.config.components.BossBarConfig;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.List;
+
+import static net.exylia.commons.utils.DebugUtils.logError;
 
 /**
  * Clase base abstracta para todas las configuraciones
@@ -55,8 +58,19 @@ public abstract class ConfigBase {
             return config.getDouble(path, parseDoubleDefault(annotation.defaultValue()));
         } else if (fieldType == List.class) {
             return config.getStringList(path);
+        } else if (fieldType == BossBarConfig.class) {
+            return createBossBarConfig(path);
         } else {
             throw new IllegalArgumentException("Tipo de campo no soportado: " + fieldType.getSimpleName());
+        }
+    }
+
+    private BossBarConfig createBossBarConfig(String basePath) {
+        if (config.getConfigurationSection(basePath) != null) {
+            return new BossBarConfig(basePath, config);
+        } else {
+            logError("Advertencia: No se encontró configuración para " + basePath + ", usando valores por defecto");
+            return new BossBarConfig();
         }
     }
 
@@ -75,7 +89,21 @@ public abstract class ConfigBase {
         onCustomReload();
     }
 
+    // Métodos que pueden ser sobrescritos por las clases hijas
     protected void onInitialize() {}
     protected void onCustomReload() {}
     public boolean validate() { return true; }
+
+    // Métodos de utilidad para acceder al sistema y configuración
+    protected ConfigurationSystem getSystem() {
+        return system;
+    }
+
+    protected FileConfiguration getConfig() {
+        return config;
+    }
+
+    protected String getFileName() {
+        return fileName;
+    }
 }
