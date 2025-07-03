@@ -1,5 +1,6 @@
 package net.exylia.commons.command.types;
 
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -22,7 +23,7 @@ public abstract class SubCommandCommand extends PermissionCommand {
      * @param permission Permiso necesario o null
      * @param playerOnly Si solo jugadores pueden ejecutarlo
      */
-    public SubCommandCommand(JavaPlugin plugin, String name, String permission, boolean playerOnly) {
+    public SubCommandCommand(ExyliaPlugin plugin, String name, String permission, boolean playerOnly) {
         super(plugin, name, permission, playerOnly);
     }
 
@@ -35,7 +36,7 @@ public abstract class SubCommandCommand extends PermissionCommand {
      * @param permission Permiso necesario o null
      * @param playerOnly Si solo jugadores pueden ejecutarlo
      */
-    public SubCommandCommand(JavaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
+    public SubCommandCommand(ExyliaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
         super(plugin, name, aliases, permission, playerOnly);
     }
 

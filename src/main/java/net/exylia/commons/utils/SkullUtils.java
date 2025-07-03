@@ -215,9 +215,7 @@ public class SkullUtils {
         }
 
         // Crear nueva petición asíncrona
-        CompletableFuture<ItemStack> future = CompletableFuture.supplyAsync(() -> {
-            return createPlayerHeadSync(playerName);
-        });
+        CompletableFuture<ItemStack> future = CompletableFuture.supplyAsync(() -> createPlayerHeadSync(playerName));
 
         pendingRequests.put(cacheKey, future);
 

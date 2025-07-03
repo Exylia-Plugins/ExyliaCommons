@@ -1,5 +1,6 @@
 package net.exylia.commons.command.types;
 
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.utils.ColorUtils;
 import org.bukkit.command.CommandSender;
@@ -12,12 +13,12 @@ public abstract class SimpleCommand extends PermissionCommand {
 
     private CommandInfo commandInfo;
 
-    public SimpleCommand(JavaPlugin plugin, String name, String permission, boolean playerOnly) {
+    public SimpleCommand(ExyliaPlugin plugin, String name, String permission, boolean playerOnly) {
         super(plugin, name, permission, playerOnly);
         loadCommandInfo();
     }
 
-    public SimpleCommand(JavaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
+    public SimpleCommand(ExyliaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
         super(plugin, name, aliases, permission, playerOnly);
         loadCommandInfo();
     }

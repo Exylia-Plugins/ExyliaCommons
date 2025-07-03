@@ -1,5 +1,7 @@
 package net.exylia.commons.command.types;
 
+import lombok.Getter;
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -12,6 +14,7 @@ import java.util.List;
  * Clase base para comandos que pueden requerir permisos
  * y pueden ser ejecutados solo por jugadores
  */
+@Getter
 public abstract class PermissionCommand extends ExyliaCommand {
 
     private final String permission;
@@ -25,7 +28,7 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param permission Permiso necesario o null si no requiere
      * @param playerOnly Si solo jugadores pueden ejecutarlo
      */
-    public PermissionCommand(JavaPlugin plugin, String name, String permission, boolean playerOnly) {
+    public PermissionCommand(ExyliaPlugin plugin, String name, String permission, boolean playerOnly) {
         this(plugin, name, null, permission, playerOnly);
     }
 
@@ -38,7 +41,7 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param permission Permiso necesario o null si no requiere
      * @param playerOnly Si solo jugadores pueden ejecutarlo
      */
-    public PermissionCommand(JavaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
+    public PermissionCommand(ExyliaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
         super(plugin, name, aliases);
         this.permission = permission;
         this.playerOnly = playerOnly;
@@ -101,21 +104,4 @@ public abstract class PermissionCommand extends ExyliaCommand {
         sender.sendMessage("§cNo tienes permiso para ejecutar este comando.");
     }
 
-    /**
-     * Obtiene el permiso necesario para ejecutar el comando
-     *
-     * @return Permiso o null
-     */
-    public String getPermission() {
-        return permission;
-    }
-
-    /**
-     * Verifica si el comando es solo para jugadores
-     *
-     * @return true si es solo para jugadores
-     */
-    public boolean isPlayerOnly() {
-        return playerOnly;
-    }
 }

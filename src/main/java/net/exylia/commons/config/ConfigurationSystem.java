@@ -164,7 +164,7 @@ public class ConfigurationSystem {
      */
     public class MessageBuilder {
         private final String path;
-        private Object context;
+        private final List<Object> contexts = new ArrayList<>();
         private Player player;
         private final Map<String, Object> replacements = new HashMap<>();
         private boolean usePrefix = true;
@@ -175,10 +175,65 @@ public class ConfigurationSystem {
             this.path = path;
         }
 
+        // ========== MÉTODOS PARA CONTEXTOS MÚLTIPLES ==========
+
+        /**
+         * Añade un contexto único al builder
+         */
         public MessageBuilder withContext(Object context) {
-            this.context = context;
+            if (context != null) {
+                this.contexts.add(context);
+            }
             return this;
         }
+
+        /**
+         * Añade múltiples contextos de una vez
+         */
+        public MessageBuilder withContexts(Object... contexts) {
+            for (Object context : contexts) {
+                if (context != null) {
+                    this.contexts.add(context);
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Añade múltiples contextos desde una colección
+         */
+        public MessageBuilder withContexts(Collection<Object> contexts) {
+            for (Object context : contexts) {
+                if (context != null) {
+                    this.contexts.add(context);
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Limpia todos los contextos actuales
+         */
+        public MessageBuilder clearContexts() {
+            this.contexts.clear();
+            return this;
+        }
+
+        /**
+         * Obtiene una copia inmutable de los contextos actuales
+         */
+        public List<Object> getContexts() {
+            return new ArrayList<>(contexts);
+        }
+
+        /**
+         * Verifica si tiene contextos
+         */
+        public boolean hasContexts() {
+            return !contexts.isEmpty();
+        }
+
+        // ========== MÉTODOS EXISTENTES MEJORADOS ==========
 
         public MessageBuilder forPlayer(Player player) {
             this.player = player;
@@ -197,6 +252,11 @@ public class ConfigurationSystem {
             return this;
         }
 
+        public MessageBuilder replace(Map<String, Object> replacements) {
+            this.replacements.putAll(replacements);
+            return this;
+        }
+
         public MessageBuilder noPrefix() {
             this.usePrefix = false;
             return this;
@@ -212,6 +272,8 @@ public class ConfigurationSystem {
             return this;
         }
 
+        // ========== MÉTODOS DE CONSTRUCCIÓN ==========
+
         public Component build() {
             return buildInternal(false);
         }
@@ -220,12 +282,52 @@ public class ConfigurationSystem {
             return buildInternal(true).toString();
         }
 
+        private String generateCacheKey() {
+            // Regla simple: Si hay contextos, jugador, o reemplazos dinámicos, no cachear
+            if (!contexts.isEmpty() || player != null || !replacements.isEmpty()) {
+                return null; // No usar caché
+            }
+
+            // Verificar si el mensaje original contiene placeholders
+            String messageText = getMessageFile().getString(path, "");
+            if (containsPlaceholders(messageText)) {
+                return null; // No usar caché
+            }
+
+            // Solo cachear mensajes completamente estáticos
+            return String.format("%s:%s:%s",
+                    path,
+                    usePrefix,
+                    customPrefix != null ? customPrefix : "default"
+            );
+        }
+
+        /**
+         * Verifica si un texto contiene placeholders
+         */
+        private boolean containsPlaceholders(String text) {
+            if (text == null || text.isEmpty()) {
+                return false;
+            }
+
+            // Buscar patrón %cualquier_cosa%
+            int firstPercent = text.indexOf('%');
+            if (firstPercent == -1) {
+                return false;
+            }
+
+            int secondPercent = text.indexOf('%', firstPercent + 1);
+            return secondPercent != -1;
+        }
+
         private Component buildInternal(boolean forceString) {
-            // Usar cache si es posible
+            // Usar cache solo para mensajes completamente estáticos
             String cacheKey = generateCacheKey();
-            Component cached = cache.getMessage(cacheKey);
-            if (cached != null) {
-                return cached;
+            if (cacheKey != null) {
+                Component cached = cache.getMessage(cacheKey);
+                if (cached != null) {
+                    return cached;
+                }
             }
 
             // Obtener mensaje base
@@ -240,9 +342,9 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Procesar placeholders con contexto
-            if (context != null || player != null) {
-                message = PlaceholderRegistry.process(message, context, player);
+            // Procesar placeholders con múltiples contextos
+            if (!contexts.isEmpty() || player != null) {
+                message = PlaceholderRegistry.processMultipleContexts(message, contexts, player);
             }
 
             // Aplicar reemplazos manuales
@@ -265,20 +367,75 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Guardar en cache
-            cache.putMessage(cacheKey, component);
+            // Guardar en cache SOLO si es completamente estático
+            if (cacheKey != null) {
+                cache.putMessage(cacheKey, component);
+            }
 
             return component;
         }
 
-        private String generateCacheKey() {
-            return String.format("%s:%s:%s:%s:%d",
+        /**
+         * Genera un hash único para todos los contextos
+         */
+        private String generateContextsHash() {
+            if (contexts.isEmpty()) {
+                return "null";
+            }
+
+            int hash = 1;
+            for (Object context : contexts) {
+                hash = 31 * hash + (context != null ? context.hashCode() : 0);
+            }
+            return String.valueOf(hash);
+        }
+
+        // ========== MÉTODOS DE UTILIDAD ==========
+
+        /**
+         * Clona el builder actual con todos sus contextos y configuraciones
+         */
+        public MessageBuilder clone() {
+            MessageBuilder cloned = new MessageBuilder(this.path);
+            cloned.contexts.addAll(this.contexts);
+            cloned.player = this.player;
+            cloned.replacements.putAll(this.replacements);
+            cloned.usePrefix = this.usePrefix;
+            cloned.customPrefix = this.customPrefix;
+            cloned.asString = this.asString;
+            return cloned;
+        }
+
+        /**
+         * Crea un nuevo builder basado en este pero con un path diferente
+         */
+        public MessageBuilder withPath(String newPath) {
+            MessageBuilder newBuilder = new MessageBuilder(newPath);
+            newBuilder.contexts.addAll(this.contexts);
+            newBuilder.player = this.player;
+            newBuilder.replacements.putAll(this.replacements);
+            newBuilder.usePrefix = this.usePrefix;
+            newBuilder.customPrefix = this.customPrefix;
+            newBuilder.asString = this.asString;
+            return newBuilder;
+        }
+
+        /**
+         * Información de debug sobre el builder
+         */
+        public String getDebugInfo() {
+            return String.format("MessageBuilder{path='%s', contextos=%d, jugador=%s, reemplazos=%d, prefix=%s}",
                     path,
-                    context != null ? context.hashCode() : "null",
-                    player != null ? player.getUniqueId() : "null",
-                    usePrefix,
-                    replacements.hashCode()
+                    contexts.size(),
+                    player != null ? player.getName() : "null",
+                    replacements.size(),
+                    usePrefix ? (customPrefix != null ? customPrefix : "global") : "none"
             );
+        }
+
+        @Override
+        public String toString() {
+            return getDebugInfo();
         }
     }
 

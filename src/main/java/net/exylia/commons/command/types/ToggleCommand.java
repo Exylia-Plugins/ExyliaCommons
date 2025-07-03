@@ -1,5 +1,6 @@
 package net.exylia.commons.command.types;
 
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -26,7 +27,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param permission Permiso necesario
      * @param permissionOthers Permiso para usar en otros jugadores
      */
-    public ToggleCommand(JavaPlugin plugin, String name, String permission, String permissionOthers) {
+    public ToggleCommand(ExyliaPlugin plugin, String name, String permission, String permissionOthers) {
         this(plugin, name, null, permission, permissionOthers);
     }
 
@@ -39,7 +40,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param permission Permiso necesario
      * @param permissionOthers Permiso para usar en otros jugadores
      */
-    public ToggleCommand(JavaPlugin plugin, String name, List<String> aliases, String permission, String permissionOthers) {
+    public ToggleCommand(ExyliaPlugin plugin, String name, List<String> aliases, String permission, String permissionOthers) {
         super(plugin, name, aliases, permission, true); // Comando solo para jugadores
         this.permissionOthers = permissionOthers;
     }

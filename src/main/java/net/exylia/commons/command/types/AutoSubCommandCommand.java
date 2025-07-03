@@ -1,5 +1,7 @@
 package net.exylia.commons.command.types;
 
+import lombok.Getter;
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
 import net.exylia.commons.command.annotation.DefaultAction;
@@ -19,12 +21,12 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     private CommandInfo mainCommandInfo;
     private DefaultAction defaultAction;
 
-    public AutoSubCommandCommand(JavaPlugin plugin, String name, String permission, boolean playerOnly) {
+    public AutoSubCommandCommand(ExyliaPlugin plugin, String name, String permission, boolean playerOnly) {
         super(plugin, name, permission, playerOnly);
         loadSubCommandInfo();
     }
 
-    public AutoSubCommandCommand(JavaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
+    public AutoSubCommandCommand(ExyliaPlugin plugin, String name, List<String> aliases, String permission, boolean playerOnly) {
         super(plugin, name, aliases, permission, playerOnly);
         loadSubCommandInfo();
     }
@@ -241,6 +243,7 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         return subCommandInfoMap.values();
     }
 
+    @Getter
     public static class SubCommandContext {
         private final CommandSender sender;
         private final String subCommand;
@@ -255,12 +258,6 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
             this.subArgs = subArgs;
             this.fullArgs = fullArgs;
         }
-
-        public CommandSender getSender() { return sender; }
-        public String getSubCommand() { return subCommand; }
-        public String getLabel() { return label; }
-        public String[] getSubArgs() { return subArgs; }
-        public String[] getFullArgs() { return fullArgs; }
 
         // Métodos de conveniencia
         public Player getPlayer() { return sender instanceof Player ? (Player) sender : null; }

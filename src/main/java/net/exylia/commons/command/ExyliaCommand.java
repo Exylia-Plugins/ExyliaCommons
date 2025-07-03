@@ -1,5 +1,6 @@
 package net.exylia.commons.command;
 
+import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.command.CommandExecutor;
@@ -21,7 +22,7 @@ import static net.exylia.commons.utils.DebugUtils.logError;
  */
 public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
 
-    protected final JavaPlugin plugin;
+    protected final ExyliaPlugin plugin;
     private final String name;
     private final List<String> aliases;
 
@@ -31,7 +32,7 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
      * @param plugin Instancia del plugin
      * @param name Nombre del comando
      */
-    public ExyliaCommand(JavaPlugin plugin, String name) {
+    public ExyliaCommand(ExyliaPlugin plugin, String name) {
         this(plugin, name, new ArrayList<>());
     }
 
@@ -42,7 +43,7 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
      * @param name Nombre del comando
      * @param aliases Lista de aliases
      */
-    public ExyliaCommand(JavaPlugin plugin, String name, List<String> aliases) {
+    public ExyliaCommand(ExyliaPlugin plugin, String name, List<String> aliases) {
         this.plugin = plugin;
         this.name = name;
         this.aliases = aliases != null ? aliases : new ArrayList<>();

@@ -1,8 +1,10 @@
 package net.exylia.commons.database.repository;
 
 import net.exylia.commons.database.adapters.DatabaseAdapter;
+import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.utils.DebugUtils;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -235,6 +237,35 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
+    public void saveOrUpdate(T entity) {
+        try {
+            // Get the primary key value from the entity
+            String primaryKey = getPrimaryKeyField(entity.getClass());
+            Object primaryKeyValue = getPrimaryKeyValue(entity, primaryKey);
+
+            if (primaryKeyValue != null && exists(primaryKeyValue)) {
+                update(entity);
+            } else {
+                save(entity);
+            }
+        } catch (Exception e) {
+            DebugUtils.logError("Error en saveOrUpdate para entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
+            throw new RuntimeException("Error en saveOrUpdate: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> saveOrUpdateAsync(T entity) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                saveOrUpdate(entity);
+            } catch (Exception e) {
+                throw new RuntimeException("Error en saveOrUpdateAsync: " + e.getMessage(), e);
+            }
+        }, executor);
+    }
+
+    @Override
     public CompletableFuture<Void> saveAllAsync(List<T> entities) {
         return CompletableFuture.runAsync(() -> saveAll(entities), executor);
     }
@@ -242,5 +273,35 @@ public class RepositoryImpl<T> implements Repository<T> {
     @Override
     public CompletableFuture<Void> deleteAllAsync(List<T> entities) {
         return CompletableFuture.runAsync(() -> deleteAll(entities), executor);
+    }
+
+    // Helper method to get primary key value from entity
+    private Object getPrimaryKeyValue(Object entity, String primaryKeyField) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                String fieldName = column.name().isEmpty() ? field.getName() : column.name();
+                if (fieldName.equals(primaryKeyField)) {
+                    field.setAccessible(true);
+                    return field.get(entity);
+                }
+            }
+        }
+        return null;
+    }
+
+    // Helper method to get primary key field name (already exists in adapters, should be moved to common place)
+    private String getPrimaryKeyField(Class<?> entityClass) {
+        Field[] fields = entityClass.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    return column.name().isEmpty() ? field.getName() : column.name();
+                }
+            }
+        }
+        return "id"; // fallback
     }
 }

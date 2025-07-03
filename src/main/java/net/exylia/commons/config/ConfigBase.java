@@ -1,9 +1,14 @@
 package net.exylia.commons.config;
 
 import net.exylia.commons.config.components.BossBarConfig;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static net.exylia.commons.utils.DebugUtils.logError;
 
@@ -60,9 +65,126 @@ public abstract class ConfigBase {
             return config.getStringList(path);
         } else if (fieldType == BossBarConfig.class) {
             return createBossBarConfig(path);
+        } else if (fieldType == Map.class) {
+            return createMapFromConfig(field, path);
         } else {
             throw new IllegalArgumentException("Tipo de campo no soportado: " + fieldType.getSimpleName());
         }
+    }
+
+    /**
+     * Creates a Map from a configuration section
+     */
+    private Map<String, Object> createMapFromConfig(java.lang.reflect.Field field, String path) {
+        ConfigurationSection section = config.getConfigurationSection(path);
+        if (section == null) {
+            logError("Advertencia: No se encontró configuración para " + path + ", usando mapa vacío");
+            return new HashMap<>();
+        }
+
+        Map<String, Object> resultMap = new HashMap<>();
+
+        // Get the generic type information
+        Type genericType = field.getGenericType();
+        if (genericType instanceof ParameterizedType) {
+            ParameterizedType paramType = (ParameterizedType) genericType;
+            Type[] actualTypes = paramType.getActualTypeArguments();
+
+            if (actualTypes.length >= 2) {
+                Class<?> valueType = (Class<?>) actualTypes[1];
+
+                // Handle different value types
+                for (String key : section.getKeys(false)) {
+                    Object value = createValueFromSection(section, key, valueType);
+                    resultMap.put(key, value);
+                }
+            }
+        }
+
+        return resultMap;
+    }
+
+    /**
+     * Creates a value from a configuration section based on the expected type
+     */
+    private Object createValueFromSection(ConfigurationSection parentSection, String key, Class<?> valueType) {
+        if (valueType == String.class) {
+            return parentSection.getString(key);
+        } else if (valueType == Integer.class || valueType == int.class) {
+            return parentSection.getInt(key);
+        } else if (valueType == Boolean.class || valueType == boolean.class) {
+            return parentSection.getBoolean(key);
+        } else if (valueType == Double.class || valueType == double.class) {
+            return parentSection.getDouble(key);
+        } else {
+            // For complex objects like RankTier, try to create from configuration section
+            ConfigurationSection subSection = parentSection.getConfigurationSection(key);
+            if (subSection != null) {
+                return createComplexObjectFromSection(subSection, valueType);
+            } else {
+                // If it's not a section, return the raw value
+                return parentSection.get(key);
+            }
+        }
+    }
+
+    /**
+     * Creates complex objects (like RankTier) from configuration sections
+     */
+    private Object createComplexObjectFromSection(ConfigurationSection section, Class<?> objectType) {
+        try {
+            // Try to create an instance of the object
+            Object instance = objectType.getDeclaredConstructor().newInstance();
+
+            // Use reflection to set fields based on configuration
+            for (java.lang.reflect.Field field : objectType.getDeclaredFields()) {
+                field.setAccessible(true);
+                String fieldName = field.getName();
+
+                if (section.contains(fieldName)) {
+                    Object value = getValueFromSection(section, fieldName, field.getType());
+                    field.set(instance, value);
+                } else if (section.contains(camelToSnake(fieldName))) {
+                    // Try snake_case version
+                    Object value = getValueFromSection(section, camelToSnake(fieldName), field.getType());
+                    field.set(instance, value);
+                }
+            }
+
+            return instance;
+        } catch (Exception e) {
+            logError("Error creando objeto " + objectType.getSimpleName() + " desde configuración: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gets a value from a configuration section with proper type conversion
+     */
+    private Object getValueFromSection(ConfigurationSection section, String key, Class<?> expectedType) {
+        if (expectedType == String.class) {
+            return section.getString(key);
+        } else if (expectedType == int.class || expectedType == Integer.class) {
+            return section.getInt(key);
+        } else if (expectedType == boolean.class || expectedType == Boolean.class) {
+            return section.getBoolean(key);
+        } else if (expectedType == double.class || expectedType == Double.class) {
+            return section.getDouble(key);
+        } else {
+            // For nested objects, recursively create from subsection
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null) {
+                return createComplexObjectFromSection(subSection, expectedType);
+            }
+            return section.get(key);
+        }
+    }
+
+    /**
+     * Converts camelCase to snake_case
+     */
+    private String camelToSnake(String camelCase) {
+        return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 
     private BossBarConfig createBossBarConfig(String basePath) {
