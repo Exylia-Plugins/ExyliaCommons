@@ -5,7 +5,7 @@ import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.LicenseManager;
-import net.exylia.commons.placeholders.PlaceholderRegistry;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
 import net.exylia.commons.wizard.LocationWizardManager;
@@ -21,7 +21,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
@@ -450,6 +449,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     // ===== PRIVATE INITIALIZATION METHODS =====
     private void initializeExylia() {
         try {
+            PlaceholderSystemManager.initialize(this);
             AdapterFactory.initialize(this);
             ActionBarUtils.init(this);
             BossbarUtils.init(this);
@@ -518,6 +518,5 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         ColorUtils.shutdown();
         OldColorUtils.shutdown();
         AdapterFactory.close();
-        PlaceholderRegistry.clear();
     }
 }

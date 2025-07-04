@@ -2,7 +2,7 @@
 
 package net.exylia.commons.ui.config;
 
-import net.exylia.commons.ui.context.MenuContext;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.MultiPaginationMenu;
 import net.exylia.commons.ui.builders.MultiPaginationMenuBuilder;
@@ -32,7 +32,7 @@ public class MultiPaginationMenuConfiguration {
      * @param context The menu context
      * @return The built menu
      */
-    public MultiPaginationMenu buildMenu(FileConfiguration config, Player player, MenuContext context) {
+    public MultiPaginationMenu buildMenu(FileConfiguration config, Player player, ExyliaContext context) {
         return buildFromSection(config, player, context);
     }
 
@@ -43,11 +43,11 @@ public class MultiPaginationMenuConfiguration {
      * @param context The menu context
      * @return The built menu
      */
-    public MultiPaginationMenu buildMenu(ConfigurationSection section, Player player, MenuContext context) {
+    public MultiPaginationMenu buildMenu(ConfigurationSection section, Player player, ExyliaContext context) {
         return buildFromSection(section, player, context);
     }
 
-    private MultiPaginationMenu buildFromSection(ConfigurationSection config, Player player, MenuContext context) {
+    private MultiPaginationMenu buildFromSection(ConfigurationSection config, Player player, ExyliaContext context) {
         String title = config.getString("title", "Multi-Pagination Menu");
         int rows = config.getInt("rows", 6);
 
@@ -96,7 +96,7 @@ public class MultiPaginationMenuConfiguration {
     }
 
     private void configureSection(MultiPaginationMenuBuilder builder, String sectionName,
-                                  ConfigurationSection config, Player player, MenuContext context) {
+                                  ConfigurationSection config, Player player, ExyliaContext context) {
 
         // Parse slots
         int[] slots = parseSlots(config.getString("slots", "10-16"), 6);
@@ -137,7 +137,7 @@ public class MultiPaginationMenuConfiguration {
     }
 
     private void loadStaticItems(MultiPaginationMenu menu, ConfigurationSection itemsConfig,
-                                 Player player, MenuContext context, int rows) {
+                                 Player player, ExyliaContext context, int rows) {
         for (String itemKey : itemsConfig.getKeys(false)) {
             ConfigurationSection itemConfig = itemsConfig.getConfigurationSection(itemKey);
             if (itemConfig == null) continue;
@@ -153,7 +153,7 @@ public class MultiPaginationMenuConfiguration {
         }
     }
 
-    private MenuItem buildMenuItem(ConfigurationSection config, Player player, MenuContext context) {
+    private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
         String material = config.getString("material", "STONE");
         MenuItem item = new MenuItem(material);
 
@@ -193,8 +193,9 @@ public class MultiPaginationMenuConfiguration {
         }
 
         // Process with context
-        if (context != null && player != null) {
-            item.processWithContext(context, player);
+        if (context != null) {
+            item.withContext(context);
+            item.process(player);
         }
 
         return item;

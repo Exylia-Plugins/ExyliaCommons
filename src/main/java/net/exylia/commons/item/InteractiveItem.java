@@ -1,12 +1,16 @@
+// ==================== INTERACTIVE ITEM MODERNIZADO ====================
+
 package net.exylia.commons.item;
 
+import lombok.Getter;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.GlobalActionManager;
 import net.exylia.commons.command.CommandExecutor;
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.ItemMetaAdapter;
-import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -19,40 +23,42 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
 import static net.exylia.commons.utils.DebugUtils.logWarn;
 import static net.exylia.commons.utils.SkullUtils.*;
 
 /**
- * InteractiveItem con enfoque híbrido:
- * - En NBT: Solo ID del item, usos actuales y datos críticos de persistencia
- * - En memoria: Configuración, comandos, acciones (desde config/registro)
+ * InteractiveItem modernizado que usa el sistema unificado de placeholders
+ * Elimina la dependencia de sistemas de placeholders internos
  */
 public class InteractiveItem {
 
-    // SOLO estos datos van en NBT (datos que DEBEN persistir)
+    // NBT Keys para persistencia
     private static final String NBT_ITEM_ID = "interactive_item_id";
     private static final String NBT_CURRENT_USES = "current_uses";
-    private static final String NBT_UNIQUE_ID = "unique_id"; // Para items no-stackeable
-    private static final String NBT_CREATION_TIME = "creation_time"; // Para tracking
+    private static final String NBT_UNIQUE_ID = "unique_id";
+    private static final String NBT_CREATION_TIME = "creation_time";
 
-    // Datos en memoria (se obtienen del registro/config)
-    private final ItemStack itemStack;
+    // Componentes del sistema
+    private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
+    private final ItemStack itemStack;
 
-    // Configuración dinámica (NO se persiste en NBT)
-    private String configId; // ID para buscar en configuración
-    private ItemConfiguration config; // Configuración cargada desde memoria
+    // Configuración desde memoria
+    private String configId;
+    private ItemConfiguration config;
 
-    // Datos temporales (NO se persisten)
-    private Consumer<ItemClickInfo> clickHandler;
+    // Contextos para placeholders
     private Player placeholderPlayer;
-    private Object placeholderContext;
+
+    // Handler temporal (no persistente)
+    @Getter
+    private Consumer<ItemClickInfo> clickHandler;
+
+    // ==================== CONSTRUCTORES ====================
 
     /**
      * Constructor para crear desde configuración
@@ -63,18 +69,15 @@ public class InteractiveItem {
         this.itemStack = createItemFromConfig(config);
         setItemId(configId);
         setCreationTime(System.currentTimeMillis());
-
-        // ARREGLO: Inicializar usos correctamente al crear
         initializeUses();
 
-        // Aplicar cantidad si está especificada
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
     }
 
     /**
-     * Constructor para crear desde config con placeholders
+     * Constructor para crear desde config con jugador para placeholders
      */
     public InteractiveItem(String configId, ItemConfiguration config, Player player) {
         this.configId = configId;
@@ -83,11 +86,8 @@ public class InteractiveItem {
         this.itemStack = createItemFromConfig(config, player);
         setItemId(configId);
         setCreationTime(System.currentTimeMillis());
-
-        // ARREGLO: Inicializar usos correctamente al crear
         initializeUses();
 
-        // Aplicar cantidad si está especificada
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
@@ -104,13 +104,11 @@ public class InteractiveItem {
 
     /**
      * Crea un InteractiveItem desde un ItemStack existente
-     * Busca la configuración en memoria usando el ID
      */
     public static InteractiveItem fromItemStack(ItemStack itemStack) {
         String itemId = getItemIdFromStack(itemStack);
         if (itemId == null) return null;
 
-        // Buscar configuración en el registro de items
         ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
         if (config == null) {
             logWarn("No se encontró configuración para item ID: " + itemId);
@@ -120,163 +118,52 @@ public class InteractiveItem {
         return new InteractiveItem(itemStack, itemId, config);
     }
 
-    /**
-     * Obtiene el ID del item desde el NBT del ItemStack
-     */
-    private static String getItemIdFromStack(ItemStack itemStack) {
-        if (itemStack == null || !itemStack.hasItemMeta()) return null;
+// ==================== GESTIÓN DE CONTEXTOS CON EXYLIACONTEXT ====================
 
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return null;
-
-        NamespacedKey key = new NamespacedKey(ItemManager.getPlugin(), NBT_ITEM_ID);
-        return meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
-    }
-
-    // ===== GETTERS QUE USAN CONFIGURACIÓN EN MEMORIA =====
-
-    public String getId() {
-        return configId;
-    }
-
-    public String getRawName() {
-        return config.getName();
-    }
-
-    public List<String> getRawLore() {
-        return config.getLore();
-    }
-
-    public String getRawMaterialString() {
-        return config.getMaterial();
-    }
-
-    public boolean usesPlaceholders() {
-        return config.usesPlaceholders();
-    }
-
-    public List<String> getCommands() {
-        return config.getCommands();
-    }
-
-    public String getAction() {
-        return config.getAction();
-    }
-
-    public boolean shouldConsumeOnUse() {
-        return config.shouldConsumeOnUse();
-    }
-
-    public boolean shouldCancelEvent() {
-        return config.shouldCancelEvent();
-    }
-
-    public int getMaxUses() {
-        return config.getMaxUses();
-    }
-
-    public boolean isStackable() {
-        return config.isStackable();
-    }
-
-    public String getUsesDisplayFormat() {
-        return config.getUsesDisplayFormat();
-    }
-
-    public boolean shouldShowUsesInLore() {
-        return config.shouldShowUsesInLore();
-    }
-
-    public boolean shouldShowUsesInName() {
-        return config.shouldShowUsesInName();
-    }
-
-    // ===== MÉTODOS DE INICIALIZACIÓN =====
+    @Getter
+    private ExyliaContext context = ExyliaContext.create();
 
     /**
-     * Inicializa correctamente los usos del item
+     * Establece el contexto completo
      */
-    private void initializeUses() {
-        int maxUses = getMaxUses();
-        if (maxUses > 0) {
-            // Solo establecer usos actuales si no están ya establecidos
-            if (!hasNBTValue(NBT_CURRENT_USES)) {
-                setCurrentUses(maxUses);
-            }
-            // Actualizar display después de establecer usos
-            updateUsesDisplay();
-        }
-    }
-
-    /**
-     * Verifica si existe un valor NBT específico
-     */
-    private boolean hasNBTValue(String key) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return false;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        return meta.getPersistentDataContainer().has(namespacedKey, PersistentDataType.INTEGER);
-    }
-
-    public int getCurrentUses() {
-        return getNBTInt(NBT_CURRENT_USES, getMaxUses());
-    }
-
-    public InteractiveItem setCurrentUses(int uses) {
-        setNBTInt(NBT_CURRENT_USES, uses);
-        updateUsesDisplay();
+    public InteractiveItem withContext(ExyliaContext context) {
+        this.context = context != null ? context : ExyliaContext.create();
         return this;
     }
 
-    private void setItemId(String id) {
-        setNBTString(NBT_ITEM_ID, id);
+    /**
+     * Añade un objeto al contexto
+     */
+    public InteractiveItem addToContext(Object object) {
+        this.context.add(object);
+        return this;
     }
 
-    private void setCreationTime(long time) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
-        meta.getPersistentDataContainer().set(key, PersistentDataType.LONG, time);
-        itemStack.setItemMeta(meta);
+    /**
+     * Añade múltiples objetos al contexto
+     */
+    public InteractiveItem addToContext(Object... objects) {
+        this.context.addAll(objects);
+        return this;
     }
 
-    public long getCreationTime() {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return 0;
-        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
-        return meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.LONG, 0L);
+    /**
+     * Añade datos con clave al contexto
+     */
+    public InteractiveItem addToContext(String key, Object value) {
+        this.context.put(key, value);
+        return this;
     }
 
-    // ===== MÉTODOS NBT HELPERS =====
-
-    private int getNBTInt(String key, int defaultValue) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return defaultValue;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        return meta.getPersistentDataContainer().getOrDefault(namespacedKey, PersistentDataType.INTEGER, defaultValue);
+    /**
+     * Limpia el contexto
+     */
+    public InteractiveItem clearContext() {
+        this.context = ExyliaContext.create();
+        return this;
     }
 
-    private void setNBTInt(String key, int value) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.INTEGER, value);
-        itemStack.setItemMeta(meta);
-    }
-
-    private void setNBTString(String key, String value) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        if (value != null) {
-            meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.STRING, value);
-        } else {
-            meta.getPersistentDataContainer().remove(namespacedKey);
-        }
-        itemStack.setItemMeta(meta);
-    }
-
-    // ===== MÉTODOS DE CONFIGURACIÓN TEMPORAL (NO PERSISTENTES) =====
+    // ==================== CONFIGURACIÓN TEMPORAL ====================
 
     public InteractiveItem setClickHandler(Consumer<ItemClickInfo> clickHandler) {
         this.clickHandler = clickHandler;
@@ -288,51 +175,33 @@ public class InteractiveItem {
         return this;
     }
 
-    public InteractiveItem setPlaceholderContext(Object context) {
-        this.placeholderContext = context;
+    // ==================== GETTERS DE CONFIGURACIÓN ====================
+
+    public String getId() { return configId; }
+    public String getRawName() { return config.getName(); }
+    public List<String> getRawLore() { return config.getLore(); }
+    public String getRawMaterialString() { return config.getMaterial(); }
+    public boolean usesPlaceholders() { return config.usesPlaceholders(); }
+    public List<String> getCommands() { return config.getCommands(); }
+    public String getAction() { return config.getAction(); }
+    public boolean shouldConsumeOnUse() { return config.shouldConsumeOnUse(); }
+    public boolean shouldCancelEvent() { return config.shouldCancelEvent(); }
+    public int getMaxUses() { return config.getMaxUses(); }
+    public boolean isStackable() { return config.isStackable(); }
+    public String getUsesDisplayFormat() { return config.getUsesDisplayFormat(); }
+    public boolean shouldShowUsesInLore() { return config.shouldShowUsesInLore(); }
+    public boolean shouldShowUsesInName() { return config.shouldShowUsesInName(); }
+
+    // ==================== GESTIÓN DE USOS ====================
+
+    public int getCurrentUses() {
+        return getNBTInt(NBT_CURRENT_USES, getMaxUses());
+    }
+
+    public InteractiveItem setCurrentUses(int uses) {
+        setNBTInt(NBT_CURRENT_USES, uses);
+        updateUsesDisplay();
         return this;
-    }
-
-    public Consumer<ItemClickInfo> getClickHandler() {
-        return clickHandler;
-    }
-
-    // ===== MÉTODOS PARA MANTENER COMPATIBILIDAD =====
-
-    /**
-     * Actualiza la cantidad del ItemStack
-     * @param amount Nueva cantidad
-     * @return Este item para encadenamiento
-     */
-    public InteractiveItem setAmount(int amount) {
-        itemStack.setAmount(Math.max(1, Math.min(64, amount)));
-        return this;
-    }
-
-    /**
-     * Establece si el item debe brillar
-     * @param glowing true para brillar
-     * @return Este item para encadenamiento
-     */
-    public InteractiveItem setGlowing(boolean glowing) {
-        setGlowing(itemStack, glowing);
-        return this;
-    }
-
-    /**
-     * Oculta todos los atributos del item
-     * @return Este item para encadenamiento
-     */
-    public InteractiveItem hideAllAttributes() {
-        hideAllAttributes(itemStack);
-        return this;
-    }
-
-    // ===== MÉTODOS DE NEGOCIO =====
-
-    public boolean hasAction() {
-        String action = getAction();
-        return action != null && !action.trim().isEmpty();
     }
 
     public boolean hasLimitedUses() {
@@ -345,25 +214,107 @@ public class InteractiveItem {
 
     public boolean consumeUse() {
         int maxUses = getMaxUses();
-        if (maxUses == -1) return true; // Usos infinitos
+        if (maxUses == -1) return true;
 
         int currentUses = getCurrentUses();
         if (currentUses > 0) {
             int newUses = currentUses - 1;
             setCurrentUses(newUses);
-            return newUses > 0; // ARREGLO: Retorna false cuando llega a 0 usos
+            return newUses > 0;
         }
-        return false; // Ya no tiene usos
+        return false;
+    }
+
+    // ==================== PROCESAMIENTO CON SISTEMA UNIFICADO ====================
+
+    /**
+     * Actualiza placeholders usando el sistema unificado
+     */
+    public void updatePlaceholders(Player player) {
+        if (!usesPlaceholders()) return;
+
+        // Recargar configuración si es necesario
+        ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
+        if (freshConfig != null) {
+            this.config = freshConfig;
+        }
+
+        Player targetPlayer = (placeholderPlayer != null) ? placeholderPlayer : player;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        // Preparar contexto completo añadiendo este item
+        ExyliaContext fullContext = context.copy().add(this);
+
+        // Actualizar nombre
+        String rawName = getRawName();
+        if (rawName != null) {
+            String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
+
+            // Procesar placeholder de usos si es necesario
+            if (hasLimitedUses() && processedName.contains("%uses%")) {
+                String usesText = getUsesDisplayFormat()
+                        .replace("%current%", String.valueOf(getCurrentUses()))
+                        .replace("%max%", String.valueOf(getMaxUses()));
+                processedName = processedName.replace("%uses%", usesText);
+            }
+
+            adapter.setDisplayName(meta, ColorUtils.parse(processedName));
+        }
+
+        // Actualizar lore
+        List<String> rawLore = getRawLore();
+        if (!rawLore.isEmpty()) {
+            List<Component> loreComponents = new ArrayList<>();
+            for (String line : rawLore) {
+                String processedLine = fullContext.processPlaceholders(line, targetPlayer);
+
+                // Procesar placeholder de usos
+                if (hasLimitedUses() && processedLine.contains("%uses%")) {
+                    String usesText = getUsesDisplayFormat()
+                            .replace("%current%", String.valueOf(getCurrentUses()))
+                            .replace("%max%", String.valueOf(getMaxUses()));
+                    processedLine = processedLine.replace("%uses%", usesText);
+                }
+
+                loreComponents.add(ColorUtils.parse(processedLine));
+            }
+
+            // Añadir usos si está habilitado y no está en lore original
+            if (shouldShowUsesInLore() && hasLimitedUses() &&
+                    rawLore.stream().noneMatch(line -> line.contains("%uses%"))) {
+                loreComponents.add(ColorUtils.parse(""));
+                String usesText = getUsesDisplayFormat()
+                        .replace("%current%", String.valueOf(getCurrentUses()))
+                        .replace("%max%", String.valueOf(getMaxUses()));
+                loreComponents.add(ColorUtils.parse(usesText));
+            }
+
+            adapter.setLore(meta, loreComponents);
+        }
+
+        itemStack.setItemMeta(meta);
+    }
+
+    // ==================== ACCIONES Y COMANDOS ====================
+
+    public boolean hasAction() {
+        String action = getAction();
+        return action != null && !action.trim().isEmpty();
     }
 
     public boolean executeAction(ItemClickInfo clickInfo) {
         if (hasAction()) {
+            // Preparar contexto para la acción
+            ExyliaContext actionContext = context.copy().add(this);
+
             ActionContext context = new ActionContext(clickInfo.player(), clickInfo.source())
                     .withData("clickType", clickInfo.clickType())
                     .withData("slot", clickInfo.slot())
                     .withData("item", this)
                     .withData("itemStack", clickInfo.itemStack())
-                    .withData("itemConfiguration", this.getConfiguration());
+                    .withData("itemConfiguration", this.getConfiguration())
+                    .withData("contexts", actionContext.getAllObjects());
 
             return GlobalActionManager.executeAction(getAction(), context);
         }
@@ -371,24 +322,48 @@ public class InteractiveItem {
     }
 
     public void executeCommands(Player player) {
+        // Preparar contexto para comandos añadiendo este item
+        ExyliaContext commandContext = context.copy().add(this);
+        if (placeholderPlayer != null) commandContext.add(placeholderPlayer);
+
         CommandExecutor.builder(player)
                 .withPlaceholderPlayer(placeholderPlayer)
-                .withPlaceholderContext(placeholderContext)
+                .withPlaceholderContext(commandContext.getAllObjects())
                 .execute(getCommands());
     }
 
-    // ===== CREACIÓN Y ACTUALIZACIÓN DE VISUAL =====
+    // ==================== CREACIÓN Y CONFIGURACIÓN ====================
 
+    /**
+     * Inicializa los usos del item
+     */
+    private void initializeUses() {
+        int maxUses = getMaxUses();
+        if (maxUses > 0) {
+            if (!hasNBTValue(NBT_CURRENT_USES)) {
+                setCurrentUses(maxUses);
+            }
+            updateUsesDisplay();
+        }
+    }
+
+    /**
+     * Crea ItemStack desde configuración
+     */
     private ItemStack createItemFromConfig(ItemConfiguration config) {
         return createItemFromConfig(config, null);
     }
 
+    /**
+     * Crea ItemStack desde configuración con jugador
+     */
     private ItemStack createItemFromConfig(ItemConfiguration config, Player player) {
         String materialString = config.getMaterial();
 
         // Procesar placeholders en material si hay jugador
         if (player != null && containsPlaceholders(materialString)) {
-            materialString = processPlaceholders(materialString, player);
+            ExyliaContext fullContext = context.copy().add(this);
+            materialString = fullContext.processPlaceholders(materialString, player);
         }
 
         ItemStack item = createItemFromString(materialString);
@@ -400,7 +375,8 @@ public class InteractiveItem {
             if (config.getName() != null) {
                 String name = config.getName();
                 if (player != null && config.usesPlaceholders()) {
-                    name = processPlaceholders(name, player);
+                    ExyliaContext fullContext = context.copy().add(this);
+                    name = fullContext.processPlaceholders(name, player);
                 }
                 adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
@@ -411,7 +387,8 @@ public class InteractiveItem {
                 for (String line : config.getLore()) {
                     String processedLine = line;
                     if (player != null && config.usesPlaceholders()) {
-                        processedLine = processPlaceholders(line, player);
+                        ExyliaContext fullContext = context.copy().add(this);
+                        processedLine = fullContext.processPlaceholders(line, player);
                     }
                     loreComponents.add(ColorUtils.parse(processedLine));
                 }
@@ -421,7 +398,7 @@ public class InteractiveItem {
             item.setItemMeta(meta);
         }
 
-        // Aplicar propiedades adicionales
+        // Aplicar propiedades adicionales...
         if (config.isGlowing()) {
             setGlowing(item, true);
         }
@@ -430,46 +407,16 @@ public class InteractiveItem {
             hideAllAttributes(item);
         }
 
-        // Hacer único si no es stackeable
         if (!config.isStackable()) {
             makeUnique(item);
         }
 
-        // ARREGLO: No llamar updateUsesDisplay aquí ya que se llama en initializeUses()
-
         return item;
     }
 
-    private ItemStack createItemFromString(String materialString) {
-        if (materialString == null || materialString.isEmpty()) {
-            logWarn("Material string is null or empty, using STONE");
-            return new ItemStack(Material.STONE);
-        }
-
-        if (materialString.startsWith("headbase-")) {
-            String base64 = materialString.substring(9);
-            return createHeadFromBase64(base64);
-        }
-
-        if (materialString.startsWith("headurl-")) {
-            String url = materialString.substring(8);
-            return createHeadFromUrl(url);
-        }
-
-        if (materialString.startsWith("playerhead-")) {
-            String playerName = materialString.substring(11);
-            return createPlayerHead(playerName);
-        }
-
-        try {
-            Material material = Material.valueOf(materialString.toUpperCase());
-            return new ItemStack(material);
-        } catch (IllegalArgumentException e) {
-            logWarn("Invalid material: " + materialString + ", using STONE");
-            return new ItemStack(Material.STONE);
-        }
-    }
-
+    /**
+     * Actualiza el display de usos
+     */
     private void updateUsesDisplay() {
         if (!hasLimitedUses()) return;
 
@@ -515,89 +462,122 @@ public class InteractiveItem {
         itemStack.setItemMeta(meta);
     }
 
-    public void updatePlaceholders(Player player) {
-        if (!usesPlaceholders()) return;
+    // ==================== MÉTODOS AUXILIARES ====================
 
-        // Recargar configuración actualizada si es necesario
-        ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
-        if (freshConfig != null) {
-            this.config = freshConfig;
+    private boolean containsPlaceholders(String text) {
+        return text != null && text.contains("%");
+    }
+
+    private ItemStack createItemFromString(String materialString) {
+        if (materialString == null || materialString.isEmpty()) {
+            logWarn("Material string is null or empty, using STONE");
+            return new ItemStack(Material.STONE);
         }
 
-        Player targetPlayer = (placeholderPlayer != null) ? placeholderPlayer : player;
+        if (materialString.startsWith("headbase-")) {
+            String base64 = materialString.substring(9);
+            return createHeadFromBase64(base64);
+        }
+
+        if (materialString.startsWith("headurl-")) {
+            String url = materialString.substring(8);
+            return createHeadFromUrl(url);
+        }
+
+        if (materialString.startsWith("playerhead-")) {
+            String playerName = materialString.substring(11);
+            return createPlayerHead(playerName);
+        }
+
+        try {
+            Material material = Material.valueOf(materialString.toUpperCase());
+            return new ItemStack(material);
+        } catch (IllegalArgumentException e) {
+            logWarn("Invalid material: " + materialString + ", using STONE");
+            return new ItemStack(Material.STONE);
+        }
+    }
+
+    // ==================== NBT HELPERS ====================
+
+    private static String getItemIdFromStack(ItemStack itemStack) {
+        if (itemStack == null || !itemStack.hasItemMeta()) return null;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return null;
+
+        NamespacedKey key = new NamespacedKey(ItemManager.getPlugin(), NBT_ITEM_ID);
+        return meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
+    }
+
+    private boolean hasNBTValue(String key) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return false;
+        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
+        return meta.getPersistentDataContainer().has(namespacedKey, PersistentDataType.INTEGER);
+    }
+
+    private int getNBTInt(String key, int defaultValue) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return defaultValue;
+        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
+        return meta.getPersistentDataContainer().getOrDefault(namespacedKey, PersistentDataType.INTEGER, defaultValue);
+    }
+
+    private void setNBTInt(String key, int value) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return;
-
-        // Actualizar nombre
-        String rawName = getRawName();
-        if (rawName != null) {
-            String processedName = processPlaceholders(rawName, targetPlayer);
-
-            // Procesar placeholder de usos
-            if (hasLimitedUses() && processedName.contains("%uses%")) {
-                String usesText = getUsesDisplayFormat()
-                        .replace("%current%", String.valueOf(getCurrentUses()))
-                        .replace("%max%", String.valueOf(getMaxUses()));
-                processedName = processedName.replace("%uses%", usesText);
-            }
-
-            adapter.setDisplayName(meta, ColorUtils.parse(processedName));
-        }
-
-        // Actualizar lore
-        List<String> rawLore = getRawLore();
-        if (!rawLore.isEmpty()) {
-            List<Component> loreComponents = new ArrayList<>();
-            for (String line : rawLore) {
-                String processedLine = processPlaceholders(line, targetPlayer);
-
-                // Procesar placeholder de usos
-                if (hasLimitedUses() && processedLine.contains("%uses%")) {
-                    String usesText = getUsesDisplayFormat()
-                            .replace("%current%", String.valueOf(getCurrentUses()))
-                            .replace("%max%", String.valueOf(getMaxUses()));
-                    processedLine = processedLine.replace("%uses%", usesText);
-                }
-
-                loreComponents.add(ColorUtils.parse(processedLine));
-            }
-
-            // Añadir usos si está habilitado y no está en lore original
-            if (shouldShowUsesInLore() && hasLimitedUses() &&
-                    rawLore.stream().noneMatch(line -> line.contains("%uses%"))) {
-                loreComponents.add(ColorUtils.parse(""));
-                String usesText = getUsesDisplayFormat()
-                        .replace("%current%", String.valueOf(getCurrentUses()))
-                        .replace("%max%", String.valueOf(getMaxUses()));
-                loreComponents.add(ColorUtils.parse(usesText));
-            }
-
-            adapter.setLore(meta, loreComponents);
-        }
-
+        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
+        meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.INTEGER, value);
         itemStack.setItemMeta(meta);
     }
 
-    // ===== MÉTODOS AUXILIARES =====
-
-    private boolean containsPlaceholders(String text) {
-        return text != null && (text.contains("%") || text.contains("{") || text.contains("<"));
+    private void setItemId(String id) {
+        setNBTString(NBT_ITEM_ID, id);
     }
 
-    private String processPlaceholders(String text, Player player) {
-        if (text == null) return null;
-
-        String processed = text;
-
-        if (placeholderContext != null) {
-//            processed = CustomPlaceholderManager.process(processed, placeholderContext);
+    private void setNBTString(String key, String value) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
+        if (value != null) {
+            meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.STRING, value);
+        } else {
+            meta.getPersistentDataContainer().remove(namespacedKey);
         }
+        itemStack.setItemMeta(meta);
+    }
 
-        if (isPlaceholderAPIEnabled()) {
-            processed = PlaceholderAPI.setPlaceholders(player, processed);
-        }
+    private void setCreationTime(long time) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
+        meta.getPersistentDataContainer().set(key, PersistentDataType.LONG, time);
+        itemStack.setItemMeta(meta);
+    }
 
-        return processed;
+    public long getCreationTime() {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return 0;
+        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
+        return meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.LONG, 0L);
+    }
+
+    // ==================== UTILIDADES VISUALES ====================
+
+    public InteractiveItem setAmount(int amount) {
+        itemStack.setAmount(Math.max(1, Math.min(64, amount)));
+        return this;
+    }
+
+    public InteractiveItem setGlowing(boolean glowing) {
+        setGlowing(itemStack, glowing);
+        return this;
+    }
+
+    public InteractiveItem hideAllAttributes() {
+        hideAllAttributes(itemStack);
+        return this;
     }
 
     private void setGlowing(ItemStack item, boolean glowing) {
@@ -637,7 +617,7 @@ public class InteractiveItem {
         item.setItemMeta(meta);
     }
 
-    // ===== GETTERS FINALES =====
+    // ==================== GETTERS FINALES ====================
 
     public ItemStack getItemStack() {
         return itemStack.clone();
@@ -657,7 +637,7 @@ public class InteractiveItem {
         InteractiveItem clone = new InteractiveItem(this.itemStack.clone(), this.configId, this.config);
         clone.clickHandler = this.clickHandler;
         clone.placeholderPlayer = this.placeholderPlayer;
-        clone.placeholderContext = this.placeholderContext;
+        clone.context = this.context.copy();
         return clone;
     }
 }

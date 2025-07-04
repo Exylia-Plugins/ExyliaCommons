@@ -2,8 +2,8 @@
 
 package net.exylia.commons.ui.menus;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.context.MenuContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import org.bukkit.Bukkit;
@@ -36,7 +36,7 @@ public class MultiPaginationMenu extends Menu {
         super.setCloseHandler(this::onPlayerCloseMenu);
     }
 
-    public MultiPaginationMenu(String title, int rows, MenuContext context) {
+    public MultiPaginationMenu(String title, int rows, ExyliaContext context) {
         super(title, rows, context);
         super.setCloseHandler(this::onPlayerCloseMenu);
     }
@@ -429,7 +429,7 @@ public class MultiPaginationMenu extends Menu {
     // ==================== MENU OPERATIONS ====================
 
     @Override
-    public void open(Player player, MenuContext context) {
+    public void open(Player player, ExyliaContext context) {
         cleanupPlayerResources(player);
         initializePlayerPages(player);
 
@@ -543,7 +543,10 @@ public class MultiPaginationMenu extends Menu {
 
         for (int slot : section.getSlots()) {
             MenuItem filler = section.getFillerItem().clone();
-            filler.processWithContext(context, player);
+            if (context != null) {
+                filler.withContext(context);
+                filler.process(player);
+            }
             items.put(slot, filler);
         }
     }
@@ -563,7 +566,10 @@ public class MultiPaginationMenu extends Menu {
             }
 
             // Process with context
-            item.processWithContext(context, player);
+            if (context != null) {
+                item.withContext(context);
+                item.process(player);
+            }
 
             // Setup click handler
             setupItemClickHandler(item, section, globalIndex);
@@ -599,7 +605,10 @@ public class MultiPaginationMenu extends Menu {
         // Previous button
         if (currentPage > 1 && section.getPreviousButton() != null && section.getPreviousButtonSlot() != -1) {
             MenuItem prevButton = section.getPreviousButton().clone();
-            prevButton.processWithContext(context, player);
+            if (context != null) {
+                prevButton.withContext(context);
+                prevButton.process(viewer);
+            }
             prevButton.setClickHandler(event -> previousPage(event.getPlayer(), sectionName));
             items.put(section.getPreviousButtonSlot(), prevButton);
         }
@@ -607,7 +616,10 @@ public class MultiPaginationMenu extends Menu {
         // Next button
         if (currentPage < totalPages && section.getNextButton() != null && section.getNextButtonSlot() != -1) {
             MenuItem nextButton = section.getNextButton().clone();
-            nextButton.processWithContext(context, player);
+            if (context != null) {
+                nextButton.withContext(context);
+                nextButton.process(viewer);
+            }
             nextButton.setClickHandler(event -> nextPage(event.getPlayer(), sectionName));
             items.put(section.getNextButtonSlot(), nextButton);
         }
@@ -645,7 +657,10 @@ public class MultiPaginationMenu extends Menu {
             if (player.isOnline() && getViewer() == player && inventory != null) {
                 MenuItem currentItem = getItem(slot);
                 if (currentItem != null) {
-                    currentItem.processWithContext(context, player);
+                    if (context != null) {
+                        currentItem.withContext(context);
+                        currentItem.process(viewer);
+                    }
                     inventory.setItem(slot, currentItem.build());
                 }
             } else {

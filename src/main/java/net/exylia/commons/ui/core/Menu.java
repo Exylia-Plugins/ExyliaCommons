@@ -2,7 +2,9 @@
 
 package net.exylia.commons.ui.core;
 
-import net.exylia.commons.ui.context.MenuContext;
+import lombok.Getter;
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.manager.MenuManager;
@@ -25,22 +27,31 @@ import java.util.function.Consumer;
  */
 public class Menu {
 
+    @Getter
     protected final String id;
+    @Getter
     protected Component title;
+    @Getter
     protected String rawTitle;
+    @Getter
     protected final int size;
+    @Getter
     protected final int rows;
 
     // Menu state
+    @Getter
     protected Inventory inventory;
+    @Getter
     protected Player viewer;
-    protected MenuContext context;
+    @Getter
+    protected ExyliaContext context = ExyliaContext.create();
     protected boolean isOpen = false;
 
     // Menu configuration
     protected final Map<Integer, MenuItem> items = new ConcurrentHashMap<>();
     protected Consumer<MenuClickEvent> globalClickHandler;
     protected Consumer<Player> closeHandler;
+    @Getter
     protected Menu parentMenu;
 
     // Filler items
@@ -68,9 +79,9 @@ public class Menu {
         this.size = this.rows * 9;
     }
 
-    public Menu(String title, int rows, MenuContext context) {
+    public Menu(String title, int rows, ExyliaContext context) {
         this(title, rows);
-        this.context = context;
+        this.context = context != null ? context : ExyliaContext.create();
     }
 
     // ==================== CORE FUNCTIONALITY ====================
@@ -86,11 +97,16 @@ public class Menu {
     /**
      * Opens the menu for a player with context
      * @param player The player to open the menu for
-     * @param context The menu context
+     * @param additionalContext The menu context
      */
-    public void open(Player player, MenuContext context) {
+    public void open(Player player, ExyliaContext additionalContext) {
         this.viewer = player;
-        this.context = context != null ? context : this.context;
+        if (additionalContext != null) {
+            this.context = this.context.copy().merge(additionalContext);
+        }
+
+        // Añadir el jugador al contexto automáticamente
+        this.context.withPlayer(player);
 
         // Process title with context if available
         processTitle();
@@ -195,19 +211,39 @@ public class Menu {
     }
 
     /**
-     * Updates a single slot in the inventory
-     * @param slot The slot to update
+     * Actualiza un slot específico en el inventario
      */
     protected void updateSlot(int slot) {
         if (inventory == null || !isValidSlot(slot)) return;
 
         MenuItem item = getEffectiveItem(slot);
         if (item != null) {
-            item.processWithContext(context, viewer);
-            inventory.setItem(slot, item.build());
+            // Preparar contexto completo para el item
+            ExyliaContext itemContext = prepareItemContext(item);
+
+            // Aplicar contexto al item
+            item.withContext(itemContext);
+
+            // Procesar y establecer en inventario
+            inventory.setItem(slot, item.buildProcessed(viewer));
         } else {
             inventory.setItem(slot, null);
         }
+    }
+
+    /**
+     * Prepara el contexto completo para un item específico
+     */
+    protected ExyliaContext prepareItemContext(MenuItem item) {
+        // Crear contexto que combina el contexto del menú con el del item
+        ExyliaContext combinedContext = this.context.createChild();
+
+        // Fusionar con el contexto específico del item
+        if (item.getContext() != null && !item.getContext().isEmpty()) {
+            combinedContext.merge(item.getContext());
+        }
+
+        return combinedContext;
     }
 
     /**
@@ -369,7 +405,7 @@ public class Menu {
      */
     protected void processTitle() {
         if (rawTitle != null && context != null) {
-            String processed = context.processPlaceholders(rawTitle, viewer);
+            String processed = PlaceholderSystemManager.getInstance().process(rawTitle, viewer);
             this.title = ColorUtils.parse(processed);
         }
     }
@@ -425,17 +461,9 @@ public class Menu {
 
     // ==================== GETTERS ====================
 
-    public String getId() { return id; }
-    public Component getTitle() { return title; }
-    public String getRawTitle() { return rawTitle; }
-    public int getSize() { return size; }
-    public int getRows() { return rows; }
-    public Player getViewer() { return viewer; }
-    public MenuContext getContext() { return context; }
     public boolean isOpen() { return isOpen; }
-    public Inventory getInventory() { return inventory; }
+
     public Map<Integer, MenuItem> getItems() { return new HashMap<>(items); }
-    public Menu getParentMenu() { return parentMenu; }
 
     // ==================== EVENT HANDLING ====================
 

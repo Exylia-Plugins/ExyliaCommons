@@ -2,8 +2,9 @@
 
 package net.exylia.commons.ui.menus;
 
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.context.MenuContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import org.bukkit.entity.Player;
@@ -182,7 +183,7 @@ public class PaginationMenu extends Menu {
      * @param page The page number (1-based)
      * @param context The menu context
      */
-    public void openToPage(Player player, int page, MenuContext context) {
+    public void openToPage(Player player, int page, ExyliaContext context) {
         setCurrentPage(player, page);
         open(player, context);
     }
@@ -242,7 +243,7 @@ public class PaginationMenu extends Menu {
     // ==================== OVERRIDE METHODS ====================
 
     @Override
-    public void open(Player player, MenuContext context) {
+    public void open(Player player, ExyliaContext context) {
         // Set default page if not set
         if (!playerPages.containsKey(player.getUniqueId())) {
             playerPages.put(player.getUniqueId(), 1);
@@ -263,7 +264,7 @@ public class PaginationMenu extends Menu {
                     .replace("{total_items}", String.valueOf(paginationItems.size()));
 
             if (context != null) {
-                processed = context.processPlaceholders(processed, viewer);
+                processed = PlaceholderSystemManager.getInstance().process(processed, viewer);
             }
 
             this.title = net.exylia.commons.utils.ColorUtils.parse(processed);
@@ -318,8 +319,10 @@ public class PaginationMenu extends Menu {
             for (int i = itemsInPage; i < itemSlots.length; i++) {
                 MenuItem filler = itemSlotFiller.clone();
 
-                // Para el filler SÍ procesar con contexto (no tiene Game)
-                filler.processWithContext(context, viewer);
+                if (context != null) {
+                    filler.withContext(context);
+                    filler.process(viewer);
+                }
 
                 int slot = itemSlots[i];
                 inventory.setItem(slot, filler.build());
@@ -345,7 +348,10 @@ public class PaginationMenu extends Menu {
         if (currentPage > 1 && previousButton != null) {
             MenuItem prevBtn = previousButton.clone();
             prevBtn.setClickHandler(this::handlePreviousClick);
-            prevBtn.processWithContext(context, viewer);
+            if (context != null) {
+                prevBtn.withContext(context);
+                prevBtn.process(viewer);
+            }
 
             inventory.setItem(previousButtonSlot, prevBtn.build());
             items.put(previousButtonSlot, prevBtn);
@@ -358,7 +364,10 @@ public class PaginationMenu extends Menu {
         if (currentPage < totalPages && nextButton != null) {
             MenuItem nextBtn = nextButton.clone();
             nextBtn.setClickHandler(this::handleNextClick);
-            nextBtn.processWithContext(context, viewer);
+            if (context != null) {
+                nextBtn.withContext(context);
+                nextBtn.process(viewer);
+            }
 
             inventory.setItem(nextButtonSlot, nextBtn.build());
             items.put(nextButtonSlot, nextBtn);
@@ -376,7 +385,10 @@ public class PaginationMenu extends Menu {
         MenuItem filler = getEffectiveFillerForSlot(slot);
         if (filler != null) {
             MenuItem fillerClone = filler.clone();
-            fillerClone.processWithContext(context, viewer);
+            if (context != null) {
+                fillerClone.withContext(context);
+                fillerClone.process(viewer);
+            }
             inventory.setItem(slot, fillerClone.build());
             items.put(slot, fillerClone);
         }

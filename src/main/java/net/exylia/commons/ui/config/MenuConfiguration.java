@@ -1,7 +1,7 @@
 package net.exylia.commons.ui.config;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.context.MenuContext;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.PaginationMenu;
 import net.exylia.commons.ui.menus.EditableMenu;
@@ -44,7 +44,7 @@ public class MenuConfiguration {
      * @param context The menu context
      * @return The built menu
      */
-    public Menu buildMenu(FileConfiguration config, Player player, MenuContext context) {
+    public Menu buildMenu(FileConfiguration config, Player player, ExyliaContext context) {
         return buildFromSection(config, player, context);
     }
 
@@ -55,11 +55,11 @@ public class MenuConfiguration {
      * @param context The menu context
      * @return The built menu
      */
-    public Menu buildMenu(ConfigurationSection section, Player player, MenuContext context) {
+    public Menu buildMenu(ConfigurationSection section, Player player, ExyliaContext context) {
         return buildFromSection(section, player, context);
     }
 
-    private Menu buildFromSection(ConfigurationSection config, Player player, MenuContext context) {
+    private Menu buildFromSection(ConfigurationSection config, Player player, ExyliaContext context) {
         String title = config.getString("title", "Menu");
         int rows = config.getInt("rows", 3);
         String type = config.getString("type", "normal").toLowerCase();
@@ -79,7 +79,7 @@ public class MenuConfiguration {
         // Load items
         ConfigurationSection itemsSection = config.getConfigurationSection("items");
         if (itemsSection != null) {
-            loadItems(menu, itemsSection, player, context, rows);
+            loadItems(menu, itemsSection, player, rows, context);
         }
 
         return menu;
@@ -119,7 +119,7 @@ public class MenuConfiguration {
         };
     }
 
-    private void configureFiller(Menu menu, ConfigurationSection fillerConfig, String type, Player player, MenuContext context) {
+    private void configureFiller(Menu menu, ConfigurationSection fillerConfig, String type, Player player, ExyliaContext context) {
         if (fillerConfig == null) return;
 
         MenuItem filler = buildMenuItem(fillerConfig, player, context);
@@ -130,7 +130,7 @@ public class MenuConfiguration {
         }
     }
 
-    private void loadItems(Menu menu, ConfigurationSection itemsSection, Player player, MenuContext context, int rows) {
+    private void loadItems(Menu menu, ConfigurationSection itemsSection, Player player, int rows, ExyliaContext context) {
         for (String itemKey : itemsSection.getKeys(false)) {
             ConfigurationSection itemConfig = itemsSection.getConfigurationSection(itemKey);
             if (itemConfig == null) continue;
@@ -146,7 +146,7 @@ public class MenuConfiguration {
         }
     }
 
-    private MenuItem buildMenuItem(ConfigurationSection config, Player player, MenuContext context) {
+    private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
         String material = config.getString("material", "STONE");
         MenuItem item = new MenuItem(material);
 
@@ -205,7 +205,7 @@ public class MenuConfiguration {
         return item;
     }
 
-    private void executeCommands(List<String> commands, Player player, MenuContext context) {
+    private void executeCommands(List<String> commands, Player player, ExyliaContext context) {
         for (String command : commands) {
             String processed = command;
 

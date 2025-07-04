@@ -1,5 +1,6 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -28,7 +29,7 @@ public interface MessageConfig {
         return getSystem().message(path);
     }
 
-    default Component getWithContext(String path, Object context) {
+    default Component getWithContext(String path, ExyliaContext context) {
         return getSystem().message(path).withContext(context).build();
     }
 
@@ -36,7 +37,7 @@ public interface MessageConfig {
         return getSystem().message(path).forPlayer(player).build();
     }
 
-    default Component getComplete(String path, Object context, Player player, Object... replacements) {
+    default Component getComplete(String path, ExyliaContext context, Player player, Object... replacements) {
         return getSystem().message(path)
                 .withContext(context)
                 .forPlayer(player)

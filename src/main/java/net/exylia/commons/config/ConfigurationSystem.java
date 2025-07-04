@@ -1,6 +1,9 @@
+// ==================== CONFIGURATION SYSTEM MODERNIZADO ====================
+
 package net.exylia.commons.config;
 
-import net.exylia.commons.placeholders.PlaceholderRegistry;
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
@@ -17,26 +20,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
 /**
- * Sistema de configuración avanzado y elegante para plugins Exylia
- *
- * Características principales:
- * - Carga automática de configuraciones basada en anotaciones
- * - Sistema de cache inteligente con invalidación automática
- * - Soporte completo para placeholders con contexto
- * - Validación automática de configuraciones
- * - Sistema de fallbacks y valores por defecto
- * - Hot-reload con notificaciones a listeners
- * - API fluida y minimalista
- * - Soporte para configuraciones anidadas y complejas
+ * Sistema de configuración modernizado que usa el sistema unificado de placeholders
+ * Elimina la dependencia del sistema de placeholders interno
  */
 public class ConfigurationSystem {
 
     private final JavaPlugin plugin;
+    private final PlaceholderSystemManager placeholderManager;
     private final Map<String, ConfigFileData> configFiles = new ConcurrentHashMap<>();
     private final Map<Class<?>, Object> configInstances = new ConcurrentHashMap<>();
     private final Set<ConfigReloadListener> reloadListeners = new HashSet<>();
@@ -47,27 +41,24 @@ public class ConfigurationSystem {
 
     public ConfigurationSystem(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.placeholderManager = PlaceholderSystemManager.getInstance();
         ColorUtils.initializePresets(plugin);
     }
 
-    // ========== API PRINCIPAL - CONFIGURACIÓN AUTOMÁTICA ==========
+    // ==================== INICIALIZACIÓN ====================
 
     /**
-     * Inicializa automáticamente todas las configuraciones basándose en clases anotadas
-     * @param configClasses Clases de configuración con anotaciones @ConfigFile
+     * Inicializa el sistema de configuración
      */
     @SafeVarargs
     public final ConfigurationSystem initialize(Class<? extends ConfigBase>... configClasses) {
-        logInfo("Inicializando sistema de configuración avanzado...");
+        logInfo("Inicializando sistema de configuración modernizado...");
 
-        // Cargar archivos automáticamente basándose en anotaciones
         for (Class<? extends ConfigBase> configClass : configClasses) {
             loadConfigClass(configClass);
         }
 
-        // Configurar el prefix global desde messages si existe
         setupGlobalPrefix();
-
         logSuccess("Sistema de configuración inicializado con " + configFiles.size() + " archivos");
         return this;
     }
@@ -110,130 +101,91 @@ public class ConfigurationSystem {
         }
     }
 
-    // ========== API SIMPLIFICADA PARA OBTENER CONFIGURACIONES ==========
+    // ==================== API DE MENSAJES MODERNIZADA ====================
 
     /**
-     * Obtiene una instancia de configuración por su clase
-     * @param configClass La clase de configuración
-     * @return La instancia configurada
-     */
-    @SuppressWarnings("unchecked")
-    public <T extends ConfigBase> T getConfig(Class<T> configClass) {
-        T instance = (T) configInstances.get(configClass);
-        if (instance == null) {
-            throw new IllegalStateException("Configuración no inicializada: " + configClass.getSimpleName());
-        }
-        return instance;
-    }
-
-    /**
-     * Acceso directo a un archivo de configuración por nombre
-     * @param fileName Nombre del archivo sin extensión
-     * @return El FileConfiguration correspondiente
-     */
-    public FileConfiguration getFile(String fileName) {
-        ConfigFileData data = configFiles.get(fileName);
-        return data != null ? data.configuration : null;
-    }
-
-    // ========== API DE MENSAJES AVANZADA ==========
-
-    /**
-     * API fluida para obtener mensajes con máxima flexibilidad
+     * Builder modernizado para mensajes que usa el sistema unificado
      */
     public MessageBuilder message(String path) {
         return new MessageBuilder(path);
     }
 
     /**
-     * Obtiene un mensaje simple sin procesamiento adicional
+     * Obtiene un mensaje simple
      */
     public Component getMessage(String path) {
         return message(path).build();
     }
 
     /**
-     * Obtiene un mensaje con reemplazos simples
+     * Obtiene un mensaje con reemplazos
      */
     public Component getMessage(String path, Object... replacements) {
         return message(path).replace(replacements).build();
     }
 
+    public ConfigFileData getFileData(String fileName) {
+        return configFiles.get(fileName);
+    }
+
     /**
-     * Builder pattern para construcción fluida de mensajes
+     * MessageBuilder modernizado que usa el sistema unificado de placeholders
      */
     public class MessageBuilder {
         private final String path;
-        private final List<Object> contexts = new ArrayList<>();
+        private ExyliaContext context = ExyliaContext.create();
         private Player player;
         private final Map<String, Object> replacements = new HashMap<>();
         private boolean usePrefix = true;
         private String customPrefix;
-        private boolean asString = false;
 
         public MessageBuilder(String path) {
             this.path = path;
         }
 
-        // ========== MÉTODOS PARA CONTEXTOS MÚLTIPLES ==========
+        // ==================== GESTIÓN DE CONTEXTOS ====================
 
         /**
-         * Añade un contexto único al builder
+         * Establece el contexto completo
          */
-        public MessageBuilder withContext(Object context) {
-            if (context != null) {
-                this.contexts.add(context);
-            }
+        public MessageBuilder withContext(ExyliaContext context) {
+            this.context = context != null ? context : ExyliaContext.create();
             return this;
         }
 
         /**
-         * Añade múltiples contextos de una vez
+         * Añade un objeto al contexto
          */
-        public MessageBuilder withContexts(Object... contexts) {
-            for (Object context : contexts) {
-                if (context != null) {
-                    this.contexts.add(context);
-                }
-            }
+        public MessageBuilder addToContext(Object object) {
+            this.context.add(object);
             return this;
         }
 
         /**
-         * Añade múltiples contextos desde una colección
+         * Añade múltiples objetos al contexto
          */
-        public MessageBuilder withContexts(Collection<Object> contexts) {
-            for (Object context : contexts) {
-                if (context != null) {
-                    this.contexts.add(context);
-                }
-            }
+        public MessageBuilder addToContext(Object... objects) {
+            this.context.addAll(objects);
             return this;
         }
 
         /**
-         * Limpia todos los contextos actuales
+         * Añade datos con clave al contexto
          */
-        public MessageBuilder clearContexts() {
-            this.contexts.clear();
+        public MessageBuilder addToContext(String key, Object value) {
+            this.context.put(key, value);
             return this;
         }
 
         /**
-         * Obtiene una copia inmutable de los contextos actuales
+         * Limpia el contexto
          */
-        public List<Object> getContexts() {
-            return new ArrayList<>(contexts);
+        public MessageBuilder clearContext() {
+            this.context = ExyliaContext.create();
+            return this;
         }
 
-        /**
-         * Verifica si tiene contextos
-         */
-        public boolean hasContexts() {
-            return !contexts.isEmpty();
-        }
-
-        // ========== MÉTODOS EXISTENTES MEJORADOS ==========
+        // ==================== CONFIGURACIÓN DEL BUILDER ====================
 
         public MessageBuilder forPlayer(Player player) {
             this.player = player;
@@ -267,61 +219,18 @@ public class ConfigurationSystem {
             return this;
         }
 
-        public MessageBuilder asString() {
-            this.asString = true;
-            return this;
-        }
-
-        // ========== MÉTODOS DE CONSTRUCCIÓN ==========
+        // ==================== CONSTRUCCIÓN DEL MENSAJE ====================
 
         public Component build() {
-            return buildInternal(false);
+            return buildInternal();
         }
 
         public String buildString() {
-            return buildInternal(true).toString();
+            return buildInternal().toString();
         }
 
-        private String generateCacheKey() {
-            // Regla simple: Si hay contextos, jugador, o reemplazos dinámicos, no cachear
-            if (!contexts.isEmpty() || player != null || !replacements.isEmpty()) {
-                return null; // No usar caché
-            }
-
-            // Verificar si el mensaje original contiene placeholders
-            String messageText = getMessageFile().getString(path, "");
-            if (containsPlaceholders(messageText)) {
-                return null; // No usar caché
-            }
-
-            // Solo cachear mensajes completamente estáticos
-            return String.format("%s:%s:%s",
-                    path,
-                    usePrefix,
-                    customPrefix != null ? customPrefix : "default"
-            );
-        }
-
-        /**
-         * Verifica si un texto contiene placeholders
-         */
-        private boolean containsPlaceholders(String text) {
-            if (text == null || text.isEmpty()) {
-                return false;
-            }
-
-            // Buscar patrón %cualquier_cosa%
-            int firstPercent = text.indexOf('%');
-            if (firstPercent == -1) {
-                return false;
-            }
-
-            int secondPercent = text.indexOf('%', firstPercent + 1);
-            return secondPercent != -1;
-        }
-
-        private Component buildInternal(boolean forceString) {
-            // Usar cache solo para mensajes completamente estáticos
+        private Component buildInternal() {
+            // Generar clave de cache para mensajes estáticos
             String cacheKey = generateCacheKey();
             if (cacheKey != null) {
                 Component cached = cache.getMessage(cacheKey);
@@ -342,12 +251,10 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Procesar placeholders con múltiples contextos
-            if (!contexts.isEmpty() || player != null) {
-                message = PlaceholderRegistry.processMultipleContexts(message, contexts, player);
-            }
+            // Procesar con ExyliaContext
+            message = context.processPlaceholders(message, player);
 
-            // Aplicar reemplazos manuales
+            // Aplicar reemplazos manuales (no-Component)
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (!(entry.getValue() instanceof Component)) {
                     message = message.replace(entry.getKey(), entry.getValue().toString());
@@ -367,7 +274,7 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Guardar en cache SOLO si es completamente estático
+            // Guardar en cache si es estático
             if (cacheKey != null) {
                 cache.putMessage(cacheKey, component);
             }
@@ -375,71 +282,59 @@ public class ConfigurationSystem {
             return component;
         }
 
-        /**
-         * Genera un hash único para todos los contextos
-         */
-        private String generateContextsHash() {
-            if (contexts.isEmpty()) {
-                return "null";
+        private String generateCacheKey() {
+            // Solo cachear si no hay contextos o reemplazos dinámicos
+            if (!context.isEmpty() || player != null || !replacements.isEmpty()) {
+                return null;
             }
 
-            int hash = 1;
-            for (Object context : contexts) {
-                hash = 31 * hash + (context != null ? context.hashCode() : 0);
+            // Verificar si el mensaje contiene placeholders
+            String messageText = getMessageFile().getString(path, "");
+            if (containsPlaceholders(messageText)) {
+                return null;
             }
-            return String.valueOf(hash);
-        }
 
-        // ========== MÉTODOS DE UTILIDAD ==========
-
-        /**
-         * Clona el builder actual con todos sus contextos y configuraciones
-         */
-        public MessageBuilder clone() {
-            MessageBuilder cloned = new MessageBuilder(this.path);
-            cloned.contexts.addAll(this.contexts);
-            cloned.player = this.player;
-            cloned.replacements.putAll(this.replacements);
-            cloned.usePrefix = this.usePrefix;
-            cloned.customPrefix = this.customPrefix;
-            cloned.asString = this.asString;
-            return cloned;
-        }
-
-        /**
-         * Crea un nuevo builder basado en este pero con un path diferente
-         */
-        public MessageBuilder withPath(String newPath) {
-            MessageBuilder newBuilder = new MessageBuilder(newPath);
-            newBuilder.contexts.addAll(this.contexts);
-            newBuilder.player = this.player;
-            newBuilder.replacements.putAll(this.replacements);
-            newBuilder.usePrefix = this.usePrefix;
-            newBuilder.customPrefix = this.customPrefix;
-            newBuilder.asString = this.asString;
-            return newBuilder;
-        }
-
-        /**
-         * Información de debug sobre el builder
-         */
-        public String getDebugInfo() {
-            return String.format("MessageBuilder{path='%s', contextos=%d, jugador=%s, reemplazos=%d, prefix=%s}",
+            return String.format("%s:%s:%s",
                     path,
-                    contexts.size(),
-                    player != null ? player.getName() : "null",
-                    replacements.size(),
-                    usePrefix ? (customPrefix != null ? customPrefix : "global") : "none"
+                    usePrefix,
+                    customPrefix != null ? customPrefix : "default"
             );
         }
 
-        @Override
-        public String toString() {
-            return getDebugInfo();
+        /**
+         * Verifica si un texto contiene placeholders
+         */
+        private boolean containsPlaceholders(String text) {
+            if (text == null || text.isEmpty()) {
+                return false;
+            }
+            return text.contains("%");
         }
     }
 
-    // ========== SISTEMA DE CACHE INTELIGENTE ==========
+    // ==================== OBTENCIÓN DE CONFIGURACIONES ====================
+
+    /**
+     * Obtiene una instancia de configuración por clase
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends ConfigBase> T getConfig(Class<T> configClass) {
+        T instance = (T) configInstances.get(configClass);
+        if (instance == null) {
+            throw new IllegalStateException("Configuración no inicializada: " + configClass.getSimpleName());
+        }
+        return instance;
+    }
+
+    /**
+     * Acceso directo a archivo de configuración
+     */
+    public FileConfiguration getFile(String fileName) {
+        ConfigFileData data = configFiles.get(fileName);
+        return data != null ? data.configuration : null;
+    }
+
+    // ==================== SISTEMA DE CACHE ====================
 
     private static class ConfigCache {
         private final Map<String, Component> messageCache = new ConcurrentHashMap<>();
@@ -491,7 +386,7 @@ public class ConfigurationSystem {
         }
     }
 
-    // ========== SISTEMA DE RELOAD AVANZADO ==========
+    // ==================== SISTEMA DE RELOAD ====================
 
     /**
      * Recarga todas las configuraciones de forma asíncrona
@@ -499,12 +394,10 @@ public class ConfigurationSystem {
     public CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logInfo("Iniciando reload asíncrono del sistema de configuración...");
+                logInfo("Iniciando reload del sistema de configuración...");
 
-                // Invalidar cache
                 cache.invalidateAll();
 
-                // Recargar archivos
                 boolean allSuccess = true;
                 for (String fileName : configFiles.keySet()) {
                     if (!reloadFile(fileName)) {
@@ -519,64 +412,19 @@ public class ConfigurationSystem {
                     }
                 }
 
-                // Reconfigurar sistemas dependientes
                 setupGlobalPrefix();
                 ColorUtils.reloadPresets();
 
-                logSuccess("Reload asíncrono " + (allSuccess ? "exitoso" : "con advertencias"));
+                logSuccess("Reload " + (allSuccess ? "exitoso" : "con advertencias"));
 
-                // Notificar a listeners en el hilo principal
                 Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);
-
                 return allSuccess;
 
             } catch (Exception e) {
-                logError("Error durante reload asíncrono: " + e.getMessage());
+                logError("Error durante reload: " + e.getMessage());
                 return false;
             }
         });
-    }
-
-    /**
-     * Recarga un archivo específico de forma asíncrona
-     */
-    public CompletableFuture<Boolean> reloadFileAsync(String fileName) {
-        return CompletableFuture.supplyAsync(() -> reloadFile(fileName));
-    }
-
-    /**
-     * Método síncrono que delega al asíncrono para compatibilidad
-     */
-    public boolean reloadAll() {
-        try {
-            return reloadAllAsync().get();
-        } catch (Exception e) {
-            logError("Error en reload síncrono de configuración: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Reload con callback
-     */
-    public void reloadAllAsync(Consumer<Boolean> callback) {
-        reloadAllAsync().thenAccept(callback);
-    }
-
-    /**
-     * Reload con timeout
-     */
-    public CompletableFuture<Boolean> reloadAllAsync(long timeoutSeconds) {
-        return reloadAllAsync()
-                .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
-                .exceptionally(throwable -> {
-                    if (throwable instanceof TimeoutException) {
-                        logError("Reload de configuración cancelado por timeout (" + timeoutSeconds + "s)");
-                    } else {
-                        logError("Error en reload de configuración con timeout: " + throwable.getMessage());
-                    }
-                    return false;
-                });
     }
 
     /**
@@ -593,13 +441,11 @@ public class ConfigurationSystem {
             File file = new File(plugin.getDataFolder(), fileName + ".yml");
             FileConfiguration newConfig = YamlConfiguration.loadConfiguration(file);
 
-            // Validar configuración si tiene validador
             if (oldData.validator != null && !oldData.validator.apply(newConfig)) {
                 logError("Validación fallida para " + fileName + " durante reload");
                 return false;
             }
 
-            // Actualizar configuración
             oldData.configuration = newConfig;
             oldData.lastModified = file.lastModified();
 
@@ -612,32 +458,7 @@ public class ConfigurationSystem {
         }
     }
 
-    // ========== LISTENERS Y HOOKS ==========
-
-    public interface ConfigReloadListener {
-        void onConfigReload(String fileName);
-        default void onAllConfigsReload() {}
-    }
-
-    public void addReloadListener(ConfigReloadListener listener) {
-        reloadListeners.add(listener);
-    }
-
-    public void removeReloadListener(ConfigReloadListener listener) {
-        reloadListeners.remove(listener);
-    }
-
-    private void notifyReloadListeners() {
-        reloadListeners.forEach(listener -> {
-            try {
-                listener.onAllConfigsReload();
-            } catch (Exception e) {
-                logError("Error en listener de reload: " + e.getMessage());
-            }
-        });
-    }
-
-    // ========== MÉTODOS INTERNOS ==========
+    // ==================== MÉTODOS INTERNOS ====================
 
     private ConfigFileData loadConfigFile(String fileName, boolean required) {
         try {
@@ -686,12 +507,35 @@ public class ConfigurationSystem {
         return messages;
     }
 
-    // ========== CLASES DE DATOS ==========
+    // ==================== LISTENERS Y ESTADÍSTICAS ====================
+
+    public interface ConfigReloadListener {
+        void onConfigReload(String fileName);
+        default void onAllConfigsReload() {}
+    }
+
+    public void addReloadListener(ConfigReloadListener listener) {
+        reloadListeners.add(listener);
+    }
+
+    public void removeReloadListener(ConfigReloadListener listener) {
+        reloadListeners.remove(listener);
+    }
+
+    private void notifyReloadListeners() {
+        reloadListeners.forEach(listener -> {
+            try {
+                listener.onAllConfigsReload();
+            } catch (Exception e) {
+                logError("Error en listener de reload: " + e.getMessage());
+            }
+        });
+    }
 
     public static class ConfigFileData {
         FileConfiguration configuration;
         long lastModified;
-        Function<FileConfiguration, Boolean> validator;
+        java.util.function.Function<FileConfiguration, Boolean> validator;
 
         ConfigFileData(FileConfiguration configuration, long lastModified) {
             this.configuration = configuration;
@@ -699,57 +543,6 @@ public class ConfigurationSystem {
         }
     }
 
-    // ========== MÉTODOS DE UTILIDAD ==========
-
-    /**
-     * Verifica si un archivo de configuración ha sido modificado externamente
-     */
-    public boolean isFileModified(String fileName) {
-        ConfigFileData data = configFiles.get(fileName);
-        if (data == null) return false;
-
-        File file = new File(plugin.getDataFolder(), fileName + ".yml");
-        return file.lastModified() != data.lastModified;
-    }
-
-    /**
-     * Obtiene los datos internos de un archivo de configuración
-     * @param fileName Nombre del archivo
-     * @return Los datos del archivo o null si no existe
-     */
-    public ConfigFileData getFileData(String fileName) {
-        return configFiles.get(fileName);
-    }
-
-    /**
-     * Obtiene estadísticas del sistema de configuración
-     */
-    public ConfigStats getStats() {
-        return new ConfigStats(
-                configFiles.size(),
-                configInstances.size(),
-                cache.messageCache.size(),
-                cache.valueCache.size()
-        );
-    }
-
-    public static class ConfigStats {
-        public final int loadedFiles;
-        public final int configInstances;
-        public final int cachedMessages;
-        public final int cachedValues;
-
-        ConfigStats(int loadedFiles, int configInstances, int cachedMessages, int cachedValues) {
-            this.loadedFiles = loadedFiles;
-            this.configInstances = configInstances;
-            this.cachedMessages = cachedMessages;
-            this.cachedValues = cachedValues;
-        }
-    }
-
-    /**
-     * Cleanup del sistema
-     */
     public void shutdown() {
         cache.invalidateAll();
         configFiles.clear();

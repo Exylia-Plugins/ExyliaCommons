@@ -1,7 +1,8 @@
 package net.exylia.commons.scoreboard;
 
-import me.clip.placeholderapi.PlaceholderAPI;
-import net.exylia.commons.placeholders.PlaceholderRegistry;
+import lombok.Getter;
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -9,43 +10,46 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scoreboard.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Scoreboard individual con soporte de contexto personalizado
  */
-public class PlayerScoreboard {
+class PlayerScoreboard {
 
     private final Plugin plugin;
+    @Getter
     private final Player player;
+    @Getter
     private final ScoreboardTemplate template;
-    private final boolean placeholderAPIEnabled;
+    private final PlaceholderSystemManager placeholderManager;
     private final Scoreboard scoreboard;
     private final Objective objective;
 
-    // Cache para equipos y contenido previo
+    // Contextos específicos para este scoreboard
+    private final ExyliaContext staticContext;
+
+    // Cache para optimización
     private final Map<Integer, Team> teamCache = new HashMap<>();
     private final Map<Integer, String> lastContent = new HashMap<>();
 
+    @Getter
     private boolean visible = false;
     private long lastUpdate = 0;
-    private Object cachedContext = null; // Cache del contexto
-    private long lastContextUpdate = 0; // Tiempo de última actualización del contexto
 
     private static final ScoreboardManager SCOREBOARD_MANAGER = Bukkit.getScoreboardManager();
     private static final String OBJECTIVE_NAME = "exylia";
 
-    public PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template, boolean placeholderAPIEnabled) {
+    public PlayerScoreboard(Plugin plugin, Player player, ScoreboardTemplate template, ExyliaContext context) {
         this.plugin = plugin;
         this.player = player;
         this.template = template;
-        this.placeholderAPIEnabled = placeholderAPIEnabled;
+        this.placeholderManager = PlaceholderSystemManager.getInstance();
+        this.staticContext = context != null ? context : ExyliaContext.create();
 
         this.scoreboard = SCOREBOARD_MANAGER.getNewScoreboard();
 
-        // Procesar título con colores, placeholders y contexto
+        // Procesar título con sistema unificado
         String processedTitle = processText(template.getTitle());
         Component titleComponent = ColorUtils.parse(processedTitle);
 
@@ -54,37 +58,23 @@ public class PlayerScoreboard {
     }
 
     /**
-     * Obtiene el contexto actual para el jugador
-     */
-    private Object getCurrentContext() {
-        // Actualizar contexto cada segundo como máximo
-        long currentTime = System.currentTimeMillis();
-        if (cachedContext == null || currentTime - lastContextUpdate > 1000) {
-            cachedContext = template.getContext(player);
-            lastContextUpdate = currentTime;
-        }
-        return cachedContext;
-    }
-
-    /**
-     * Procesa texto aplicando colores predefinidos, placeholders custom con contexto y PlaceholderAPI
+     * Procesa texto usando el sistema unificado de placeholders
      */
     private String processText(String text) {
         if (text == null || text.isEmpty()) {
             return "";
         }
 
-        String processed = ColorUtils.applyColorPresets(text);
-        Object context = getCurrentContext();
-        processed = PlaceholderRegistry.process(processed, context, player);
-        if (placeholderAPIEnabled) {
-            try {
-                processed = PlaceholderAPI.setPlaceholders(player, processed);
-            } catch (Exception e) {
-            }
+        // Combinar contexto estático con contexto dinámico del template
+        ExyliaContext fullContext = staticContext.copy();
+
+        // Añadir contexto dinámico del template
+        ExyliaContext templateContext = template.getContext(player);
+        if (templateContext != null) {
+            fullContext.merge(templateContext);
         }
 
-        return processed;
+        return fullContext.processPlaceholders(text, player);
     }
 
     public PlayerScoreboard show() {
@@ -115,7 +105,7 @@ public class PlayerScoreboard {
         // Verificar si debe actualizarse según el tiempo configurado
         long currentTime = System.currentTimeMillis();
         if (template.shouldUpdate()) {
-            long updateInterval = template.getUpdateTicks() * 50; // Convertir ticks a ms
+            long updateInterval = template.getUpdateTicks() * 50L; // Convertir ticks a ms
             if (currentTime - lastUpdate < updateInterval) {
                 return this; // No es momento de actualizar aún
             }
@@ -124,17 +114,16 @@ public class PlayerScoreboard {
         lastUpdate = currentTime;
 
         try {
-            // Actualizar título con contexto
+            // Actualizar título
             String processedTitle = processText(template.getTitle());
             Component titleComponent = ColorUtils.parse(processedTitle);
             objective.displayName(titleComponent);
 
-            // Actualizar líneas con contexto
+            // Actualizar líneas
             Map<Integer, String> lines = template.getLines();
             for (Map.Entry<Integer, String> entry : lines.entrySet()) {
                 int position = entry.getKey();
                 String lineText = entry.getValue();
-
                 updateLine(position, lineText);
             }
 
@@ -149,7 +138,7 @@ public class PlayerScoreboard {
     }
 
     private void updateLine(int position, String lineText) {
-        // Procesar texto con colores, placeholders y contexto
+        // Procesar texto con sistema unificado
         String processedText = processText(lineText);
 
         // Verificar si el contenido cambió
@@ -185,7 +174,7 @@ public class PlayerScoreboard {
         score.setScore(template.getLines().size() - position);
     }
 
-    private void cleanupUnusedLines(java.util.Set<Integer> activeLines) {
+    private void cleanupUnusedLines(Set<Integer> activeLines) {
         teamCache.entrySet().removeIf(entry -> {
             int position = entry.getKey();
             if (!activeLines.contains(position)) {
@@ -200,6 +189,22 @@ public class PlayerScoreboard {
             }
             return false;
         });
+    }
+
+    /**
+     * Añade contextos adicionales en tiempo de ejecución
+     */
+    public PlayerScoreboard addContexts(ExyliaContext additionalContext) {
+        staticContext.merge(additionalContext);
+        return this;
+    }
+
+    /**
+     * Añade objetos al contexto
+     */
+    public PlayerScoreboard addToContext(Object... objects) {
+        staticContext.addAll(objects);
+        return this;
     }
 
     public void destroy() {
@@ -218,22 +223,7 @@ public class PlayerScoreboard {
         } catch (Exception ignored) {}
     }
 
-    public Player getPlayer() {
-        return player;
-    }
-
-    public UUID getPlayerUUID() {
-        return player.getUniqueId();
-    }
-
-    public ScoreboardTemplate getTemplate() {
-        return template;
-    }
-
-    public boolean isVisible() {
-        return visible;
-    }
-
+    public UUID getPlayerUUID() { return player.getUniqueId(); }
     private String getUniqueEntryName(int line) {
         char[] colors = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
         return "§" + colors[line % colors.length] + "§r";

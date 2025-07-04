@@ -2,7 +2,7 @@
 
 package net.exylia.commons.ui.builders;
 
-import net.exylia.commons.ui.context.MenuContext;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.MultiPaginationMenu;
 import org.bukkit.entity.Player;
@@ -22,7 +22,7 @@ public class MultiPaginationMenuBuilder {
         this.menu = new MultiPaginationMenu(title, rows);
     }
 
-    public MultiPaginationMenuBuilder(String title, int rows, MenuContext context) {
+    public MultiPaginationMenuBuilder(String title, int rows, ExyliaContext context) {
         this.menu = new MultiPaginationMenu(title, rows, context);
     }
 

@@ -1,7 +1,7 @@
 package net.exylia.commons.ui.factory;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.context.MenuContext;
 import net.exylia.commons.ui.menus.*;
 import net.exylia.commons.ui.commons.MenuTemplates;
 import org.bukkit.Material;
@@ -33,7 +33,7 @@ public class MenuFactory {
      * @param context The context
      * @return The menu
      */
-    public static Menu basic(String title, int rows, MenuContext context) {
+    public static Menu basic(String title, int rows, ExyliaContext context) {
         return new Menu(title, rows, context);
     }
 
@@ -123,7 +123,7 @@ public class MenuFactory {
      * @param context The context
      * @return The multi-pagination menu
      */
-    public static MultiPaginationMenu multiPagination(String title, int rows, MenuContext context) {
+    public static MultiPaginationMenu multiPagination(String title, int rows, ExyliaContext context) {
         return new MultiPaginationMenu(title, rows, context);
     }
 }

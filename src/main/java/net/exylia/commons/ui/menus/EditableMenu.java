@@ -4,10 +4,7 @@
 package net.exylia.commons.ui.menus;
 
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.context.MenuContext;
-import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.*;

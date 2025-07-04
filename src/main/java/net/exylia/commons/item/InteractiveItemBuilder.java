@@ -1,5 +1,6 @@
 package net.exylia.commons.item;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -15,7 +16,7 @@ public class InteractiveItemBuilder {
 
     private final ConfigurationSection config;
     private Player placeholderPlayer;
-    private Object placeholderContext;
+    private ExyliaContext placeholderContext;
     private Consumer<ItemClickInfo> clickHandler;
     private String customId; // ID personalizado opcional
 
@@ -42,7 +43,7 @@ public class InteractiveItemBuilder {
      * @param context Contexto para placeholders
      * @return Este builder para encadenamiento
      */
-    public InteractiveItemBuilder withPlaceholderContext(Object context) {
+    public InteractiveItemBuilder withPlaceholderContext(ExyliaContext context) {
         this.placeholderContext = context;
         return this;
     }
@@ -118,7 +119,7 @@ public class InteractiveItemBuilder {
 
         // Contexto para placeholders (no persistente)
         if (placeholderContext != null) {
-            item.setPlaceholderContext(placeholderContext);
+            item.withContext(placeholderContext);
         }
     }
 

@@ -1,6 +1,8 @@
 package net.exylia.commons.ui.builders;
 
-import net.exylia.commons.ui.context.MenuContext;
+import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.placeholders.PlaceholderSystemManager;
+import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.actions.ActionContext;
 import net.exylia.commons.ui.actions.ActionRegistry;
@@ -38,7 +40,7 @@ public class MenuItemBuilder {
      * @param context The menu context (for placeholders)
      * @return The built MenuItem
      */
-    public static MenuItem fromConfig(ConfigurationSection config, Player player, MenuContext context) {
+    public static MenuItem fromConfig(ConfigurationSection config, Player player, ExyliaContext context) {
         if (config == null) {
             throw new IllegalArgumentException("Configuration section cannot be null");
         }
@@ -55,8 +57,9 @@ public class MenuItemBuilder {
         configureCommands(item, config, player, context);
 
         boolean usePlaceholders = config.getBoolean("use_placeholders", false);
-        if (context != null && player != null && usePlaceholders) {
-            item.processWithContext(context, player);
+        if (context != null && usePlaceholders) {
+            item.withContext(context);
+            item.process(player);
         }
 
         return item;
@@ -130,14 +133,14 @@ public class MenuItemBuilder {
         if (config.contains("click_type")) {
             String clickType = config.getString("click_type");
             switch (clickType.toLowerCase()) {
-                case "close" -> item.setClickHandler(event -> event.closeMenu());
-                case "back" -> item.setClickHandler(event -> event.openParentMenu());
+                case "close" -> item.setClickHandler(MenuClickEvent::closeMenu);
+                case "back" -> item.setClickHandler(MenuClickEvent::openParentMenu);
                 // Agregar más tipos según necesidad
             }
         }
     }
 
-    private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, MenuContext context) {
+    private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, Object... context) {
         // Comandos
         if (config.contains("commands")) {
             java.util.List<String> commands = config.getStringList("commands");
@@ -149,13 +152,13 @@ public class MenuItemBuilder {
         }
     }
 
-    private static void executeCommands(java.util.List<String> commands, Player player, MenuContext context) {
+    private static void executeCommands(java.util.List<String> commands, Player player, Object... context) {
         for (String command : commands) {
             String processed = command;
 
             // Procesar placeholders si hay contexto
             if (context != null) {
-                processed = context.processPlaceholders(processed, player);
+                processed = PlaceholderSystemManager.getInstance().process(processed, player);
             }
 
             // Ejecutar comando según prefijo
