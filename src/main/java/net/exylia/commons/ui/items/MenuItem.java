@@ -281,16 +281,22 @@ public class MenuItem {
         }
 
         // Process name with placeholders
-        if (rawName != null && context != null) {
-            String processedName = context.processPlaceholders(rawName, player);
+        if (rawName != null) {
+            String processedName = rawName;
+            if (context != null) {
+                processedName = context.processPlaceholders(rawName, player);
+            }
             updateName(processedName);
         }
 
         // Process lore with placeholders
-        if (rawLore != null && !rawLore.isEmpty() && context != null) {
+        if (rawLore != null && !rawLore.isEmpty()) {
             List<Component> processedLore = new ArrayList<>();
             for (String line : rawLore) {
-                String processedLine = context.processPlaceholders(line, player);
+                String processedLine = line;
+                if (context != null) {
+                    processedLine = context.processPlaceholders(line, player);
+                }
                 processedLore.add(ColorUtils.parse(processedLine));
             }
             updateLore(processedLore);
@@ -301,6 +307,30 @@ public class MenuItem {
             String processedAmount = context.processPlaceholders(rawAmount, player);
             updateAmount(processedAmount);
         }
+    }
+
+    /**
+     * Processes this item without context (only applies colors and basic formatting)
+     */
+    public void process() {
+        processWithContext(null, null);
+    }
+
+    /**
+     * Processes this item with a player but no context
+     * @param player The player
+     */
+    public void processWithPlayer(Player player) {
+        processWithContext(null, player);
+    }
+
+    /**
+     * Builds the final ItemStack with processing
+     * @return The built ItemStack
+     */
+    public ItemStack buildProcessed() {
+        process();
+        return itemStack.clone();
     }
 
     /**

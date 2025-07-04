@@ -1,5 +1,6 @@
 package net.exylia.commons;
 
+import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.database.DatabaseManager;
@@ -170,28 +171,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
      */
     protected abstract Class<? extends ConfigBase>[] getConfigurationClasses();
 
-    // ===== API DE CONFIGURACIÓN =====
-
-    /**
-     * Obtiene una configuración por su clase
-     * @param configClass La clase de configuración
-     * @return La instancia de configuración
-     */
-    protected final <T extends ConfigBase> T getConfig(Class<T> configClass) {
-        if (configSystem == null) {
-            throw new IllegalStateException("Sistema de configuración no inicializado");
-        }
-        return configSystem.getConfig(configClass);
-    }
-
-    /**
-     * Obtiene el sistema de configuración completo
-     * @return El ConfigurationSystem
-     */
-    public final ConfigurationSystem getCS() {
-        return configSystem;
-    }
-
 // ===== SISTEMA DE RELOAD ASÍNCRONO =====
 
     public final CompletableFuture<ReloadResult> reloadAllAsync() {
@@ -204,7 +183,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
                 // 1. Reload del sistema de configuración
                 long configStart = System.currentTimeMillis();
-                if (!configSystem.reloadAllAsync().join()) {
+                if (!ConfigManager.reloadAllAsync().join()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de configuraciones");
                 }
@@ -300,6 +279,12 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             try {
                 logInfo("Iniciando reload de Redis...");
 
+                // NUEVA VERIFICACIÓN: Comprobar si Redis está disponible en el classpath
+                if (!isRedisAvailable()) {
+                    logInfo("Redis no está disponible en el classpath, omitiendo reload de Redis");
+                    return true; // Consideramos esto como éxito
+                }
+
                 boolean wasInitialized = RedisIntegration.isAutoInitialized();
 
                 if (wasInitialized) {
@@ -352,6 +337,19 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 return false;
             }
         });
+    }
+
+    /**
+     * Verifica si Redis está disponible en el classpath
+     */
+    private boolean isRedisAvailable() {
+        try {
+            Class.forName("redis.clients.jedis.exceptions.JedisException");
+            Class.forName("redis.clients.jedis.Jedis");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     /**

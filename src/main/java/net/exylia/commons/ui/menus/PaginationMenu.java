@@ -11,6 +11,8 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static net.exylia.commons.utils.MenuUtils.parseSlots;
+
 /**
  * Pagination menu implementation
  */
@@ -35,6 +37,16 @@ public class PaginationMenu extends Menu {
 
     public PaginationMenu(String title, int rows, int... itemSlots) {
         super(title, rows);
+        this.itemSlots = itemSlots.clone();
+        this.itemsPerPage = itemSlots.length;
+        this.titleTemplate = title;
+
+        initializeDefaultNavigation(rows);
+    }
+
+    public PaginationMenu(String title, int rows, String itemSlotsString) {
+        super(title, rows);
+        int[] itemSlots = parseSlots(itemSlotsString, rows);
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
         this.titleTemplate = title;

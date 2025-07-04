@@ -3,7 +3,6 @@ package net.exylia.commons.item;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.GlobalActionManager;
 import net.exylia.commons.command.CommandExecutor;
-import net.exylia.commons.menu.CustomPlaceholderManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.ItemMetaAdapter;
@@ -591,7 +590,7 @@ public class InteractiveItem {
         String processed = text;
 
         if (placeholderContext != null) {
-            processed = CustomPlaceholderManager.process(processed, placeholderContext);
+//            processed = CustomPlaceholderManager.process(processed, placeholderContext);
         }
 
         if (isPlaceholderAPIEnabled()) {

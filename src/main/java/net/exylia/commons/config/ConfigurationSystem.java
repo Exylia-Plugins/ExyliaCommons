@@ -713,6 +713,15 @@ public class ConfigurationSystem {
     }
 
     /**
+     * Obtiene los datos internos de un archivo de configuración
+     * @param fileName Nombre del archivo
+     * @return Los datos del archivo o null si no existe
+     */
+    public ConfigFileData getFileData(String fileName) {
+        return configFiles.get(fileName);
+    }
+
+    /**
      * Obtiene estadísticas del sistema de configuración
      */
     public ConfigStats getStats() {

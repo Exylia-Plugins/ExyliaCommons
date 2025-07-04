@@ -1,6 +1,5 @@
 package net.exylia.commons.command;
 
-import net.exylia.commons.menu.CustomPlaceholderManager;
 import me.clip.placeholderapi.PlaceholderAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
@@ -82,7 +81,7 @@ public class CommandExecutor {
         String processedCmd = command.trim();
 
         if (placeholderContext != null) {
-            processedCmd = CustomPlaceholderManager.process(processedCmd, placeholderContext);
+//            processedCmd = PlaceholderProcessor.process(processedCmd, placeholderContext);
         }
 
         if (isPlaceholderAPIEnabled()) {
