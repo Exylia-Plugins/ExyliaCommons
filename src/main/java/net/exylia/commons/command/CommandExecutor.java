@@ -8,7 +8,7 @@ import org.bukkit.entity.Player;
 import java.util.List;
 
 import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Utilidad para ejecutar comandos con soporte para placeholders y diferentes tipos de ejecución
@@ -134,7 +134,7 @@ public class CommandExecutor {
         if (bungeeCmd.isEmpty()) return;
 
         if (!BungeeMessageSender.isInitialized()) {
-            logWarn("BungeeMessageSender no está inicializado. No se puede ejecutar comando bungee: " + bungeeCmd);
+            logInternalWarn("BungeeMessageSender no está inicializado. No se puede ejecutar comando bungee: " + bungeeCmd);
             return;
         }
 

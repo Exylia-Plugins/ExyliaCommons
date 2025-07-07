@@ -4,8 +4,8 @@ import net.exylia.commons.utils.versions.*;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 public class AdapterFactory {
 
@@ -46,11 +46,11 @@ public class AdapterFactory {
 
     public static MessageAdapter getMessageAdapter() {
         if (messageAdapter == null) {
-            logWarn("messageAdapter es nulo! Intentando inicializar...");
+            logInternalWarn("messageAdapter es nulo! Intentando inicializar...");
             if (plugin != null) {
                 initialize(plugin);
             } else {
-                logError("No se puede inicializar porque plugin es nulo!");
+                logInternalError("No se puede inicializar porque plugin es nulo!");
             }
         }
         return messageAdapter;

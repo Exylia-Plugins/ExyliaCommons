@@ -12,6 +12,8 @@ public interface DatabaseAdapter {
 
     // Operaciones CRUD básicas
     <T> void save(T entity) throws Exception;
+    <T> void saveOrUpdateAll(List<T> entities) throws Exception;
+    <T> void updateAll(List<T> entities) throws Exception;
     <T> void update(T entity) throws Exception;
     <T> void delete(T entity) throws Exception;
     <T> Optional<T> findById(Class<T> entityClass, Object id) throws Exception;

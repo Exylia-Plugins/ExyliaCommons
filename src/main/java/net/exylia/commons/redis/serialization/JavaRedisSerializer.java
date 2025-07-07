@@ -3,7 +3,7 @@ package net.exylia.commons.redis.serialization;
 import java.io.*;
 import java.util.Base64;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Serializador usando serialización nativa de Java
@@ -29,7 +29,7 @@ public class JavaRedisSerializer implements RedisSerializer {
             return Base64.getEncoder().encodeToString(bytes);
 
         } catch (IOException e) {
-            logError("Error serializando objeto: " + e.getMessage());
+            logInternalError("Error serializando objeto: " + e.getMessage());
             return null;
         }
     }
@@ -52,7 +52,7 @@ public class JavaRedisSerializer implements RedisSerializer {
 
             }
         } catch (IOException | ClassNotFoundException | ClassCastException e) {
-            logError("Error deserializando objeto: " + e.getMessage());
+            logInternalError("Error deserializando objeto: " + e.getMessage());
             return null;
         }
     }

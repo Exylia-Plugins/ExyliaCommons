@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 public class SkullUtils {
 
@@ -162,7 +162,7 @@ public class SkullUtils {
                     }
                     success = true;
                 } catch (Exception e) {
-                    logWarn("Failed to set skull profile via reflection: " + e.getMessage());
+                    logInternalWarn("Failed to set skull profile via reflection: " + e.getMessage());
                 }
             }
 
@@ -178,7 +178,7 @@ public class SkullUtils {
             }
 
         } catch (Exception e) {
-            logWarn("Failed to create head from base64: " + e.getMessage());
+            logInternalWarn("Failed to create head from base64: " + e.getMessage());
         }
 
         head.setItemMeta(headMeta);
@@ -259,7 +259,7 @@ public class SkullUtils {
 
             head.setItemMeta(headMeta);
         } catch (Exception e) {
-            logWarn("Failed to create basic player head: " + e.getMessage());
+            logInternalWarn("Failed to create basic player head: " + e.getMessage());
         }
 
         return head;
@@ -280,7 +280,7 @@ public class SkullUtils {
             headMeta.setOwningPlayer(offlinePlayer);
             head.setItemMeta(headMeta);
         } catch (Exception e) {
-            logWarn("Could not set skull owner for player: " + playerName + " - " + e.getMessage());
+            logInternalWarn("Could not set skull owner for player: " + playerName + " - " + e.getMessage());
             head.setItemMeta(headMeta);
         }
 
@@ -362,7 +362,7 @@ public class SkullUtils {
 
             return head;
         } catch (Exception e) {
-            logWarn("Fallback method also failed: " + e.getMessage());
+            logInternalWarn("Fallback method also failed: " + e.getMessage());
             return new ItemStack(Material.PLAYER_HEAD);
         }
     }

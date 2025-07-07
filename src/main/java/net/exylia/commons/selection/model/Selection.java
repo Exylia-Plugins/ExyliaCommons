@@ -13,13 +13,13 @@ import java.util.UUID;
  */
 @Getter
 public class Selection {
-    private final UUID playerId;
-    private final String selectionId;
+    private UUID playerId;
+    private String selectionId;
     @Setter
     private Location pos1;
     @Setter
     private Location pos2;
-    private final long createdAt;
+    private long createdAt;
     @Setter
     private SelectionType type;
 
@@ -28,6 +28,11 @@ public class Selection {
         this.selectionId = selectionId;
         this.type = type;
         this.createdAt = System.currentTimeMillis();
+    }
+
+    public Selection(Location pos1, Location pos2) {
+        this.pos1 = pos1;
+        this.pos2 = pos2;
     }
 
     public boolean isComplete() {

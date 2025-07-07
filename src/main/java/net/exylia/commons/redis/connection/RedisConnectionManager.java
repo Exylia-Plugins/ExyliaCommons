@@ -6,8 +6,8 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.exceptions.JedisException;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Gestor de conexiones para Redis usando pool de conexiones
@@ -63,10 +63,10 @@ public class RedisConnectionManager {
             }
 
             initialized = true;
-            logInfo("Pool de conexiones Redis inicializado - Host: " + config.getHost() + ":" + config.getPort());
+            logInternalInfo("Pool de conexiones Redis inicializado - Host: " + config.getHost() + ":" + config.getPort());
 
         } catch (Exception e) {
-            logError("Error al inicializar pool de conexiones Redis: " + e.getMessage());
+            logInternalError("Error al inicializar pool de conexiones Redis: " + e.getMessage());
             if (jedisPool != null) {
                 jedisPool.close();
                 jedisPool = null;
@@ -86,7 +86,7 @@ public class RedisConnectionManager {
         try {
             return jedisPool.getResource();
         } catch (JedisException e) {
-            logError("Error al obtener conexión Redis: " + e.getMessage());
+            logInternalError("Error al obtener conexión Redis: " + e.getMessage());
             throw e;
         }
     }
@@ -124,7 +124,7 @@ public class RedisConnectionManager {
         try (Jedis jedis = getConnection()) {
             jedis.ping();
         } catch (Exception e) {
-            logError("Error validando conexiones Redis: " + e.getMessage());
+            logInternalError("Error validando conexiones Redis: " + e.getMessage());
             // Intentar reinicializar si hay problemas
             reinitialize();
         }
@@ -134,16 +134,16 @@ public class RedisConnectionManager {
      * Reinicializa el pool de conexiones
      */
     public synchronized void reinitialize() {
-        logInfo("Reinicializando pool de conexiones Redis...");
+        logInternalInfo("Reinicializando pool de conexiones Redis...");
 
         shutdown();
 
         try {
             Thread.sleep(1000); // Esperar un segundo antes de reintentar
             initialize();
-            logInfo("Pool de conexiones Redis reinicializado correctamente");
+            logInternalInfo("Pool de conexiones Redis reinicializado correctamente");
         } catch (Exception e) {
-            logError("Error al reinicializar pool Redis: " + e.getMessage());
+            logInternalError("Error al reinicializar pool Redis: " + e.getMessage());
         }
     }
 
@@ -154,9 +154,9 @@ public class RedisConnectionManager {
         if (jedisPool != null && !jedisPool.isClosed()) {
             try {
                 jedisPool.close();
-                logInfo("Pool de conexiones Redis cerrado");
+                logInternalInfo("Pool de conexiones Redis cerrado");
             } catch (Exception e) {
-                logError("Error al cerrar pool Redis: " + e.getMessage());
+                logInternalError("Error al cerrar pool Redis: " + e.getMessage());
             }
         }
 

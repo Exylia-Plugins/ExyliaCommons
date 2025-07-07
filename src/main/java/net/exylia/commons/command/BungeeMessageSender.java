@@ -26,17 +26,17 @@ public class BungeeMessageSender {
         plugin.getServer().getMessenger().registerOutgoingPluginChannel(plugin, CHANNEL);
 
         initialized = true;
-        logInfo("BungeeMessageSender inicializado. Canal '" + CHANNEL + "' registrado.");
+        logInternalInfo("BungeeMessageSender inicializado. Canal '" + CHANNEL + "' registrado.");
     }
 
     public static void sendCommand(Player player, String command) {
         if (!initialized) {
-            logError("BungeeMessageSender no ha sido inicializado!");
+            logInternalError("BungeeMessageSender no ha sido inicializado!");
             return;
         }
 
         if (player == null || command == null || command.trim().isEmpty()) {
-            logWarn("Intento de enviar comando inválido al proxy");
+            logInternalWarn("Intento de enviar comando inválido al proxy");
             return;
         }
 
@@ -56,11 +56,11 @@ public class BungeeMessageSender {
 
             player.sendPluginMessage(plugin, CHANNEL, stream.toByteArray());
 
-            logInfo(String.format("Comando enviado al proxy por %s: %s",
+            logInternalInfo(String.format("Comando enviado al proxy por %s: %s",
                     player.getName(), command));
 
         } catch (IOException e) {
-            logError("Error enviando comando al proxy: " + e.getMessage());
+            logInternalError("Error enviando comando al proxy: " + e.getMessage());
             e.printStackTrace();
         }
     }

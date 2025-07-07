@@ -1,6 +1,7 @@
 package net.exylia.commons.config;
 
 import net.exylia.commons.config.components.BossBarConfig;
+import net.exylia.commons.config.components.TitleConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -10,7 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Clase base abstracta para todas las configuraciones
@@ -61,10 +62,14 @@ public abstract class ConfigBase {
             return config.getBoolean(path, Boolean.parseBoolean(annotation.defaultValue()));
         } else if (fieldType == double.class || fieldType == Double.class) {
             return config.getDouble(path, parseDoubleDefault(annotation.defaultValue()));
+        } else if (fieldType == long.class || fieldType == Long.class) {
+            return config.getLong(path, parseLongDefault(annotation.defaultValue()));
         } else if (fieldType == List.class) {
             return config.getStringList(path);
         } else if (fieldType == BossBarConfig.class) {
             return createBossBarConfig(path);
+        } else if (fieldType == TitleConfig.class) {
+            return createTitleConfig(path);
         } else if (fieldType == Map.class) {
             return createMapFromConfig(field, path);
         } else {
@@ -78,7 +83,7 @@ public abstract class ConfigBase {
     private Map<String, Object> createMapFromConfig(java.lang.reflect.Field field, String path) {
         ConfigurationSection section = config.getConfigurationSection(path);
         if (section == null) {
-            logError("Advertencia: No se encontró configuración para " + path + ", usando mapa vacío");
+            logInternalError("Advertencia: No se encontró configuración para " + path + ", usando mapa vacío");
             return new HashMap<>();
         }
 
@@ -91,13 +96,33 @@ public abstract class ConfigBase {
             Type[] actualTypes = paramType.getActualTypeArguments();
 
             if (actualTypes.length >= 2) {
-                Class<?> valueType = (Class<?>) actualTypes[1];
+                Type valueTypeGeneric = actualTypes[1];
+
+                // Manejar el tipo del valor de manera segura
+                Class<?> valueType = null;
+
+                if (valueTypeGeneric instanceof Class<?>) {
+                    // Caso simple: el tipo es una clase directa
+                    valueType = (Class<?>) valueTypeGeneric;
+                } else if (valueTypeGeneric instanceof ParameterizedType paramValueType) {
+                    // Caso complejo: el tipo es genérico (ej: List<String>)
+                    valueType = (Class<?>) paramValueType.getRawType();
+                } else {
+                    // Fallback: intentar obtener el tipo raw
+                    logInternalError("Tipo de valor no soportado para el campo " + field.getName() + ": " + valueTypeGeneric);
+                    return resultMap;
+                }
 
                 // Handle different value types
                 for (String key : section.getKeys(false)) {
                     Object value = createValueFromSection(section, key, valueType);
                     resultMap.put(key, value);
                 }
+            }
+        } else {
+            // Si no es un tipo parametrizado, intentar crear un mapa básico
+            for (String key : section.getKeys(false)) {
+                resultMap.put(key, section.get(key));
             }
         }
 
@@ -116,8 +141,22 @@ public abstract class ConfigBase {
             return parentSection.getBoolean(key);
         } else if (valueType == Double.class || valueType == double.class) {
             return parentSection.getDouble(key);
+        } else if (valueType == Long.class || valueType == long.class) {
+            return parentSection.getLong(key);
+        } else if (valueType == BossBarConfig.class) {
+            ConfigurationSection subSection = parentSection.getConfigurationSection(key);
+            if (subSection != null) {
+                return new BossBarConfig(key, config);
+            }
+            return new BossBarConfig();
+        } else if (valueType == TitleConfig.class) {
+            ConfigurationSection subSection = parentSection.getConfigurationSection(key);
+            if (subSection != null) {
+                return new TitleConfig(key, config);
+            }
+            return new TitleConfig();
         } else {
-            // For complex objects like RankTier, try to create from configuration section
+            // For complex objects, try to create from configuration section
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
                 return createComplexObjectFromSection(subSection, valueType);
@@ -153,7 +192,7 @@ public abstract class ConfigBase {
 
             return instance;
         } catch (Exception e) {
-            logError("Error creando objeto " + objectType.getSimpleName() + " desde configuración: " + e.getMessage());
+            logInternalError("Error creando objeto " + objectType.getSimpleName() + " desde configuración: " + e.getMessage());
             return null;
         }
     }
@@ -170,6 +209,20 @@ public abstract class ConfigBase {
             return section.getBoolean(key);
         } else if (expectedType == double.class || expectedType == Double.class) {
             return section.getDouble(key);
+        } else if (expectedType == long.class || expectedType == Long.class) {
+            return section.getLong(key);
+        } else if (expectedType == BossBarConfig.class) {
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null) {
+                return new BossBarConfig(key, config);
+            }
+            return new BossBarConfig();
+        } else if (expectedType == TitleConfig.class) {
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null) {
+                return new TitleConfig(key, config);
+            }
+            return new TitleConfig();
         } else {
             // For nested objects, recursively create from subsection
             ConfigurationSection subSection = section.getConfigurationSection(key);
@@ -187,12 +240,27 @@ public abstract class ConfigBase {
         return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 
+    /**
+     * Creates a BossBarConfig from a configuration path
+     */
     private BossBarConfig createBossBarConfig(String basePath) {
         if (config.getConfigurationSection(basePath) != null) {
             return new BossBarConfig(basePath, config);
         } else {
-            logError("Advertencia: No se encontró configuración para " + basePath + ", usando valores por defecto");
+            logInternalError("Advertencia: No se encontró configuración para BossBar en " + basePath + ", usando valores por defecto");
             return new BossBarConfig();
+        }
+    }
+
+    /**
+     * Creates a TitleConfig from a configuration path
+     */
+    private TitleConfig createTitleConfig(String basePath) {
+        if (config.getConfigurationSection(basePath) != null) {
+            return new TitleConfig(basePath, config);
+        } else {
+            logInternalError("Advertencia: No se encontró configuración para Title en " + basePath + ", usando valores por defecto");
+            return new TitleConfig();
         }
     }
 
@@ -204,6 +272,11 @@ public abstract class ConfigBase {
     private double parseDoubleDefault(String value) {
         try { return value.isEmpty() ? 0.0 : Double.parseDouble(value); }
         catch (NumberFormatException e) { return 0.0; }
+    }
+
+    private long parseLongDefault(String value) {
+        try { return value.isEmpty() ? 0L : Long.parseLong(value); }
+        catch (NumberFormatException e) { return 0L; }
     }
 
     public final void onReload() {

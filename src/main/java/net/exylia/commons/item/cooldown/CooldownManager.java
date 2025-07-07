@@ -424,7 +424,7 @@ public class CooldownManager {
         startTasks();
 
         initialized = true;
-        DebugUtils.logInfo("CooldownManager initialized with " + playerCooldowns.size() + " players");
+        DebugUtils.logInternalInfo("CooldownManager initialized with " + playerCooldowns.size() + " players");
     }
 
     private void startTasks() {

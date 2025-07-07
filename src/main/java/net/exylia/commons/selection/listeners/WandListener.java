@@ -23,17 +23,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.Optional;
 
 /**
- * Listener para el manejo de wands
+ * Listener para el manejo de wands con soporte para visualización
  */
 public class WandListener implements Listener {
     private final JavaPlugin plugin;
     private final WandFactory wandFactory;
     private final SelectionManager selectionManager;
 
-    public WandListener(JavaPlugin plugin, WandFactory wandFactory) {
+    public WandListener(JavaPlugin plugin, WandFactory wandFactory, SelectionManager selectionManager) {
         this.plugin = plugin;
         this.wandFactory = wandFactory;
-        this.selectionManager = SelectionManager.getInstance();
+        this.selectionManager = selectionManager;
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -116,13 +116,11 @@ public class WandListener implements Listener {
     private Location getTargetLocation(PlayerInteractEvent event, Player player) {
         Block block = event.getClickedBlock();
 
-        if (block != null) {
+        if (block != null && block.getType() != Material.AIR) {
             return block.getLocation();
+        } else {
+            return null;
         }
-
-        // Si no hay bloque, usar el bloque que está mirando
-        Block targetBlock = player.getTargetBlockExact(100);
-        return targetBlock != null ? targetBlock.getLocation() : null;
     }
 
     private void handleWandAction(Player player, Selection selection, Location location, WandUseEvent.WandAction action, ItemStack wand) {
@@ -145,55 +143,52 @@ public class WandListener implements Listener {
     private void handlePos1Selection(Player player, Selection selection, Location location, ItemStack wand) {
         selectionManager.setPos1(player, selection.getSelectionId(), location);
 
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Position 1 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
-
-        if (selection.isComplete()) {
-            String info = String.format("{success}✓ Selection completed with: §7%d blocks", selection.getVolume());
-            wandFactory.updateWandLore(wand, info);
-        }
+        MessageUtils.sendMessageAsync(player, "{primary}Position 1 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
     }
 
     private void handlePos2Selection(Player player, Selection selection, Location location, ItemStack wand) {
         selectionManager.setPos2(player, selection.getSelectionId(), location);
 
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Position 2 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
-
-        // Actualizar wand si está completa
-        if (selection.isComplete()) {
-            String info = String.format("{success}✓ Selection completed with: §7%d blocks", selection.getVolume());
-            wandFactory.updateWandLore(wand, info);
-        }
+        MessageUtils.sendMessageAsync(player, "{primary}Position 2 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
     }
 
     private void handleSelectionInfo(Player player, Selection selection) {
         if (!selection.isComplete()) {
-            MessageUtils.sendMessageAsync(player, "%prefix% {primary}Selection is incomplete.");
-            MessageUtils.sendMessageAsync(player, "%prefix% {primary}Pos1: {info}" + (selection.getPos1() != null ? "✓" : "✗"));
-            MessageUtils.sendMessageAsync(player, "%prefix% {primary}Pos2: {info}" + (selection.getPos2() != null ? "✓" : "✗"));
+            MessageUtils.sendMessageAsync(player, "{primary}Selection is incomplete.");
+            MessageUtils.sendMessageAsync(player, "{primary}Pos1: {info}" + (selection.getPos1() != null ? "✓" : "✗"));
+            MessageUtils.sendMessageAsync(player, "{primary}Pos2: {info}" + (selection.getPos2() != null ? "✓" : "✗"));
             return;
         }
 
         Location min = selection.getMinimumPoint();
         Location max = selection.getMaximumPoint();
 
-        MessageUtils.sendMessageAsync(player, "{secondary}&m                                    ");
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Selection information:");
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}ID: {info}" + selection.getSelectionId());
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Type: {info}" + selection.getType().getDisplayName());
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Min: {info}X: " + min.getBlockX() + ", Y: " + min.getBlockY() + ", Z: " + min.getBlockZ());
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Max: {info}X: " + max.getBlockX() + ", Y: " + max.getBlockY() + ", Z: " + max.getBlockZ());
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}Volume: {info}" + selection.getVolume() + " blocks");
-        MessageUtils.sendMessageAsync(player, "%prefix% {primary}World: {info}" + selection.getPos1().getWorld().getName());
-        MessageUtils.sendMessageAsync(player, "{secondary}&m                                    ");
+        // Información de visualización
+        boolean visualEnabled = selectionManager.isVisualizationEnabled(player);
+        boolean isVisible = selectionManager.getParticleVisualizer().isSelectionVisible(player, selection.getSelectionId());
+
+        MessageUtils.sendMessageAsync(player,
+                "{secondary}&m                                    \n" +
+                        "&r{primary}Selection information:\n" +
+                        "{primary}ID: {info}" + selection.getSelectionId() + "\n" +
+                        "{primary}Type: {info}" + selection.getType().getDisplayName() + "\n" +
+                        "{primary}Min: {info}X: " + min.getBlockX() + ", Y: " + min.getBlockY() + ", Z: " + min.getBlockZ() + "\n" +
+                        "{primary}Max: {info}X: " + max.getBlockX() + ", Y: " + max.getBlockY() + ", Z: " + max.getBlockZ() + "\n" +
+                        "{primary}Volume: {info}" + selection.getVolume() + " blocks\n" +
+                        "{primary}World: {info}" + selection.getPos1().getWorld().getName() + "\n" +
+                        "{primary}Visualization: {info}" + (visualEnabled ? "Enabled" : "Disabled") +
+                        " | Visible: " + (isVisible ? "Yes" : "No") + "\n" +
+                        "{secondary}&m                                    ");
+
     }
 
     private void handleSelectionClear(Player player, Selection selection) {
         boolean cleared = selectionManager.clearSelection(player, selection.getSelectionId());
 
         if (cleared) {
-            MessageUtils.sendMessageAsync(player, "%prefix% {primary}Selection has been cleared.");
+            MessageUtils.sendMessageAsync(player, "{primary}Selection has been cleared.");
         } else {
-            MessageUtils.sendMessageAsync(player, "%prefix% {error}Error clearing selection.");
+            MessageUtils.sendMessageAsync(player, "{error}Error clearing selection.");
         }
     }
 }

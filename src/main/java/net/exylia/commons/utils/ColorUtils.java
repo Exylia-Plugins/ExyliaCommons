@@ -18,7 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalSuccess;
 
 /**
  * Utilidades optimizadas para manejar colores y componentes de texto
@@ -70,7 +71,7 @@ public class ColorUtils {
                 colorPresets.put(key.toLowerCase(), value);
             }
         }
-        logInfo("ColorUtils: Se cargaron " + colorPresets.size() + " presets de colores.");
+        logInternalSuccess("Loaded " + colorPresets.size() + " color presets.");
     }
 
     /**
@@ -114,7 +115,7 @@ public class ColorUtils {
             config.set("gradient_error", "<gradient:#a33b53:#ff6b9d>");
 
             config.save(configFile);
-            logInfo("ColorUtils: Archivo colors.yml creado con presets por defecto");
+            logInternalInfo("ColorUtils: Archivo colors.yml creado con presets por defecto");
 
         } catch (IOException e) {
             if (pluginInstance != null) {

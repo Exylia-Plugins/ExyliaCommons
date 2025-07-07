@@ -320,6 +320,8 @@ public class ExyliaContext {
     public Object[] getAllObjects() {
         List<Object> allObjects = new ArrayList<>();
 
+        allObjects.add(this);
+
         // Añadir objetos tipados
         allObjects.addAll(typedData.values());
 

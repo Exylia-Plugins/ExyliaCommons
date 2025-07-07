@@ -27,7 +27,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.save(entity);
         } catch (Exception e) {
-            DebugUtils.logError("Error guardando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error guardando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException("Error guardando entidad: " + e.getMessage(), e);
         }
     }
@@ -37,7 +37,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.update(entity);
         } catch (Exception e) {
-            DebugUtils.logError("Error actualizando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error actualizando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException("Error actualizando entidad: " + e.getMessage(), e);
         }
     }
@@ -47,7 +47,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.delete(entity);
         } catch (Exception e) {
-            DebugUtils.logError("Error eliminando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error eliminando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException("Error eliminando entidad: " + e.getMessage(), e);
         }
     }
@@ -57,7 +57,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findById(entityClass, id);
         } catch (Exception e) {
-            DebugUtils.logError("Error buscando entidad " + entityClass.getSimpleName() + " por ID " + id + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error buscando entidad " + entityClass.getSimpleName() + " por ID " + id + ": " + e.getMessage());
             return Optional.empty();
         }
     }
@@ -67,7 +67,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findAll(entityClass);
         } catch (Exception e) {
-            DebugUtils.logError("Error obteniendo todas las entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error obteniendo todas las entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException("Error obteniendo todas las entidades: " + e.getMessage(), e);
         }
     }
@@ -77,7 +77,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findBy(entityClass, field, value);
         } catch (Exception e) {
-            DebugUtils.logError("Error buscando entidades " + entityClass.getSimpleName() + " por campo " + field + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error buscando entidades " + entityClass.getSimpleName() + " por campo " + field + ": " + e.getMessage());
             throw new RuntimeException("Error buscando entidades por campo: " + e.getMessage(), e);
         }
     }
@@ -87,7 +87,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return findById(id).isPresent();
         } catch (Exception e) {
-            DebugUtils.logError("Error verificando existencia de entidad " + entityClass.getSimpleName() + " con ID " + id + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error verificando existencia de entidad " + entityClass.getSimpleName() + " con ID " + id + ": " + e.getMessage());
             return false;
         }
     }
@@ -97,7 +97,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return findAll().size();
         } catch (Exception e) {
-            DebugUtils.logError("Error contando entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error contando entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
             return 0;
         }
     }
@@ -141,7 +141,7 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return findById(id);
             } catch (Exception e) {
-                DebugUtils.logError("Error en findByIdAsync para ID " + id + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error en findByIdAsync para ID " + id + ": " + e.getMessage());
                 return Optional.empty();
             }
         }, executor);
@@ -175,7 +175,7 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return exists(id);
             } catch (Exception e) {
-                DebugUtils.logError("Error en existsAsync para ID " + id + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error en existsAsync para ID " + id + ": " + e.getMessage());
                 return false;
             }
         }, executor);
@@ -187,7 +187,7 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return count();
             } catch (Exception e) {
-                DebugUtils.logError("Error en countAsync: " + e.getMessage());
+                DebugUtils.logInternalError("Error en countAsync: " + e.getMessage());
                 return 0L;
             }
         }, executor);
@@ -198,7 +198,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.executeQuery(entityClass, query, params);
         } catch (Exception e) {
-            DebugUtils.logError("Error ejecutando consulta personalizada: " + e.getMessage());
+            DebugUtils.logInternalError("Error ejecutando consulta personalizada: " + e.getMessage());
             throw new RuntimeException("Error ejecutando consulta personalizada: " + e.getMessage(), e);
         }
     }
@@ -216,22 +216,32 @@ public class RepositoryImpl<T> implements Repository<T> {
 
     @Override
     public void saveAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
         for (T entity : entities) {
             try {
                 save(entity);
             } catch (Exception e) {
-                DebugUtils.logError("Error guardando entidad en saveAll: " + e.getMessage());
+                DebugUtils.logInternalError("Error guardando entidad en saveAll: " + e.getMessage());
+                // Continúa con las demás entidades incluso si una falla
             }
         }
     }
 
     @Override
     public void deleteAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
         for (T entity : entities) {
             try {
                 delete(entity);
             } catch (Exception e) {
-                DebugUtils.logError("Error eliminando entidad en deleteAll: " + e.getMessage());
+                DebugUtils.logInternalError("Error eliminando entidad en deleteAll: " + e.getMessage());
+                // Continúa con las demás entidades incluso si una falla
             }
         }
     }
@@ -249,8 +259,30 @@ public class RepositoryImpl<T> implements Repository<T> {
                 save(entity);
             }
         } catch (Exception e) {
-            DebugUtils.logError("Error en saveOrUpdate para entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error en saveOrUpdate para entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException("Error en saveOrUpdate: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void saveOrUpdateAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
+        try {
+            adapter.saveOrUpdateAll(entities);
+        } catch (Exception e) {
+            // Si el adaptador no lo soporta, hacerlo uno por uno
+            DebugUtils.logInternalError("Adaptador no soporta saveOrUpdateAll, ejecutando individualmente: " + e.getMessage());
+            for (T entity : entities) {
+                try {
+                    saveOrUpdate(entity);
+                } catch (Exception entityException) {
+                    DebugUtils.logInternalError("Error en saveOrUpdate para entidad individual: " + entityException.getMessage());
+                    // Continúa con las demás entidades
+                }
+            }
         }
     }
 
@@ -261,6 +293,17 @@ public class RepositoryImpl<T> implements Repository<T> {
                 saveOrUpdate(entity);
             } catch (Exception e) {
                 throw new RuntimeException("Error en saveOrUpdateAsync: " + e.getMessage(), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                saveOrUpdateAll(entities);
+            } catch (Exception e) {
+                throw new RuntimeException("Error en saveOrUpdateAllAsync: " + e.getMessage(), e);
             }
         }, executor);
     }
@@ -291,7 +334,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         return null;
     }
 
-    // Helper method to get primary key field name (already exists in adapters, should be moved to common place)
+    // Helper method to get primary key field name
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {

@@ -7,8 +7,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import java.io.File;
 import java.io.IOException;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Gestor de configuración para Redis simplificado
@@ -34,7 +34,7 @@ public class RedisConfigManager {
             createDefaultConfig();
         }
         config = YamlConfiguration.loadConfiguration(configFile);
-        logInfo("Configuración de Redis cargada desde redis.yml");
+        logInternalInfo("Configuración de Redis cargada desde redis.yml");
     }
 
     /**
@@ -94,10 +94,10 @@ public class RedisConfigManager {
             defaultConfig.set("maintenance.auto-retry-delay", 5000);
 
             defaultConfig.save(configFile);
-            logInfo("Archivo redis.yml creado con configuración por defecto");
+            logInternalInfo("Archivo redis.yml creado con configuración por defecto");
 
         } catch (IOException e) {
-            logError("Error creando archivo redis.yml: " + e.getMessage());
+            logInternalError("Error creando archivo redis.yml: " + e.getMessage());
             throw new RuntimeException("No se pudo crear redis.yml", e);
         }
     }
@@ -107,7 +107,7 @@ public class RedisConfigManager {
      */
     public void reloadConfig() {
         config = YamlConfiguration.loadConfiguration(configFile);
-        logInfo("Configuración de Redis recargada");
+        logInternalInfo("Configuración de Redis recargada");
     }
 
     /**
@@ -116,9 +116,9 @@ public class RedisConfigManager {
     public void saveConfig() {
         try {
             config.save(configFile);
-            logInfo("Configuración de Redis guardada");
+            logInternalInfo("Configuración de Redis guardada");
         } catch (IOException e) {
-            logError("Error guardando configuración de Redis: " + e.getMessage());
+            logInternalError("Error guardando configuración de Redis: " + e.getMessage());
         }
     }
 
@@ -192,7 +192,7 @@ public class RedisConfigManager {
             T result = (T) value;
             return result;
         } catch (ClassCastException e) {
-            logError("Error obteniendo valor de configuración '" + path + "': tipo incorrecto");
+            logInternalError("Error obteniendo valor de configuración '" + path + "': tipo incorrecto");
             return defaultValue;
         }
     }

@@ -18,8 +18,8 @@ import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Gestor principal de Redis para ExyliaCommons
@@ -56,7 +56,7 @@ public class RedisManager {
      */
     public static synchronized void start(ExyliaPlugin plugin, RedisConfig config) {
         if (instance != null) {
-            logError("RedisManager ya está inicializado!");
+            logInternalError("RedisManager ya está inicializado!");
             return;
         }
 
@@ -88,7 +88,7 @@ public class RedisManager {
             // Probar conexión
             try (Jedis jedis = connectionManager.getConnection()) {
                 jedis.ping();
-                logInfo("Conexión a Redis establecida correctamente");
+                logInternalInfo("Conexión a Redis establecida correctamente");
             }
 
             pubSubManager.initialize();
@@ -97,10 +97,10 @@ public class RedisManager {
             // Iniciar tarea de mantenimiento
             startMaintenanceTask();
 
-            logInfo("RedisManager inicializado correctamente");
+            logInternalInfo("RedisManager inicializado correctamente");
 
         } catch (Exception e) {
-            logError("Error al inicializar RedisManager: " + e.getMessage());
+            logInternalError("Error al inicializar RedisManager: " + e.getMessage());
             throw new RuntimeException("Fallo al inicializar Redis", e);
         }
     }
@@ -111,7 +111,7 @@ public class RedisManager {
     public synchronized void shutdown() {
         if (!initialized) return;
 
-        logInfo("Cerrando RedisManager...");
+        logInternalInfo("Cerrando RedisManager...");
 
         try {
             // Cerrar caches
@@ -127,10 +127,10 @@ public class RedisManager {
             initialized = false;
             instance = null;
 
-            logInfo("RedisManager cerrado correctamente");
+            logInternalInfo("RedisManager cerrado correctamente");
 
         } catch (Exception e) {
-            logError("Error al cerrar RedisManager: " + e.getMessage());
+            logInternalError("Error al cerrar RedisManager: " + e.getMessage());
         }
     }
 
@@ -147,7 +147,7 @@ public class RedisManager {
         try (Jedis jedis = connectionManager.getConnection()) {
             return operation.apply(jedis);
         } catch (JedisException e) {
-            logError("Error ejecutando operación Redis: " + e.getMessage());
+            logInternalError("Error ejecutando operación Redis: " + e.getMessage());
             throw e;
         }
     }
@@ -365,7 +365,7 @@ public class RedisManager {
                     connectionManager.validateConnections();
 
                 } catch (Exception e) {
-                    logError("Error en tarea de mantenimiento Redis: " + e.getMessage());
+                    logInternalError("Error en tarea de mantenimiento Redis: " + e.getMessage());
                 }
             }
         }.runTaskTimerAsynchronously(plugin, 20L * 60, 20L * 60); // Cada minuto

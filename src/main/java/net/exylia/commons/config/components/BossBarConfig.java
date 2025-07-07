@@ -1,17 +1,19 @@
 package net.exylia.commons.config.components;
 
+import lombok.Getter;
 import net.exylia.commons.config.ConfigValue;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
+import net.kyori.adventure.bossbar.BossBar;
 
 /**
  * Configuración reutilizable para BossBars
  * Maneja automáticamente la carga de todos los valores necesarios
  */
 public class BossBarConfig {
+    @Getter
     @ConfigValue("enabled")
     private boolean enabled = true;
 
+    @Getter
     @ConfigValue("title")
     private String title = "";
 
@@ -37,27 +39,19 @@ public class BossBarConfig {
 
     // ===== GETTERS =====
 
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public BarColor getColor() {
+    public BossBar.Color getColor() {
         try {
-            return BarColor.valueOf(colorString.toUpperCase());
+            return BossBar.Color.valueOf(colorString.toUpperCase());
         } catch (IllegalArgumentException e) {
-            return BarColor.YELLOW;
+            return BossBar.Color.YELLOW;
         }
     }
 
-    public BarStyle getStyle() {
+    public BossBar.Overlay getStyle() {
         try {
-            return BarStyle.valueOf(styleString.toUpperCase());
+            return BossBar.Overlay.valueOf(styleString.toUpperCase());
         } catch (IllegalArgumentException e) {
-            return BarStyle.SOLID;
+            return BossBar.Overlay.PROGRESS;
         }
     }
 
@@ -77,12 +71,12 @@ public class BossBarConfig {
         return this;
     }
 
-    public BossBarConfig setColor(BarColor color) {
+    public BossBarConfig setColor(BossBar.Color color) {
         this.colorString = color.name();
         return this;
     }
 
-    public BossBarConfig setStyle(BarStyle style) {
+    public BossBarConfig setStyle(BossBar.Overlay style) {
         this.styleString = style.name();
         return this;
     }
@@ -96,16 +90,6 @@ public class BossBarConfig {
 
     public boolean isValid() {
         return title != null && !title.isEmpty() && progress >= 0.0 && progress <= 1.0;
-    }
-
-    public BossBarConfig copy() {
-        BossBarConfig copy = new BossBarConfig();
-        copy.enabled = this.enabled;
-        copy.title = this.title;
-        copy.colorString = this.colorString;
-        copy.styleString = this.styleString;
-        copy.progress = this.progress;
-        return copy;
     }
 
     @Override

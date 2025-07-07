@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Manager para aplicar scoreboards automáticamente
@@ -85,7 +85,7 @@ public class AutoScoreboardManager implements Listener {
                     return;
                 }
             } catch (Exception e) {
-                logError("Error verificando condición para template " + templateId + ": " + e.getMessage());
+                logInternalError("Error verificando condición para template " + templateId + ": " + e.getMessage());
             }
         }
     }

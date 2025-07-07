@@ -113,6 +113,124 @@ public class H2Adapter implements DatabaseAdapter {
     }
 
     @Override
+    public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
+        String tableName = getTableName(entities.get(0).getClass());
+        String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
+
+        // H2 soporta MERGE que es similar a UPSERT
+        Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+
+        StringBuilder sql = new StringBuilder("MERGE INTO " + tableName + " (");
+        StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
+
+        List<String> columns = new ArrayList<>();
+
+        // Construir la parte de columnas
+        boolean first = true;
+        for (String columnName : firstEntityMap.keySet()) {
+            if (!first) {
+                sql.append(", ");
+                valuePlaceholders.append(", ");
+            }
+            sql.append(columnName);
+            valuePlaceholders.append("?");
+            columns.add(columnName);
+            first = false;
+        }
+
+        sql.append(") ").append(valuePlaceholders).append(")");
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            for (T entity : entities) {
+                Map<String, Object> entityMap = entityToMap(entity);
+
+                for (int i = 0; i < columns.size(); i++) {
+                    stmt.setObject(i + 1, entityMap.get(columns.get(i)));
+                }
+
+                stmt.addBatch();
+            }
+
+            int[] results = stmt.executeBatch();
+            int processed = 0;
+            for (int result : results) {
+                if (result >= 0) processed++; // MERGE puede retornar diferentes valores
+            }
+
+            DebugUtils.logInternalInfo("saveOrUpdateAll completado para " + processed + " de " + entities.size() + " entidades");
+
+        } catch (SQLException e) {
+            DebugUtils.logInternalError("Error en saveOrUpdateAll: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    @Override
+    public <T> void updateAll(List<T> entities) throws Exception {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
+        String tableName = getTableName(entities.get(0).getClass());
+        String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
+
+        Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+
+        StringBuilder sql = new StringBuilder("UPDATE " + tableName + " SET ");
+        List<String> updateColumns = new ArrayList<>();
+
+        boolean first = true;
+        for (String column : firstEntityMap.keySet()) {
+            if (!column.equals(primaryKey)) {
+                if (!first) {
+                    sql.append(", ");
+                }
+                sql.append(column).append(" = ?");
+                updateColumns.add(column);
+                first = false;
+            }
+        }
+
+        sql.append(" WHERE ").append(primaryKey).append(" = ?");
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+
+            for (T entity : entities) {
+                Map<String, Object> entityMap = entityToMap(entity);
+
+                int paramIndex = 1;
+                // Establecer valores para las columnas de actualización
+                for (String column : updateColumns) {
+                    stmt.setObject(paramIndex++, entityMap.get(column));
+                }
+                // Establecer el valor de la clave primaria para el WHERE
+                stmt.setObject(paramIndex, entityMap.get(primaryKey));
+
+                stmt.addBatch();
+            }
+
+            int[] results = stmt.executeBatch();
+            int updated = 0;
+            for (int result : results) {
+                if (result > 0) updated++;
+            }
+
+            DebugUtils.logInternalInfo("updateAll completado: " + updated + " de " + entities.size() + " entidades actualizadas");
+
+        } catch (SQLException e) {
+            DebugUtils.logInternalError("Error en updateAll: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    @Override
     public <T> void update(T entity) throws Exception {
         String tableName = getTableName(entity.getClass());
         Map<String, Object> values = entityToMap(entity);
@@ -297,7 +415,7 @@ public class H2Adapter implements DatabaseAdapter {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql.toString());
-            DebugUtils.logInfo("Tabla creada: " + tableName);
+            DebugUtils.logInternalInfo("Tabla creada: " + tableName);
         }
     }
 
@@ -329,7 +447,7 @@ public class H2Adapter implements DatabaseAdapter {
                             // Agregar como nullable primero
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
-                                DebugUtils.logInfo("Columna agregada (nullable): " + columnName);
+                                DebugUtils.logInternalInfo("Columna agregada (nullable): " + columnName);
                                 hasUpdates = true;
                             }
 
@@ -340,7 +458,7 @@ public class H2Adapter implements DatabaseAdapter {
                                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
                                     updateStmt.setString(1, column.defaultValue());
                                     int updated = updateStmt.executeUpdate();
-                                    DebugUtils.logInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
+                                    DebugUtils.logInternalInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
                                 }
                             }
 
@@ -349,7 +467,7 @@ public class H2Adapter implements DatabaseAdapter {
                                     " ALTER COLUMN " + columnName + " SET NOT NULL";
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterNotNullSql);
-                                DebugUtils.logInfo("Columna configurada como NOT NULL: " + columnName);
+                                DebugUtils.logInternalInfo("Columna configurada como NOT NULL: " + columnName);
                             }
                         } else {
                             // Agregar la columna normalmente
@@ -359,7 +477,7 @@ public class H2Adapter implements DatabaseAdapter {
 
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
-                                DebugUtils.logInfo("Columna agregada: " + columnName);
+                                DebugUtils.logInternalInfo("Columna agregada: " + columnName);
                                 hasUpdates = true;
                             }
                         }
@@ -368,9 +486,9 @@ public class H2Adapter implements DatabaseAdapter {
             }
 
             if (hasUpdates) {
-                DebugUtils.logInfo("Actualización de tabla completada: " + getTableName(entityClass));
+                DebugUtils.logInternalInfo("Actualización de tabla completada: " + getTableName(entityClass));
             } else {
-                DebugUtils.logInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
+                DebugUtils.logInternalInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
             }
         }
     }

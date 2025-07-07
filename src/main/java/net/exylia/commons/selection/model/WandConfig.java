@@ -1,9 +1,8 @@
 package net.exylia.commons.selection.model;
 
 import lombok.Getter;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
-import org.bukkit.enchantments.Enchantment;
-import org.bukkit.inventory.ItemFlag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,8 +13,8 @@ import java.util.List;
 @Getter
 public class WandConfig {
     private Material material;
-    private String displayName;
-    private List<String> lore;
+    private Component displayName;
+    private List<Component> lore;
     private boolean enchanted;
     private boolean unbreakable;
     private int customModelData;
@@ -24,20 +23,16 @@ public class WandConfig {
 
     public WandConfig() {
         this.material = Material.GOLDEN_AXE;
-        this.displayName = "§6§lWand de Selección";
+        this.displayName = Component.empty();
         this.lore = new ArrayList<>();
         this.enchanted = true;
         this.unbreakable = true;
         this.customModelData = 0;
-        this.selectionId = "main";
+        this.selectionId = "no-id";
         this.selectionType = SelectionType.CUBOID;
 
         // Lore por defecto
-        this.lore.add("§7Click izquierdo: §ePrimer punto");
-        this.lore.add("§7Click derecho: §eSegundo punto");
-        this.lore.add("§7Shift + Click: §eInformación");
-        this.lore.add("");
-        this.lore.add("§8Wand de Selección Exylia");
+        this.lore.add(Component.empty());
     }
 
     // Builder pattern
@@ -46,17 +41,17 @@ public class WandConfig {
         return this;
     }
 
-    public WandConfig displayName(String displayName) {
+    public WandConfig displayName(Component displayName) {
         this.displayName = displayName;
         return this;
     }
 
-    public WandConfig lore(List<String> lore) {
+    public WandConfig lore(List<Component> lore) {
         this.lore = new ArrayList<>(lore);
         return this;
     }
 
-    public WandConfig addLore(String line) {
+    public WandConfig addLore(Component line) {
         this.lore.add(line);
         return this;
     }

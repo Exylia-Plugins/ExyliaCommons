@@ -52,10 +52,10 @@ public class LicenseConfig {
             // Cargar la configuración después de escribirla
             config = YamlConfiguration.loadConfiguration(configFile);
 
-            DebugUtils.logSuccess("Archivo de licencia creado: " + configFile.getPath());
-            DebugUtils.logWarn("LICENCIA REQUERIDA: Configura tu clave en license.yml");
+            DebugUtils.logInternalSuccess("Archivo de licencia creado: " + configFile.getPath());
+            DebugUtils.logInternalWarn("LICENCIA REQUERIDA: Configura tu clave en license.yml");
         } catch (IOException e) {
-            DebugUtils.logError("Error creando archivo de licencia: " + e.getMessage());
+            DebugUtils.logInternalError("Error creando archivo de licencia: " + e.getMessage());
         }
     }
 

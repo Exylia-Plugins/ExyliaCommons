@@ -8,7 +8,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 public class EffectUtils {
     public static void applyEffects(Player player, List<String> effects) {
@@ -26,7 +26,7 @@ public class EffectUtils {
                     }
                 }
             } catch (Exception e) {
-                logWarn("Error al aplicar efecto a jugador: " + e.getMessage());
+                logInternalWarn("Error al aplicar efecto a jugador: " + e.getMessage());
             }
         }
     }
@@ -42,7 +42,7 @@ public class EffectUtils {
                     }
                 }
             } catch (Exception e) {
-                logWarn("Error al remover efecto a jugador: " + e.getMessage());
+                logInternalWarn("Error al remover efecto a jugador: " + e.getMessage());
             }
         }
     }

@@ -1,11 +1,15 @@
 package net.exylia.commons.database.adapters;
 
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.UpdateOneModel;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.utils.DebugUtils;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -81,6 +85,81 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
         // Si tiene un campo _id y es ObjectId, establecerlo de vuelta en la entidad
         setIdFromDocument(entity, document);
+    }
+
+    @Override
+    public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
+        String collectionName = getTableName(entities.get(0).getClass());
+        MongoCollection<Document> collection = database.getCollection(collectionName);
+
+        List<ReplaceOneModel<Document>> operations = new ArrayList<>();
+
+        for (T entity : entities) {
+            Object id = getEntityId(entity);
+            Document document = entityToDocument(entity);
+
+            if (id != null) {
+                // Si tiene ID, hacer upsert (actualizar o insertar)
+                Document filter = new Document("_id", convertToObjectId(id));
+                ReplaceOptions options = new ReplaceOptions().upsert(true);
+                operations.add(new ReplaceOneModel<>(filter, document, options));
+            } else {
+                // Si no tiene ID, es una inserción (MongoDB generará el _id)
+                operations.add(new ReplaceOneModel<>(
+                        new Document("_id", new ObjectId()), // Filtro que nunca coincidirá
+                        document,
+                        new ReplaceOptions().upsert(true)
+                ));
+            }
+        }
+
+        if (!operations.isEmpty()) {
+            BulkWriteResult result = collection.bulkWrite(operations);
+            DebugUtils.logInternalInfo("saveOrUpdateAll completado: " +
+                    result.getInsertedCount() + " insertadas, " +
+                    result.getModifiedCount() + " actualizadas, " +
+                    result.getUpserts().size() + " upserts");
+        }
+    }
+
+    @Override
+    public <T> void updateAll(List<T> entities) throws Exception {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
+        String collectionName = getTableName(entities.get(0).getClass());
+        MongoCollection<Document> collection = database.getCollection(collectionName);
+
+        List<UpdateOneModel<Document>> operations = new ArrayList<>();
+
+        for (T entity : entities) {
+            Object id = getEntityId(entity);
+
+            if (id == null) {
+                DebugUtils.logInternalError("No se puede actualizar entidad sin ID en updateAll");
+                continue;
+            }
+
+            Document filter = new Document("_id", convertToObjectId(id));
+            Document updateDocument = entityToDocument(entity);
+
+            // Remover el _id del documento de actualización para evitar errores
+            updateDocument.remove("_id");
+
+            Document update = new Document("$set", updateDocument);
+            operations.add(new UpdateOneModel<>(filter, update));
+        }
+
+        if (!operations.isEmpty()) {
+            BulkWriteResult result = collection.bulkWrite(operations);
+            DebugUtils.logInternalInfo("updateAll completado: " +
+                    result.getModifiedCount() + " de " + entities.size() + " entidades actualizadas");
+        }
     }
 
     @Override

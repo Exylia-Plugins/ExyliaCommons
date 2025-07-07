@@ -170,11 +170,11 @@ public class DatabaseManager {
                             migrationManager.createOrUpdateTable(adapter, entityClass);
                         }
                     } catch (Exception e) {
-                        logError("Error re-registrando entidad " + entityClass.getName() + ": " + e.getMessage());
+                        logInternalError("Error re-registrando entidad " + entityClass.getName() + ": " + e.getMessage());
                     }
                 }, executor);
             } catch (Exception e) {
-                logError("Error creando task para re-registrar " + entityClass.getName() + ": " + e.getMessage());
+                logInternalError("Error creando task para re-registrar " + entityClass.getName() + ": " + e.getMessage());
             }
         }
     }
@@ -188,7 +188,7 @@ public class DatabaseManager {
                 );
                 return constructor.newInstance(adapter, clazz, executor);
             } catch (Exception e) {
-                logError("Error creando repositorio para " + clazz.getName() + ": " + e.getMessage());
+                logInternalError("Error creando repositorio para " + clazz.getName() + ": " + e.getMessage());
                 throw new RuntimeException("Error creando repositorio para " + clazz.getName(), e);
             }
         });
@@ -206,43 +206,43 @@ public class DatabaseManager {
                 repositories.put(entityClass, newRepository);
 
             } catch (Exception e) {
-                logError("Error recreando repositorio para " + entityClass.getName() + ": " + e.getMessage());
+                logInternalError("Error recreando repositorio para " + entityClass.getName() + ": " + e.getMessage());
             }
         }
 
-        logInfo("Recreación de repositorios completada");
+        logInternalInfo("Recreación de repositorios completada");
     }
 
     public boolean performCompleteReload() {
         try {
-            logInfo("Reconnecting to database...");
+            logInternalInfo("Reconnecting to database...");
             reconnect();
 
             if (!isConnected()) {
-                logError("Error: No se pudo establecer conexión a la base de datos");
+                logInternalError("Error: No se pudo establecer conexión a la base de datos");
                 return false;
             }
 
-            logInfo("Re-registering all entities...");
+            logInternalInfo("Re-registering all entities...");
             reregisterAllEntities();
 
             Thread.sleep(1000);
 
-            logInfo("Recreating all repositories...");
+            logInternalInfo("Recreating all repositories...");
             recreateAllRepositories();
 
-            logSuccess("=== RELOAD COMPLETED ===");
+            logInternalSuccess("=== RELOAD COMPLETED ===");
             return true;
 
         } catch (Exception e) {
-            logError("Error durante reload completo: " + e.getMessage());
+            logInternalError("Error durante reload completo: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
 
     public void clearRepositoryCache() {
-        logInfo("Cleaning repository cache...");
+        logInternalInfo("Cleaning repository cache...");
         repositories.clear();
     }
 
@@ -282,7 +282,7 @@ public class DatabaseManager {
             loadConfiguration();
             connectToDatabase();
         } catch (Exception e) {
-            logError("Error durante reconexión: " + e.getMessage());
+            logInternalError("Error durante reconexión: " + e.getMessage());
             throw new RuntimeException("Error durante reconexión", e);
         }
     }
@@ -300,7 +300,7 @@ public class DatabaseManager {
     }
 
     public void shutdown() {
-        logInfo("Closing database connections...");
+        logInternalInfo("Closing database connections...");
 
         clearRepositoryCache();
         registeredEntities.clear();

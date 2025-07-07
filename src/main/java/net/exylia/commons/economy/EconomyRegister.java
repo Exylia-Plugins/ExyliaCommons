@@ -27,7 +27,7 @@ public class EconomyRegister {
 
         // Si ya está registrado, devolver el mismo proveedor
         if (registeredPlugins.containsKey(pluginName)) {
-            DebugUtils.logInfo("Economy already initialized for " + pluginName);
+            DebugUtils.logInternalInfo("Economy already initialized for " + pluginName);
             return registeredPlugins.get(pluginName);
         }
 
@@ -40,7 +40,7 @@ public class EconomyRegister {
         // Registrar el plugin y devolver el proveedor
         registeredPlugins.put(pluginName, currentProvider);
 
-        DebugUtils.logInfo("Economy initialized for " + pluginName + " using provider: " + currentProvider.getProviderName());
+        DebugUtils.logInternalInfo("Economy initialized for " + pluginName + " using provider: " + currentProvider.getProviderName());
 
         return currentProvider;
     }
@@ -69,7 +69,7 @@ public class EconomyRegister {
     public static void unregister(ExyliaPlugin plugin) {
         String pluginName = plugin.getName();
         if (registeredPlugins.remove(pluginName) != null) {
-            DebugUtils.logInfo("Economy unregistered for " + pluginName);
+            DebugUtils.logInternalInfo("Economy unregistered for " + pluginName);
         }
 
         // Si no quedan plugins registrados, limpiar sistema
@@ -82,7 +82,7 @@ public class EconomyRegister {
      * Fuerza la reinicialización del sistema de economía
      */
     public static void reinitialize() {
-        DebugUtils.logInfo("Reinitializing economy system...");
+        DebugUtils.logInternalInfo("Reinitializing economy system...");
         initialized = false;
         initializeEconomySystem();
         initialized = true;
@@ -92,7 +92,7 @@ public class EconomyRegister {
             registeredPlugins.put(pluginName, currentProvider);
         }
 
-        DebugUtils.logInfo("Economy system reinitialized. Provider: " + currentProvider.getProviderName());
+        DebugUtils.logInternalInfo("Economy system reinitialized. Provider: " + currentProvider.getProviderName());
     }
 
     /**
@@ -108,7 +108,7 @@ public class EconomyRegister {
     }
 
     private static void initializeEconomySystem() {
-        DebugUtils.logInfo("Initializing economy system...");
+        DebugUtils.logInternalInfo("Initializing economy system...");
 
         // Intentar proveedores en orden de prioridad
         EconomyProvider provider = tryProvider(VaultEconomyProvider::new, "Vault");
@@ -116,9 +116,9 @@ public class EconomyRegister {
         // Si no hay proveedores disponibles, usar dummy
         if (provider == null || !provider.isAvailable()) {
             provider = new DummyEconomyProvider();
-            DebugUtils.logWarn("No economy plugin detected. Using dummy provider.");
+            DebugUtils.logInternalWarn("No economy plugin detected. Using dummy provider.");
         } else {
-            DebugUtils.logSuccess("Economy provider initialized: " + provider.getProviderName());
+            DebugUtils.logInternalSuccess("Economy provider initialized: " + provider.getProviderName());
         }
 
         currentProvider = provider;
@@ -128,19 +128,19 @@ public class EconomyRegister {
         try {
             EconomyProvider provider = factory.create();
             if (provider.isAvailable()) {
-                DebugUtils.logInfo("Successfully initialized " + name + " economy provider");
+                DebugUtils.logInternalInfo("Successfully initialized " + name + " economy provider");
                 return provider;
             } else {
-                DebugUtils.logInfo(name + " economy provider not available");
+                DebugUtils.logInternalInfo(name + " economy provider not available");
             }
         } catch (Exception e) {
-            DebugUtils.logWarn("Failed to initialize " + name + " provider: " + e.getMessage());
+            DebugUtils.logInternalWarn("Failed to initialize " + name + " provider: " + e.getMessage());
         }
         return null;
     }
 
     private static void cleanup() {
-        DebugUtils.logInfo("Cleaning up economy system...");
+        DebugUtils.logInternalInfo("Cleaning up economy system...");
         currentProvider = null;
         initialized = false;
     }

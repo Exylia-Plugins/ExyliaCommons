@@ -1,11 +1,14 @@
 package net.exylia.commons.selection;
 
+import lombok.Getter;
 import net.exylia.commons.selection.events.SelectionCompleteEvent;
 import net.exylia.commons.selection.events.SelectionCreateEvent;
 import net.exylia.commons.selection.listeners.WandListener;
 import net.exylia.commons.selection.model.Selection;
 import net.exylia.commons.selection.model.SelectionType;
 import net.exylia.commons.selection.model.WandConfig;
+import net.exylia.commons.selection.visualizer.ParticleConfig;
+import net.exylia.commons.selection.visualizer.ParticleVisualizer;
 import net.exylia.commons.selection.wand.WandFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -21,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Manager principal para el sistema de selecciones
+ * Manager principal para el sistema de selecciones con visualización de partículas
  */
 public class SelectionManager {
     private static SelectionManager instance;
@@ -29,22 +32,38 @@ public class SelectionManager {
     private final Map<UUID, Map<String, Selection>> playerSelections;
     private final Map<UUID, String> activeSelections;
     private final Map<UUID, Consumer<Selection>> selectionCallbacks;
+    private final Map<UUID, Boolean> visualizationEnabled;
+    @Getter
     private final WandFactory wandFactory;
+    @Getter
+    private final ParticleVisualizer particleVisualizer;
 
     private SelectionManager(JavaPlugin plugin) {
+        this(plugin, new ParticleConfig());
+    }
+
+    private SelectionManager(JavaPlugin plugin, ParticleConfig particleConfig) {
         this.plugin = plugin;
         this.playerSelections = new ConcurrentHashMap<>();
         this.activeSelections = new ConcurrentHashMap<>();
         this.selectionCallbacks = new ConcurrentHashMap<>();
+        this.visualizationEnabled = new ConcurrentHashMap<>();
         this.wandFactory = new WandFactory(plugin);
+        this.particleVisualizer = new ParticleVisualizer(plugin, particleConfig);
 
         // Registrar listeners
-        plugin.getServer().getPluginManager().registerEvents(new WandListener(plugin, wandFactory), plugin);
+        plugin.getServer().getPluginManager().registerEvents(new WandListener(plugin, wandFactory, this), plugin);
     }
 
     public static void initialize(JavaPlugin plugin) {
         if (instance == null) {
             instance = new SelectionManager(plugin);
+        }
+    }
+
+    public static void initialize(JavaPlugin plugin, ParticleConfig particleConfig) {
+        if (instance == null) {
+            instance = new SelectionManager(plugin, particleConfig);
         }
     }
 
@@ -83,13 +102,6 @@ public class SelectionManager {
      */
     public boolean isWand(ItemStack item) {
         return wandFactory.isWand(item);
-    }
-
-    /**
-     * Obtiene la factory de wands
-     */
-    public WandFactory getWandFactory() {
-        return wandFactory;
     }
 
     // ===== MÉTODOS DE SELECCIÓN =====
@@ -138,6 +150,9 @@ public class SelectionManager {
         Selection selection = selectionOpt.get();
         selection.setPos1(location);
 
+        // Actualizar visualización
+        updateVisualization(player, selection);
+
         checkSelectionComplete(player, selection);
         return true;
     }
@@ -160,6 +175,9 @@ public class SelectionManager {
 
         Selection selection = selectionOpt.get();
         selection.setPos2(location);
+
+        // Actualizar visualización
+        updateVisualization(player, selection);
 
         checkSelectionComplete(player, selection);
         return true;
@@ -209,9 +227,14 @@ public class SelectionManager {
      */
     public void clearSelections(Player player) {
         UUID playerId = player.getUniqueId();
+
+        // Limpiar visualizaciones
+        particleVisualizer.clearAll(player);
+
         playerSelections.remove(playerId);
         activeSelections.remove(playerId);
         selectionCallbacks.remove(playerId);
+        visualizationEnabled.remove(playerId);
     }
 
     /**
@@ -224,6 +247,9 @@ public class SelectionManager {
         if (selections == null || !selections.containsKey(selectionId)) {
             return false;
         }
+
+        // Limpiar visualización
+        particleVisualizer.clearSelection(player, selectionId);
 
         selections.remove(selectionId);
 
@@ -256,6 +282,55 @@ public class SelectionManager {
         selectionCallbacks.remove(player.getUniqueId());
     }
 
+    // ===== MÉTODOS DE VISUALIZACIÓN =====
+
+    /**
+     * Habilita/deshabilita la visualización de partículas para un jugador
+     */
+    public void setVisualizationEnabled(Player player, boolean enabled) {
+        UUID playerId = player.getUniqueId();
+        visualizationEnabled.put(playerId, enabled);
+
+        if (!enabled) {
+            particleVisualizer.clearAll(player);
+        } else {
+            // Mostrar todas las selecciones completas
+            Map<String, Selection> selections = playerSelections.get(playerId);
+            if (selections != null) {
+                selections.values().stream()
+                        .filter(Selection::isComplete)
+                        .forEach(selection -> particleVisualizer.showSelection(player, selection));
+            }
+        }
+    }
+
+    /**
+     * Verifica si la visualización está habilitada para un jugador
+     */
+    public boolean isVisualizationEnabled(Player player) {
+        return visualizationEnabled.getOrDefault(
+                player.getUniqueId(),
+                particleVisualizer.getConfig().isEnabledByDefault()
+        );
+    }
+
+    /**
+     * Muestra manualmente una selección específica
+     */
+    public void showSelection(Player player, String selectionId) {
+        Optional<Selection> selectionOpt = getSelection(player, selectionId);
+        if (selectionOpt.isPresent() && isVisualizationEnabled(player)) {
+            particleVisualizer.showSelection(player, selectionOpt.get());
+        }
+    }
+
+    /**
+     * Oculta manualmente una selección específica
+     */
+    public void hideSelection(Player player, String selectionId) {
+        particleVisualizer.clearSelection(player, selectionId);
+    }
+
     // ===== MÉTODOS PRIVADOS =====
 
     private void checkSelectionComplete(Player player, Selection selection) {
@@ -274,12 +349,20 @@ public class SelectionManager {
         }
     }
 
+    private void updateVisualization(Player player, Selection selection) {
+        if (isVisualizationEnabled(player)) {
+            particleVisualizer.updateSelection(player, selection);
+        }
+    }
+
     /**
-     * Limpia datos de jugadores desconectados
+     * Limpia datos de jugadores desconectados y recursos
      */
     public void cleanup() {
+        particleVisualizer.cleanup();
         playerSelections.clear();
         activeSelections.clear();
         selectionCallbacks.clear();
+        visualizationEnabled.clear();
     }
 }

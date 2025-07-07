@@ -12,7 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Sistema de caché tipado para Redis
@@ -81,7 +81,7 @@ public class RedisCache<T> {
             return value;
 
         } catch (Exception e) {
-            logError("Error obteniendo valor de caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error obteniendo valor de caché '" + cacheName + "': " + e.getMessage());
             return null;
         }
     }
@@ -117,7 +117,7 @@ public class RedisCache<T> {
             }
 
         } catch (Exception e) {
-            logError("Error almacenando valor en caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error almacenando valor en caché '" + cacheName + "': " + e.getMessage());
         }
     }
 
@@ -139,7 +139,7 @@ public class RedisCache<T> {
             return removed;
 
         } catch (Exception e) {
-            logError("Error eliminando valor de caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error eliminando valor de caché '" + cacheName + "': " + e.getMessage());
             return false;
         }
     }
@@ -165,7 +165,7 @@ public class RedisCache<T> {
             return redisManager.exists(redisKey);
 
         } catch (Exception e) {
-            logError("Error verificando existencia en caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error verificando existencia en caché '" + cacheName + "': " + e.getMessage());
             return false;
         }
     }
@@ -195,7 +195,7 @@ public class RedisCache<T> {
             }
             return value;
         } catch (Exception e) {
-            logError("Error computando valor para caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error computando valor para caché '" + cacheName + "': " + e.getMessage());
             return null;
         }
     }
@@ -254,7 +254,7 @@ public class RedisCache<T> {
             return success;
 
         } catch (Exception e) {
-            logError("Error actualizando TTL en caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error actualizando TTL en caché '" + cacheName + "': " + e.getMessage());
             return false;
         }
     }
@@ -269,7 +269,7 @@ public class RedisCache<T> {
             String redisKey = keyPrefix + key;
             return redisManager.getTTL(redisKey);
         } catch (Exception e) {
-            logError("Error obteniendo TTL de caché '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error obteniendo TTL de caché '" + cacheName + "': " + e.getMessage());
             return -2;
         }
     }
@@ -315,7 +315,7 @@ public class RedisCache<T> {
         try {
             localCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
         } catch (Exception e) {
-            logError("Error limpiando caché local '" + cacheName + "': " + e.getMessage());
+            logInternalError("Error limpiando caché local '" + cacheName + "': " + e.getMessage());
         }
     }
 

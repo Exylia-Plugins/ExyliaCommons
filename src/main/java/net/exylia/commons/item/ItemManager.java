@@ -167,7 +167,7 @@ public class ItemManager implements Listener {
     public static InteractiveItem createItem(String id) {
         ItemConfiguration config = getItemConfiguration(id);
         if (config == null) {
-            DebugUtils.logWarn("No configuration found for item ID: " + id);
+            DebugUtils.logInternalWarn("No configuration found for item ID: " + id);
             return null;
         }
         return new InteractiveItem(id, config);
@@ -183,7 +183,7 @@ public class ItemManager implements Listener {
     public static InteractiveItem createItem(String id, Player player) {
         ItemConfiguration config = getItemConfiguration(id);
         if (config == null) {
-            DebugUtils.logWarn("No configuration found for item ID: " + id);
+            DebugUtils.logInternalWarn("No configuration found for item ID: " + id);
             return null;
         }
         return new InteractiveItem(id, config, player);
@@ -249,7 +249,7 @@ public class ItemManager implements Listener {
         // Buscar configuración en memoria
         ItemConfiguration config = getItemConfiguration(itemId);
         if (config == null) {
-            DebugUtils.logWarn("Configuration not found for item ID: " + itemId + ". Item may be outdated.");
+            DebugUtils.logInternalWarn("Configuration not found for item ID: " + itemId + ". Item may be outdated.");
             return null;
         }
 

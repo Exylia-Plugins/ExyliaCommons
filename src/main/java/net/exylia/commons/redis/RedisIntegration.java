@@ -4,8 +4,8 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.redis.config.RedisConfig;
 import net.exylia.commons.redis.config.RedisConfigManager;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Clase de integración para configurar Redis automáticamente en ExyliaPlugin
@@ -39,7 +39,7 @@ public class RedisIntegration {
             }
 
             if (!configManager.isRedisEnabled()) {
-                logInfo("Redis is disabled in redis.yml");
+                logInternalInfo("Redis is disabled in redis.yml");
                 return;
             }
 
@@ -48,10 +48,10 @@ public class RedisIntegration {
             RedisManager.start(plugin, redisConfig);
             autoInitialized = true;
 
-            logInfo("Redis inicializado automáticamente");
+            logInternalInfo("Redis inicializado automáticamente");
 
         } catch (Exception e) {
-            logError("Error al inicializar Redis: " + e.getMessage());
+            logInternalError("Error al inicializar Redis: " + e.getMessage());
         }
     }
 
@@ -60,20 +60,20 @@ public class RedisIntegration {
      */
     public static void reloadConfig() {
         if (configManager == null) {
-            logError("No se puede recargar configuración: Redis no está inicializado");
+            logInternalError("No se puede recargar configuración: Redis no está inicializado");
             return;
         }
 
         try {
             configManager.reloadConfig();
-            logInfo("Configuración de Redis recargada.");
+            logInternalInfo("Configuración de Redis recargada.");
 
             // Nota: Para aplicar cambios de configuración completamente,
             // sería necesario reinicializar Redis, pero esto puede ser disruptivo
-            logInfo("Nota: Algunos cambios requieren reiniciar el servidor para aplicarse");
+            logInternalInfo("Nota: Algunos cambios requieren reiniciar el servidor para aplicarse");
 
         } catch (Exception e) {
-            logError("Error al recargar configuración de Redis: " + e.getMessage());
+            logInternalError("Error al recargar configuración de Redis: " + e.getMessage());
         }
     }
 
@@ -82,11 +82,11 @@ public class RedisIntegration {
      */
     public static boolean performCompleteReload() {
         try {
-            logInfo("Iniciando reload completo de Redis...");
+            logInternalInfo("Iniciando reload completo de Redis...");
 
             // 1. Cerrar conexión actual si existe
             if (autoInitialized && RedisManager.isAvailable()) {
-                logInfo("Cerrando conexión Redis actual...");
+                logInternalInfo("Cerrando conexión Redis actual...");
                 RedisManager.getInstance().shutdown();
             }
 
@@ -99,30 +99,30 @@ public class RedisIntegration {
 
             // 4. Reinicializar desde cero
             if (currentPlugin != null) {
-                logInfo("Reinicializando Redis con nueva configuración...");
+                logInternalInfo("Reinicializando Redis con nueva configuración...");
                 init(currentPlugin);
 
                 // 5. Verificar resultado
                 RedisStatus status = getStatus();
                 if (status.isEnabledInConfig()) {
                     if (status.isFullyOperational()) {
-                        logInfo("Redis reload completo exitoso");
+                        logInternalInfo("Redis reload completo exitoso");
                         return true;
                     } else {
-                        logError("Redis habilitado pero no completamente operacional después del reload");
+                        logInternalError("Redis habilitado pero no completamente operacional después del reload");
                         return false;
                     }
                 } else {
-                    logInfo("Redis está deshabilitado en configuración después del reload");
+                    logInternalInfo("Redis está deshabilitado en configuración después del reload");
                     return true; // No es error si está intencionalmente deshabilitado
                 }
             } else {
-                logError("No hay plugin disponible para reinicializar Redis");
+                logInternalError("No hay plugin disponible para reinicializar Redis");
                 return false;
             }
 
         } catch (Exception e) {
-            logError("Error durante reload completo de Redis: " + e.getMessage());
+            logInternalError("Error durante reload completo de Redis: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -133,7 +133,7 @@ public class RedisIntegration {
      */
     public static boolean forceRestart() {
         try {
-            logInfo("Forzando reinicio de Redis...");
+            logInternalInfo("Forzando reinicio de Redis...");
 
             // Cerrar sin importar el estado
             try {
@@ -141,7 +141,7 @@ public class RedisIntegration {
                     RedisManager.getInstance().shutdown();
                 }
             } catch (Exception e) {
-                logError("Error cerrando Redis (continuando): " + e.getMessage());
+                logInternalError("Error cerrando Redis (continuando): " + e.getMessage());
             }
 
             // Reset completo
@@ -159,7 +159,7 @@ public class RedisIntegration {
             return false;
 
         } catch (Exception e) {
-            logError("Error en reinicio forzado de Redis: " + e.getMessage());
+            logInternalError("Error en reinicio forzado de Redis: " + e.getMessage());
             return false;
         }
     }
@@ -174,9 +174,9 @@ public class RedisIntegration {
                 autoInitialized = false;
                 configManager = null;
                 currentPlugin = null;
-                logInfo("Redis cerrado automáticamente");
+                logInternalInfo("Redis cerrado automáticamente");
             } catch (Exception e) {
-                logError("Error al cerrar Redis automáticamente: " + e.getMessage());
+                logInternalError("Error al cerrar Redis automáticamente: " + e.getMessage());
             }
         }
     }
@@ -209,7 +209,7 @@ public class RedisIntegration {
         if (configManager != null) {
             configManager.setRedisEnabled(true);
             configManager.saveConfig();
-            logInfo("Redis habilitado en redis.yml");
+            logInternalInfo("Redis habilitado en redis.yml");
         }
     }
 
@@ -220,7 +220,7 @@ public class RedisIntegration {
         if (configManager != null) {
             configManager.setRedisEnabled(false);
             configManager.saveConfig();
-            logInfo("Redis deshabilitado en redis.yml");
+            logInternalInfo("Redis deshabilitado en redis.yml");
         }
     }
 
@@ -248,7 +248,7 @@ public class RedisIntegration {
             tempConfigManager.initialize();
             return tempConfigManager.isRedisEnabled();
         } catch (Exception e) {
-            logError("Error verificando si Redis debería estar habilitado: " + e.getMessage());
+            logInternalError("Error verificando si Redis debería estar habilitado: " + e.getMessage());
             return false;
         }
     }

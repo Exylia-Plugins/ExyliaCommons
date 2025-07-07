@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Implementación de RedisSerializer usando Gson
@@ -46,7 +46,7 @@ public class GsonRedisSerializer implements RedisSerializer {
             return gson.toJson(object);
 
         } catch (Exception e) {
-            logError("Error serializando objeto: " + e.getMessage());
+            logInternalError("Error serializando objeto: " + e.getMessage());
             return null;
         }
     }
@@ -72,10 +72,10 @@ public class GsonRedisSerializer implements RedisSerializer {
             return gson.fromJson(data, type);
 
         } catch (JsonSyntaxException e) {
-            logError("Error deserializando JSON: " + e.getMessage());
+            logInternalError("Error deserializando JSON: " + e.getMessage());
             return null;
         } catch (Exception e) {
-            logError("Error deserializando objeto: " + e.getMessage());
+            logInternalError("Error deserializando objeto: " + e.getMessage());
             return null;
         }
     }
@@ -121,7 +121,7 @@ public class GsonRedisSerializer implements RedisSerializer {
                 return (T) Double.valueOf(data);
             }
         } catch (NumberFormatException e) {
-            logError("Error convirtiendo '" + data + "' a " + type.getSimpleName());
+            logInternalError("Error convirtiendo '" + data + "' a " + type.getSimpleName());
         }
 
         return null;

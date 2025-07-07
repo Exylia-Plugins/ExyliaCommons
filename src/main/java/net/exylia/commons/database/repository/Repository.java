@@ -33,7 +33,9 @@ public interface Repository<T> {
     // Operaciones por lotes
     void saveAll(List<T> entities);
     void saveOrUpdate(T entity);
+    void saveOrUpdateAll(List<T> entities);
     CompletableFuture<Void> saveOrUpdateAsync(T entity);
+    CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities);
     void deleteAll(List<T> entities);
     CompletableFuture<Void> saveAllAsync(List<T> entities);
     CompletableFuture<Void> deleteAllAsync(List<T> entities);

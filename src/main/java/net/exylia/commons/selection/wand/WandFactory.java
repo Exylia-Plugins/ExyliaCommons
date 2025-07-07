@@ -2,6 +2,7 @@ package net.exylia.commons.selection.wand;
 
 import net.exylia.commons.selection.model.WandConfig;
 import net.exylia.commons.selection.model.SelectionType;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
@@ -57,8 +58,8 @@ public class WandFactory {
 
         if (meta != null) {
             // Nombre y lore
-            meta.setDisplayName(config.getDisplayName());
-            meta.setLore(config.getLore());
+            meta.displayName(config.getDisplayName());
+            meta.lore(config.getLore());
 
             // Configurar unbreakable
             if (config.isUnbreakable()) {
@@ -130,64 +131,6 @@ public class WandFactory {
             return SelectionType.valueOf(typeName);
         } catch (IllegalArgumentException e) {
             return SelectionType.CUBOID;
-        }
-    }
-
-    /**
-     * Actualiza el lore de una wand con información de selección
-     */
-    public ItemStack updateWandLore(ItemStack wand, String selectionInfo) {
-        if (!isWand(wand)) {
-            return wand;
-        }
-
-        ItemMeta meta = wand.getItemMeta();
-        if (meta != null) {
-            List<String> lore = new ArrayList<>(meta.getLore());
-
-            // Remover líneas de información anterior
-            lore.removeIf(line -> line.startsWith("{success}✓") || line.startsWith("{error}✗"));
-
-            // Agregar nueva información
-            lore.add("");
-            lore.add(selectionInfo);
-
-            meta.setLore(lore);
-            wand.setItemMeta(meta);
-        }
-
-        return wand;
-    }
-
-    /**
-     * Configuraciones predefinidas de wands
-     */
-    public static class Presets {
-        public static WandConfig basicWand() {
-            return new WandConfig()
-                    .material(Material.GOLDEN_AXE)
-                    .displayName("§6§lWand Básica")
-                    .selectionId("main");
-        }
-
-        public static WandConfig adminWand() {
-            return new WandConfig()
-                    .material(Material.DIAMOND_AXE)
-                    .displayName("§c§lWand de Administrador")
-                    .addLore("§7Click izquierdo: §ePrimer punto")
-                    .addLore("§7Click derecho: §eSegundo punto")
-                    .addLore("§7Shift + Click: §eInformación detallada")
-                    .addLore("§7Shift + Click derecho: §eLimpiar selección")
-                    .addLore("")
-                    .addLore("§c§lModo Administrador")
-                    .selectionId("admin");
-        }
-
-        public static WandConfig customWand(Material material, String name, String selectionId) {
-            return new WandConfig()
-                    .material(material)
-                    .displayName(name)
-                    .selectionId(selectionId);
         }
     }
 }

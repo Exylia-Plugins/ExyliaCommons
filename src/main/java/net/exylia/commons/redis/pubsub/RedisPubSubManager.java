@@ -13,8 +13,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Gestor de Pub/Sub para Redis
@@ -45,9 +45,9 @@ public class RedisPubSubManager {
 
         try {
             initialized = true;
-            logInfo("Sistema Pub/Sub de Redis inicializado");
+            logInternalInfo("Sistema Pub/Sub de Redis inicializado");
         } catch (Exception e) {
-            logError("Error al inicializar Pub/Sub: " + e.getMessage());
+            logInternalError("Error al inicializar Pub/Sub: " + e.getMessage());
             throw new RuntimeException("Fallo al inicializar Pub/Sub", e);
         }
     }
@@ -64,7 +64,7 @@ public class RedisPubSubManager {
             try (Jedis jedis = connectionManager.getConnection()) {
                 jedis.publish(channel, message);
             } catch (Exception e) {
-                logError("Error publicando mensaje en canal '" + channel + "': " + e.getMessage());
+                logInternalError("Error publicando mensaje en canal '" + channel + "': " + e.getMessage());
             }
         });
     }
@@ -80,7 +80,7 @@ public class RedisPubSubManager {
         try (Jedis jedis = connectionManager.getConnection()) {
             return jedis.publish(channel, message);
         } catch (Exception e) {
-            logError("Error publicando mensaje síncrono en canal '" + channel + "': " + e.getMessage());
+            logInternalError("Error publicando mensaje síncrono en canal '" + channel + "': " + e.getMessage());
             return 0;
         }
     }
@@ -112,7 +112,7 @@ public class RedisPubSubManager {
                 jedis.subscribe(subscriber, channel);
             } catch (Exception e) {
                 if (!subscriber.isUnsubscribed()) {
-                    logError("Error en suscripción al canal '" + channel + "': " + e.getMessage());
+                    logInternalError("Error en suscripción al canal '" + channel + "': " + e.getMessage());
                 }
             }
         });
@@ -150,7 +150,7 @@ public class RedisPubSubManager {
                 jedis.subscribe(subscriber, channels);
             } catch (Exception e) {
                 if (!subscriber.isUnsubscribed()) {
-                    logError("Error en suscripción múltiple: " + e.getMessage());
+                    logInternalError("Error en suscripción múltiple: " + e.getMessage());
                 }
             }
         });
@@ -191,7 +191,7 @@ public class RedisPubSubManager {
                 jedis.psubscribe(subscriber, pattern);
             } catch (Exception e) {
                 if (!subscriber.isUnsubscribed()) {
-                    logError("Error en suscripción por patrón '" + pattern + "': " + e.getMessage());
+                    logInternalError("Error en suscripción por patrón '" + pattern + "': " + e.getMessage());
                 }
             }
         });
@@ -227,7 +227,7 @@ public class RedisPubSubManager {
     public synchronized void shutdown() {
         if (!initialized) return;
 
-        logInfo("Cerrando sistema Pub/Sub...");
+        logInternalInfo("Cerrando sistema Pub/Sub...");
 
         try {
             // Cancelar todas las suscripciones
@@ -237,10 +237,10 @@ public class RedisPubSubManager {
             executorService.shutdown();
 
             initialized = false;
-            logInfo("Sistema Pub/Sub cerrado correctamente");
+            logInternalInfo("Sistema Pub/Sub cerrado correctamente");
 
         } catch (Exception e) {
-            logError("Error al cerrar Pub/Sub: " + e.getMessage());
+            logInternalError("Error al cerrar Pub/Sub: " + e.getMessage());
         }
     }
 
@@ -291,30 +291,30 @@ public class RedisPubSubManager {
                     messageHandler.accept(message);
                 }
             } catch (Exception e) {
-                logError("Error procesando mensaje de canal '" + channel + "': " + e.getMessage());
+                logInternalError("Error procesando mensaje de canal '" + channel + "': " + e.getMessage());
             }
         }
 
         @Override
         public void onSubscribe(String channel, int subscribedChannels) {
-            logInfo("Suscrito al canal: " + channel);
+            logInternalInfo("Suscrito al canal: " + channel);
             if (onSubscribe != null) {
                 try {
                     onSubscribe.run();
                 } catch (Exception e) {
-                    logError("Error en callback onSubscribe: " + e.getMessage());
+                    logInternalError("Error en callback onSubscribe: " + e.getMessage());
                 }
             }
         }
 
         @Override
         public void onUnsubscribe(String channel, int subscribedChannels) {
-            logInfo("Desuscrito del canal: " + channel);
+            logInternalInfo("Desuscrito del canal: " + channel);
             if (onUnsubscribe != null) {
                 try {
                     onUnsubscribe.run();
                 } catch (Exception e) {
-                    logError("Error en callback onUnsubscribe: " + e.getMessage());
+                    logInternalError("Error en callback onUnsubscribe: " + e.getMessage());
                 }
             }
         }
@@ -348,30 +348,30 @@ public class RedisPubSubManager {
                     messageHandler.accept(new ChannelMessage(channel, message));
                 }
             } catch (Exception e) {
-                logError("Error procesando mensaje multicanal de '" + channel + "': " + e.getMessage());
+                logInternalError("Error procesando mensaje multicanal de '" + channel + "': " + e.getMessage());
             }
         }
 
         @Override
         public void onSubscribe(String channel, int subscribedChannels) {
-            logInfo("Suscrito al canal multicanal: " + channel);
+            logInternalInfo("Suscrito al canal multicanal: " + channel);
             if (onSubscribe != null) {
                 try {
                     onSubscribe.accept(channel);
                 } catch (Exception e) {
-                    logError("Error en callback onSubscribe multicanal: " + e.getMessage());
+                    logInternalError("Error en callback onSubscribe multicanal: " + e.getMessage());
                 }
             }
         }
 
         @Override
         public void onUnsubscribe(String channel, int subscribedChannels) {
-            logInfo("Desuscrito del canal multicanal: " + channel);
+            logInternalInfo("Desuscrito del canal multicanal: " + channel);
             if (onUnsubscribe != null) {
                 try {
                     onUnsubscribe.accept(channel);
                 } catch (Exception e) {
-                    logError("Error en callback onUnsubscribe multicanal: " + e.getMessage());
+                    logInternalError("Error en callback onUnsubscribe multicanal: " + e.getMessage());
                 }
             }
         }
@@ -406,30 +406,30 @@ public class RedisPubSubManager {
                     messageHandler.accept(new PatternMessage(pattern, channel, message));
                 }
             } catch (Exception e) {
-                logError("Error procesando mensaje de patrón '" + pattern + "': " + e.getMessage());
+                logInternalError("Error procesando mensaje de patrón '" + pattern + "': " + e.getMessage());
             }
         }
 
         @Override
         public void onPSubscribe(String pattern, int subscribedChannels) {
-            logInfo("Suscrito al patrón: " + pattern);
+            logInternalInfo("Suscrito al patrón: " + pattern);
             if (onSubscribe != null) {
                 try {
                     onSubscribe.accept(pattern);
                 } catch (Exception e) {
-                    logError("Error en callback onPSubscribe: " + e.getMessage());
+                    logInternalError("Error en callback onPSubscribe: " + e.getMessage());
                 }
             }
         }
 
         @Override
         public void onPUnsubscribe(String pattern, int subscribedChannels) {
-            logInfo("Desuscrito del patrón: " + pattern);
+            logInternalInfo("Desuscrito del patrón: " + pattern);
             if (onUnsubscribe != null) {
                 try {
                     onUnsubscribe.accept(pattern);
                 } catch (Exception e) {
-                    logError("Error en callback onPUnsubscribe: " + e.getMessage());
+                    logInternalError("Error en callback onPUnsubscribe: " + e.getMessage());
                 }
             }
         }

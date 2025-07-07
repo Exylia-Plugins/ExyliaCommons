@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Gestor de comandos para plugins
@@ -51,7 +51,7 @@ public class CommandManager {
         boolean success = command.register();
 
         if (success) {
-            logInfo("Comando /" + command.getName() + " registrado correctamente");
+            logInternalInfo("Command /" + command.getName() + " registered");
         }
 
         return success;

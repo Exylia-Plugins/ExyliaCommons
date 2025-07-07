@@ -16,6 +16,8 @@ import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
+
 /**
  * Sistema Centralizado de Placeholders para Exylia Commons
  * <p>
@@ -40,7 +42,6 @@ public class PlaceholderSystemManager {
     private final PlaceholderCache cache = new PlaceholderCache();
 
     // Configuración
-    private boolean placeholderAPIEnabled = false;
     @Setter
     private boolean debugMode = false;
 
@@ -49,7 +50,6 @@ public class PlaceholderSystemManager {
 
     private PlaceholderSystemManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.placeholderAPIEnabled = checkPlaceholderAPI();
     }
 
     /**
@@ -111,7 +111,7 @@ public class PlaceholderSystemManager {
         result = processUnifiedPlaceholders(result, player, contexts);
 
         // 2. Procesar PlaceholderAPI si está disponible
-        if (placeholderAPIEnabled && player != null) {
+        if (isPlaceholderAPIEnabled() && player != null) {
             try {
                 result = PlaceholderAPI.setPlaceholders(player, result);
             } catch (Exception e) {
@@ -177,6 +177,15 @@ public class PlaceholderSystemManager {
      */
     private String resolvePlaceholder(String placeholderName, Player player, List<Object> contexts) {
         // 1. Intentar con placeholders de contexto (tienen prioridad)
+        for (Object context : contexts) {
+            if (context instanceof ExyliaContext exyliaContext) {
+                Object value = exyliaContext.get(placeholderName);
+                if (value != null) {
+                    return objectToString(value);
+                }
+            }
+        }
+
         if (!contexts.isEmpty()) {
             ContextPlaceholder contextPlaceholder = contextPlaceholders.get(placeholderName);
             if (contextPlaceholder != null) {

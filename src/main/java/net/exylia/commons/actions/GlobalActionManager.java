@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Gestor global de acciones personalizadas
@@ -30,12 +30,12 @@ public class GlobalActionManager {
      */
     public static void registerAction(String actionName, JavaPlugin plugin, BiConsumer<ActionContext, String[]> handler) {
         if (actionName == null || actionName.trim().isEmpty()) {
-            logWarn("Cannot register action with null or empty name");
+            logInternalWarn("Cannot register action with null or empty name");
             return;
         }
 
         if (handler == null) {
-            logWarn("Cannot register action '" + actionName + "' with null handler");
+            logInternalWarn("Cannot register action '" + actionName + "' with null handler");
             return;
         }
 
@@ -44,7 +44,7 @@ public class GlobalActionManager {
         // Verificar si ya existe
         if (actions.containsKey(normalizedName)) {
             JavaPlugin existingOwner = actionOwners.get(normalizedName);
-            logWarn("Action '" + actionName + "' is already registered by " +
+            logInternalWarn("Action '" + actionName + "' is already registered by " +
                     (existingOwner != null ? existingOwner.getName() : "unknown plugin") +
                     ". Overriding with " + plugin.getName());
         }
@@ -88,7 +88,7 @@ public class GlobalActionManager {
                 return true;
             } catch (Exception e) {
                 JavaPlugin owner = actionOwners.get(actionName);
-                logWarn("Error executing action '" + actionName + "' from plugin " +
+                logInternalWarn("Error executing action '" + actionName + "' from plugin " +
                         (owner != null ? owner.getName() : "unknown") + ": " + e.getMessage());
                 return false;
             }
@@ -120,7 +120,7 @@ public class GlobalActionManager {
 
         // Verificar que el plugin sea el propietario
         if (owner != null && !owner.equals(plugin)) {
-            logWarn("Plugin " + plugin.getName() + " tried to unregister action '" +
+            logInternalWarn("Plugin " + plugin.getName() + " tried to unregister action '" +
                     actionName + "' owned by " + owner.getName());
             return false;
         }

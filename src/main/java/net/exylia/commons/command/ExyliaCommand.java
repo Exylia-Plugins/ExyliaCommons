@@ -15,7 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
  * Clase base para crear comandos de forma sencilla
@@ -127,7 +127,7 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
             return true;
 
         } catch (Exception e) {
-            logError("Error al registrar el comando " + name + ": " + e.getMessage());
+            logInternalError("Error al registrar el comando " + name + ": " + e.getMessage());
             return false;
         }
     }

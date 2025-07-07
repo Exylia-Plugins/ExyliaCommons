@@ -35,7 +35,7 @@ public class LicenseManager {
     public CompletableFuture<Void> initializeAndVerify() {
         if (!isRequired) {
             isVerified = true;
-            DebugUtils.logSuccess("This plugin is free. No license required.");
+            DebugUtils.logInternalSuccess("This plugin is free. No license required.");
             return CompletableFuture.completedFuture(null);
         }
 
@@ -62,17 +62,17 @@ public class LicenseManager {
             licenseKey = licenseConfig.getLicenseKey();
 
             if (licenseKey == null || licenseKey.trim().isEmpty()) {
-                DebugUtils.logError("LICENSE REQUIRED - CONFIG REQUIRED");
-                DebugUtils.logError("This plugin requires a license key.");
-                DebugUtils.logError("Configure your license key in plugins/" + plugin.getName() + "/license.yml");
-                DebugUtils.logError("Join our Discord for help: https://discord.exylia.net/");
+                DebugUtils.logInternalError("LICENSE REQUIRED - CONFIG REQUIRED");
+                DebugUtils.logInternalError("This plugin requires a license key.");
+                DebugUtils.logInternalError("Configure your license key in plugins/" + plugin.getName() + "/license.yml");
+                DebugUtils.logInternalError("Join our Discord for help: https://discord.exylia.net/");
                 return false;
             }
 
-            DebugUtils.logInfo("License system initialized for: " + plugin.getName());
+            DebugUtils.logInternalInfo("License system initialized for: " + plugin.getName());
             return true;
         } catch (Exception e) {
-            DebugUtils.logError("Error inicializando sistema de licencias: " + e.getMessage());
+            DebugUtils.logInternalError("Error inicializando sistema de licencias: " + e.getMessage());
             return false;
         }
     }
@@ -99,7 +99,7 @@ public class LicenseManager {
         }
 
         isValidating = true;
-        DebugUtils.logInfo("Verifying license: " + maskLicenseKey(licenseKey));
+        DebugUtils.logInternalInfo("Verifying license: " + maskLicenseKey(licenseKey));
 
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -107,7 +107,7 @@ public class LicenseManager {
                 handleLicenseResult(result);
                 return result;
             } catch (Exception e) {
-                DebugUtils.logError("Error verificando licencia: " + e.getMessage());
+                DebugUtils.logInternalError("Error verificando licencia: " + e.getMessage());
                 return new LicenseResult(false, "Error interno: " + e.getMessage(), LicenseResult.ErrorType.CONNECTION_ERROR);
             } finally {
                 isValidating = false;
@@ -118,31 +118,31 @@ public class LicenseManager {
     private void handleLicenseResult(LicenseResult result) {
         if (result.isValid()) {
             isVerified = true;
-            DebugUtils.logSuccess("Valid license for " + plugin.getName());
+            DebugUtils.logInternalSuccess("Valid license for " + plugin.getName());
         } else {
             isVerified = false;
-            DebugUtils.logError("INVALID LICENSE FOR " + plugin.getName());
-            DebugUtils.logError("Reason: " + result.getMessage());
+            DebugUtils.logInternalError("INVALID LICENSE FOR " + plugin.getName());
+            DebugUtils.logInternalError("Reason: " + result.getMessage());
 
             switch (result.getErrorType()) {
                 case INVALID_LICENSE:
-                    DebugUtils.logError("Your license key is invalid or has expired.");
-                    DebugUtils.logError("Join our Discord server to get a new license key. https://discord.exylia.net/");
+                    DebugUtils.logInternalError("Your license key is invalid or has expired.");
+                    DebugUtils.logInternalError("Join our Discord server to get a new license key. https://discord.exylia.net/");
                     break;
                 case CONNECTION_ERROR:
-                    DebugUtils.logError("Error with the connection to the license server.");
-                    DebugUtils.logError("Check your internet connection and try again.");
+                    DebugUtils.logInternalError("Error with the connection to the license server.");
+                    DebugUtils.logInternalError("Check your internet connection and try again.");
                     break;
                 case SERVER_ERROR:
-                    DebugUtils.logError("Error in the license server.");
-                    DebugUtils.logError("Please try again later or contact the support team. https://discord.exylia.net/");
+                    DebugUtils.logInternalError("Error in the license server.");
+                    DebugUtils.logInternalError("Please try again later or contact the support team. https://discord.exylia.net/");
                     break;
                 default:
-                    DebugUtils.logError("Unknown error type: " + result.getErrorType());
+                    DebugUtils.logInternalError("Unknown error type: " + result.getErrorType());
                     break;
             }
 
-            DebugUtils.logError("Plugin will be disabled due to invalid license.");
+            DebugUtils.logInternalError("Plugin will be disabled due to invalid license.");
         }
     }
 
@@ -173,7 +173,7 @@ public class LicenseManager {
             int responseCode = connection.getResponseCode();
             String responseBody = readResponse(connection);
 
-            DebugUtils.logInfo("Respuesta del servidor de licencias: " + responseCode);
+            DebugUtils.logInternalInfo("Respuesta del servidor de licencias: " + responseCode);
 
             if (responseCode == 200 || (responseCode == 404 && isValidJson(responseBody))) {
                 try {
@@ -184,35 +184,35 @@ public class LicenseManager {
                         String message = response.get("message").getAsString();
 
                         if (valid) {
-                            DebugUtils.logSuccess("Licencia verificada exitosamente para " + plugin.getName());
+                            DebugUtils.logInternalSuccess("Licencia verificada exitosamente para " + plugin.getName());
                             return new LicenseResult(true, message, LicenseResult.ErrorType.NONE);
                         } else {
-                            DebugUtils.logError("Licencia inválida para " + plugin.getName() + ": " + message);
+                            DebugUtils.logInternalError("Licencia inválida para " + plugin.getName() + ": " + message);
                             return new LicenseResult(false, message, LicenseResult.ErrorType.INVALID_LICENSE);
                         }
                     } else {
                         String errorMsg = "Respuesta del servidor inválida: " + responseBody;
-                        DebugUtils.logError(errorMsg);
+                        DebugUtils.logInternalError(errorMsg);
                         return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
                     }
                 } catch (Exception jsonException) {
                     String errorMsg = "Error del servidor: " + responseCode + " - " + responseBody;
-                    DebugUtils.logError(errorMsg);
+                    DebugUtils.logInternalError(errorMsg);
                     return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
                 }
             } else {
                 String errorMsg = "Error del servidor: " + responseCode + " - " + responseBody;
-                DebugUtils.logError(errorMsg);
+                DebugUtils.logInternalError(errorMsg);
                 return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.SERVER_ERROR);
             }
 
         } catch (IOException e) {
             String errorMsg = "Error de conexión con servidor de licencias: " + e.getMessage();
-            DebugUtils.logError(errorMsg);
+            DebugUtils.logInternalError(errorMsg);
             return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.CONNECTION_ERROR);
         } catch (Exception e) {
             String errorMsg = "Error inesperado: " + e.getMessage();
-            DebugUtils.logError(errorMsg);
+            DebugUtils.logInternalError(errorMsg);
             return new LicenseResult(false, errorMsg, LicenseResult.ErrorType.UNEXPECTED_ERROR);
         }
     }

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.SkullUtils.*;
 
 /**
@@ -111,7 +111,7 @@ public class InteractiveItem {
 
         ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
         if (config == null) {
-            logWarn("No se encontró configuración para item ID: " + itemId);
+            logInternalWarn("No se encontró configuración para item ID: " + itemId);
             return null;
         }
 
@@ -470,7 +470,7 @@ public class InteractiveItem {
 
     private ItemStack createItemFromString(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
-            logWarn("Material string is null or empty, using STONE");
+            logInternalWarn("Material string is null or empty, using STONE");
             return new ItemStack(Material.STONE);
         }
 
@@ -493,7 +493,7 @@ public class InteractiveItem {
             Material material = Material.valueOf(materialString.toUpperCase());
             return new ItemStack(material);
         } catch (IllegalArgumentException e) {
-            logWarn("Invalid material: " + materialString + ", using STONE");
+            logInternalWarn("Invalid material: " + materialString + ", using STONE");
             return new ItemStack(Material.STONE);
         }
     }

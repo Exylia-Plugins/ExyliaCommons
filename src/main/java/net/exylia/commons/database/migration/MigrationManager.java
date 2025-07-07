@@ -8,8 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
-import static net.exylia.commons.utils.DebugUtils.logError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 public class MigrationManager {
 
@@ -22,10 +22,10 @@ public class MigrationManager {
         String version = tableAnnotation.version();
         String tableName = adapter.getTableName(entityClass);
 
-        logInfo("Verificando tabla: " + tableName + " (versión: " + version + ")");
+        logInternalInfo("Checking table: " + tableName + " (version: " + version + ")");
 
         if (!adapter.tableExists(entityClass)) {
-            logInfo("Creando tabla: " + tableName);
+            logInternalInfo("Creating table: " + tableName);
             adapter.createTable(entityClass);
 
             // Guardar información de versión si es SQL
@@ -34,22 +34,22 @@ public class MigrationManager {
                 saveTableVersion(adapter, tableName, version);
             }
 
-            logInfo("Tabla creada exitosamente: " + tableName);
+            logInternalInfo("Table created: " + tableName);
         } else {
             // Verificar si necesita actualización
             if (isSQLAdapter(adapter)) {
                 String currentVersion = getTableVersion(adapter, tableName);
 
-                logInfo("Versión actual de la tabla " + tableName + ": " + currentVersion +
-                        ", Versión esperada: " + version);
+                logInternalInfo("Actual table version for " + tableName + ": " + currentVersion +
+                        ", Version to check: " + version);
 
                 if (!version.equals(currentVersion)) {
-                    logInfo("Actualizando tabla " + tableName + " de versión " + currentVersion + " a " + version);
+                    logInternalInfo("Updating table " + tableName + " from " + currentVersion + " to " + version);
                     adapter.updateTable(entityClass);
                     updateTableVersion(adapter, tableName, version);
-                    logInfo("Tabla actualizada exitosamente: " + tableName);
+                    logInternalInfo("Table updated: " + tableName);
                 } else {
-                    logInfo("Tabla " + tableName + " ya está en la versión correcta: " + version);
+                    logInternalInfo("Table " + tableName + " is up to date: " + version);
                 }
             } else {
                 // Para MongoDB, siempre actualizar (es seguro)
@@ -86,9 +86,8 @@ public class MigrationManager {
             }
 
             adapter.executeUpdate(sql);
-            logInfo("Tabla de migraciones creada/verificada");
         } catch (Exception e) {
-            logError("Error creando tabla de migraciones: " + e.getMessage());
+            logInternalError("Error creando tabla de migraciones: " + e.getMessage());
         }
     }
 
@@ -107,9 +106,9 @@ public class MigrationManager {
                 adapter.executeUpdate(sql, tableName, version);
             }
 
-            logInfo("Versión de tabla guardada: " + tableName + " -> " + version);
+            logInternalInfo("Versión de tabla guardada: " + tableName + " -> " + version);
         } catch (Exception e) {
-            logError("Error guardando versión de tabla: " + e.getMessage());
+            logInternalError("Error guardando versión de tabla: " + e.getMessage());
         }
     }
 
@@ -133,19 +132,19 @@ public class MigrationManager {
                             Object versionObj = map.get("version");
                             if (versionObj != null) {
                                 String foundVersion = versionObj.toString();
-                                logInfo("Versión encontrada para tabla " + tableName + ": " + foundVersion);
+                                logInternalInfo("Versión encontrada para tabla " + tableName + ": " + foundVersion);
                                 return foundVersion;
                             }
                         }
                     }
                 } catch (Exception e) {
-                    logInfo("No se encontró versión para tabla " + tableName + ", usando versión por defecto");
+                    logInternalInfo("No se encontró versión para tabla " + tableName + ", usando versión por defecto");
                 }
             }
 
             return "1.0"; // Versión por defecto si no se encuentra
         } catch (Exception e) {
-            logError("Error obteniendo versión de tabla: " + e.getMessage());
+            logInternalError("Error obteniendo versión de tabla: " + e.getMessage());
             return "1.0";
         }
     }

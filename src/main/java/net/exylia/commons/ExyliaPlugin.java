@@ -1,5 +1,6 @@
 package net.exylia.commons;
 
+import lombok.Getter;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
@@ -36,6 +37,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     // ===== STATIC FIELDS =====
     private static boolean initialized = false;
     private static final Set<ExyliaPlugin> registeredPlugins = new HashSet<>();
+    @Getter
     private static ExyliaPlugin instance;
 
     // ===== INSTANCE FIELDS =====
@@ -69,7 +71,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 .thenRun(() -> Bukkit.getScheduler().runTask(this, this::enablePlugin))
                 .exceptionally(throwable -> {
                     Bukkit.getScheduler().runTask(this, () -> {
-                        logError("License verification failed: " + throwable.getMessage());
+                        logInternalError("License verification failed: " + throwable.getMessage());
                         getServer().getPluginManager().disablePlugin(this);
                     });
                     return null;
@@ -96,15 +98,14 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             initialized = false;
         }
 
-        logInfo("Plugin Exylia deshabilitado: " + getDescription().getName());
+        logInternalInfo("Plugin Exylia deshabilitado: " + getDescription().getName());
     }
 
     private void enablePlugin() {
         try {
             onExyliaEnable();
-            logSuccess("Plugin Exylia habilitado correctamente: " + getDescription().getName());
         } catch (Exception e) {
-            logError("Error habilitando plugin: " + e.getMessage());
+            logInternalError("Error habilitando plugin: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -124,13 +125,13 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             if (configClasses != null && configClasses.length > 0) {
                 configSystem.initialize(configClasses);
                 setupConfigurationListeners();
-                logSuccess("Sistema de configuración inicializado con " + configClasses.length + " clases");
             } else {
-                logInfo("No se especificaron clases de configuración para " + getName());
+                logInternalInfo("No se especificaron clases de configuración para " + getName());
             }
+            ConfigManager.init(this, getConfigurationClasses());
 
         } catch (Exception e) {
-            logError("Error inicializando sistema de configuración: " + e.getMessage());
+            logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -178,7 +179,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInfo("=== INICIANDO RELOAD COMPLETO ASÍNCRONO ===");
+                logInternalInfo("=== INICIANDO RELOAD COMPLETO ASÍNCRONO ===");
 
                 // 1. Reload del sistema de configuración
                 long configStart = System.currentTimeMillis();
@@ -211,7 +212,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                         onPluginReload();
                         return true;
                     } catch (Exception e) {
-                        logError("Error en reload personalizado: " + e.getMessage());
+                        logInternalError("Error en reload personalizado: " + e.getMessage());
                         return false;
                     }
                 }).get();
@@ -223,13 +224,13 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 componentTimes.put("Plugin Custom", System.currentTimeMillis() - customStart);
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                logSuccess("=== RELOAD COMPLETADO EXITOSAMENTE EN " + totalTime + "ms ===");
+                logInternalSuccess("=== RELOAD COMPLETADO EXITOSAMENTE EN " + totalTime + "ms ===");
 
                 return new ReloadResult(true, totalTime, componentTimes, null);
 
             } catch (Exception e) {
                 long totalTime = System.currentTimeMillis() - startTime;
-                logError("Error durante reload completo: " + e.getMessage());
+                logInternalError("Error durante reload completo: " + e.getMessage());
                 e.printStackTrace();
                 return new ReloadResult(false, totalTime, componentTimes, e.getMessage());
             }
@@ -249,7 +250,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                         Bukkit.getScheduler().runTask(this, this::onDatabaseReload);
                         return true;
                     } else {
-                        logError("Fallo en reload automático de base de datos");
+                        logInternalError("Fallo en reload automático de base de datos");
                         return false;
                     }
                 } else {
@@ -258,12 +259,12 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                         Bukkit.getScheduler().runTask(this, this::onDatabaseReload);
                         return true;
                     } else {
-                        logError("Error: No se pudo inicializar la base de datos");
+                        logInternalError("Error: No se pudo inicializar la base de datos");
                         return false;
                     }
                 }
             } catch (Exception e) {
-                logError("Error crítico en reload de base de datos: " + e.getMessage());
+                logInternalError("Error crítico en reload de base de datos: " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }
@@ -276,24 +277,24 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     public final CompletableFuture<Boolean> reloadRedisAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logInfo("Iniciando reload de Redis...");
+                logInternalInfo("Iniciando reload de Redis...");
 
                 // NUEVA VERIFICACIÓN: Comprobar si Redis está disponible en el classpath
                 if (!isRedisAvailable()) {
-                    logInfo("Redis no está disponible en el classpath, omitiendo reload de Redis");
+                    logInternalInfo("Redis no está disponible en el classpath, omitiendo reload de Redis");
                     return true; // Consideramos esto como éxito
                 }
 
                 boolean wasInitialized = RedisIntegration.isAutoInitialized();
 
                 if (wasInitialized) {
-                    logInfo("Redis ya estaba inicializado, realizando reload completo...");
+                    logInternalInfo("Redis ya estaba inicializado, realizando reload completo...");
                     boolean success = RedisIntegration.performCompleteReload();
 
                     if (success) {
-                        logSuccess("Redis reinicializado correctamente");
+                        logInternalSuccess("Redis reinicializado correctamente");
                     } else {
-                        logError("Fallo en reload de Redis");
+                        logInternalError("Fallo en reload de Redis");
                     }
 
                     // Ejecutar hook en hilo principal
@@ -301,36 +302,36 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                     return success;
 
                 } else {
-                    logInfo("Redis no estaba inicializado, verificando configuración...");
+                    logInternalInfo("Redis no estaba inicializado, verificando configuración...");
 
                     RedisIntegration.init(this);
                     RedisIntegration.RedisStatus status = RedisIntegration.getStatus();
 
                     if (status.isEnabledInConfig()) {
                         if (status.isFullyOperational()) {
-                            logSuccess("Redis habilitado e inicializado correctamente por primera vez");
+                            logInternalSuccess("Redis habilitado e inicializado correctamente por primera vez");
                             Bukkit.getScheduler().runTask(this, this::onRedisReload);
                             return true;
                         } else {
-                            logError("Redis habilitado en configuración pero falló la inicialización");
+                            logInternalError("Redis habilitado en configuración pero falló la inicialización");
                             Bukkit.getScheduler().runTask(this, this::onRedisReload);
                             return false;
                         }
                     } else {
-                        logInfo("Redis sigue deshabilitado en redis.yml");
+                        logInternalInfo("Redis sigue deshabilitado en redis.yml");
                         Bukkit.getScheduler().runTask(this, this::onRedisReload);
                         return true;
                     }
                 }
 
             } catch (Exception e) {
-                logError("Error crítico en reload de Redis: " + e.getMessage());
+                logInternalError("Error crítico en reload de Redis: " + e.getMessage());
                 e.printStackTrace();
 
                 try {
                     Bukkit.getScheduler().runTask(this, this::onRedisReload);
                 } catch (Exception hookError) {
-                    logError("Error adicional en hook de Redis reload: " + hookError.getMessage());
+                    logInternalError("Error adicional en hook de Redis reload: " + hookError.getMessage());
                 }
 
                 return false;
@@ -359,11 +360,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally(throwable -> {
                     if (throwable instanceof TimeoutException) {
-                        logError("Reload cancelado por timeout (" + timeoutSeconds + "s)");
+                        logInternalError("Reload cancelado por timeout (" + timeoutSeconds + "s)");
                         return new ReloadResult(false, timeoutSeconds * 1000,
                                 new HashMap<>(), "Timeout de " + timeoutSeconds + " segundos");
                     } else {
-                        logError("Error en reload con timeout: " + throwable.getMessage());
+                        logInternalError("Error en reload con timeout: " + throwable.getMessage());
                         return new ReloadResult(false, 0,
                                 new HashMap<>(), "Error: " + throwable.getMessage());
                     }
@@ -438,12 +439,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return null;
     }
 
-    public static ExyliaPlugin getInstance() {
-        return instance;
-    }
-
     public static boolean isPlaceholderAPIEnabled() {
-        return Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null;
+        return Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
     }
 
     // ===== PRIVATE INITIALIZATION METHODS =====
@@ -455,16 +452,12 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             BossbarUtils.init(this);
             TitleUtils.init(this);
         } catch (Exception e) {
-            logInfo("Error inicializando un sistema: " + e.getMessage());
+            logInternalInfo("Error inicializando un sistema: " + e.getMessage());
         }
         checkOptionalDependencies();
-        logInfo("Núcleo Exylia inicializado correctamente");
     }
 
     private void checkOptionalDependencies() {
-        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
-            logInfo("PlaceholderAPI detectado.");
-        }
         try {
             Class.forName("redis.clients.jedis.Jedis");
         } catch (ClassNotFoundException ignored) {
@@ -498,21 +491,25 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
+    public static boolean debugEnabled() {
+        return true;
+    }
+
     private void shutdownExylia() {
-        logInfo("Limpiando recursos globales de Exylia");
+        logInternalInfo("Limpiando recursos globales de Exylia");
         try {
             if (DatabaseManager.getInstance() != null) {
                 DatabaseManager.getInstance().shutdown();
             }
         } catch (Exception e) {
-            logInfo("Error cerrando sistema de base de datos: " + e.getMessage());
+            logInternalInfo("Error cerrando sistema de base de datos: " + e.getMessage());
         }
         try {
             if (LocationWizardManager.getInstance() != null) {
                 LocationWizardManager.getInstance().cleanup();
             }
         } catch (Exception e) {
-            logInfo("Error limpiando wizards: " + e.getMessage());
+            logInternalInfo("Error limpiando wizards: " + e.getMessage());
         }
         RedisIntegration.shutdownRedis();
         ColorUtils.shutdown();

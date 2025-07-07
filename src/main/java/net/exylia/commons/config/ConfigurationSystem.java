@@ -52,14 +52,12 @@ public class ConfigurationSystem {
      */
     @SafeVarargs
     public final ConfigurationSystem initialize(Class<? extends ConfigBase>... configClasses) {
-        logInfo("Inicializando sistema de configuración modernizado...");
-
         for (Class<? extends ConfigBase> configClass : configClasses) {
             loadConfigClass(configClass);
         }
 
         setupGlobalPrefix();
-        logSuccess("Sistema de configuración inicializado con " + configFiles.size() + " archivos");
+        logInternalSuccess("Configuration System started with " + configFiles.size() + " files");
         return this;
     }
 
@@ -93,10 +91,10 @@ public class ConfigurationSystem {
             instance.initialize(this, fileData);
             configInstances.put(configClass, instance);
 
-            logDebug(debugMode, "Clase de configuración cargada: " + configClass.getSimpleName());
+            logInternalDebug(debugMode, "Clase de configuración cargada: " + configClass.getSimpleName());
 
         } catch (Exception e) {
-            logError("Error cargando clase de configuración " + configClass.getSimpleName() + ": " + e.getMessage());
+            logInternalError("Error cargando clase de configuración " + configClass.getSimpleName() + ": " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -394,7 +392,7 @@ public class ConfigurationSystem {
     public CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logInfo("Iniciando reload del sistema de configuración...");
+                logInternalInfo("Iniciando reload del sistema de configuración...");
 
                 cache.invalidateAll();
 
@@ -415,13 +413,13 @@ public class ConfigurationSystem {
                 setupGlobalPrefix();
                 ColorUtils.reloadPresets();
 
-                logSuccess("Reload " + (allSuccess ? "exitoso" : "con advertencias"));
+                logInternalSuccess("Reload " + (allSuccess ? "exitoso" : "con advertencias"));
 
                 Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);
                 return allSuccess;
 
             } catch (Exception e) {
-                logError("Error durante reload: " + e.getMessage());
+                logInternalError("Error durante reload: " + e.getMessage());
                 return false;
             }
         });
@@ -434,7 +432,7 @@ public class ConfigurationSystem {
         try {
             ConfigFileData oldData = configFiles.get(fileName);
             if (oldData == null) {
-                logError("Archivo no encontrado para reload: " + fileName);
+                logInternalError("Archivo no encontrado para reload: " + fileName);
                 return false;
             }
 
@@ -442,18 +440,18 @@ public class ConfigurationSystem {
             FileConfiguration newConfig = YamlConfiguration.loadConfiguration(file);
 
             if (oldData.validator != null && !oldData.validator.apply(newConfig)) {
-                logError("Validación fallida para " + fileName + " durante reload");
+                logInternalError("Validación fallida para " + fileName + " durante reload");
                 return false;
             }
 
             oldData.configuration = newConfig;
             oldData.lastModified = file.lastModified();
 
-            logDebug(debugMode, "Archivo recargado: " + fileName);
+            logInternalDebug(debugMode, "Archivo recargado: " + fileName);
             return true;
 
         } catch (Exception e) {
-            logError("Error recargando " + fileName + ": " + e.getMessage());
+            logInternalError("Error recargando " + fileName + ": " + e.getMessage());
             return false;
         }
     }
@@ -468,7 +466,7 @@ public class ConfigurationSystem {
                 if (required) {
                     plugin.saveResource(fileName + ".yml", false);
                 } else {
-                    logDebug(debugMode, "Archivo opcional no encontrado: " + fileName);
+                    logInternalDebug(debugMode, "Archivo opcional no encontrado: " + fileName);
                     return null;
                 }
             }
@@ -477,7 +475,7 @@ public class ConfigurationSystem {
             ConfigFileData data = new ConfigFileData(config, file.lastModified());
 
             configFiles.put(fileName, data);
-            logDebug(debugMode, "Archivo cargado: " + fileName);
+            logInternalDebug(debugMode, "Archivo cargado: " + fileName);
 
             return data;
 
@@ -485,7 +483,7 @@ public class ConfigurationSystem {
             if (required) {
                 throw new RuntimeException("Error cargando archivo requerido " + fileName, e);
             } else {
-                logError("Error cargando archivo opcional " + fileName + ": " + e.getMessage());
+                logInternalError("Error cargando archivo opcional " + fileName + ": " + e.getMessage());
                 return null;
             }
         }
@@ -527,7 +525,7 @@ public class ConfigurationSystem {
             try {
                 listener.onAllConfigsReload();
             } catch (Exception e) {
-                logError("Error en listener de reload: " + e.getMessage());
+                logInternalError("Error en listener de reload: " + e.getMessage());
             }
         });
     }
@@ -548,6 +546,6 @@ public class ConfigurationSystem {
         configFiles.clear();
         configInstances.clear();
         reloadListeners.clear();
-        logInfo("Sistema de configuración finalizado");
+        logInternalInfo("Sistema de configuración finalizado");
     }
 }

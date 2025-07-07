@@ -16,8 +16,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import static net.exylia.commons.utils.DebugUtils.logInfo;
-import static net.exylia.commons.utils.DebugUtils.logWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Gestor de Scoreboard modernizado que usa el sistema unificado de placeholders
@@ -49,7 +49,7 @@ public class ExyliaScoreboardManager {
                                  int updateTicks, Function<Player, ExyliaContext> contextProvider) {
         ScoreboardTemplate template = new ScoreboardTemplate(templateId, title, lines, updateTicks, contextProvider);
         templates.put(templateId, template);
-        logInfo("Template de scoreboard '" + templateId + "' registrado");
+        logInternalInfo("Template de scoreboard '" + templateId + "' registrado");
     }
 
     /**
@@ -66,9 +66,9 @@ public class ExyliaScoreboardManager {
         ScoreboardTemplate template = templates.get(templateId);
         if (template != null) {
             template.setContextProvider(contextProvider);
-            logInfo("Contexto establecido para template '" + templateId + "'");
+            logInternalInfo("Contexto establecido para template '" + templateId + "'");
         } else {
-            logWarn("Template '" + templateId + "' no encontrado");
+            logInternalWarn("Template '" + templateId + "' no encontrado");
         }
     }
 
@@ -157,7 +157,7 @@ public class ExyliaScoreboardManager {
                     hideScoreboard(scoreboard.getPlayer());
                 }
             } catch (Exception e) {
-                logWarn("Error actualizando scoreboard: " + e.getMessage());
+                logInternalWarn("Error actualizando scoreboard: " + e.getMessage());
             }
         }
     }
@@ -194,14 +194,14 @@ public class ExyliaScoreboardManager {
                 try {
                     ScoreboardTemplate template = createTemplateFromConfig(templateId, templateConfig);
                     templates.put(templateId, template);
-                    logInfo("Template '" + templateId + "' cargado correctamente");
+                    logInternalInfo("Template '" + templateId + "' cargado correctamente");
                 } catch (Exception e) {
-                    logWarn("Error cargando template '" + templateId + "': " + e.getMessage());
+                    logInternalWarn("Error cargando template '" + templateId + "': " + e.getMessage());
                 }
             }
         }
 
-        logInfo("Cargados " + templates.size() + " templates de scoreboard");
+        logInternalInfo("Cargados " + templates.size() + " templates de scoreboard");
     }
 
     /**
