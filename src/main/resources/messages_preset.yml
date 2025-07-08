@@ -1,0 +1,30 @@
+prefix: "{primary}&lEXYLIA &8•&r"
+
+placeholders:
+  player: "player"
+  on: "on"
+  off: "off"
+  toggle: "toggle"
+
+system:
+  player_not_found: "%prefix% {error}The player {info}%player%{error} could not be found."
+  player_only: "%prefix% {error}This action can only be executed by a player."
+  no_permission: "%prefix% {error}You do not have permission to execute this action."
+
+commands:
+  no_subcommands: "%prefix% {error}This command has no subcommands."
+  usage: "%prefix% {primary}Usage: {info}%usage%{primary}"
+  help:
+    usage: "{success}/%label% {success_light}%usage%"
+    header: |-
+      &f
+      {primary}%plugin_name% &8&l•&r {secondary}Command help
+      &f
+      {warning}<> &8&l•&r {warning_light}Required &8| {info}[] &8&l•&r {info_light}Optional
+      &f
+
+items:
+  no_uses_remaining: "%prefix% {error}The item has no uses remaining."
+  consumed: "%prefix% {warning}The item has been consumed."
+  region_denied: "%prefix% {error}You are not allowed to use this item in this region."
+  in_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again."

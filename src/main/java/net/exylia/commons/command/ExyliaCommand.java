@@ -1,12 +1,12 @@
 package net.exylia.commons.command;
 
+import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
@@ -23,7 +23,9 @@ import static net.exylia.commons.utils.DebugUtils.logInternalError;
 public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
 
     protected final ExyliaPlugin plugin;
+    @Getter
     private final String name;
+    @Getter
     private final List<String> aliases;
 
     /**
@@ -85,24 +87,6 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         return Collections.emptyList();
-    }
-
-    /**
-     * Devuelve el nombre del comando
-     *
-     * @return Nombre del comando
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Devuelve los aliases del comando
-     *
-     * @return Lista de aliases
-     */
-    public List<String> getAliases() {
-        return aliases;
     }
 
     /**

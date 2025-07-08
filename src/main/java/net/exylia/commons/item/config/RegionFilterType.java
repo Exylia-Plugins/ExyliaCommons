@@ -1,4 +1,4 @@
-package net.exylia.commons.item;
+package net.exylia.commons.item.config;
 
 /**
  * Tipos de filtro para regiones de WorldGuard

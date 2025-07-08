@@ -1,0 +1,9 @@
+# Only for development purposes
+debug: false
+
+time:
+  # Actual formats:
+  # - HUMAN_READABLE (5m 3s)
+  # - DIGITAL (05:03)
+  format: "HUMAN_READABLE"
+  show_zero_values: false  # Show 0m 3s instead of 3s

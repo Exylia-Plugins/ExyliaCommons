@@ -1,7 +1,10 @@
 package net.exylia.commons.command.types;
 
+import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
+import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -16,6 +19,7 @@ import java.util.List;
  */
 public abstract class ToggleCommand extends PermissionCommand {
 
+    @Getter
     private final String permissionOthers;
     private final List<String> subCommands = Arrays.asList("on", "off", "toggle");
 
@@ -175,7 +179,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param name Nombre del jugador no encontrado
      */
     protected void onPlayerNotFound(CommandSender sender, String name) {
-        sender.sendMessage("§cJugador no encontrado: " + name);
+        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.player_not_found"));
     }
 
     /**
@@ -184,7 +188,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param sender A quien mostrar
      */
     protected void showUsage(CommandSender sender) {
-        sender.sendMessage("§cUso: /" + getName() + " [on|off|toggle] [jugador]");
+        MessageUtils.sendMessageAsync(sender, MessagesBase.get("commands.usage", "%usage%", getName() + " [on|off|toggle] [player]"));
     }
 
     /**
@@ -238,13 +242,4 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @return true si quedó activada, false si quedó desactivada
      */
     protected abstract boolean toggleFeature(Player player);
-
-    /**
-     * Obtiene el permiso para afectar a otros jugadores
-     *
-     * @return Permiso o null
-     */
-    public String getPermissionOthers() {
-        return permissionOthers;
-    }
 }

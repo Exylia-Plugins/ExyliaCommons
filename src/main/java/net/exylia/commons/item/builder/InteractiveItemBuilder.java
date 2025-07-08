@@ -1,16 +1,19 @@
-package net.exylia.commons.item;
+package net.exylia.commons.item.builder;
 
+import net.exylia.commons.item.InteractiveItem;
+import net.exylia.commons.item.ItemClickInfo;
+import net.exylia.commons.item.ItemManager;
+import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.placeholders.ExyliaContext;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.function.Consumer;
 
 /**
  * Builder para crear InteractiveItem desde ConfigurationSection
- * Versión actualizada para el sistema híbrido
+ * Actualizado para el sistema modularizado
  */
 public class InteractiveItemBuilder {
 
@@ -74,7 +77,9 @@ public class InteractiveItemBuilder {
      */
     public InteractiveItem build() {
         // 1. Crear la configuración desde el ConfigurationSection
-        ItemConfiguration itemConfig = ItemConfiguration.fromConfig(config).build();
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .build();
 
         // 2. Determinar el ID a usar
         String itemId = customId != null ? customId :
@@ -85,7 +90,7 @@ public class InteractiveItemBuilder {
             ItemManager.registerItemConfiguration(itemId, itemConfig);
         }
 
-        // 4. Crear el InteractiveItem usando el sistema híbrido
+        // 4. Crear el InteractiveItem usando el sistema modularizado
         InteractiveItem item;
         if (placeholderPlayer != null) {
             item = ItemManager.createItem(itemId, placeholderPlayer);
@@ -130,7 +135,9 @@ public class InteractiveItemBuilder {
      */
     public InteractiveItem buildAndRegister(String itemId) {
         // Crear configuración desde el config
-        ItemConfiguration itemConfig = ItemConfiguration.fromConfig(config).build();
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .build();
 
         // Registrar permanentemente
         ItemManager.registerItemConfiguration(itemId, itemConfig);
@@ -269,31 +276,5 @@ public class InteractiveItemBuilder {
         return new InteractiveItemBuilder(config)
                 .withPlaceholderPlayer(player)
                 .buildAsItemStackAndRegister(itemId);
-    }
-
-    // ===== MÉTODOS PARA MIGRACIÓN DESDE SISTEMA ANTERIOR =====
-
-    /**
-     * Convierte configuraciones del sistema anterior al nuevo
-     * Útil para migrar configs existentes
-     * @param config ConfigurationSection del sistema anterior
-     * @param itemId ID para el nuevo sistema
-     */
-    public static void migrateFromOldSystem(ConfigurationSection config, String itemId) {
-        ItemConfiguration newConfig = ItemConfiguration.fromConfig(config).build();
-        ItemManager.registerItemConfiguration(itemId, newConfig);
-    }
-
-    /**
-     * Migra múltiples configuraciones de una vez
-     * @param configSection Sección con múltiples items del sistema anterior
-     */
-    public static void migrateMultipleFromOldSystem(ConfigurationSection configSection) {
-        for (String itemId : configSection.getKeys(false)) {
-            ConfigurationSection itemConfig = configSection.getConfigurationSection(itemId);
-            if (itemConfig != null) {
-                migrateFromOldSystem(itemConfig, itemId);
-            }
-        }
     }
 }

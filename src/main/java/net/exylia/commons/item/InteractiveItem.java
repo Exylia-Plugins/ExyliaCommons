@@ -1,23 +1,27 @@
-// ==================== INTERACTIVE ITEM SIMPLIFICADO ====================
-
 package net.exylia.commons.item;
 
 import lombok.Getter;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.GlobalActionManager;
 import net.exylia.commons.command.CommandExecutor;
+import net.exylia.commons.item.config.ItemConfiguration;
+import net.exylia.commons.item.utils.ItemNBTUtils;
+import net.exylia.commons.item.utils.ItemPlaceholderUtils;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -31,8 +35,8 @@ import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.SkullUtils.*;
 
 /**
- * InteractiveItem simplificado - eliminados formatos de mensajes personalizados
- * Usa placeholders directos: %current_uses%, %max_uses%, %cooldown_formatted%, %cooldown_seconds%
+ * InteractiveItem actualizado para el sistema modularizado
+ * ACTUALIZADO: Integración con placeholders usando CooldownUtils con double
  */
 public class InteractiveItem {
 
@@ -118,7 +122,7 @@ public class InteractiveItem {
         return new InteractiveItem(itemStack, itemId, config);
     }
 
-// ==================== GESTIÓN DE CONTEXTOS CON EXYLIACONTEXT ====================
+    // ==================== GESTIÓN DE CONTEXTOS CON EXYLIACONTEXT ====================
 
     @Getter
     private ExyliaContext context = ExyliaContext.create();
@@ -192,11 +196,11 @@ public class InteractiveItem {
     // ==================== GESTIÓN DE USOS ====================
 
     public int getCurrentUses() {
-        return getNBTInt(NBT_CURRENT_USES, getMaxUses());
+        return ItemNBTUtils.getNBTInt(itemStack, getPlugin(), NBT_CURRENT_USES, getMaxUses());
     }
 
     public InteractiveItem setCurrentUses(int uses) {
-        setNBTInt(NBT_CURRENT_USES, uses);
+        ItemNBTUtils.setNBTInt(itemStack, getPlugin(), NBT_CURRENT_USES, uses);
         return this;
     }
 
@@ -221,13 +225,12 @@ public class InteractiveItem {
         return false;
     }
 
-    // ==================== PROCESAMIENTO CON PLACEHOLDERS SIMPLIFICADO ====================
+    // ==================== PROCESAMIENTO CON PLACEHOLDERS MODULARIZADO ====================
 
     /**
-     * Actualiza placeholders usando el sistema unificado
-     * SIMPLIFICADO: Usa placeholders directos sin formatos personalizados
+     * Actualiza placeholders usando el sistema unificado y las utilidades modularizadas
      */
-    public void updatePlaceholders(Player player) {
+    public void updatePlaceholders(Player player, EquipmentSlot hand) {
         if (!usesPlaceholders()) return;
 
         // Recargar configuración si es necesario
@@ -248,11 +251,8 @@ public class InteractiveItem {
         if (rawName != null) {
             String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
 
-            // Procesar placeholders de usos directamente
-            processedName = processUsePlaceholders(processedName);
-
-            // Procesar placeholders de cooldown directamente
-            processedName = processCooldownPlaceholders(processedName, targetPlayer);
+            // Usar utilidades modularizadas para procesar placeholders de item
+            processedName = ItemPlaceholderUtils.processAllItemPlaceholders(processedName, this, targetPlayer);
 
             adapter.setDisplayName(meta, ColorUtils.parse(processedName));
         }
@@ -264,11 +264,8 @@ public class InteractiveItem {
             for (String line : rawLore) {
                 String processedLine = fullContext.processPlaceholders(line, targetPlayer);
 
-                // Procesar placeholders de usos directamente
-                processedLine = processUsePlaceholders(processedLine);
-
-                // Procesar placeholders de cooldown directamente
-                processedLine = processCooldownPlaceholders(processedLine, targetPlayer);
+                // Usar utilidades modularizadas para procesar placeholders de item
+                processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, targetPlayer);
 
                 loreComponents.add(ColorUtils.parse(processedLine));
             }
@@ -276,63 +273,18 @@ public class InteractiveItem {
             adapter.setLore(meta, loreComponents);
         }
 
+        // Aplicar los metadatos actualizados al ItemStack
         itemStack.setItemMeta(meta);
-    }
 
-    /**
-     * Procesa placeholders de usos directamente
-     * %current_uses% -> usos actuales
-     * %max_uses% -> usos máximos
-     */
-    private String processUsePlaceholders(String text) {
-        if (!hasLimitedUses() || text == null) {
-            return text;
-        }
+        // IMPORTANTE: Reemplazar el item en la mano del jugador
+        if (hand != null) {
+            PlayerInventory inventory = player.getInventory();
 
-        return text.replace("%current_uses%", String.valueOf(getCurrentUses()))
-                .replace("%max_uses%", String.valueOf(getMaxUses()));
-    }
-
-    /**
-     * Procesa placeholders de cooldown directamente
-     * %cooldown_formatted% -> tiempo formateado (ej: "1m 30s")
-     * %cooldown_seconds% -> segundos restantes
-     */
-    private String processCooldownPlaceholders(String text, Player player) {
-        if (!config.hasCooldown() || text == null || player == null) {
-            return text;
-        }
-
-        // Obtener cooldown restante
-        int remainingSeconds = ItemManager.getRemainingCooldown(player, configId);
-
-        if (remainingSeconds <= 0) {
-            // Sin cooldown activo
-            return text.replace("%cooldown_formatted%", "Listo")
-                    .replace("%cooldown_seconds%", "0");
-        }
-
-        // Formatear tiempo
-        String formattedTime = formatCooldownTime(remainingSeconds);
-
-        return text.replace("%cooldown_formatted%", formattedTime)
-                .replace("%cooldown_seconds%", String.valueOf(remainingSeconds));
-    }
-
-    /**
-     * Formatea el tiempo de cooldown en formato legible
-     */
-    private String formatCooldownTime(int seconds) {
-        if (seconds < 60) {
-            return seconds + "s";
-        } else if (seconds < 3600) {
-            int minutes = seconds / 60;
-            int secs = seconds % 60;
-            return minutes + "m" + (secs > 0 ? " " + secs + "s" : "");
-        } else {
-            int hours = seconds / 3600;
-            int minutes = (seconds % 3600) / 60;
-            return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
+            if (hand == EquipmentSlot.HAND) {
+                inventory.setItemInMainHand(itemStack);
+            } else if (hand == EquipmentSlot.OFF_HAND) {
+                inventory.setItemInOffHand(itemStack);
+            }
         }
     }
 
@@ -380,7 +332,7 @@ public class InteractiveItem {
     private void initializeUses() {
         int maxUses = getMaxUses();
         if (maxUses > 0) {
-            if (!hasNBTValue(NBT_CURRENT_USES)) {
+            if (!ItemNBTUtils.hasNBTValue(itemStack, getPlugin(), NBT_CURRENT_USES, PersistentDataType.INTEGER)) {
                 setCurrentUses(maxUses);
             }
         }
@@ -417,9 +369,8 @@ public class InteractiveItem {
                     ExyliaContext fullContext = context.copy().add(this);
                     name = fullContext.processPlaceholders(name, player);
 
-                    // Procesar placeholders directos
-                    name = processUsePlaceholders(name);
-                    name = processCooldownPlaceholders(name, player);
+                    // Usar utilidades modularizadas
+                    name = ItemPlaceholderUtils.processAllItemPlaceholders(name, this, player);
                 }
                 adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
@@ -433,9 +384,8 @@ public class InteractiveItem {
                         ExyliaContext fullContext = context.copy().add(this);
                         processedLine = fullContext.processPlaceholders(line, player);
 
-                        // Procesar placeholders directos
-                        processedLine = processUsePlaceholders(processedLine);
-                        processedLine = processCooldownPlaceholders(processedLine, player);
+                        // Usar utilidades modularizadas
+                        processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, player);
                     }
                     loreComponents.add(ColorUtils.parse(processedLine));
                 }
@@ -497,7 +447,7 @@ public class InteractiveItem {
         }
     }
 
-    // ==================== NBT HELPERS ====================
+    // ==================== MÉTODOS NBT USANDO UTILIDADES MODULARIZADAS ====================
 
     private static String getItemIdFromStack(ItemStack itemStack) {
         if (itemStack == null || !itemStack.hasItemMeta()) return null;
@@ -509,57 +459,16 @@ public class InteractiveItem {
         return meta.getPersistentDataContainer().get(key, PersistentDataType.STRING);
     }
 
-    private boolean hasNBTValue(String key) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return false;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        return meta.getPersistentDataContainer().has(namespacedKey, PersistentDataType.INTEGER);
-    }
-
-    private int getNBTInt(String key, int defaultValue) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return defaultValue;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        return meta.getPersistentDataContainer().getOrDefault(namespacedKey, PersistentDataType.INTEGER, defaultValue);
-    }
-
-    private void setNBTInt(String key, int value) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.INTEGER, value);
-        itemStack.setItemMeta(meta);
-    }
-
     private void setItemId(String id) {
-        setNBTString(NBT_ITEM_ID, id);
-    }
-
-    private void setNBTString(String key, String value) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey namespacedKey = new NamespacedKey(getPlugin(), key);
-        if (value != null) {
-            meta.getPersistentDataContainer().set(namespacedKey, PersistentDataType.STRING, value);
-        } else {
-            meta.getPersistentDataContainer().remove(namespacedKey);
-        }
-        itemStack.setItemMeta(meta);
+        ItemNBTUtils.setNBTString(itemStack, getPlugin(), NBT_ITEM_ID, id);
     }
 
     private void setCreationTime(long time) {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
-        meta.getPersistentDataContainer().set(key, PersistentDataType.LONG, time);
-        itemStack.setItemMeta(meta);
+        ItemNBTUtils.setNBTLong(itemStack, getPlugin(), NBT_CREATION_TIME, time);
     }
 
     public long getCreationTime() {
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return 0;
-        NamespacedKey key = new NamespacedKey(getPlugin(), NBT_CREATION_TIME);
-        return meta.getPersistentDataContainer().getOrDefault(key, PersistentDataType.LONG, 0L);
+        return ItemNBTUtils.getNBTLong(itemStack, getPlugin(), NBT_CREATION_TIME, 0L);
     }
 
     // ==================== UTILIDADES VISUALES ====================
@@ -608,12 +517,7 @@ public class InteractiveItem {
     }
 
     private void makeUnique(ItemStack item) {
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return;
-
-        NamespacedKey uniqueKey = new NamespacedKey(getPlugin(), NBT_UNIQUE_ID);
-        meta.getPersistentDataContainer().set(uniqueKey, PersistentDataType.STRING, UUID.randomUUID().toString());
-        item.setItemMeta(meta);
+        ItemNBTUtils.setNBTString(item, getPlugin(), NBT_UNIQUE_ID, UUID.randomUUID().toString());
     }
 
     // ==================== GETTERS FINALES ====================

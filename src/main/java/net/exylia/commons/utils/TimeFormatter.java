@@ -1,5 +1,8 @@
 package net.exylia.commons.utils;
 
+import lombok.Getter;
+import net.exylia.commons.config.base.MainConfigBase;
+
 import java.text.DecimalFormat;
 
 /**
@@ -24,6 +27,17 @@ public class TimeFormatter {
 
     public TimeFormatter(Format defaultFormat) {
         this.defaultFormat = defaultFormat;
+    }
+
+    @Getter
+    public static TimeFormatter timeFormatter;
+
+    public static void init() {
+        timeFormatter = new TimeFormatter().setDefaultFormat(TimeFormatter.Format.valueOf(MainConfigBase.timeFormat())).showZeroValues(MainConfigBase.timeShowZeroValues());
+    }
+
+    public static void reload() {
+        timeFormatter.setDefaultFormat(TimeFormatter.Format.valueOf(MainConfigBase.timeFormat())).showZeroValues(MainConfigBase.timeShowZeroValues());
     }
 
     // Métodos de configuración
@@ -100,16 +114,11 @@ public class TimeFormatter {
             return minValueText;
         }
 
-        switch (format) {
-            case HUMAN_READABLE:
-                return formatHumanReadable(timeInSeconds);
-            case DIGITAL:
-                return formatDigital(timeInSeconds);
-            case APPROXIMATE:
-                return formatApproximate(timeInSeconds);
-            default:
-                return formatHumanReadable(timeInSeconds);
-        }
+        return switch (format) {
+            case DIGITAL -> formatDigital(timeInSeconds);
+            case APPROXIMATE -> formatApproximate(timeInSeconds);
+            default -> formatHumanReadable(timeInSeconds);
+        };
     }
 
     // Formateo legible por humanos: 4m 3s
@@ -129,9 +138,15 @@ public class TimeFormatter {
             result.append(minutes).append("m ");
         }
 
-        if (seconds > 0 || result.length() == 0 || showZeroValues) {
-            result.append(seconds).append("s");
+        if (seconds > 0 || result.isEmpty() || showZeroValues) {
+            if (hours == 0 && minutes == 0) {
+                double secondsWithDecimals = totalSeconds % 60;
+                result.append(String.format("%.1fs", secondsWithDecimals));
+            } else {
+                result.append(seconds).append("s");
+            }
         }
+
 
         if (showMilliseconds && milliseconds > 0) {
             result.append(" ").append(milliseconds).append("ms");

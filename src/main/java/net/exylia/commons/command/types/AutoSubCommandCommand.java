@@ -5,7 +5,9 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
 import net.exylia.commons.command.annotation.DefaultAction;
+import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -198,16 +200,11 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     }
 
     protected final void showHelp(CommandSender sender, String label) {
-        sender.sendMessage("");
-        sender.sendMessage(ColorUtils.parse("<#8a51c4>" + plugin.getName() + " &8&l•&r <#aa76de>ᴀʏᴜᴅᴀ ᴅᴇ ᴄᴏᴍᴀɴᴅᴏꜱ"));
-        sender.sendMessage("");
-        sender.sendMessage(ColorUtils.parse("<#ffc58f><> &8&l•&r <#e7cfff>Requerido &8| <#59a4ff>[] &8&l•&r <#e7cfff>Opcional"));
-        sender.sendMessage("");
+        MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.header", "%plugin_name%", plugin.getName()));
 
         // Mostrar uso del comando principal si existe
         if (mainCommandInfo != null && !mainCommandInfo.usage().isEmpty()) {
-            sender.sendMessage(ColorUtils.parse("<#8fffc1>/" + label + " <#a1ffc3>"));
-            sender.sendMessage("");
+            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
         }
 
         // Obtener subcomandos disponibles y ordenarlos
@@ -223,13 +220,13 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
                 .toList();
 
         if (availableCommands.isEmpty()) {
-            sender.sendMessage("§cNo tienes permisos para ningún subcomando.");
+            MessageUtils.sendMessage(sender, MessagesBase.get("commands.no_subcommands"));
             return;
         }
 
         // subcomandos
         for (SubCommandInfo info : availableCommands) {
-            sender.sendMessage(ColorUtils.parse("<#8fffc1>/" + label + " <#a1ffc3>" + info.usage()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", info.usage()));
         }
         sender.sendMessage("");
     }

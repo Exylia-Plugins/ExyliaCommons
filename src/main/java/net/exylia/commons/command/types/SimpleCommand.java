@@ -2,7 +2,9 @@ package net.exylia.commons.command.types;
 
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
+import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -46,15 +48,10 @@ public abstract class SimpleCommand extends PermissionCommand {
 
     protected final void showHelp(CommandSender sender, String label) {
         if (commandInfo != null) {
-            sender.sendMessage("");
-            sender.sendMessage(ColorUtils.parse("<#8a51c4>" + plugin.getName() + " &8&l•&r <#aa76de>ᴀʏᴜᴅᴀ ᴅᴇ ᴄᴏᴍᴀɴᴅᴏꜱ"));
-            sender.sendMessage("");
-            sender.sendMessage(ColorUtils.parse("<#ffc58f><> &8&l•&r <#e7cfff>Requerido &8| <#59a4ff>[] &8&l•&r <#e7cfff>Opcional"));
-            sender.sendMessage("");
-            sender.sendMessage(ColorUtils.parse("<#8fffc1>/" + label + " <#a1ffc3>" + commandInfo.usage()));
-            sender.sendMessage("");
+            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.header", "%plugin_name%", plugin.getName()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", commandInfo.usage()));
         } else {
-            sender.sendMessage(ColorUtils.parse("<#a33b53>Error, contacta al desarrollador. " + label));
+            sender.sendMessage(ColorUtils.parse("<#a33b53>Error, please contact the plugin author. " + label));
         }
     }
 

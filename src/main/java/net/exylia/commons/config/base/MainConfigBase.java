@@ -15,15 +15,30 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue("debug")
     private boolean debug;
 
+    @ConfigValue("time.format")
+    private String timeFormat;
+
+    @ConfigValue("time.show_zero_values")
+    private boolean showZeroValues;
+
     // ===== GETTERS ESTÁTICOS =====
 
-    /**
-     * Obtiene el valor de debug desde la configuración activa
-     */
     public static boolean debug() {
         MainConfigBase instance = getActiveInstance();
         if (instance == null) return false;
         return instance.debug;
+    }
+
+    public static String timeFormat() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return null;
+        return instance.timeFormat;
+    }
+
+    public static boolean timeShowZeroValues() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return false;
+        return instance.showZeroValues;
     }
 
     // ===== MÉTODOS INTERNOS =====

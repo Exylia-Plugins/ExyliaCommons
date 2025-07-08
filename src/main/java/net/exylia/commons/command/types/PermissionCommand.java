@@ -3,6 +3,8 @@ package net.exylia.commons.command.types;
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
+import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -92,7 +94,7 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPlayerOnly(CommandSender sender) {
-        sender.sendMessage("§cEste comando solo puede ser ejecutado por jugadores.");
+        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.player_only"));
     }
 
     /**
@@ -101,7 +103,6 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPermissionDenied(CommandSender sender) {
-        sender.sendMessage("§cNo tienes permiso para ejecutar este comando.");
+        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.no_permission"));
     }
-
 }

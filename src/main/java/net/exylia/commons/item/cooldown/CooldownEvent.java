@@ -7,16 +7,17 @@ import java.util.UUID;
 
 /**
  * Evento que se dispara cuando ocurren cambios en los cooldowns
+ * Actualizado para usar double en lugar de int
  */
 public class CooldownEvent {
 
     private final CooldownEventType type;
     private final UUID playerId;
     private final String itemId;
-    private final int seconds;
+    private final double seconds;
     private final long timestamp;
 
-    public CooldownEvent(CooldownEventType type, UUID playerId, String itemId, int seconds) {
+    public CooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
         this.type = type;
         this.playerId = playerId;
         this.itemId = itemId;
@@ -57,10 +58,10 @@ public class CooldownEvent {
     }
 
     /**
-     * Obtiene los segundos del cooldown (para eventos SET)
-     * @return Segundos del cooldown
+     * Obtiene los segundos del cooldown (para eventos SET) - con decimales
+     * @return Segundos del cooldown (double)
      */
-    public int getSeconds() {
+    public double getSeconds() {
         return seconds;
     }
 

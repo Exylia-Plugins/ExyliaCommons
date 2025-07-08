@@ -132,19 +132,16 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
                 // Filtrar para evitar duplicados y mantener las extensiones
                 for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
-                    boolean isExtension = false;
 
                     // Verificar si extiende una configuración base
                     if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
                         // Reemplazar MainConfigBase con la extensión
                         allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
-                        isExtension = true;
                     }
 
                     if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
                         // Reemplazar MessagesBase con la extensión
                         allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
-                        isExtension = true;
                     }
 
                     // Agregar la clase del plugin
@@ -163,13 +160,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 logInternalInfo("No se especificaron clases de configuración para " + getName());
             }
 
-            // Inicializar ConfigManager con todas las clases
-            ConfigManager.init(this, finalConfigClasses);
-
-            // Log de debug después de la inicialización
-            logInternalInfo("Debug mode: " + MainConfigBase.debug());
-            logInternalInfo("Clases cargadas: " + Arrays.toString(finalConfigClasses));
-
+            // FIX: Pasar el sistema ya inicializado a ConfigManager en lugar de crear uno nuevo
+            ConfigManager.init(configSystem, finalConfigClasses);
+            TimeFormatter.init();
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
             throw new RuntimeException(e);
@@ -266,8 +259,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 long totalTime = System.currentTimeMillis() - startTime;
                 logInternalSuccess("=== RELOAD COMPLETADO EXITOSAMENTE EN " + totalTime + "ms ===");
 
-                return new ReloadResult(true, totalTime, componentTimes, null);
+                TimeFormatter.reload();
 
+                return new ReloadResult(true, totalTime, componentTimes, null);
             } catch (Exception e) {
                 long totalTime = System.currentTimeMillis() - startTime;
                 logInternalError("Error durante reload completo: " + e.getMessage());

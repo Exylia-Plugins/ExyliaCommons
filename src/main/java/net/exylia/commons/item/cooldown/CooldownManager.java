@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Sistema de cooldown persistente para items interactivos
+ * Sistema de cooldown persistente con soporte para double (precisión decimal)
  * Almacena datos en memoria para rendimiento y persiste en archivos JSON
  */
 public class CooldownManager {
@@ -28,7 +28,7 @@ public class CooldownManager {
     private final JavaPlugin plugin;
     private final Gson gson;
 
-    // Estructura: jugador -> item -> tiempo de expiración
+    // Estructura: jugador -> item -> tiempo de expiración en milisegundos
     private final Map<UUID, Map<String, Long>> playerCooldowns;
 
     // Callbacks para eventos de cooldown
@@ -90,15 +90,15 @@ public class CooldownManager {
         return instance != null && instance.initialized;
     }
 
-    // ===== MÉTODOS PRINCIPALES =====
+    // ===== MÉTODOS PRINCIPALES CON DOUBLE =====
 
     /**
      * Establece un cooldown para un jugador y item específico
      * @param player Jugador
      * @param itemId ID del item
-     * @param cooldownSeconds Cooldown en segundos
+     * @param cooldownSeconds Cooldown en segundos (acepta decimales)
      */
-    public void setCooldown(Player player, String itemId, int cooldownSeconds) {
+    public void setCooldown(Player player, String itemId, double cooldownSeconds) {
         setCooldown(player.getUniqueId(), itemId, cooldownSeconds);
     }
 
@@ -106,15 +106,15 @@ public class CooldownManager {
      * Establece un cooldown para un jugador y item específico
      * @param playerId UUID del jugador
      * @param itemId ID del item
-     * @param cooldownSeconds Cooldown en segundos
+     * @param cooldownSeconds Cooldown en segundos (acepta decimales)
      */
-    public void setCooldown(UUID playerId, String itemId, int cooldownSeconds) {
+    public void setCooldown(UUID playerId, String itemId, double cooldownSeconds) {
         if (cooldownSeconds <= 0) {
             removeCooldown(playerId, itemId);
             return;
         }
 
-        long expirationTime = System.currentTimeMillis() + (cooldownSeconds * 1000L);
+        long expirationTime = System.currentTimeMillis() + (long)(cooldownSeconds * 1000.0);
 
         playerCooldowns.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
                 .put(itemId.toLowerCase(), expirationTime);
@@ -153,7 +153,7 @@ public class CooldownManager {
         if (System.currentTimeMillis() >= expirationTime) {
             // Cooldown expirado, remover automáticamente
             playerData.remove(itemId.toLowerCase());
-            triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0);
+            triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0.0);
             return false;
         }
 
@@ -161,42 +161,78 @@ public class CooldownManager {
     }
 
     /**
-     * Obtiene el tiempo restante de cooldown en segundos
+     * Obtiene el tiempo restante de cooldown en segundos (con decimales)
      * @param player Jugador
      * @param itemId ID del item
-     * @return Segundos restantes o 0 si no hay cooldown
+     * @return Segundos restantes (con precisión decimal)
      */
-    public int getRemainingCooldown(Player player, String itemId) {
+    public double getRemainingCooldown(Player player, String itemId) {
         return getRemainingCooldown(player.getUniqueId(), itemId);
     }
 
     /**
-     * Obtiene el tiempo restante de cooldown en segundos
+     * Obtiene el tiempo restante de cooldown en segundos (con decimales)
      * @param playerId UUID del jugador
      * @param itemId ID del item
-     * @return Segundos restantes o 0 si no hay cooldown
+     * @return Segundos restantes (con precisión decimal)
      */
-    public int getRemainingCooldown(UUID playerId, String itemId) {
+    public double getRemainingCooldown(UUID playerId, String itemId) {
         Map<String, Long> playerData = playerCooldowns.get(playerId);
         if (playerData == null) {
-            return 0;
+            return 0.0;
         }
 
         Long expirationTime = playerData.get(itemId.toLowerCase());
         if (expirationTime == null) {
-            return 0;
+            return 0.0;
         }
 
         long remainingMs = expirationTime - System.currentTimeMillis();
         if (remainingMs <= 0) {
             // Cooldown expirado
             playerData.remove(itemId.toLowerCase());
-            triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0);
-            return 0;
+            triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0.0);
+            return 0.0;
         }
 
-        return (int) Math.ceil(remainingMs / 1000.0);
+        return remainingMs / 1000.0;
     }
+
+    /**
+     * Obtiene todos los cooldowns activos de un jugador
+     * @param player Jugador
+     * @return Map con item ID -> segundos restantes (double)
+     */
+    public Map<String, Double> getPlayerCooldowns(Player player) {
+        return getPlayerCooldowns(player.getUniqueId());
+    }
+
+    /**
+     * Obtiene todos los cooldowns activos de un jugador
+     * @param playerId UUID del jugador
+     * @return Map con item ID -> segundos restantes (double)
+     */
+    public Map<String, Double> getPlayerCooldowns(UUID playerId) {
+        Map<String, Double> result = new ConcurrentHashMap<>();
+        Map<String, Long> playerData = playerCooldowns.get(playerId);
+
+        if (playerData != null) {
+            long currentTime = System.currentTimeMillis();
+            playerData.entrySet().removeIf(entry -> {
+                long remainingMs = entry.getValue() - currentTime;
+                if (remainingMs <= 0) {
+                    triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, entry.getKey(), 0.0);
+                    return true; // Remover expirado
+                }
+                result.put(entry.getKey(), remainingMs / 1000.0);
+                return false; // Mantener activo
+            });
+        }
+
+        return result;
+    }
+
+    // ===== MÉTODOS DE REMOCIÓN =====
 
     /**
      * Remueve el cooldown de un jugador para un item específico
@@ -217,7 +253,7 @@ public class CooldownManager {
         if (playerData != null) {
             Long removed = playerData.remove(itemId.toLowerCase());
             if (removed != null) {
-                triggerCooldownEvent(CooldownEventType.REMOVE, playerId, itemId, 0);
+                triggerCooldownEvent(CooldownEventType.REMOVE, playerId, itemId, 0.0);
             }
 
             // Limpiar el map del jugador si está vacío
@@ -242,42 +278,8 @@ public class CooldownManager {
     public void removeAllCooldowns(UUID playerId) {
         Map<String, Long> removed = playerCooldowns.remove(playerId);
         if (removed != null && !removed.isEmpty()) {
-            triggerCooldownEvent(CooldownEventType.CLEAR_ALL, playerId, null, 0);
+            triggerCooldownEvent(CooldownEventType.CLEAR_ALL, playerId, null, 0.0);
         }
-    }
-
-    /**
-     * Obtiene todos los cooldowns activos de un jugador
-     * @param player Jugador
-     * @return Map con item ID -> segundos restantes
-     */
-    public Map<String, Integer> getPlayerCooldowns(Player player) {
-        return getPlayerCooldowns(player.getUniqueId());
-    }
-
-    /**
-     * Obtiene todos los cooldowns activos de un jugador
-     * @param playerId UUID del jugador
-     * @return Map con item ID -> segundos restantes
-     */
-    public Map<String, Integer> getPlayerCooldowns(UUID playerId) {
-        Map<String, Integer> result = new ConcurrentHashMap<>();
-        Map<String, Long> playerData = playerCooldowns.get(playerId);
-
-        if (playerData != null) {
-            long currentTime = System.currentTimeMillis();
-            playerData.entrySet().removeIf(entry -> {
-                long remainingMs = entry.getValue() - currentTime;
-                if (remainingMs <= 0) {
-                    triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, entry.getKey(), 0);
-                    return true; // Remover expirado
-                }
-                result.put(entry.getKey(), (int) Math.ceil(remainingMs / 1000.0));
-                return false; // Mantener activo
-            });
-        }
-
-        return result;
     }
 
     // ===== SISTEMA DE CALLBACKS =====
@@ -299,7 +301,7 @@ public class CooldownManager {
         cooldownCallbacks.remove(itemId.toLowerCase());
     }
 
-    private void triggerCooldownEvent(CooldownEventType type, UUID playerId, String itemId, int seconds) {
+    private void triggerCooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
         if (itemId != null) {
             Consumer<CooldownEvent> callback = cooldownCallbacks.get(itemId.toLowerCase());
             if (callback != null) {
@@ -388,7 +390,7 @@ public class CooldownManager {
 
             playerData.entrySet().removeIf(itemEntry -> {
                 if (currentTime >= itemEntry.getValue()) {
-                    triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemEntry.getKey(), 0);
+                    triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemEntry.getKey(), 0.0);
                     return true;
                 }
                 return false;
