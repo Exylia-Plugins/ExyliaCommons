@@ -1,18 +1,17 @@
 package net.exylia.commons.item.config;
 
 import lombok.Getter;
-import net.exylia.commons.item.config.RegionFilterType;
+import org.bukkit.World;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Configuración de un item interactivo almacenada en memoria
- * SIMPLIFICADO: Eliminados formatos de mensajes personalizados
- * Se usan placeholders directos: %current_uses%, %max_uses%, %cooldown_formatted%, %cooldown_seconds%
- * ACTUALIZADO: Cooldown en double para mayor precisión
+ * ACTUALIZADO: Nuevo sistema de regiones con soporte para mundos específicos y prioridades
  */
 @Getter
 public class ItemConfiguration {
@@ -35,7 +34,7 @@ public class ItemConfiguration {
     // Sistema de usos
     private final int maxUses;
 
-    // Sistema de cooldown (ACTUALIZADO: double para decimales)
+    // Sistema de cooldown
     private final double cooldownSeconds;
 
     // Efectos
@@ -57,21 +56,30 @@ public class ItemConfiguration {
     // Placeholders
     private final boolean usePlaceholders;
 
-    // ===== CONFIGURACIÓN DE REGIONES =====
+    // ===== NUEVO SISTEMA DE REGIONES =====
 
     /**
-     * Tipo de filtro de regiones: WHITELIST o BLACKLIST
+     * Tipo de filtro de regiones: WHITELIST, BLACKLIST o NONE
      */
     private final RegionFilterType regionType;
 
     /**
-     * Lista de regiones para el filtro
+     * Tipo de verificador: CONTAINS o PRIORITY
+     */
+    private final RegionCheckerType regionChecker;
+
+    /**
+     * Lista de entradas de región con soporte para mundos específicos
+     */
+    private final List<RegionEntry> regionEntries;
+
+    /**
+     * Lista legacy de nombres de regiones (para compatibilidad)
      */
     private final List<String> regionList;
 
     /**
-     * Cooldowns específicos por región (ACTUALIZADO: double)
-     * Clave: nombre de región, Valor: cooldown en segundos (decimal)
+     * Cooldowns específicos por región
      */
     private final Map<String, Double> regionCooldowns;
 
@@ -104,56 +112,85 @@ public class ItemConfiguration {
         this.allowSwapToOffhand = builder.allowSwapToOffhand;
         this.allowNumberKeys = builder.allowNumberKeys;
 
-        // Propiedades de regiones
+        // NUEVO: Sistema de regiones actualizado
         this.regionType = builder.regionType;
-        this.regionList = new ArrayList<>(builder.regionList);
+        this.regionChecker = builder.regionChecker;
+        this.regionEntries = new ArrayList<>(builder.regionEntries);
+        this.regionList = new ArrayList<>(builder.regionList); // Mantener para compatibilidad
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
     }
 
-    // ===== MÉTODOS DE CONVENIENCIA PARA REGIONES =====
+    // ===== MÉTODOS NUEVOS PARA EL SISTEMA DE REGIONES =====
 
     /**
      * Verifica si el item tiene configuración de regiones
      * @return true si tiene regiones configuradas
      */
     public boolean hasRegionConfiguration() {
-        return regionType != RegionFilterType.NONE && !regionList.isEmpty();
+        return regionType != RegionFilterType.NONE && !regionEntries.isEmpty();
     }
 
     /**
-     * Verifica si el item puede ser usado en una región específica
-     * @param regionName Nombre de la región
+     * Verifica si el item puede ser usado
+     * @param playerRegions Lista de regiones donde está el jugador
+     * @param playerWorld Mundo donde está el jugador
+     * @param highestPriorityRegion Región de mayor prioridad (opcional, puede ser null)
      * @return true si puede ser usado
      */
-    public boolean canUseInRegion(String regionName) {
+    public boolean canUseWithChecker(List<String> playerRegions, World playerWorld, String highestPriorityRegion) {
         if (!hasRegionConfiguration()) {
             return true; // Sin configuración = permitir en todas las regiones
         }
 
-        boolean isInList = regionList.contains(regionName);
-
-        return switch (regionType) {
-            case WHITELIST -> isInList; // Solo permitir en regiones de la lista
-            case BLACKLIST -> !isInList; // Permitir en todas excepto las de la lista
-            case NONE -> true; // Sin filtro
+        return switch (regionChecker) {
+            case PRIORITY -> canUseWithPriorityCheck(highestPriorityRegion, playerWorld);
+            case CONTAINS -> canUseWithContainsCheck(playerRegions, playerWorld);
         };
     }
 
     /**
-     * Verifica si el item puede ser usado en cualquiera de las regiones dadas
-     * @param regionNames Lista de nombres de regiones
-     * @return true si puede ser usado en al menos una región
+     * Verificación por prioridad - solo verifica la región de mayor prioridad
      */
-    public boolean canUseInAnyRegion(List<String> regionNames) {
-        if (!hasRegionConfiguration()) {
-            return true;
+    private boolean canUseWithPriorityCheck(String highestPriorityRegion, World playerWorld) {
+        if (highestPriorityRegion == null) {
+            // No está en ninguna región
+            return regionType == RegionFilterType.BLACKLIST; // En blacklist se permite fuera de regiones
         }
 
-        return regionNames.stream().anyMatch(this::canUseInRegion);
+        boolean isInConfiguredRegion = regionEntries.stream()
+                .anyMatch(entry -> entry.matches(highestPriorityRegion, playerWorld));
+
+        return switch (regionType) {
+            case WHITELIST -> isInConfiguredRegion; // Solo permitir si está en la lista
+            case BLACKLIST -> !isInConfiguredRegion; // Permitir si NO está en la lista
+            case NONE -> true;
+        };
     }
 
     /**
-     * Obtiene el cooldown específico para una región (ACTUALIZADO: double)
+     * Verificación por contenido - verifica todas las regiones del jugador
+     */
+    private boolean canUseWithContainsCheck(List<String> playerRegions, World playerWorld) {
+        if (playerRegions.isEmpty()) {
+            // No está en ninguna región
+            return regionType == RegionFilterType.BLACKLIST;
+        }
+
+        boolean hasMatchingRegion = playerRegions.stream()
+                .anyMatch(regionName -> regionEntries.stream()
+                        .anyMatch(entry -> entry.matches(regionName, playerWorld)));
+
+        return switch (regionType) {
+            case WHITELIST -> hasMatchingRegion; // Solo permitir si tiene al menos una región válida
+            case BLACKLIST -> !hasMatchingRegion; // Permitir si NO tiene ninguna región prohibida
+            case NONE -> true;
+        };
+    }
+
+    // ===== MÉTODOS DE COOLDOWN POR REGIÓN =====
+
+    /**
+     * Obtiene el cooldown específico para una región
      * @param regionName Nombre de la región
      * @return Cooldown en segundos, o el cooldown por defecto si no está configurado
      */
@@ -162,7 +199,7 @@ public class ItemConfiguration {
     }
 
     /**
-     * Obtiene el cooldown más alto entre todas las regiones dadas (ACTUALIZADO: double)
+     * Obtiene el cooldown más alto entre todas las regiones dadas
      * @param regionNames Lista de nombres de regiones
      * @return Cooldown más alto en segundos
      */
@@ -215,7 +252,7 @@ public class ItemConfiguration {
         return hasSound() || hasParticles() || hasFirework();
     }
 
-    // ===== MÉTODOS DE CONVENIENCIA PARA COOLDOWN (ACTUALIZADO: double) =====
+    // ===== MÉTODOS DE CONVENIENCIA PARA COOLDOWN =====
 
     public boolean hasCooldown() {
         return cooldownSeconds > 0.0;
@@ -230,7 +267,6 @@ public class ItemConfiguration {
             try {
                 return (T) value;
             } catch (ClassCastException e) {
-                // Si no se puede castear, intentar conversiones comunes
                 return convertActionConfigValue(value, defaultValue);
             }
         }
@@ -290,7 +326,6 @@ public class ItemConfiguration {
             return defaultValue != null ? new ArrayList<>(defaultValue) : new ArrayList<>();
         }
 
-        // Si ya es una lista
         if (value instanceof List<?>) {
             List<String> result = new ArrayList<>();
             for (Object item : (List<?>) value) {
@@ -301,13 +336,11 @@ public class ItemConfiguration {
             return result;
         }
 
-        // Si es un string, intentar dividirlo por comas
         if (value instanceof String stringValue) {
             if (stringValue.trim().isEmpty()) {
                 return defaultValue != null ? new ArrayList<>(defaultValue) : new ArrayList<>();
             }
 
-            // Dividir por comas y limpiar espacios
             List<String> result = new ArrayList<>();
             String[] parts = stringValue.split(",");
             for (String part : parts) {
@@ -319,7 +352,6 @@ public class ItemConfiguration {
             return result;
         }
 
-        // Si es cualquier otro tipo, convertir a string y devolver como lista de un elemento
         List<String> result = new ArrayList<>();
         result.add(value.toString());
         return result;
@@ -333,9 +365,6 @@ public class ItemConfiguration {
         return actionConfig.containsKey(key);
     }
 
-    /**
-     * Convierte valores de action-config a tipos compatibles
-     */
     @SuppressWarnings("unchecked")
     private <T> T convertActionConfigValue(Object value, T defaultValue) {
         if (defaultValue instanceof Integer && value instanceof Number) {
@@ -354,6 +383,26 @@ public class ItemConfiguration {
             return (T) value.toString();
         }
         return defaultValue;
+    }
+
+    // ===== GETTERS ADICIONALES PARA EL NUEVO SISTEMA =====
+
+    /**
+     * Obtiene la lista de nombres de regiones (legacy) para compatibilidad
+     * @return Lista de nombres de regiones
+     */
+    public List<String> getRegionNames() {
+        return regionEntries.stream()
+                .map(RegionEntry::getRegionName)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene las entradas de región con información de mundo
+     * @return Lista de RegionEntry
+     */
+    public List<RegionEntry> getRegionEntries() {
+        return new ArrayList<>(regionEntries);
     }
 
     // ===== BUILDER =====
@@ -384,7 +433,8 @@ public class ItemConfiguration {
                 ", hasParticles=" + hasParticles() +
                 ", hasFirework=" + hasFirework() +
                 ", regionType=" + regionType +
-                ", regionList=" + regionList.size() + " regions" +
+                ", regionChecker=" + regionChecker +
+                ", regionEntries=" + regionEntries.size() + " region entries" +
                 ", regionCooldowns=" + regionCooldowns.size() + " region cooldowns" +
                 '}';
     }

@@ -188,7 +188,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param sender A quien mostrar
      */
     protected void showUsage(CommandSender sender) {
-        MessageUtils.sendMessageAsync(sender, MessagesBase.get("commands.usage", "%usage%", getName() + " [on|off|toggle] [player]"));
+        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.commands.usage", "%usage%", getName() + " [on|off|toggle] [player]"));
     }
 
     /**

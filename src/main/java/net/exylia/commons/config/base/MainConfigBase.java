@@ -12,13 +12,13 @@ import net.exylia.commons.config.ConfigValue;
 @ConfigFile(value = "config", required = true)
 public class MainConfigBase extends ConfigBase {
 
-    @ConfigValue("debug")
+    @ConfigValue(value = "debug", defaultValue = "false")
     private boolean debug;
 
-    @ConfigValue("time.format")
+    @ConfigValue(value = "time.format", defaultValue = "HUMAN_READABLE")
     private String timeFormat;
 
-    @ConfigValue("time.show_zero_values")
+    @ConfigValue(value = "time.show_zero_values", defaultValue = "false")
     private boolean showZeroValues;
 
     // ===== GETTERS ESTÁTICOS =====

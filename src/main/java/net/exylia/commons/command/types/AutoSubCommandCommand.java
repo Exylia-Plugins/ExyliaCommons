@@ -200,11 +200,11 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     }
 
     protected final void showHelp(CommandSender sender, String label) {
-        MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.header", "%plugin_name%", plugin.getName()));
+        MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.header", "%plugin_name%", plugin.getName()));
 
         // Mostrar uso del comando principal si existe
         if (mainCommandInfo != null && !mainCommandInfo.usage().isEmpty()) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
         }
 
         // Obtener subcomandos disponibles y ordenarlos
@@ -220,13 +220,13 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
                 .toList();
 
         if (availableCommands.isEmpty()) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("commands.no_subcommands"));
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.no_subcommands"));
             return;
         }
 
         // subcomandos
         for (SubCommandInfo info : availableCommands) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", info.usage()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", info.usage()));
         }
         sender.sendMessage("");
     }

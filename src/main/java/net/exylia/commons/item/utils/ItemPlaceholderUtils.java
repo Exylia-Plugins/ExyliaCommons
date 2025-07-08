@@ -35,20 +35,11 @@ public class ItemPlaceholderUtils {
             return text;
         }
 
-        // Obtener cooldown restante
-        double remainingSeconds = ItemInteractionHandler.getRemainingCooldown(player, item.getId());
-
-        if (remainingSeconds <= 0.0) {
-            // Sin cooldown activo
-            return text.replace("%cooldown_formatted%", "Listo")
-                    .replace("%cooldown_seconds%", "0.0");
-        }
-
         // Formatear tiempo
-        String formattedTime = timeFormatter.format(remainingSeconds);
+        String formattedTime = timeFormatter.format(item.getCooldownSeconds());
 
         return text.replace("%cooldown_formatted%", formattedTime)
-                .replace("%cooldown_seconds%", String.valueOf(remainingSeconds));
+                .replace("%cooldown_seconds%", String.valueOf(item.getCooldownSeconds()));
     }
 
     /**

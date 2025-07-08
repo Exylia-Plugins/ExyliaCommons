@@ -48,8 +48,8 @@ public abstract class SimpleCommand extends PermissionCommand {
 
     protected final void showHelp(CommandSender sender, String label) {
         if (commandInfo != null) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.header", "%plugin_name%", plugin.getName()));
-            MessageUtils.sendMessage(sender, MessagesBase.get("commands.help.usage", "%label%", label, "%usage%", commandInfo.usage()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.header", "%plugin_name%", plugin.getName()));
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", commandInfo.usage()));
         } else {
             sender.sendMessage(ColorUtils.parse("<#a33b53>Error, please contact the plugin author. " + label));
         }

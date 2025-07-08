@@ -110,7 +110,7 @@ public class ItemInteractionHandler {
 
         // Verificar usos restantes
         if (!interactiveItem.hasUsesRemaining()) {
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("items.no_uses_remaining"));
+            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.no_uses_remaining"));
             return false;
         }
 
@@ -168,7 +168,7 @@ public class ItemInteractionHandler {
         if (!hasUsesLeft) {
             // Sin usos restantes - eliminar/reducir el ítem de la mano
             ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("items.consumed"));
+            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
             return;
         }
 
@@ -192,7 +192,7 @@ public class ItemInteractionHandler {
         if (!hasUsesLeft) {
             // Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
             ItemInventoryHandler.removeOrReduceItemFromInventory(event);
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("items.consumed"));
+            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
             return;
         }
 
@@ -258,7 +258,7 @@ public class ItemInteractionHandler {
      */
     private void handleCooldownMessage(Player player, double remainingSeconds) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("items.in_cooldown",
+        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.in_cooldown",
                 "%cooldown_formatted%", formattedTime,
                 "%cooldown_seconds%", String.valueOf(remainingSeconds)));
     }
@@ -267,6 +267,6 @@ public class ItemInteractionHandler {
      * Maneja el mensaje de región denegada
      */
     private void handleRegionDeniedMessage(Player player) {
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("items.region_denied"));
+        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.region_denied"));
     }
 }

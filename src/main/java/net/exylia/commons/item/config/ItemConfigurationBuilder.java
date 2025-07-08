@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * Builder para ItemConfiguration (separado para mejor modularización)
- * ACTUALIZADO: Cooldown en double para mayor precisión
+ * ACTUALIZADO: Nuevo sistema de regiones con soporte para mundos específicos
  */
 public class ItemConfigurationBuilder {
 
@@ -24,7 +24,7 @@ public class ItemConfigurationBuilder {
     protected boolean cancelEvent = true;
     protected boolean stackable = true;
     protected int maxUses = -1;
-    protected double cooldownSeconds = 0.0; 
+    protected double cooldownSeconds = 0.0;
     protected boolean allowMovement = true;
     protected boolean allowShiftClick = true;
     protected boolean allowDrop = true;
@@ -40,10 +40,12 @@ public class ItemConfigurationBuilder {
     protected Map<String, Object> actionConfig = new HashMap<>();
     protected boolean usePlaceholders = false;
 
-    // ===== CAMPOS PARA REGIONES =====
+    // ===== NUEVO SISTEMA DE REGIONES =====
     protected RegionFilterType regionType = RegionFilterType.NONE;
-    protected List<String> regionList = new ArrayList<>();
-    protected Map<String, Double> regionCooldowns = new HashMap<>(); 
+    protected RegionCheckerType regionChecker = RegionCheckerType.CONTAINS;
+    protected List<RegionEntry> regionEntries = new ArrayList<>();
+    protected List<String> regionList = new ArrayList<>(); // Mantener para compatibilidad
+    protected Map<String, Double> regionCooldowns = new HashMap<>();
 
     // ===== BUILDERS ORIGINALES =====
 
@@ -205,7 +207,7 @@ public class ItemConfigurationBuilder {
                 .allowNumberKeys(true);
     }
 
-    // ===== BUILDERS PARA REGIONES =====
+    // ===== NUEVO SISTEMA DE REGIONES =====
 
     public ItemConfigurationBuilder regionType(RegionFilterType type) {
         this.regionType = type != null ? type : RegionFilterType.NONE;
@@ -213,30 +215,90 @@ public class ItemConfigurationBuilder {
     }
 
     public ItemConfigurationBuilder regionType(String typeString) {
-        try {
-            this.regionType = RegionFilterType.valueOf(typeString.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            this.regionType = RegionFilterType.NONE;
+        this.regionType = RegionFilterType.fromString(typeString);
+        return this;
+    }
+
+    public ItemConfigurationBuilder regionChecker(RegionCheckerType checker) {
+        this.regionChecker = checker != null ? checker : RegionCheckerType.CONTAINS;
+        return this;
+    }
+
+    public ItemConfigurationBuilder regionChecker(String checkerString) {
+        this.regionChecker = RegionCheckerType.fromString(checkerString);
+        return this;
+    }
+
+    public ItemConfigurationBuilder regionEntries(List<RegionEntry> entries) {
+        this.regionEntries = new ArrayList<>(entries);
+        // Actualizar también la lista legacy para compatibilidad
+        this.regionList = entries.stream()
+                .map(RegionEntry::getRegionName)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        return this;
+    }
+
+    public ItemConfigurationBuilder regionEntriesFromStrings(List<String> entryStrings) {
+        this.regionEntries = new ArrayList<>();
+        this.regionList = new ArrayList<>();
+
+        for (String entryString : entryStrings) {
+            try {
+                RegionEntry entry = RegionEntry.parse(entryString);
+                this.regionEntries.add(entry);
+                this.regionList.add(entry.getRegionName());
+            } catch (IllegalArgumentException e) {
+                // Log warning pero continuar con las demás entradas
+                System.err.println("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
+            }
         }
         return this;
     }
 
+    public ItemConfigurationBuilder addRegionEntry(RegionEntry entry) {
+        if (!this.regionEntries.contains(entry)) {
+            this.regionEntries.add(entry);
+            if (!this.regionList.contains(entry.getRegionName())) {
+                this.regionList.add(entry.getRegionName());
+            }
+        }
+        return this;
+    }
+
+    public ItemConfigurationBuilder addRegionEntry(String entryString) {
+        try {
+            RegionEntry entry = RegionEntry.parse(entryString);
+            return addRegionEntry(entry);
+        } catch (IllegalArgumentException e) {
+            System.err.println("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
+            return this;
+        }
+    }
+
+    // ===== MÉTODOS DE COMPATIBILIDAD LEGACY =====
+
     public ItemConfigurationBuilder regionList(List<String> regions) {
         this.regionList = new ArrayList<>(regions);
+        // Convertir a RegionEntry para compatibilidad hacia adelante
+        this.regionEntries = regions.stream()
+                .map(RegionEntry::forAnyWorld)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
         return this;
     }
 
     public ItemConfigurationBuilder regionList(String... regions) {
-        this.regionList = List.of(regions);
-        return this;
+        return regionList(List.of(regions));
     }
 
     public ItemConfigurationBuilder addRegion(String regionName) {
         if (!this.regionList.contains(regionName)) {
             this.regionList.add(regionName);
+            this.regionEntries.add(RegionEntry.forAnyWorld(regionName));
         }
         return this;
     }
+
+    // ===== MÉTODOS DE CONVENIENCIA =====
 
     public ItemConfigurationBuilder regionCooldowns(Map<String, Double> cooldowns) {
         this.regionCooldowns = new HashMap<>(cooldowns);
@@ -248,7 +310,6 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    // Mantener compatibilidad con int
     public ItemConfigurationBuilder regionCooldown(String regionName, int cooldownSeconds) {
         this.regionCooldowns.put(regionName, (double) cooldownSeconds);
         return this;
@@ -261,6 +322,18 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder blacklistRegions(String... regions) {
         return regionType(RegionFilterType.BLACKLIST)
+                .regionList(regions);
+    }
+
+    public ItemConfigurationBuilder whitelistRegionsWithChecker(RegionCheckerType checker, String... regions) {
+        return regionType(RegionFilterType.WHITELIST)
+                .regionChecker(checker)
+                .regionList(regions);
+    }
+
+    public ItemConfigurationBuilder blacklistRegionsWithChecker(RegionCheckerType checker, String... regions) {
+        return regionType(RegionFilterType.BLACKLIST)
+                .regionChecker(checker)
                 .regionList(regions);
     }
 
@@ -326,7 +399,6 @@ public class ItemConfigurationBuilder {
 
         // ACTUALIZADO: Cooldown con soporte para double
         if (config.contains("cooldown")) {
-            // Intentar cargar como double primero, luego como int
             Object cooldownValue = config.get("cooldown");
             if (cooldownValue instanceof Number) {
                 cooldownSeconds(((Number) cooldownValue).doubleValue());
@@ -376,17 +448,23 @@ public class ItemConfigurationBuilder {
             allowNumberKeys(config.getBoolean("allow-number-keys"));
         }
 
-        // ===== CONFIGURACIONES PARA REGIONES =====
+        // ===== NUEVO SISTEMA DE CONFIGURACIONES PARA REGIONES =====
 
         // Tipo de región
         if (config.contains("region.type")) {
             regionType(config.getString("region.type"));
         }
 
-        // Lista de regiones
+        // NUEVO: Tipo de verificador
+        if (config.contains("region.checker")) {
+            regionChecker(config.getString("region.checker"));
+        }
+
+        // Lista de regiones con soporte para el nuevo formato
         if (config.contains("region.list")) {
             if (config.isList("region.list")) {
-                regionList(config.getStringList("region.list"));
+                List<String> regionStrings = config.getStringList("region.list");
+                regionEntriesFromStrings(regionStrings);
             } else {
                 // Si es un string, dividir por comas
                 String regionString = config.getString("region.list");
@@ -399,7 +477,7 @@ public class ItemConfigurationBuilder {
                             regionList.add(trimmed);
                         }
                     }
-                    regionList(regionList);
+                    regionEntriesFromStrings(regionList);
                 }
             }
         }

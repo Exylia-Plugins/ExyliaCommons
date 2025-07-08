@@ -15,10 +15,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -37,6 +39,7 @@ import java.util.Map;
 /**
  * Manager principal del sistema de items - MODULARIZADO
  * Delegado en handlers especializados y registry separado
+ * MEJORADO: Prevención de lanzamiento de proyectiles para items interactivos
  */
 public class ItemManager implements Listener {
 
@@ -85,66 +88,42 @@ public class ItemManager implements Listener {
 
     // ===== MÉTODOS DELEGADOS AL REGISTRY =====
 
-    /**
-     * Registra una configuración de ítem
-     */
     public static void registerItemConfiguration(String id, ItemConfiguration config) {
         ensureInitialized();
         registry.registerItemConfiguration(id, config);
     }
 
-    /**
-     * Registra múltiples configuraciones desde ConfigurationSection
-     */
     public static void registerItemConfigurations(ConfigurationSection configSection) {
         ensureInitialized();
         registry.registerItemConfigurations(configSection);
     }
 
-    /**
-     * Obtiene una configuración registrada
-     */
     @Nullable
     public static ItemConfiguration getItemConfiguration(String id) {
         ensureInitialized();
         return registry.getItemConfiguration(id);
     }
 
-    /**
-     * Verifica si existe una configuración
-     */
     public static boolean hasItemConfiguration(String id) {
         ensureInitialized();
         return registry.hasItemConfiguration(id);
     }
 
-    /**
-     * Remueve una configuración
-     */
     public static void unregisterItemConfiguration(String id) {
         ensureInitialized();
         registry.unregisterItemConfiguration(id);
     }
 
-    /**
-     * Recarga una configuración específica
-     */
     public static void reloadItemConfiguration(String id, ItemConfiguration config) {
         ensureInitialized();
         registry.reloadItemConfiguration(id, config);
     }
 
-    /**
-     * Recarga todas las configuraciones desde ConfigurationSection
-     */
     public static void reloadAllConfigurations(ConfigurationSection configSection) {
         ensureInitialized();
         registry.reloadAllConfigurations(configSection);
     }
 
-    /**
-     * Obtiene todas las configuraciones registradas
-     */
     public static Map<String, ItemConfiguration> getAllConfigurations() {
         ensureInitialized();
         return registry.getAllConfigurations();
@@ -152,9 +131,6 @@ public class ItemManager implements Listener {
 
     // ===== MÉTODOS DE CREACIÓN DE ÍTEMS =====
 
-    /**
-     * Crea un InteractiveItem desde una configuración registrada
-     */
     @Nullable
     public static InteractiveItem createItem(String id) {
         ensureInitialized();
@@ -166,9 +142,6 @@ public class ItemManager implements Listener {
         return new InteractiveItem(id, config);
     }
 
-    /**
-     * Crea un InteractiveItem con placeholders
-     */
     @Nullable
     public static InteractiveItem createItem(String id, Player player) {
         ensureInitialized();
@@ -180,18 +153,12 @@ public class ItemManager implements Listener {
         return new InteractiveItem(id, config, player);
     }
 
-    /**
-     * Crea y prepara un ItemStack listo para usar
-     */
     @Nullable
     public static ItemStack createItemStack(String id) {
         InteractiveItem item = createItem(id);
         return item != null ? prepareItem(item) : null;
     }
 
-    /**
-     * Crea y prepara un ItemStack con placeholders
-     */
     @Nullable
     public static ItemStack createItemStack(String id, Player player) {
         InteractiveItem item = createItem(id, player);
@@ -200,16 +167,11 @@ public class ItemManager implements Listener {
 
     // ===== MÉTODOS DE GESTIÓN DE ÍTEMS =====
 
-    /**
-     * Prepara un ítem interactivo para ser usado
-     * Solo marca el ItemStack con el ID en NBT
-     */
     public static ItemStack prepareItem(InteractiveItem item) {
         ItemStack itemStack = item.getItemStack().clone();
         ItemMeta meta = itemStack.getItemMeta();
 
         if (meta != null) {
-            // Solo guardar el ID en NBT
             meta.getPersistentDataContainer().set(itemIdKey, PersistentDataType.STRING, item.getId());
             itemStack.setItemMeta(meta);
         }
@@ -217,10 +179,6 @@ public class ItemManager implements Listener {
         return itemStack;
     }
 
-    /**
-     * Obtiene un ítem interactivo desde un ItemStack
-     * Reconstruye desde configuración registrada + datos NBT
-     */
     @Nullable
     public static InteractiveItem getItemFromStack(ItemStack itemStack) {
         if (itemStack == null || !itemStack.hasItemMeta()) return null;
@@ -228,73 +186,49 @@ public class ItemManager implements Listener {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return null;
 
-        // Obtener ID desde NBT
         String itemId = meta.getPersistentDataContainer().get(itemIdKey, PersistentDataType.STRING);
         if (itemId == null) return null;
 
-        // Buscar configuración en memoria
         ItemConfiguration config = registry.getItemConfiguration(itemId);
         if (config == null) {
             DebugUtils.logInternalWarn("Configuration not found for item ID: " + itemId + ". Item may be outdated.");
             return null;
         }
 
-        // Reconstruir InteractiveItem
         return InteractiveItem.fromItemStack(itemStack);
     }
 
-    /**
-     * Verifica si un ItemStack es un ítem interactivo
-     */
     public static boolean isInteractiveItem(ItemStack itemStack) {
         return getItemFromStack(itemStack) != null;
     }
 
     // ===== MÉTODOS DELEGADOS A HANDLERS =====
 
-    /**
-     * Verifica si un jugador puede usar un ítem en su ubicación actual (regiones)
-     */
     public static boolean canPlayerUseItemInCurrentRegion(Player player, ItemConfiguration config) {
         ensureInitialized();
         return ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config);
     }
 
-    /**
-     * Obtiene el cooldown apropiado para la ubicación actual del jugador
-     */
     public static double getCooldownForPlayerRegion(Player player, ItemConfiguration config) {
         ensureInitialized();
         return ItemRegionHandler.getCooldownForPlayerRegion(player, config);
     }
 
-    /**
-     * Verifica si un jugador puede usar un ítem (considerando cooldown)
-     */
     public static boolean canPlayerUseItem(Player player, String itemId) {
         ensureInitialized();
         return ItemInteractionHandler.canPlayerUseItem(player, itemId);
     }
 
-    /**
-     * Establece un cooldown para un jugador e ítem específico
-     */
     public static void setCooldown(Player player, String itemId, double seconds) {
         ensureInitialized();
         ItemInteractionHandler.setCooldown(player, itemId, seconds);
     }
 
-    /**
-     * Obtiene el tiempo restante de cooldown
-     */
     public static double getRemainingCooldown(Player player, String itemId) {
         ensureInitialized();
         return ItemInteractionHandler.getRemainingCooldown(player, itemId);
     }
 
-    /**
-     * Remueve el cooldown de un jugador para un ítem
-     */
     public static void removeCooldown(Player player, String itemId) {
         ensureInitialized();
         ItemInteractionHandler.removeCooldown(player, itemId);
@@ -302,7 +236,7 @@ public class ItemManager implements Listener {
 
     // ===== EVENTOS =====
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         ItemStack itemStack = event.getItem();
@@ -327,7 +261,32 @@ public class ItemManager implements Listener {
         interactionHandler.processItemInteractionWithHand(player, itemStack, interactiveItem, clickInfo, event.getHand());
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
+    /**
+     * NUEVO: Previene el lanzamiento de proyectiles de items interactivos
+     * Este evento se dispara cuando se va a lanzar un proyectil (snowball, egg, etc.)
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        Projectile projectile = event.getEntity();
+
+        // Verificar si fue lanzado por un jugador
+        if (!(projectile.getShooter() instanceof Player player)) return;
+
+        // Obtener el item que está en la mano del jugador
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        // Verificar si alguno de los items en las manos es interactivo
+        boolean mainHandInteractive = isInteractiveItem(mainHand);
+        boolean offHandInteractive = isInteractiveItem(offHand);
+
+        if (mainHandInteractive || offHandInteractive) {
+            // Cancelar el lanzamiento del proyectil
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -361,10 +320,7 @@ public class ItemManager implements Listener {
         interactionHandler.processItemInteractionFromInventory(player, event, interactiveItem, clickInfo);
     }
 
-    /**
-     * Maneja el arrastre de items interactivos en inventarios
-     */
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
 
@@ -433,9 +389,6 @@ public class ItemManager implements Listener {
         }
     }
 
-    /**
-     * Obtiene estadísticas del sistema
-     */
     public static String getSystemStats() {
         ensureInitialized();
 
@@ -446,16 +399,10 @@ public class ItemManager implements Listener {
         return "Registry stats not available";
     }
 
-    /**
-     * Limpia todos los datos temporales
-     */
     public static void clearClickTimes() {
         lastClickTime.clear();
     }
 
-    /**
-     * Apaga el sistema completo
-     */
     public static void shutdown() {
         if (!initialized) return;
 
@@ -471,17 +418,11 @@ public class ItemManager implements Listener {
 
     // ===== GETTERS PARA ACCESO DIRECTO =====
 
-    /**
-     * Obtiene el registry para operaciones avanzadas
-     */
     public static ItemRegistry getRegistry() {
         ensureInitialized();
         return registry;
     }
 
-    /**
-     * Obtiene el handler de interacciones para operaciones avanzadas
-     */
     public static ItemInteractionHandler getInteractionHandler() {
         ensureInitialized();
         return interactionHandler;

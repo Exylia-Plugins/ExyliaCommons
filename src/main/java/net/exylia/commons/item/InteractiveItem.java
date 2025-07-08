@@ -192,6 +192,7 @@ public class InteractiveItem {
     public boolean shouldCancelEvent() { return config.isCancelEvent(); }
     public int getMaxUses() { return config.getMaxUses(); }
     public boolean isStackable() { return config.isStackable(); }
+    public double getCooldownSeconds() { return config.getCooldownSeconds(); }
 
     // ==================== GESTIÓN DE USOS ====================
 
