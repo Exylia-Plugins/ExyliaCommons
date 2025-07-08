@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Listener que maneja el movimiento de jugadores para detectar entrada/salida de regiones
+ * Con prioridad alta para asegurar que se ejecute antes que otros plugins
  */
 public class RegionMovementListener implements Listener {
     private final RegionManager regionManager;
@@ -21,7 +22,7 @@ public class RegionMovementListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerMove(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
@@ -31,19 +32,36 @@ public class RegionMovementListener implements Listener {
             return;
         }
 
-        regionManager.processPlayerMovement(event.getPlayer(), from, to);
+        // Si el movimiento fue cancelado por otro plugin, verificar si nuestras regiones lo permiten
+        boolean movementAllowed = regionManager.processPlayerMovement(event.getPlayer(), from, to);
+
+        // Si nuestro sistema permite el movimiento y fue cancelado, descancelar
+        if (movementAllowed && event.isCancelled()) {
+            event.setCancelled(false);
+        } else if (!movementAllowed) {
+            // Si nuestro sistema no permite el movimiento, cancelar
+            event.setCancelled(true);
+        }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
 
         // Tratar el teletransporte como movimiento instantáneo
-        regionManager.processPlayerMovement(event.getPlayer(), from, to);
+        boolean teleportAllowed = regionManager.processPlayerMovement(event.getPlayer(), from, to);
+
+        // Si nuestro sistema permite el teletransporte y fue cancelado, descancelar
+        if (teleportAllowed && event.isCancelled()) {
+            event.setCancelled(false);
+        } else if (!teleportAllowed) {
+            // Si nuestro sistema no permite el teletransporte, cancelar
+            event.setCancelled(true);
+        }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         Location location = player.getLocation();
@@ -52,9 +70,7 @@ public class RegionMovementListener implements Listener {
         Location emptyLocation = new Location(location.getWorld(), 0, -1000, 0);
 
         // Programar después de un tick para asegurar que el jugador esté completamente cargado
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            regionManager.processPlayerMovement(player, emptyLocation, player.getLocation());
-        }, 1L);
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> regionManager.processPlayerMovement(player, emptyLocation, player.getLocation()), 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -69,7 +85,7 @@ public class RegionMovementListener implements Listener {
         regionManager.cleanupPlayer(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
 
@@ -80,7 +96,7 @@ public class RegionMovementListener implements Listener {
         regionManager.processPlayerMovement(player, oldWorldLocation, newWorldLocation);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onPlayerRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
 

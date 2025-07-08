@@ -1,4 +1,4 @@
-// ==================== INTERACTIVE ITEM MODERNIZADO ====================
+// ==================== INTERACTIVE ITEM SIMPLIFICADO ====================
 
 package net.exylia.commons.item;
 
@@ -31,8 +31,8 @@ import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.SkullUtils.*;
 
 /**
- * InteractiveItem modernizado que usa el sistema unificado de placeholders
- * Elimina la dependencia de sistemas de placeholders internos
+ * InteractiveItem simplificado - eliminados formatos de mensajes personalizados
+ * Usa placeholders directos: %current_uses%, %max_uses%, %cooldown_formatted%, %cooldown_seconds%
  */
 public class InteractiveItem {
 
@@ -181,16 +181,13 @@ public class InteractiveItem {
     public String getRawName() { return config.getName(); }
     public List<String> getRawLore() { return config.getLore(); }
     public String getRawMaterialString() { return config.getMaterial(); }
-    public boolean usesPlaceholders() { return config.usesPlaceholders(); }
+    public boolean usesPlaceholders() { return config.isUsePlaceholders(); }
     public List<String> getCommands() { return config.getCommands(); }
     public String getAction() { return config.getAction(); }
-    public boolean shouldConsumeOnUse() { return config.shouldConsumeOnUse(); }
-    public boolean shouldCancelEvent() { return config.shouldCancelEvent(); }
+    public boolean shouldConsumeOnUse() { return config.isConsumeOnUse(); }
+    public boolean shouldCancelEvent() { return config.isCancelEvent(); }
     public int getMaxUses() { return config.getMaxUses(); }
     public boolean isStackable() { return config.isStackable(); }
-    public String getUsesDisplayFormat() { return config.getUsesDisplayFormat(); }
-    public boolean shouldShowUsesInLore() { return config.shouldShowUsesInLore(); }
-    public boolean shouldShowUsesInName() { return config.shouldShowUsesInName(); }
 
     // ==================== GESTIÓN DE USOS ====================
 
@@ -200,7 +197,6 @@ public class InteractiveItem {
 
     public InteractiveItem setCurrentUses(int uses) {
         setNBTInt(NBT_CURRENT_USES, uses);
-        updateUsesDisplay();
         return this;
     }
 
@@ -225,10 +221,11 @@ public class InteractiveItem {
         return false;
     }
 
-    // ==================== PROCESAMIENTO CON SISTEMA UNIFICADO ====================
+    // ==================== PROCESAMIENTO CON PLACEHOLDERS SIMPLIFICADO ====================
 
     /**
      * Actualiza placeholders usando el sistema unificado
+     * SIMPLIFICADO: Usa placeholders directos sin formatos personalizados
      */
     public void updatePlaceholders(Player player) {
         if (!usesPlaceholders()) return;
@@ -251,13 +248,11 @@ public class InteractiveItem {
         if (rawName != null) {
             String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
 
-            // Procesar placeholder de usos si es necesario
-            if (hasLimitedUses() && processedName.contains("%uses%")) {
-                String usesText = getUsesDisplayFormat()
-                        .replace("%current%", String.valueOf(getCurrentUses()))
-                        .replace("%max%", String.valueOf(getMaxUses()));
-                processedName = processedName.replace("%uses%", usesText);
-            }
+            // Procesar placeholders de usos directamente
+            processedName = processUsePlaceholders(processedName);
+
+            // Procesar placeholders de cooldown directamente
+            processedName = processCooldownPlaceholders(processedName, targetPlayer);
 
             adapter.setDisplayName(meta, ColorUtils.parse(processedName));
         }
@@ -269,31 +264,76 @@ public class InteractiveItem {
             for (String line : rawLore) {
                 String processedLine = fullContext.processPlaceholders(line, targetPlayer);
 
-                // Procesar placeholder de usos
-                if (hasLimitedUses() && processedLine.contains("%uses%")) {
-                    String usesText = getUsesDisplayFormat()
-                            .replace("%current%", String.valueOf(getCurrentUses()))
-                            .replace("%max%", String.valueOf(getMaxUses()));
-                    processedLine = processedLine.replace("%uses%", usesText);
-                }
+                // Procesar placeholders de usos directamente
+                processedLine = processUsePlaceholders(processedLine);
+
+                // Procesar placeholders de cooldown directamente
+                processedLine = processCooldownPlaceholders(processedLine, targetPlayer);
 
                 loreComponents.add(ColorUtils.parse(processedLine));
-            }
-
-            // Añadir usos si está habilitado y no está en lore original
-            if (shouldShowUsesInLore() && hasLimitedUses() &&
-                    rawLore.stream().noneMatch(line -> line.contains("%uses%"))) {
-                loreComponents.add(ColorUtils.parse(""));
-                String usesText = getUsesDisplayFormat()
-                        .replace("%current%", String.valueOf(getCurrentUses()))
-                        .replace("%max%", String.valueOf(getMaxUses()));
-                loreComponents.add(ColorUtils.parse(usesText));
             }
 
             adapter.setLore(meta, loreComponents);
         }
 
         itemStack.setItemMeta(meta);
+    }
+
+    /**
+     * Procesa placeholders de usos directamente
+     * %current_uses% -> usos actuales
+     * %max_uses% -> usos máximos
+     */
+    private String processUsePlaceholders(String text) {
+        if (!hasLimitedUses() || text == null) {
+            return text;
+        }
+
+        return text.replace("%current_uses%", String.valueOf(getCurrentUses()))
+                .replace("%max_uses%", String.valueOf(getMaxUses()));
+    }
+
+    /**
+     * Procesa placeholders de cooldown directamente
+     * %cooldown_formatted% -> tiempo formateado (ej: "1m 30s")
+     * %cooldown_seconds% -> segundos restantes
+     */
+    private String processCooldownPlaceholders(String text, Player player) {
+        if (!config.hasCooldown() || text == null || player == null) {
+            return text;
+        }
+
+        // Obtener cooldown restante
+        int remainingSeconds = ItemManager.getRemainingCooldown(player, configId);
+
+        if (remainingSeconds <= 0) {
+            // Sin cooldown activo
+            return text.replace("%cooldown_formatted%", "Listo")
+                    .replace("%cooldown_seconds%", "0");
+        }
+
+        // Formatear tiempo
+        String formattedTime = formatCooldownTime(remainingSeconds);
+
+        return text.replace("%cooldown_formatted%", formattedTime)
+                .replace("%cooldown_seconds%", String.valueOf(remainingSeconds));
+    }
+
+    /**
+     * Formatea el tiempo de cooldown en formato legible
+     */
+    private String formatCooldownTime(int seconds) {
+        if (seconds < 60) {
+            return seconds + "s";
+        } else if (seconds < 3600) {
+            int minutes = seconds / 60;
+            int secs = seconds % 60;
+            return minutes + "m" + (secs > 0 ? " " + secs + "s" : "");
+        } else {
+            int hours = seconds / 3600;
+            int minutes = (seconds % 3600) / 60;
+            return hours + "h" + (minutes > 0 ? " " + minutes + "m" : "");
+        }
     }
 
     // ==================== ACCIONES Y COMANDOS ====================
@@ -343,7 +383,6 @@ public class InteractiveItem {
             if (!hasNBTValue(NBT_CURRENT_USES)) {
                 setCurrentUses(maxUses);
             }
-            updateUsesDisplay();
         }
     }
 
@@ -374,9 +413,13 @@ public class InteractiveItem {
             // Nombre
             if (config.getName() != null) {
                 String name = config.getName();
-                if (player != null && config.usesPlaceholders()) {
+                if (player != null && config.isUsePlaceholders()) {
                     ExyliaContext fullContext = context.copy().add(this);
                     name = fullContext.processPlaceholders(name, player);
+
+                    // Procesar placeholders directos
+                    name = processUsePlaceholders(name);
+                    name = processCooldownPlaceholders(name, player);
                 }
                 adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
@@ -386,9 +429,13 @@ public class InteractiveItem {
                 List<Component> loreComponents = new ArrayList<>();
                 for (String line : config.getLore()) {
                     String processedLine = line;
-                    if (player != null && config.usesPlaceholders()) {
+                    if (player != null && config.isUsePlaceholders()) {
                         ExyliaContext fullContext = context.copy().add(this);
                         processedLine = fullContext.processPlaceholders(line, player);
+
+                        // Procesar placeholders directos
+                        processedLine = processUsePlaceholders(processedLine);
+                        processedLine = processCooldownPlaceholders(processedLine, player);
                     }
                     loreComponents.add(ColorUtils.parse(processedLine));
                 }
@@ -403,7 +450,7 @@ public class InteractiveItem {
             setGlowing(item, true);
         }
 
-        if (config.shouldHideAttributes()) {
+        if (config.isHideAttributes()) {
             hideAllAttributes(item);
         }
 
@@ -412,54 +459,6 @@ public class InteractiveItem {
         }
 
         return item;
-    }
-
-    /**
-     * Actualiza el display de usos
-     */
-    private void updateUsesDisplay() {
-        if (!hasLimitedUses()) return;
-
-        String usesText = getUsesDisplayFormat()
-                .replace("%current%", String.valueOf(getCurrentUses()))
-                .replace("%max%", String.valueOf(getMaxUses()));
-
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-
-        // Actualizar nombre si está habilitado
-        if (shouldShowUsesInName()) {
-            String rawName = getRawName();
-            if (rawName != null) {
-                String displayName = rawName.contains("%uses%")
-                        ? rawName.replace("%uses%", usesText)
-                        : rawName + " " + usesText;
-                adapter.setDisplayName(meta, ColorUtils.parse(displayName));
-            }
-        }
-
-        // Actualizar lore si está habilitado
-        if (shouldShowUsesInLore()) {
-            List<Component> loreComponents = new ArrayList<>();
-            List<String> rawLore = getRawLore();
-
-            for (String line : rawLore) {
-                if (line.contains("%uses%")) {
-                    line = line.replace("%uses%", usesText);
-                }
-                loreComponents.add(ColorUtils.parse(line));
-            }
-
-            // Añadir línea de usos si no está en el lore original
-            if (rawLore.stream().noneMatch(line -> line.contains("%uses%"))) {
-                if (!rawLore.isEmpty()) loreComponents.add(ColorUtils.parse(""));
-                loreComponents.add(ColorUtils.parse(usesText));
-            }
-
-            adapter.setLore(meta, loreComponents);
-        }
-
-        itemStack.setItemMeta(meta);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

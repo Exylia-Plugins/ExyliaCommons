@@ -37,29 +37,42 @@ public abstract class ConfigBase {
 
     private void loadAnnotatedFields() {
         try {
-            for (java.lang.reflect.Field field : this.getClass().getDeclaredFields()) {
-                ConfigValue annotation = field.getAnnotation(ConfigValue.class);
-                if (annotation != null) {
-                    field.setAccessible(true);
-                    Object value = getValueForField(field, annotation);
-                    field.set(this, value);
-                }
+            // Cargar campos de todas las clases en la jerarquía
+            loadFieldsFromClass(this.getClass());
+
+            // Cargar campos de clases padre hasta llegar a ConfigBase
+            Class<?> currentClass = this.getClass().getSuperclass();
+            while (currentClass != null && ConfigBase.class.isAssignableFrom(currentClass) && !currentClass.equals(ConfigBase.class)) {
+                loadFieldsFromClass(currentClass);
+                currentClass = currentClass.getSuperclass();
             }
+
         } catch (Exception e) {
             throw new RuntimeException("Error cargando campos de configuración", e);
+        }
+    }
+
+    private void loadFieldsFromClass(Class<?> clazz) throws IllegalAccessException {
+        for (java.lang.reflect.Field field : clazz.getDeclaredFields()) {
+            ConfigValue annotation = field.getAnnotation(ConfigValue.class);
+            if (annotation != null) {
+                field.setAccessible(true);
+                Object value = getValueForField(field, annotation);
+                field.set(this, value);
+            }
         }
     }
 
     private Object getValueForField(java.lang.reflect.Field field, ConfigValue annotation) {
         String path = annotation.value();
         Class<?> fieldType = field.getType();
-
         if (fieldType == String.class) {
             return config.getString(path, annotation.defaultValue());
         } else if (fieldType == int.class || fieldType == Integer.class) {
             return config.getInt(path, parseIntDefault(annotation.defaultValue()));
         } else if (fieldType == boolean.class || fieldType == Boolean.class) {
-            return config.getBoolean(path, Boolean.parseBoolean(annotation.defaultValue()));
+            boolean defaultVal = !annotation.defaultValue().isEmpty() && Boolean.parseBoolean(annotation.defaultValue());
+            return config.getBoolean(path, defaultVal);
         } else if (fieldType == double.class || fieldType == Double.class) {
             return config.getDouble(path, parseDoubleDefault(annotation.defaultValue()));
         } else if (fieldType == long.class || fieldType == Long.class) {
@@ -76,7 +89,6 @@ public abstract class ConfigBase {
             throw new IllegalArgumentException("Tipo de campo no soportado: " + fieldType.getSimpleName());
         }
     }
-
     /**
      * Creates a Map from a configuration section
      */

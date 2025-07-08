@@ -1,5 +1,6 @@
 package net.exylia.commons.item;
 
+import lombok.Getter;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
@@ -9,8 +10,10 @@ import java.util.Map;
 
 /**
  * Configuración de un item interactivo almacenada en memoria
- * Esta clase contiene toda la configuración que NO necesita persistir en NBT
+ * SIMPLIFICADO: Eliminados formatos de mensajes personalizados
+ * Se usan placeholders directos: %current_uses%, %max_uses%, %cooldown_formatted%, %cooldown_seconds%
  */
+@Getter
 public class ItemConfiguration {
 
     // Propiedades visuales
@@ -28,17 +31,11 @@ public class ItemConfiguration {
     private final boolean cancelEvent;
     private final boolean stackable;
 
-    // Sistema de usos
+    // Sistema de usos (simplificado)
     private final int maxUses;
-    private final String usesDisplayFormat;
-    private final boolean showUsesInLore;
-    private final boolean showUsesInName;
 
-    // Sistema de cooldown
+    // Sistema de cooldown (simplificado)
     private final int cooldownSeconds;
-    private final String cooldownMessage;
-    private final boolean showCooldownInLore;
-    private final boolean showCooldownInName;
 
     private final String soundOnUse;
     private final String particlesOnUse;
@@ -48,7 +45,6 @@ public class ItemConfiguration {
     // Configuración de acciones
     private final Map<String, Object> actionConfig;
 
-
     private final boolean allowMovement;
     private final boolean allowShiftClick;
     private final boolean allowDrop;
@@ -57,6 +53,24 @@ public class ItemConfiguration {
 
     // Placeholders
     private final boolean usePlaceholders;
+
+    // ===== CONFIGURACIÓN DE REGIONES (simplificada) =====
+
+    /**
+     * Tipo de filtro de regiones: WHITELIST o BLACKLIST
+     */
+    private final RegionFilterType regionType;
+
+    /**
+     * Lista de regiones para el filtro
+     */
+    private final List<String> regionList;
+
+    /**
+     * Cooldowns específicos por región
+     * Clave: nombre de región, Valor: cooldown en segundos
+     */
+    private final Map<String, Integer> regionCooldowns;
 
     private ItemConfiguration(Builder builder) {
         this.material = builder.material;
@@ -71,13 +85,7 @@ public class ItemConfiguration {
         this.cancelEvent = builder.cancelEvent;
         this.stackable = builder.stackable;
         this.maxUses = builder.maxUses;
-        this.usesDisplayFormat = builder.usesDisplayFormat;
-        this.showUsesInLore = builder.showUsesInLore;
-        this.showUsesInName = builder.showUsesInName;
         this.cooldownSeconds = builder.cooldownSeconds;
-        this.cooldownMessage = builder.cooldownMessage;
-        this.showCooldownInLore = builder.showCooldownInLore;
-        this.showCooldownInName = builder.showCooldownInName;
 
         this.soundOnUse = builder.soundOnUse;
         this.particlesOnUse = builder.particlesOnUse;
@@ -92,64 +100,87 @@ public class ItemConfiguration {
         this.allowDrop = builder.allowDrop;
         this.allowSwapToOffhand = builder.allowSwapToOffhand;
         this.allowNumberKeys = builder.allowNumberKeys;
+
+        // Propiedades de regiones
+        this.regionType = builder.regionType;
+        this.regionList = new ArrayList<>(builder.regionList);
+        this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
     }
 
-    // ===== GETTERS ORIGINALES =====
-
-    public String getMaterial() { return material; }
-    public String getName() { return name; }
-    public List<String> getLore() { return new ArrayList<>(lore); }
-    public int getAmount() { return amount; }
-    public boolean isGlowing() { return glowing; }
-    public boolean shouldHideAttributes() { return hideAttributes; }
-    public List<String> getCommands() { return new ArrayList<>(commands); }
-    public String getAction() { return action; }
-    public boolean shouldConsumeOnUse() { return consumeOnUse; }
-    public boolean shouldCancelEvent() { return cancelEvent; }
-    public boolean isStackable() { return stackable; }
-    public int getMaxUses() { return maxUses; }
-    public String getUsesDisplayFormat() { return usesDisplayFormat; }
-    public boolean shouldShowUsesInLore() { return showUsesInLore; }
-    public boolean shouldShowUsesInName() { return showUsesInName; }
-    public int getCooldownSeconds() { return cooldownSeconds; }
-    public String getCooldownMessage() { return cooldownMessage; }
-    public boolean shouldShowCooldownInLore() { return showCooldownInLore; }
-    public boolean shouldShowCooldownInName() { return showCooldownInName; }
-    public Map<String, Object> getActionConfig() { return new HashMap<>(actionConfig); }
-    public boolean usesPlaceholders() { return usePlaceholders; }
-    public boolean allowsMovement() { return allowMovement; }
-    public boolean allowsShiftClick() { return allowShiftClick; }
-    public boolean allowsDrop() { return allowDrop; }
-    public boolean allowsSwapToOffhand() { return allowSwapToOffhand; }
-    public boolean allowsNumberKeys() { return allowNumberKeys; }
-
-    // ===== NUEVOS GETTERS PARA EFECTOS =====
+    // ===== MÉTODOS DE CONVENIENCIA PARA REGIONES =====
 
     /**
-     * Obtiene la configuración de sonido al usar el item
-     * Formato: SOUND_NAME|VOLUME|PITCH
-     * Ejemplo: BLOCK_NOTE_BLOCK_PLING|0.5|1.0
+     * Verifica si el item tiene configuración de regiones
+     * @return true si tiene regiones configuradas
      */
-    public String getSoundOnUse() { return soundOnUse; }
+    public boolean hasRegionConfiguration() {
+        return regionType != RegionFilterType.NONE && !regionList.isEmpty();
+    }
 
     /**
-     * Obtiene la configuración de partículas al usar el item
-     * Formato: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
-     * Ejemplo: FLAME|10|0.5|0.5|0.5|0.1
+     * Verifica si el item puede ser usado en una región específica
+     * @param regionName Nombre de la región
+     * @return true si puede ser usado
      */
-    public String getParticlesOnUse() { return particlesOnUse; }
+    public boolean canUseInRegion(String regionName) {
+        if (!hasRegionConfiguration()) {
+            return true; // Sin configuración = permitir en todas las regiones
+        }
+
+        boolean isInList = regionList.contains(regionName);
+
+        return switch (regionType) {
+            case WHITELIST -> isInList; // Solo permitir en regiones de la lista
+            case BLACKLIST -> !isInList; // Permitir en todas excepto las de la lista
+            case NONE -> true; // Sin filtro
+        };
+    }
 
     /**
-     * Obtiene la configuración de fuegos artificiales al usar el item
-     * Formato: TYPE|COLORS|FADE_COLORS|FLICKER|TRAIL|POWER
-     * Ejemplo: BALL|255,0,0;0,255,0|255,255,255|true|true|1
+     * Verifica si el item puede ser usado en cualquiera de las regiones dadas
+     * @param regionNames Lista de nombres de regiones
+     * @return true si puede ser usado en al menos una región
      */
-    public String getFireworkOnUse() { return fireworkOnUse; }
+    public boolean canUseInAnyRegion(List<String> regionNames) {
+        if (!hasRegionConfiguration()) {
+            return true;
+        }
+
+        return regionNames.stream().anyMatch(this::canUseInRegion);
+    }
 
     /**
-     * Verifica si debe lanzar un fuego artificial al usar el item
+     * Obtiene el cooldown específico para una región
+     * @param regionName Nombre de la región
+     * @return Cooldown en segundos, o el cooldown por defecto si no está configurado
      */
-    public boolean shouldLaunchFireworkOnUse() { return launchFireworkOnUse; }
+    public int getCooldownForRegion(String regionName) {
+        return regionCooldowns.getOrDefault(regionName, cooldownSeconds);
+    }
+
+    /**
+     * Obtiene el cooldown más alto entre todas las regiones dadas
+     * @param regionNames Lista de nombres de regiones
+     * @return Cooldown más alto en segundos
+     */
+    public int getHighestCooldownForRegions(List<String> regionNames) {
+        if (regionNames.isEmpty()) {
+            return cooldownSeconds;
+        }
+
+        return regionNames.stream()
+                .mapToInt(this::getCooldownForRegion)
+                .max()
+                .orElse(cooldownSeconds);
+    }
+
+    /**
+     * Verifica si hay cooldowns específicos configurados para regiones
+     * @return true si hay cooldowns por región
+     */
+    public boolean hasRegionCooldowns() {
+        return !regionCooldowns.isEmpty();
+    }
 
     // ===== MÉTODOS DE CONVENIENCIA PARA EFECTOS =====
 
@@ -183,22 +214,12 @@ public class ItemConfiguration {
 
     // ===== MÉTODOS DE CONVENIENCIA PARA COOLDOWN =====
 
-    /**
-     * Verifica si el item tiene cooldown configurado
-     * @return true si tiene cooldown
-     */
     public boolean hasCooldown() {
         return cooldownSeconds > 0;
     }
 
     // ===== MÉTODOS DE CONVENIENCIA PARA ACTION-CONFIG =====
 
-    /**
-     * Obtiene un valor del action-config
-     * @param key Clave del valor
-     * @param defaultValue Valor por defecto si no existe
-     * @return Valor encontrado o valor por defecto
-     */
     @SuppressWarnings("unchecked")
     public <T> T getActionConfigValue(String key, T defaultValue) {
         Object value = actionConfig.get(key);
@@ -213,12 +234,6 @@ public class ItemConfiguration {
         return defaultValue;
     }
 
-    /**
-     * Obtiene un valor entero del action-config
-     * @param key Clave del valor
-     * @param defaultValue Valor por defecto
-     * @return Valor entero
-     */
     public int getActionConfigInt(String key, int defaultValue) {
         Object value = actionConfig.get(key);
         if (value instanceof Number) {
@@ -232,12 +247,6 @@ public class ItemConfiguration {
         return defaultValue;
     }
 
-    /**
-     * Obtiene un valor double del action-config
-     * @param key Clave del valor
-     * @param defaultValue Valor por defecto
-     * @return Valor double
-     */
     public double getActionConfigDouble(String key, double defaultValue) {
         Object value = actionConfig.get(key);
         if (value instanceof Number) {
@@ -251,12 +260,6 @@ public class ItemConfiguration {
         return defaultValue;
     }
 
-    /**
-     * Obtiene un valor booleano del action-config
-     * @param key Clave del valor
-     * @param defaultValue Valor por defecto
-     * @return Valor booleano
-     */
     public boolean getActionConfigBoolean(String key, boolean defaultValue) {
         Object value = actionConfig.get(key);
         if (value instanceof Boolean) {
@@ -272,23 +275,11 @@ public class ItemConfiguration {
         return defaultValue;
     }
 
-    /**
-     * Obtiene un valor string del action-config
-     * @param key Clave del valor
-     * @param defaultValue Valor por defecto
-     * @return Valor string
-     */
     public String getActionConfigString(String key, String defaultValue) {
         Object value = actionConfig.get(key);
         return value != null ? value.toString() : defaultValue;
     }
 
-    /**
-     * Obtiene una lista de strings del action-config
-     * @param key Clave del valor
-     * @param defaultValue Lista por defecto si no existe
-     * @return Lista de strings
-     */
     public List<String> getActionConfigListString(String key, List<String> defaultValue) {
         Object value = actionConfig.get(key);
 
@@ -308,8 +299,7 @@ public class ItemConfiguration {
         }
 
         // Si es un string, intentar dividirlo por comas
-        if (value instanceof String) {
-            String stringValue = (String) value;
+        if (value instanceof String stringValue) {
             if (stringValue.trim().isEmpty()) {
                 return defaultValue != null ? new ArrayList<>(defaultValue) : new ArrayList<>();
             }
@@ -332,20 +322,10 @@ public class ItemConfiguration {
         return result;
     }
 
-    /**
-     * Obtiene una lista de strings del action-config con valor por defecto vacío
-     * @param key Clave del valor
-     * @return Lista de strings (nunca null)
-     */
     public List<String> getActionConfigListString(String key) {
         return getActionConfigListString(key, new ArrayList<>());
     }
 
-    /**
-     * Verifica si existe una clave en el action-config
-     * @param key Clave a verificar
-     * @return true si existe
-     */
     public boolean hasActionConfig(String key) {
         return actionConfig.containsKey(key);
     }
@@ -396,20 +376,14 @@ public class ItemConfiguration {
         private boolean cancelEvent = true;
         private boolean stackable = true;
         private int maxUses = -1;
-        private String usesDisplayFormat = "§7Usos: §f%current%§7/§f%max%";
-        private boolean showUsesInLore = true;
-        private boolean showUsesInName = false;
         private int cooldownSeconds = 0;
-        private String cooldownMessage = "§cDebes esperar %time% antes de usar este item nuevamente.";
-        private boolean showCooldownInLore = false;
-        private boolean showCooldownInName = false;
         private boolean allowMovement = true;
         private boolean allowShiftClick = true;
         private boolean allowDrop = true;
         private boolean allowSwapToOffhand = true;
         private boolean allowNumberKeys = true;
 
-        // NUEVOS campos para efectos
+        // Campos para efectos
         private String soundOnUse = null;
         private String particlesOnUse = null;
         private String fireworkOnUse = null;
@@ -417,6 +391,11 @@ public class ItemConfiguration {
 
         private Map<String, Object> actionConfig = new HashMap<>();
         private boolean usePlaceholders = false;
+
+        // ===== CAMPOS PARA REGIONES =====
+        private RegionFilterType regionType = RegionFilterType.NONE;
+        private List<String> regionList = new ArrayList<>();
+        private Map<String, Integer> regionCooldowns = new HashMap<>();
 
         // ===== BUILDERS ORIGINALES =====
 
@@ -490,38 +469,8 @@ public class ItemConfiguration {
             return this;
         }
 
-        public Builder usesDisplayFormat(String format) {
-            this.usesDisplayFormat = format;
-            return this;
-        }
-
-        public Builder showUsesInLore(boolean show) {
-            this.showUsesInLore = show;
-            return this;
-        }
-
-        public Builder showUsesInName(boolean show) {
-            this.showUsesInName = show;
-            return this;
-        }
-
         public Builder cooldownSeconds(int seconds) {
             this.cooldownSeconds = seconds;
-            return this;
-        }
-
-        public Builder cooldownMessage(String message) {
-            this.cooldownMessage = message;
-            return this;
-        }
-
-        public Builder showCooldownInLore(boolean show) {
-            this.showCooldownInLore = show;
-            return this;
-        }
-
-        public Builder showCooldownInName(boolean show) {
-            this.showCooldownInName = show;
             return this;
         }
 
@@ -540,96 +489,51 @@ public class ItemConfiguration {
             return this;
         }
 
-        /**
-         * Establece el sonido que se reproduce al usar el item
-         * @param soundString Formato: SOUND_NAME|VOLUME|PITCH
-         */
         public Builder soundOnUse(String soundString) {
             this.soundOnUse = soundString;
             return this;
         }
 
-        /**
-         * Establece las partículas que se muestran al usar el item
-         * @param particleString Formato: PARTICLE_NAME|COUNT|OFFSET_X|OFFSET_Y|OFFSET_Z|EXTRA|DATA
-         */
         public Builder particlesOnUse(String particleString) {
             this.particlesOnUse = particleString;
             return this;
         }
 
-        /**
-         * Establece los fuegos artificiales que se lanzan al usar el item
-         * @param fireworkString Formato: TYPE|COLORS|FADE_COLORS|FLICKER|TRAIL|POWER
-         */
         public Builder fireworkOnUse(String fireworkString) {
             this.fireworkOnUse = fireworkString;
             return this;
         }
 
-        /**
-         * Establece si debe lanzar un fuego artificial aleatorio al usar el item
-         * @param launch true para lanzar fuego artificial aleatorio
-         */
         public Builder launchFireworkOnUse(boolean launch) {
             this.launchFireworkOnUse = launch;
             return this;
         }
 
-        /**
-         * Establece si el item puede ser movido en inventarios
-         * @param allow true para permitir movimiento
-         * @return Este builder para encadenamiento
-         */
         public Builder allowMovement(boolean allow) {
             this.allowMovement = allow;
             return this;
         }
 
-        /**
-         * Establece si se permite shift+click
-         * @param allow true para permitir shift+click
-         * @return Este builder para encadenamiento
-         */
         public Builder allowShiftClick(boolean allow) {
             this.allowShiftClick = allow;
             return this;
         }
 
-        /**
-         * Establece si se permite soltar el item
-         * @param allow true para permitir soltar
-         * @return Este builder para encadenamiento
-         */
         public Builder allowDrop(boolean allow) {
             this.allowDrop = allow;
             return this;
         }
 
-        /**
-         * Establece si se permite intercambiar con mano secundaria
-         * @param allow true para permitir intercambio
-         * @return Este builder para encadenamiento
-         */
         public Builder allowSwapToOffhand(boolean allow) {
             this.allowSwapToOffhand = allow;
             return this;
         }
 
-        /**
-         * Establece si se permiten teclas numéricas
-         * @param allow true para permitir teclas numéricas
-         * @return Este builder para encadenamiento
-         */
         public Builder allowNumberKeys(boolean allow) {
             this.allowNumberKeys = allow;
             return this;
         }
 
-        /**
-         * Configuración rápida para items de lobby (no movibles)
-         * @return Este builder configurado para lobby
-         */
         public Builder lobbyItem() {
             return allowMovement(false)
                     .allowShiftClick(false)
@@ -638,16 +542,65 @@ public class ItemConfiguration {
                     .allowNumberKeys(false);
         }
 
-        /**
-         * Configuración rápida para items de usuario (completamente movibles)
-         * @return Este builder configurado para usuario
-         */
         public Builder userItem() {
             return allowMovement(true)
                     .allowShiftClick(true)
                     .allowDrop(true)
                     .allowSwapToOffhand(true)
                     .allowNumberKeys(true);
+        }
+
+        // ===== BUILDERS PARA REGIONES =====
+
+        public Builder regionType(RegionFilterType type) {
+            this.regionType = type != null ? type : RegionFilterType.NONE;
+            return this;
+        }
+
+        public Builder regionType(String typeString) {
+            try {
+                this.regionType = RegionFilterType.valueOf(typeString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                this.regionType = RegionFilterType.NONE;
+            }
+            return this;
+        }
+
+        public Builder regionList(List<String> regions) {
+            this.regionList = new ArrayList<>(regions);
+            return this;
+        }
+
+        public Builder regionList(String... regions) {
+            this.regionList = List.of(regions);
+            return this;
+        }
+
+        public Builder addRegion(String regionName) {
+            if (!this.regionList.contains(regionName)) {
+                this.regionList.add(regionName);
+            }
+            return this;
+        }
+
+        public Builder regionCooldowns(Map<String, Integer> cooldowns) {
+            this.regionCooldowns = new HashMap<>(cooldowns);
+            return this;
+        }
+
+        public Builder regionCooldown(String regionName, int cooldownSeconds) {
+            this.regionCooldowns.put(regionName, cooldownSeconds);
+            return this;
+        }
+
+        public Builder whitelistRegions(String... regions) {
+            return regionType(RegionFilterType.WHITELIST)
+                    .regionList(regions);
+        }
+
+        public Builder blacklistRegions(String... regions) {
+            return regionType(RegionFilterType.BLACKLIST)
+                    .regionList(regions);
         }
 
         public Builder loadFromConfig(ConfigurationSection config) {
@@ -708,36 +661,12 @@ public class ItemConfiguration {
                 maxUses(config.getInt("max-uses"));
             }
 
-            if (config.contains("uses-format")) {
-                usesDisplayFormat(config.getString("uses-format"));
-            }
-
-            if (config.contains("show-uses-in-lore")) {
-                showUsesInLore(config.getBoolean("show-uses-in-lore"));
-            }
-
-            if (config.contains("show-uses-in-name")) {
-                showUsesInName(config.getBoolean("show-uses-in-name"));
-            }
-
-            // Configuración de cooldown
+            // Configuración de cooldown (simplificado)
             if (config.contains("cooldown")) {
                 cooldownSeconds(config.getInt("cooldown"));
             }
 
-            if (config.contains("cooldown-message")) {
-                cooldownMessage(config.getString("cooldown-message"));
-            }
-
-            if (config.contains("show-cooldown-in-lore")) {
-                showCooldownInLore(config.getBoolean("show-cooldown-in-lore"));
-            }
-
-            if (config.contains("show-cooldown-in-name")) {
-                showCooldownInName(config.getBoolean("show-cooldown-in-name"));
-            }
-
-            // NUEVAS configuraciones para efectos
+            // Efectos
             if (config.contains("sound-on-use")) {
                 soundOnUse(config.getString("sound-on-use"));
             }
@@ -753,6 +682,7 @@ public class ItemConfiguration {
             if (config.contains("launch-firework")) {
                 launchFireworkOnUse(config.getBoolean("launch-firework"));
             }
+
             if (config.contains("allow-movement")) {
                 allowMovement(config.getBoolean("allow-movement"));
             }
@@ -773,6 +703,48 @@ public class ItemConfiguration {
                 allowNumberKeys(config.getBoolean("allow-number-keys"));
             }
 
+            // ===== CONFIGURACIONES PARA REGIONES =====
+
+            // Tipo de región
+            if (config.contains("region.type")) {
+                regionType(config.getString("region.type"));
+            }
+
+            // Lista de regiones
+            if (config.contains("region.list")) {
+                if (config.isList("region.list")) {
+                    regionList(config.getStringList("region.list"));
+                } else {
+                    // Si es un string, dividir por comas
+                    String regionString = config.getString("region.list");
+                    if (regionString != null && !regionString.trim().isEmpty()) {
+                        String[] regions = regionString.split(",");
+                        List<String> regionList = new ArrayList<>();
+                        for (String region : regions) {
+                            String trimmed = region.trim();
+                            if (!trimmed.isEmpty()) {
+                                regionList.add(trimmed);
+                            }
+                        }
+                        regionList(regionList);
+                    }
+                }
+            }
+
+            // Cooldowns por región
+            if (config.contains("region.cooldowns")) {
+                ConfigurationSection cooldownSection = config.getConfigurationSection("region.cooldowns");
+                if (cooldownSection != null) {
+                    Map<String, Integer> cooldowns = new HashMap<>();
+                    for (String regionName : cooldownSection.getKeys(false)) {
+                        int cooldown = cooldownSection.getInt(regionName);
+                        cooldowns.put(regionName, cooldown);
+                    }
+                    regionCooldowns(cooldowns);
+                }
+            }
+
+            // Auto-detectar placeholders
             boolean autoDetectPlaceholders = false;
             String nameText = config.getString("name", "");
             List<String> loreList = config.getStringList("lore");
@@ -796,6 +768,7 @@ public class ItemConfiguration {
                     actionConfig(actionConfigMap);
                 }
             }
+
             if (config.contains("item-type")) {
                 String itemType = config.getString("item-type", "user");
                 if (itemType.equalsIgnoreCase("lobby")) {
@@ -831,12 +804,9 @@ public class ItemConfiguration {
                 ", hasSound=" + hasSound() +
                 ", hasParticles=" + hasParticles() +
                 ", hasFirework=" + hasFirework() +
-                ", usesDisplayFormat='" + usesDisplayFormat + '\'' +
-                ", showUsesInLore=" + showUsesInLore +
-                ", showUsesInName=" + showUsesInName +
-                ", cooldownMessage='" + cooldownMessage + '\'' +
-                ", showCooldownInLore=" + showCooldownInLore +
-                ", showCooldownInName=" + showCooldownInName +
+                ", regionType=" + regionType +
+                ", regionList=" + regionList.size() + " regions" +
+                ", regionCooldowns=" + regionCooldowns.size() + " region cooldowns" +
                 '}';
     }
 }

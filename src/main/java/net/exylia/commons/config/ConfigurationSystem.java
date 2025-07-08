@@ -127,6 +127,14 @@ public class ConfigurationSystem {
     }
 
     /**
+     * Obtiene el mapa de instancias de configuración para acceso interno
+     * @return Mapa de clases a instancias de configuración
+     */
+    public Map<Class<?>, Object> getConfigInstances() {
+        return new HashMap<>(configInstances);
+    }
+
+    /**
      * MessageBuilder modernizado que usa el sistema unificado de placeholders
      */
     public class MessageBuilder {

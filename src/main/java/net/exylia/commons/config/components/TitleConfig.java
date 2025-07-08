@@ -323,63 +323,6 @@ public class TitleConfig {
     }
 
     /**
-     * Carga configuración desde un ConfigurationSection específico
-     */
-    public static TitleConfig fromSection(ConfigurationSection section) {
-        if (section == null) return new TitleConfig();
-
-        TitleConfig config = new TitleConfig();
-        config.enabled = section.getBoolean("enabled", true);
-        config.title = section.getString("title", "");
-        config.subtitle = section.getString("subtitle", "");
-        config.fadeIn = section.getInt("fadeIn", 10);
-        config.stay = section.getInt("stay", 70);
-        config.fadeOut = section.getInt("fadeOut", 20);
-        config.typeString = section.getString("type", "SINGLE");
-        config.repetitions = section.getInt("repetitions", 3);
-        config.delayBetween = section.getLong("delayBetween", 80);
-        config.countdownTime = section.getDouble("countdownTime", 10.0);
-        config.countdownFormat = section.getString("countdownFormat", "%time%");
-
-        // Cargar configuración de animación
-        ConfigurationSection animSection = section.getConfigurationSection("animation");
-        if (animSection != null) {
-            config.animationString = animSection.getString("type", "NONE");
-            config.animationSpeed = animSection.getLong("speed", 3);
-        }
-
-        config.duration = section.getDouble("duration", 10.0);
-        config.loop = section.getBoolean("loop", false);
-        config.refreshInterval = section.getLong("refreshInterval", 60L);
-
-        // Cargar pasos si es una secuencia
-        config.loadStepsFromSection(section);
-
-        return config;
-    }
-
-    private void loadStepsFromSection(ConfigurationSection section) {
-        ConfigurationSection stepsSection = section.getConfigurationSection("steps");
-        if (stepsSection == null) return;
-
-        this.steps.clear();
-        for (String key : stepsSection.getKeys(false)) {
-            ConfigurationSection stepSection = stepsSection.getConfigurationSection(key);
-            if (stepSection != null) {
-                StepConfig step = new StepConfig(
-                        stepSection.getString("title", ""),
-                        stepSection.getString("subtitle", ""),
-                        stepSection.getInt("fadeIn", this.fadeIn),
-                        stepSection.getInt("stay", this.stay),
-                        stepSection.getInt("fadeOut", this.fadeOut),
-                        stepSection.getLong("delay", 0)
-                );
-                this.steps.add(step);
-            }
-        }
-    }
-
-    /**
      * Crea una configuración de título simple
      */
     public static TitleConfig simple(String title, String subtitle) {
@@ -446,13 +389,14 @@ public class TitleConfig {
     /**
      * Configuración de un paso en una secuencia
      */
+    @Getter
     public static class StepConfig {
-        @Getter private final String title;
-        @Getter private final String subtitle;
-        @Getter private final int fadeIn;
-        @Getter private final int stay;
-        @Getter private final int fadeOut;
-        @Getter private final long delay;
+        private final String title;
+        private final String subtitle;
+        private final int fadeIn;
+        private final int stay;
+        private final int fadeOut;
+        private final long delay;
 
         public StepConfig(String title, String subtitle, int fadeIn, int stay, int fadeOut, long delay) {
             this.title = title != null ? title : "";
@@ -574,36 +518,4 @@ public class TitleConfig {
         return new Builder();
     }
 
-    // ===== CONFIGURACIONES PREDEFINIDAS =====
-
-    /**
-     * Configuraciones comunes predefinidas
-     */
-    public static class Presets {
-        public static TitleConfig welcome() {
-            return simple("&a&l¡Bienvenido %player_name%!", "&7Disfruta tu estadía");
-        }
-
-        public static TitleConfig achievement() {
-            return animated("&6&l¡LOGRO DESBLOQUEADO!", "&e%achievement_name%",
-                    TitleAnimation.BOUNCE, 3.0);
-        }
-
-        public static TitleConfig warning() {
-            return animated("&c&l¡ADVERTENCIA!", "&7%warning_message%",
-                    TitleAnimation.BLINK, 2.0);
-        }
-
-        public static TitleConfig loading() {
-            return permanent("&b&lCargando...", "&7Por favor espera", 20L);
-        }
-
-        public static TitleConfig countdown10() {
-            return countdown("&c&l%time%", "&7segundos restantes", 10.0);
-        }
-
-        public static TitleConfig progressBar() {
-            return simple("&b%progress_percent%", "%progress_bar%");
-        }
-    }
 }

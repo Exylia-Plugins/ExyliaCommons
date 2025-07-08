@@ -11,8 +11,14 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import net.exylia.commons.region.flags.FlagManager;
+import net.exylia.commons.region.listener.FlagListener;
+import net.exylia.commons.region.regeneration.RegionRegenerationManager;
+import net.exylia.commons.region.blocks.PlayerBlockTracker;
+import net.exylia.commons.region.listener.PlayerBuildListener;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -39,6 +45,11 @@ public class RegionManager {
     @Getter
     private boolean enableDetailedLogging = false;
 
+    @Getter
+    private FlagManager flagManager;
+    private FlagListener flagListener;
+    private PlayerBuildListener playerBuildListener;
+
     private BukkitRunnable movementTask;
 
     private RegionManager(JavaPlugin plugin) {
@@ -48,18 +59,30 @@ public class RegionManager {
         this.playerRegions = new ConcurrentHashMap<>();
         this.movementListener = new RegionMovementListener(this, plugin);
 
-        // Registrar listener
-        plugin.getServer().getPluginManager().registerEvents(movementListener, plugin);
+        // Inicializar sistema de flags
+        FlagManager.initialize(plugin);
+        this.flagManager = FlagManager.getInstance();
+        this.flagListener = new FlagListener(flagManager, this);
 
-        // Habilitar logging detallado por defecto para debugging
+        // Inicializar sistema de regeneración
+        RegionRegenerationManager.initialize(plugin);
+
+        // Inicializar sistema de rastreo de bloques de jugador
+        PlayerBlockTracker.initialize(plugin);
+        this.playerBuildListener = new PlayerBuildListener(plugin, this);
+
+        // Registrar listeners
+        plugin.getServer().getPluginManager().registerEvents(movementListener, plugin);
+        plugin.getServer().getPluginManager().registerEvents(flagListener, plugin);
+
+        // Configuración inicial
         this.enableDetailedLogging = false;
 
-        // Iniciar tarea de movimiento asíncrono
         if (asyncMovementChecking) {
             startMovementTask();
         }
 
-        plugin.getLogger().info("RegionManager inicializado correctamente");
+        plugin.getLogger().info("RegionManager inicializado correctamente con sistema de flags, regeneración y rastreo de bloques");
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -281,8 +304,25 @@ public class RegionManager {
 
     /**
      * Procesa el movimiento de un jugador
+     * @param player El jugador que se mueve
+     * @param from Ubicación de origen
+     * @param to Ubicación de destino
+     * @return true si el movimiento está permitido, false si debe ser cancelado
      */
-    public void processPlayerMovement(Player player, Location from, Location to) {
+    public boolean processPlayerMovement(Player player, Location from, Location to) {
+        // Verificar primero si el movimiento está permitido por las flags
+        boolean movementAllowed = flagManager.canPlayerPerformActionAt(player, to, RegionFlag.ENTRY);
+
+        // Si el movimiento no está permitido por flags, cancelar inmediatamente
+        if (!movementAllowed) {
+            if (enableDetailedLogging) {
+                plugin.getLogger().info(String.format(
+                        "Movement blocked by flags for player %s to location %s",
+                        player.getName(), to));
+            }
+            return false;
+        }
+
         // Obtener regiones actuales (donde el jugador está registrado)
         Set<Region> currentRegions = playerRegions.getOrDefault(player.getUniqueId(), new HashSet<>());
 
@@ -290,9 +330,35 @@ public class RegionManager {
         List<Region> toRegions = getRegionsAt(to);
         Set<Region> newRegions = new HashSet<>(toRegions);
 
-        // Detectar salidas (estaba registrado pero ya no está físicamente)
+        // Verificar restricciones de entrada para nuevas regiones
+        for (Region region : newRegions) {
+            if (!currentRegions.contains(region)) {
+                // Es una región nueva, verificar si puede entrar
+                if (!canPlayerEnterRegion(player, region, from, to)) {
+                    if (enableDetailedLogging) {
+                        plugin.getLogger().info(String.format(
+                                "Entry blocked for player %s to region %s (%s)",
+                                player.getName(), region.getId(), region.getPluginName()));
+                    }
+                    return false;
+                }
+            }
+        }
+
+        // Verificar restricciones de salida para regiones que abandona
         Set<Region> exitRegions = new HashSet<>(currentRegions);
         exitRegions.removeAll(newRegions);
+
+        for (Region region : exitRegions) {
+            if (!canPlayerExitRegion(player, region, from, to)) {
+                if (enableDetailedLogging) {
+                    plugin.getLogger().info(String.format(
+                            "Exit blocked for player %s from region %s (%s)",
+                            player.getName(), region.getId(), region.getPluginName()));
+                }
+                return false;
+            }
+        }
 
         // Detectar entradas (no estaba registrado pero ahora está físicamente)
         Set<Region> enterRegions = new HashSet<>(newRegions);
@@ -323,6 +389,73 @@ public class RegionManager {
         for (Region region : stayRegions) {
             handlePlayerMove(player, region, from, to);
         }
+
+        return true; // Movimiento permitido
+    }
+
+    /**
+     * Verifica si un jugador puede entrar a una región específica
+     */
+    private boolean canPlayerEnterRegion(Player player, Region region, Location from, Location to) {
+        // Disparar evento de verificación de entrada
+        RegionPreEnterEvent preEnterEvent = new RegionPreEnterEvent(player, region, from, to);
+        Bukkit.getPluginManager().callEvent(preEnterEvent);
+
+        if (preEnterEvent.isCancelled()) {
+            if (preEnterEvent.getCancelMessage() != null) {
+                player.sendMessage(preEnterEvent.getCancelMessage());
+            }
+            return false;
+        }
+
+        // Verificar flag de entrada
+        if (!region.getFlagValue(RegionFlag.ENTRY)) {
+            // Verificar si el jugador tiene permisos para ignorar la restricción
+            if (!player.hasPermission("exylia.region.bypass.entry") &&
+                    !region.isMember(player.getUniqueId()) &&
+                    !region.isOwner(player.getUniqueId())) {
+                player.sendMessage("§c¡No tienes permiso para entrar a esta región!");
+                return false;
+            }
+        }
+
+        // Verificar whitelist
+        if (region.getMetadata("whitelist-only", Boolean.class) == Boolean.TRUE) {
+            if (!region.isMember(player.getUniqueId()) && !region.isOwner(player.getUniqueId())) {
+                player.sendMessage("§c¡Esta región es solo para miembros!");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Verifica si un jugador puede salir de una región específica
+     */
+    private boolean canPlayerExitRegion(Player player, Region region, Location from, Location to) {
+        // Disparar evento de verificación de salida
+        RegionPreExitEvent preExitEvent = new RegionPreExitEvent(player, region, from, to);
+        Bukkit.getPluginManager().callEvent(preExitEvent);
+
+        if (preExitEvent.isCancelled()) {
+            if (preExitEvent.getCancelMessage() != null) {
+                player.sendMessage(preExitEvent.getCancelMessage());
+            }
+            return false;
+        }
+
+        // Verificar flag de salida
+        if (!region.getFlagValue(RegionFlag.EXIT)) {
+            // Verificar si el jugador tiene permisos para ignorar la restricción
+            if (!player.hasPermission("exylia.region.bypass.exit") &&
+                    !region.isOwner(player.getUniqueId())) {
+                player.sendMessage("§c¡No puedes salir de esta región!");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -340,15 +473,12 @@ public class RegionManager {
         playerRegions.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
                 .add(region);
 
+        // Aplicar efectos de flags
+        flagManager.applyRegionEffects(player, region);
+
         // Disparar evento
         RegionEnterEvent enterEvent = new RegionEnterEvent(player, region);
         Bukkit.getPluginManager().callEvent(enterEvent);
-
-        if (enableDetailedLogging) {
-            plugin.getLogger().info(String.format(
-                    "ENTER event fired for player %s in region %s",
-                    player.getName(), region.getId()));
-        }
 
         // Ejecutar callback personalizado
         if (region.getOnEnter() != null) {
@@ -370,6 +500,9 @@ public class RegionManager {
                     player.getName(), region.getId(), region.getPluginName()));
         }
 
+        // Remover efectos de flags ANTES de remover al jugador
+        flagManager.removeRegionEffects(player, region);
+
         // Remover jugador de la región
         region.removePlayer(player);
         Set<Region> regions = playerRegions.get(player.getUniqueId());
@@ -383,7 +516,7 @@ public class RegionManager {
 
         if (enableDetailedLogging) {
             plugin.getLogger().info(String.format(
-                    "EXIT event fired for player %s from region %s",
+                    "EXIT event fired for player %s from region %s with flags removed",
                     player.getName(), region.getId()));
         }
 
@@ -418,6 +551,9 @@ public class RegionManager {
         Set<Region> regions = playerRegions.remove(player.getUniqueId());
         if (regions != null) {
             for (Region region : regions) {
+                // Remover efectos de flags antes de limpiar
+                flagManager.removeRegionEffects(player, region);
+
                 region.removePlayer(player);
 
                 // Disparar evento de salida
@@ -425,6 +561,24 @@ public class RegionManager {
                 Bukkit.getPluginManager().callEvent(exitEvent);
             }
         }
+
+        // Limpiar estado de flags del jugador
+        flagManager.cleanupPlayerState(player);
+    }
+
+
+    /**
+     * Obtiene estadísticas del sistema de regeneración
+     */
+    public RegionRegenerationManager.RegenerationStats getRegenerationStats() {
+        return RegionRegenerationManager.getInstance().getStats();
+    }
+
+    /**
+     * Limpia el cache de regeneración
+     */
+    public void clearRegenerationCache() {
+        RegionRegenerationManager.getInstance().clearCache();
     }
 
     // ===== CONFIGURACIÓN =====
@@ -482,15 +636,42 @@ public class RegionManager {
     // ===== LIMPIEZA =====
 
     /**
+     * Limpia todos los bloques de jugador de una región (útil para regeneración)
+     */
+    public void clearRegionPlayerBlocks(String pluginName, String regionId) {
+        String regionKey = pluginName + ":" + regionId;
+        PlayerBlockTracker.getInstance().clearRegionBlocks(regionKey);
+    }
+
+    /**
+     * Obtiene estadísticas del sistema de rastreo de bloques
+     */
+    public PlayerBlockTracker.BlockTrackerStats getBlockTrackerStats() {
+        return PlayerBlockTracker.getInstance().getStats();
+    }
+
+    /**
+     * Guarda los datos de bloques de jugador de forma asíncrona
+     */
+    public CompletableFuture<Void> savePlayerBlocksAsync() {
+        return PlayerBlockTracker.getInstance().saveDataAsync();
+    }
+
+    /**
      * Limpia todos los recursos
      */
     public void cleanup() {
         stopMovementTask();
 
-        // Limpiar todos los jugadores
         for (Player player : Bukkit.getOnlinePlayers()) {
             cleanupPlayer(player);
         }
+
+        // Cerrar sistema de regeneración
+        RegionRegenerationManager.getInstance().shutdown();
+
+        // Cerrar sistema de rastreo de bloques
+        PlayerBlockTracker.getInstance().shutdown();
 
         pluginRegions.clear();
         worldRegions.clear();
@@ -504,37 +685,63 @@ public class RegionManager {
     // ===== ESTADÍSTICAS =====
 
     /**
-     * Obtiene estadísticas del sistema
+     * Verifica si un jugador puede realizar una acción específica
      */
-    public RegionStats getStats() {
-        int totalRegions = getAllRegions().size();
-        int totalPlugins = pluginRegions.size();
-        int totalPlayersInRegions = playerRegions.values().stream()
-                .mapToInt(Set::size)
-                .sum();
-
-        return new RegionStats(totalRegions, totalPlugins, totalPlayersInRegions);
+    public boolean canPlayerPerformAction(Player player, RegionFlag flag) {
+        return flagManager.canPlayerPerformAction(player, flag);
     }
 
     /**
-     * Clase para estadísticas
+     * Verifica si un jugador puede realizar una acción en una ubicación específica
      */
-    @Getter
-    public static class RegionStats {
-        private final int totalRegions;
-        private final int totalPlugins;
-        private final int totalPlayersInRegions;
+    public boolean canPlayerPerformActionAt(Player player, Location location, RegionFlag flag) {
+        return flagManager.canPlayerPerformActionAt(player, location, flag);
+    }
 
-        public RegionStats(int totalRegions, int totalPlugins, int totalPlayersInRegions) {
-            this.totalRegions = totalRegions;
-            this.totalPlugins = totalPlugins;
-            this.totalPlayersInRegions = totalPlayersInRegions;
+    /**
+     * Verifica si el PvP está permitido entre dos jugadores
+     */
+    public boolean isPvpAllowed(Player attacker, Player target) {
+        return flagManager.isPvpAllowed(attacker, target);
+    }
+
+    /**
+     * Fuerza la re-evaluación de flags para un jugador (mejorado)
+     */
+    public void refreshPlayerFlags(Player player) {
+        Set<Region> currentRegions = playerRegions.get(player.getUniqueId());
+        if (currentRegions != null) {
+            // Remover efectos actuales
+            for (Region region : currentRegions) {
+                flagManager.removeRegionEffects(player, region);
+            }
+
+            // Reaplicar efectos basados en ubicación actual
+            List<Region> newRegions = getRegionsAt(player.getLocation());
+            for (Region region : newRegions) {
+                if (currentRegions.contains(region)) {
+                    flagManager.applyRegionEffects(player, region);
+                }
+            }
         }
 
-        @Override
-        public String toString() {
-            return String.format("RegionStats{regions=%d, plugins=%d, players=%d}",
-                    totalRegions, totalPlugins, totalPlayersInRegions);
+        // Invalidar cache específico del jugador
+        flagManager.invalidatePlayerCache(player);
+    }
+
+    /**
+     * Invalida cache y reaplica flags cuando una región cambia
+     */
+    public void onRegionFlagChanged(Region region, RegionFlag flag) {
+        // Invalidar cache
+        flagManager.invalidateRegionFlagCache(region, flag);
+
+        // Rerefrescar jugadores en la región
+        for (Player player : region.getPlayersInside()) {
+            // Solo rerefrescar si es una flag que afecta al jugador actual
+            if (flag.affectsCombat() || flag.affectsMovement() || flag.affectsBuilding()) {
+                refreshPlayerFlags(player);
+            }
         }
     }
 }

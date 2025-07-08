@@ -4,6 +4,8 @@ import lombok.Getter;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
+import net.exylia.commons.config.base.MainConfigBase;
+import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
@@ -15,10 +17,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -120,15 +119,56 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             configSystem = new ConfigurationSystem(this);
 
             // Obtener las clases de configuración del plugin
-            Class<? extends ConfigBase>[] configClasses = getConfigurationClasses();
+            Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
 
-            if (configClasses != null && configClasses.length > 0) {
-                configSystem.initialize(configClasses);
+            // Crear lista combinada con configuraciones base y del plugin
+            List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
+
+            // Agregar configuraciones base de ExyliaCommons
+            allConfigClasses.add(MainConfigBase.class);
+            allConfigClasses.add(MessagesBase.class);
+
+            // Agregar configuraciones específicas del plugin
+            if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
+                // Filtrar para evitar duplicados y mantener las extensiones
+                for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
+                    boolean isExtension = false;
+
+                    // Verificar si extiende una configuración base
+                    if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
+                        // Reemplazar MainConfigBase con la extensión
+                        allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
+                        isExtension = true;
+                    }
+
+                    if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
+                        // Reemplazar MessagesBase con la extensión
+                        allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
+                        isExtension = true;
+                    }
+
+                    // Agregar la clase del plugin
+                    allConfigClasses.add(pluginClass);
+                }
+            }
+
+            // Convertir a array
+            Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
+
+            if (finalConfigClasses.length > 0) {
+                configSystem.initialize(finalConfigClasses);
                 setupConfigurationListeners();
+                logInternalSuccess("Sistema de configuración inicializado con " + finalConfigClasses.length + " clases");
             } else {
                 logInternalInfo("No se especificaron clases de configuración para " + getName());
             }
-            ConfigManager.init(this, getConfigurationClasses());
+
+            // Inicializar ConfigManager con todas las clases
+            ConfigManager.init(this, finalConfigClasses);
+
+            // Log de debug después de la inicialización
+            logInternalInfo("Debug mode: " + MainConfigBase.debug());
+            logInternalInfo("Clases cargadas: " + Arrays.toString(finalConfigClasses));
 
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());

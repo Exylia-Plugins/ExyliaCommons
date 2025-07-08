@@ -15,6 +15,8 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.StringUtils.camelCaseToKebabCase;
+
 public abstract class AutoSubCommandCommand extends PermissionCommand {
 
     private final Map<String, SubCommandInfo> subCommandInfoMap = new HashMap<>();
@@ -86,11 +88,12 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
 
     private String extractSubCommandName(String methodName) {
         if (methodName.startsWith("execute")) {
-            String name = methodName.substring(7);// execute
-            return name.toLowerCase();
+            String name = methodName.substring(7); // Remover "execute"
+            return camelCaseToKebabCase(name);
         }
-        return methodName.toLowerCase();
+        return camelCaseToKebabCase(methodName);
     }
+
 
     @Override
     protected boolean onCommand(CommandSender sender, String label, String[] args) {
