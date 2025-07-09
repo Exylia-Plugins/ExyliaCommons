@@ -5,12 +5,14 @@ import net.exylia.commons.config.components.TitleConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.io.File;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
@@ -275,6 +277,89 @@ public abstract class ConfigBase {
             return new TitleConfig();
         }
     }
+
+    // ==================== MÉTODOS DE ESCRITURA PARA ConfigBase ====================
+
+    /**
+     * Establece un valor en la configuración y lo guarda
+     */
+    protected void setValue(String path, Object value) {
+        config.set(path, value);
+        saveConfig();
+    }
+
+    /**
+     * Establece un valor en la configuración sin guardar automáticamente
+     */
+    protected void setValueNoSave(String path, Object value) {
+        config.set(path, value);
+    }
+
+    /**
+     * Guarda la configuración actual al archivo
+     */
+    protected void saveConfig() {
+        try {
+            File configFile = new File(system.getPlugin().getDataFolder(), fileName + ".yml");
+            config.save(configFile);
+
+            // Actualizar el timestamp en el sistema
+            ConfigurationSystem.ConfigFileData data = system.getFileData(fileName);
+            if (data != null) {
+                data.lastModified = configFile.lastModified();
+            }
+
+            logInternalDebug(true, "Configuración guardada: " + fileName);
+        } catch (Exception e) {
+            logInternalError("Error guardando configuración " + fileName + ": " + e.getMessage());
+            throw new RuntimeException("Error guardando configuración", e);
+        }
+    }
+
+    /**
+     * Establece múltiples valores y guarda una sola vez
+     */
+    protected void setValues(Map<String, Object> values) {
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            config.set(entry.getKey(), entry.getValue());
+        }
+        saveConfig();
+    }
+
+    /**
+     * Recarga un campo específico después de cambiar su valor
+     */
+    protected void reloadField(String fieldName) {
+        try {
+            java.lang.reflect.Field field = findFieldByName(fieldName);
+            if (field != null) {
+                ConfigValue annotation = field.getAnnotation(ConfigValue.class);
+                if (annotation != null) {
+                    field.setAccessible(true);
+                    Object value = getValueForField(field, annotation);
+                    field.set(this, value);
+                }
+            }
+        } catch (Exception e) {
+            logInternalError("Error recargando campo " + fieldName + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Busca un campo por nombre en la jerarquía de clases
+     */
+    private java.lang.reflect.Field findFieldByName(String fieldName) {
+        Class<?> currentClass = this.getClass();
+        while (currentClass != null && ConfigBase.class.isAssignableFrom(currentClass)) {
+            try {
+                return currentClass.getDeclaredField(fieldName);
+            } catch (NoSuchFieldException e) {
+                currentClass = currentClass.getSuperclass();
+            }
+        }
+        return null;
+    }
+
 
     private int parseIntDefault(String value) {
         try { return value.isEmpty() ? 0 : Integer.parseInt(value); }

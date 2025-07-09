@@ -2,6 +2,7 @@
 
 package net.exylia.commons.config;
 
+import lombok.Getter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.ColorUtils;
@@ -29,6 +30,7 @@ import static net.exylia.commons.utils.DebugUtils.*;
  */
 public class ConfigurationSystem {
 
+    @Getter
     private final JavaPlugin plugin;
     private final PlaceholderSystemManager placeholderManager;
     private final Map<String, ConfigFileData> configFiles = new ConcurrentHashMap<>();
@@ -511,6 +513,73 @@ public class ConfigurationSystem {
             throw new IllegalStateException("Archivo messages.yml no está cargado");
         }
         return messages;
+    }
+
+    // ==================== MÉTODOS DE ESCRITURA PARA ConfigurationSystem ====================
+
+    /**
+     * Establece un valor en un archivo específico
+     */
+    public void setValue(String fileName, String path, Object value) {
+        ConfigFileData data = configFiles.get(fileName);
+        if (data == null) {
+            throw new IllegalArgumentException("Archivo no encontrado: " + fileName);
+        }
+
+        data.configuration.set(path, value);
+        saveFile(fileName);
+    }
+
+    /**
+     * Establece múltiples valores en un archivo
+     */
+    public void setValues(String fileName, Map<String, Object> values) {
+        ConfigFileData data = configFiles.get(fileName);
+        if (data == null) {
+            throw new IllegalArgumentException("Archivo no encontrado: " + fileName);
+        }
+
+        for (Map.Entry<String, Object> entry : values.entrySet()) {
+            data.configuration.set(entry.getKey(), entry.getValue());
+        }
+        saveFile(fileName);
+    }
+
+    /**
+     * Guarda un archivo específico
+     */
+    public void saveFile(String fileName) {
+        try {
+            ConfigFileData data = configFiles.get(fileName);
+            if (data == null) {
+                throw new IllegalArgumentException("Archivo no encontrado: " + fileName);
+            }
+
+            File file = new File(plugin.getDataFolder(), fileName + ".yml");
+            data.configuration.save(file);
+            data.lastModified = file.lastModified();
+
+            // Limpiar cache relacionado
+            cache.invalidateAll();
+
+            logInternalDebug(debugMode, "Archivo guardado: " + fileName);
+        } catch (Exception e) {
+            logInternalError("Error guardando archivo " + fileName + ": " + e.getMessage());
+            throw new RuntimeException("Error guardando archivo", e);
+        }
+    }
+
+    /**
+     * Guarda todos los archivos cargados
+     */
+    public void saveAllFiles() {
+        for (String fileName : configFiles.keySet()) {
+            try {
+                saveFile(fileName);
+            } catch (Exception e) {
+                logInternalError("Error guardando " + fileName + " durante saveAll: " + e.getMessage());
+            }
+        }
     }
 
     // ==================== LISTENERS Y ESTADÍSTICAS ====================
