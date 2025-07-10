@@ -56,17 +56,22 @@ public class PaginationMenu extends Menu {
     }
 
     private void initializeDefaultNavigation(int rows) {
-        // Default navigation buttons
-        this.previousButton = new MenuItem("ARROW")
-                .setName("&c◀ Previous Page")
-                .setLore("&7Click to go to the previous page");
+        this.previousButton = new MenuItem("headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0=")
+                .setName("{error}◀ Previous Page")
+                .setLore("{letters}Click to go to the previous page");
 
-        this.nextButton = new MenuItem("ARROW")
-                .setName("&a▶ Next Page")
-                .setLore("&7Click to go to the next page");
+        this.nextButton = new MenuItem("headurl-http://textures.minecraft.net/texture/fa87e3d96e1cfeb9ccfb3ba53a217faf5249e285533b271a2fb284c30dbd9829")
+                .setName("{success}▶ Next Page")
+                .setLore("{letters}Click to go to the next page");
 
-        this.previousButtonSlot = rows * 9 - 9; // Bottom left
-        this.nextButtonSlot = rows * 9 - 1;    // Bottom right
+        this.previousButtonSlot = rows * 9 - 6; // Center left
+        this.nextButtonSlot = rows * 9 - 4;    // Center right
+        this.globalFiller = new MenuItem("BLACK_STAINED_GLASS_PANE")
+                .setName(" ")
+                .hideAllAttributes();
+        this.itemSlotFiller = new MenuItem("LIGHT_GRAY_STAINED_GLASS_PANE")
+                .setName(" ")
+                .hideAllAttributes();
     }
 
     // ==================== ITEM MANAGEMENT ====================

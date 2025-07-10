@@ -188,6 +188,7 @@ public class InteractiveItem {
     public boolean usesPlaceholders() { return config.isUsePlaceholders(); }
     public List<String> getCommands() { return config.getCommands(); }
     public String getAction() { return config.getAction(); }
+    public int getSlot() { return config.getSlot(); }
     public boolean shouldConsumeOnUse() { return config.isConsumeOnUse(); }
     public boolean shouldCancelEvent() { return config.isCancelEvent(); }
     public int getMaxUses() { return config.getMaxUses(); }

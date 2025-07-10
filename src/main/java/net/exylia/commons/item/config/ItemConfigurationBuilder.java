@@ -18,6 +18,7 @@ public class ItemConfigurationBuilder {
     protected int amount = 1;
     protected boolean glowing = false;
     protected boolean hideAttributes = true;
+    protected int slot = -1;
     protected List<String> commands = new ArrayList<>();
     protected String action = null;
     protected boolean consumeOnUse = false;
@@ -81,6 +82,11 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder hideAttributes(boolean hideAttributes) {
         this.hideAttributes = hideAttributes;
+        return this;
+    }
+
+    public ItemConfigurationBuilder slot(int slot) {
+        this.slot = slot;
         return this;
     }
 
@@ -367,6 +373,10 @@ public class ItemConfigurationBuilder {
 
         if (config.contains("hide-attributes")) {
             hideAttributes(config.getBoolean("hide-attributes"));
+        }
+
+        if (config.contains("slot")) {
+            slot(config.getInt("slot"));
         }
 
         if (config.contains("commands")) {

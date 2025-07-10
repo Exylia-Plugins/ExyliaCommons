@@ -6,18 +6,15 @@ import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
 import net.exylia.commons.command.annotation.DefaultAction;
 import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.utils.StringUtils.camelCaseToKebabCase;
 
 public abstract class AutoSubCommandCommand extends PermissionCommand {
 
@@ -91,9 +88,9 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     private String extractSubCommandName(String methodName) {
         if (methodName.startsWith("execute")) {
             String name = methodName.substring(7); // Remover "execute"
-            return camelCaseToKebabCase(name);
+            return name.toLowerCase();
         }
-        return camelCaseToKebabCase(methodName);
+        return methodName.toLowerCase();
     }
 
 

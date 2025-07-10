@@ -13,6 +13,8 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
+
 public class H2Adapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
@@ -59,7 +61,7 @@ public class H2Adapter implements DatabaseAdapter {
         // Probar conexión
         try (Connection testConnection = dataSource.getConnection()) {
             testConnection.setAutoCommit(true);
-            plugin.getLogger().info("Pool de conexiones H2 inicializado exitosamente: " + poolSize + " conexiones");
+            logInternalInfo("Pool de conexiones H2 inicializado exitosamente: " + poolSize + " conexiones");
         }
     }
 
@@ -163,7 +165,7 @@ public class H2Adapter implements DatabaseAdapter {
                 if (result >= 0) processed++; // MERGE puede retornar diferentes valores
             }
 
-            DebugUtils.logInternalInfo("saveOrUpdateAll completado para " + processed + " de " + entities.size() + " entidades");
+            logInternalInfo("saveOrUpdateAll completado para " + processed + " de " + entities.size() + " entidades");
 
         } catch (SQLException e) {
             DebugUtils.logInternalError("Error en saveOrUpdateAll: " + e.getMessage());
@@ -222,7 +224,7 @@ public class H2Adapter implements DatabaseAdapter {
                 if (result > 0) updated++;
             }
 
-            DebugUtils.logInternalInfo("updateAll completado: " + updated + " de " + entities.size() + " entidades actualizadas");
+            logInternalInfo("updateAll completado: " + updated + " de " + entities.size() + " entidades actualizadas");
 
         } catch (SQLException e) {
             DebugUtils.logInternalError("Error en updateAll: " + e.getMessage());
@@ -415,7 +417,7 @@ public class H2Adapter implements DatabaseAdapter {
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute(sql.toString());
-            DebugUtils.logInternalInfo("Tabla creada: " + tableName);
+            logInternalInfo("Tabla creada: " + tableName);
         }
     }
 
@@ -447,7 +449,7 @@ public class H2Adapter implements DatabaseAdapter {
                             // Agregar como nullable primero
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
-                                DebugUtils.logInternalInfo("Columna agregada (nullable): " + columnName);
+                                logInternalInfo("Columna agregada (nullable): " + columnName);
                                 hasUpdates = true;
                             }
 
@@ -458,7 +460,7 @@ public class H2Adapter implements DatabaseAdapter {
                                 try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
                                     updateStmt.setString(1, column.defaultValue());
                                     int updated = updateStmt.executeUpdate();
-                                    DebugUtils.logInternalInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
+                                    logInternalInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
                                 }
                             }
 
@@ -467,7 +469,7 @@ public class H2Adapter implements DatabaseAdapter {
                                     " ALTER COLUMN " + columnName + " SET NOT NULL";
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterNotNullSql);
-                                DebugUtils.logInternalInfo("Columna configurada como NOT NULL: " + columnName);
+                                logInternalInfo("Columna configurada como NOT NULL: " + columnName);
                             }
                         } else {
                             // Agregar la columna normalmente
@@ -477,7 +479,7 @@ public class H2Adapter implements DatabaseAdapter {
 
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
-                                DebugUtils.logInternalInfo("Columna agregada: " + columnName);
+                                logInternalInfo("Columna agregada: " + columnName);
                                 hasUpdates = true;
                             }
                         }
@@ -486,9 +488,9 @@ public class H2Adapter implements DatabaseAdapter {
             }
 
             if (hasUpdates) {
-                DebugUtils.logInternalInfo("Actualización de tabla completada: " + getTableName(entityClass));
+                logInternalInfo("Actualización de tabla completada: " + getTableName(entityClass));
             } else {
-                DebugUtils.logInternalInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
+                logInternalInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
             }
         }
     }

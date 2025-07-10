@@ -1,124 +1,212 @@
 package net.exylia.commons.wizard;
 
+import net.exylia.commons.utils.ActionBarUtils;
+import net.exylia.commons.utils.MessageUtils;
+import net.exylia.commons.utils.TitleUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import net.exylia.commons.ExyliaPlugin;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Interfaz base para todos los tipos de wizards de ubicación
+ * Static Location Wizard Manager for selecting multiple positions
+ * Simple, lightweight and customizable
  */
-public interface LocationWizard {
+public final class LocationWizard implements Listener {
+
+    private static LocationWizard instance;
+    private static ExyliaPlugin plugin;
+
+    private final Map<UUID, WizardSession> activeSessions = new ConcurrentHashMap<>();
+
+    private LocationWizard() {}
 
     /**
-     * Obtiene el ID único del wizard
+     * Initialize the LocationWizard
      */
-    UUID getWizardId();
-
-    /**
-     * Obtiene el jugador asociado al wizard
-     */
-    Player getPlayer();
-
-    /**
-     * Obtiene el tipo de wizard
-     */
-    WizardType getType();
-
-    /**
-     * Procesa un click del jugador
-     * @param location La ubicación donde se hizo click
-     * @param clickType El tipo de click (LEFT_CLICK, RIGHT_CLICK, SHIFT_LEFT_CLICK, etc.)
-     * @return true si el click fue procesado, false si debe continuar el evento normal
-     */
-    boolean processClick(Location location, ClickType clickType);
-
-    /**
-     * Verifica si el wizard está completado
-     */
-    boolean isCompleted();
-
-    /**
-     * Verifica si el wizard está cancelado
-     */
-    boolean isCancelled();
-
-    /**
-     * Cancela el wizard
-     */
-    void cancel();
-
-    /**
-     * Obtiene el progreso actual del wizard (ubicaciones seleccionadas hasta ahora)
-     */
-    List<Location> getCurrentLocations();
-
-    /**
-     * Obtiene información sobre el estado actual del wizard
-     */
-    WizardState getState();
-
-    /**
-     * Callback que se ejecuta cuando el wizard se completa exitosamente
-     */
-    void onComplete(Consumer<List<Location>> callback);
-
-    /**
-     * Callback que se ejecuta cuando el wizard es cancelado
-     */
-    void onCancel(Runnable callback);
-
-    /**
-     * Callback que se ejecuta en cada actualización del wizard
-     */
-    void onUpdate(Consumer<WizardState> callback);
-
-    /**
-     * Limpia los recursos del wizard
-     */
-    void cleanup();
-
-    /**
-     * Enum para los tipos de wizard disponibles
-     */
-    enum WizardType {
-        BLOCK_SELECTION,    // Selección de 2 bloques (área)
-        POSITION_SELECTION  // Selección de N posiciones específicas
-    }
-
-    /**
-     * Enum para los tipos de click
-     */
-    enum ClickType {
-        LEFT_CLICK,
-        RIGHT_CLICK,
-        SHIFT_LEFT_CLICK,
-        SHIFT_RIGHT_CLICK
-    }
-
-    /**
-     * Clase que representa el estado actual del wizard
-     */
-    class WizardState {
-        private final int currentStep;
-        private final int totalSteps;
-        private final List<Location> selectedLocations;
-        private final String nextAction;
-
-        public WizardState(int currentStep, int totalSteps, List<Location> selectedLocations, String nextAction) {
-            this.currentStep = currentStep;
-            this.totalSteps = totalSteps;
-            this.selectedLocations = selectedLocations;
-            this.nextAction = nextAction;
+    public static void init(ExyliaPlugin pluginInstance) {
+        if (instance != null) {
+            return;
         }
 
-        public int getCurrentStep() { return currentStep; }
-        public int getTotalSteps() { return totalSteps; }
-        public List<Location> getSelectedLocations() { return selectedLocations; }
-        public String getNextAction() { return nextAction; }
-        public boolean isCompleted() { return currentStep >= totalSteps; }
-        public double getProgress() { return totalSteps > 0 ? (double) currentStep / totalSteps : 0.0; }
+        plugin = pluginInstance;
+        instance = new LocationWizard();
+        plugin.getServer().getPluginManager().registerEvents(instance, plugin);
+    }
+
+    /**
+     * Start location selection wizard
+     *
+     * @param player The player
+     * @param positionsNeeded Number of positions to select (1, 2, 3, etc.)
+     * @param handler Custom handler to process selections
+     * @return CompletableFuture with the result
+     */
+    public static <T> CompletableFuture<T> startWizard(Player player, int positionsNeeded, WizardHandler<T> handler) {
+        if (instance == null) {
+            throw new IllegalStateException("LocationWizard not initialized");
+        }
+
+        if (positionsNeeded < 1) {
+            throw new IllegalArgumentException("Positions needed must be at least 1");
+        }
+
+        // Cancel existing session if any
+        cancelWizard(player);
+
+        WizardSession session = new WizardSession(player, positionsNeeded, handler);
+        instance.activeSessions.put(player.getUniqueId(), session);
+
+        // Start the wizard
+        handler.onStart(player, positionsNeeded);
+        sendInstructions(player, session);
+
+        return session.getFuture();
+    }
+
+    /**
+     * Cancel active wizard for player
+     */
+    public static boolean cancelWizard(Player player) {
+        if (instance == null) {
+            return false;
+        }
+
+        WizardSession session = instance.activeSessions.remove(player.getUniqueId());
+        if (session != null) {
+            session.cancel();
+            player.resetTitle();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if player has active wizard
+     */
+    public static boolean hasActiveWizard(Player player) {
+        return instance != null && instance.activeSessions.containsKey(player.getUniqueId());
+    }
+
+    /**
+     * Get remaining positions for player
+     */
+    public static int getRemainingPositions(Player player) {
+        if (instance == null) {
+            return 0;
+        }
+
+        WizardSession session = instance.activeSessions.get(player.getUniqueId());
+        return session != null ? session.getRemainingPositions() : 0;
+    }
+
+    // ===== EVENT HANDLERS =====
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        WizardSession session = activeSessions.get(player.getUniqueId());
+
+        if (session == null) {
+            return;
+        }
+
+        // Check for SHIFT + LEFT CLICK
+        if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR &&
+                player.isSneaking()) {
+
+            event.setCancelled(true);
+
+            Location location = player.getLocation();
+            handleLocationSelection(player, location);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        cancelWizard(event.getPlayer());
+    }
+
+    // ===== PRIVATE METHODS =====
+
+    @SuppressWarnings("unchecked")
+    private void handleLocationSelection(Player player, Location location) {
+        WizardSession session = activeSessions.get(player.getUniqueId());
+        if (session == null) {
+            return;
+        }
+
+        try {
+            session.addLocation(location);
+
+            WizardHandler<Object> handler = (WizardHandler<Object>) session.getHandler();
+            WizardResult result = handler.onLocationSelected(player, location, session.getSelectedLocations(), session.getRemainingPositions());
+            TitleUtils.cancelTitle(player, "location_wizard");
+            ActionBarUtils.cancelActionBar(player, "location_wizard");
+
+            switch (result.getType()) {
+                case CONTINUE:
+                    if (result.getMessage() != null) {
+                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                    }
+                    sendInstructions(player, session);
+                    break;
+
+                case COMPLETE:
+                    activeSessions.remove(player.getUniqueId());
+                    player.resetTitle();
+                    session.complete(result.getValue());
+                    if (result.getMessage() != null) {
+                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                    }
+                    break;
+
+                case CANCEL:
+                    activeSessions.remove(player.getUniqueId());
+                    player.resetTitle();
+                    session.cancel();
+                    if (result.getMessage() != null) {
+                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                    }
+                    break;
+            }
+        } catch (Exception e) {
+            activeSessions.remove(player.getUniqueId());
+            player.resetTitle();
+            session.completeExceptionally(e);
+        }
+    }
+
+    private static void sendInstructions(Player player, WizardSession session) {
+        int remaining = session.getRemainingPositions();
+        int total = session.getTotalPositions();
+        int current = total - remaining + 1;
+
+        // Send title with progress
+        TitleUtils.create().permanent().id("location_wizard").title("{warning}⚡ Use SHIFT + LEFT CLICK").subtitle("{info}Position " + current + "/" + total).sendAsync(player);
+        ActionBarUtils.create().permanent().id("location_wizard").text("{warning}Remaining positions: {info}" + remaining).sendAsync(player);
+    }
+
+    /**
+     * Shutdown the LocationWizard
+     */
+    public static void shutdown() {
+        if (instance != null) {
+            instance.activeSessions.values().forEach(WizardSession::cancel);
+            instance.activeSessions.clear();
+            instance = null;
+            plugin = null;
+        }
     }
 }

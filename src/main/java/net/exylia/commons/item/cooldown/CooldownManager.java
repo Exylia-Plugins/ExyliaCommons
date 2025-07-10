@@ -18,6 +18,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+
 /**
  * Sistema de cooldown persistente con soporte para double (precisión decimal)
  * Almacena datos en memoria para rendimiento y persiste en archivos JSON
@@ -467,6 +470,6 @@ public class CooldownManager {
         cooldownCallbacks.clear();
 
         initialized = false;
-        plugin.getLogger().info("CooldownManager shutdown");
+        logInternalDebug(debug(), "CooldownManager shutdown");
     }
 }

@@ -125,7 +125,7 @@ public class ActionBarUtils {
         private long animationSpeed = 10;
         private double animationDuration = 10.0;
         private boolean loop = false;
-        private long refreshInterval = 60L;
+        private long refreshInterval = 20L;
 
         // Progress bar específico
         private double progressCurrent = 0.0;

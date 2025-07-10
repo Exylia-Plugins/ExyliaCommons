@@ -34,7 +34,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import static net.exylia.commons.ExyliaPlugin.debugEnabled;
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**
  * Manager para regeneración de regiones integrado en el sistema de regiones
@@ -61,7 +62,7 @@ public class RegionRegenerationManager {
         if (!schemsFolder.exists()) {
             boolean created = schemsFolder.mkdirs();
             if (created) {
-                plugin.getLogger().info("Directorio de schematics de regiones creado: " + schemsFolder.getPath());
+                logInternalDebug(debug(), "Directorio de schematics de regiones creado: " + schemsFolder.getPath());
             }
         }
     }
@@ -89,7 +90,7 @@ public class RegionRegenerationManager {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                plugin.getLogger().info("Guardando schematic para región: " + region.getId());
+                logInternalDebug(debug(), "Guardando schematic para región: " + region.getId());
 
                 Location min = region.getMinimumPoint();
                 Location max = region.getMaximumPoint();
@@ -129,7 +130,7 @@ public class RegionRegenerationManager {
                             cacheClipboard(region, clipboard);
                         }
 
-                        plugin.getLogger().info("Schematic guardado: " + schematicFile.getName());
+                        logInternalDebug(debug(), "Schematic guardado: " + schematicFile.getName());
                         return true;
                     }
                 }
@@ -161,7 +162,7 @@ public class RegionRegenerationManager {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                DebugUtils.logInternalDebug(debugEnabled(),"Regenerando región: " + region.getId());
+                logInternalDebug(debug(),"Regenerando región: " + region.getId());
 
                 // Intentar obtener del cache
                 Clipboard clipboard = clipboardCache.get(regionKey);
@@ -227,7 +228,7 @@ public class RegionRegenerationManager {
                         }
                     }
 
-                    DebugUtils.logInternalDebug(debugEnabled(), "Limpiadas " + removed + " entidades en región " + region.getId());
+                    logInternalDebug(debug(), "Limpiadas " + removed + " entidades en región " + region.getId());
                     return removed;
 
                 }).get();
@@ -266,7 +267,7 @@ public class RegionRegenerationManager {
             if (schematicFile.exists()) {
                 boolean deleted = schematicFile.delete();
                 if (deleted) {
-                    plugin.getLogger().info("Schematic eliminado para región: " + region.getId());
+                    logInternalDebug(debug(), "Schematic eliminado para región: " + region.getId());
                 }
                 return deleted;
             }
@@ -292,7 +293,7 @@ public class RegionRegenerationManager {
     public void clearCache() {
         int size = clipboardCache.size();
         clipboardCache.clear();
-        plugin.getLogger().info("Cache de clipboards limpiado: " + size + " elementos");
+        logInternalDebug(debug(), "Cache de clipboards limpiado: " + size + " elementos");
     }
 
     // Métodos privados
@@ -319,7 +320,7 @@ public class RegionRegenerationManager {
         }
 
         clipboardCache.put(regionKey, clipboard);
-        DebugUtils.logInternalDebug(debugEnabled(),"Clipboard cacheado para región: " + region.getId());
+        logInternalDebug(debug(),"Clipboard cacheado para región: " + region.getId());
     }
 
     private boolean executeRegeneration(Region region, Clipboard clipboard) {
@@ -359,7 +360,7 @@ public class RegionRegenerationManager {
 
                                 Operations.complete(operation);
 
-                                DebugUtils.logInternalDebug(debugEnabled(), "Región regenerada exitosamente: " + region.getId());
+                                logInternalDebug(debug(), "Región regenerada exitosamente: " + region.getId());
                                 future.complete(true);
 
                             } catch (WorldEditException e) {
@@ -397,7 +398,7 @@ public class RegionRegenerationManager {
             // Limpiar bloques
             tracker.clearRegionBlocks(regionKey);
 
-            plugin.getLogger().info("Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
+            logInternalDebug(debug(), "Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
             return blocksBefore;
         });
     }

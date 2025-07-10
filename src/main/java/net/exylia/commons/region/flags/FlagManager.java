@@ -216,13 +216,11 @@ public class FlagManager {
                 if (!player.getAllowFlight()) {
                     player.setAllowFlight(true);
                     state.addAppliedFlag(flag);
-                    player.sendMessage("§a¡Ahora puedes volar en esta región!");
                 }
                 break;
 
             case INVINCIBLE:
                 state.addAppliedFlag(flag);
-                player.sendMessage("§6¡Eres invencible en esta región!");
                 break;
 
             case HEAL:
@@ -240,7 +238,6 @@ public class FlagManager {
                     state.setPreviousGameMode(player.getGameMode());
                     player.setGameMode(GameMode.ADVENTURE);
                     state.addAppliedFlag(flag);
-                    player.sendMessage("§e¡Modo aventura activado en esta región!");
                 }
                 break;
 
@@ -249,7 +246,6 @@ public class FlagManager {
                     state.setPreviousGameMode(player.getGameMode());
                     player.setGameMode(GameMode.SURVIVAL);
                     state.addAppliedFlag(flag);
-                    player.sendMessage("§e¡Modo supervivencia activado en esta región!");
                 }
                 break;
 
@@ -258,7 +254,6 @@ public class FlagManager {
                     state.setPreviousGameMode(player.getGameMode());
                     player.setGameMode(GameMode.CREATIVE);
                     state.addAppliedFlag(flag);
-                    player.sendMessage("§e¡Modo creativo activado en esta región!");
                 }
                 break;
         }
@@ -278,12 +273,10 @@ public class FlagManager {
                         player.getGameMode() != GameMode.SPECTATOR) {
                     player.setAllowFlight(false);
                     player.setFlying(false);
-                    player.sendMessage("§c¡Ya no puedes volar fuera de la región!");
                 }
                 break;
 
             case INVINCIBLE:
-                player.sendMessage("§c¡Ya no eres invencible fuera de la región!");
                 break;
 
             case HEAL:
@@ -300,7 +293,6 @@ public class FlagManager {
                 GameMode previous = state.getPreviousGameMode();
                 if (previous != null) {
                     player.setGameMode(previous);
-                    player.sendMessage("§e¡Modo de juego restaurado!");
                 }
                 break;
         }

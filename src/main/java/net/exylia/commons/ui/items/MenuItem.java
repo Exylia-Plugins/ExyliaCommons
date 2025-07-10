@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static net.exylia.commons.utils.SkullUtils.*;
 
@@ -41,6 +42,7 @@ public class MenuItem {
     @Getter
     private String rawName;
     private List<String> rawLore;
+    private Supplier<List<String>> loreDynamicSupplier;
     @Getter
     private String rawAmount;
 
@@ -97,6 +99,7 @@ public class MenuItem {
      */
     public MenuItem setLore(String... lore) {
         this.rawLore = Arrays.asList(lore);
+        this.loreDynamicSupplier = null; // Limpiar supplier dinámico
         return this;
     }
 
@@ -105,6 +108,16 @@ public class MenuItem {
      */
     public MenuItem setLoreList(List<String> lore) {
         this.rawLore = new ArrayList<>(lore);
+        this.loreDynamicSupplier = null; // Limpiar supplier dinámico
+        return this;
+    }
+
+    /**
+     * Establece el lore dinámico usando un Supplier
+     */
+    public MenuItem setLore(Supplier<List<String>> loreSupplier) {
+        this.loreDynamicSupplier = loreSupplier;
+        this.rawLore = null; // Limpiar lore estático
         return this;
     }
 
@@ -117,6 +130,9 @@ public class MenuItem {
             adapter.setLore(meta, lore);
             itemStack.setItemMeta(meta);
         }
+        // Limpiar tanto lore estático como dinámico si se establece directamente
+        this.rawLore = null;
+        this.loreDynamicSupplier = null;
         return this;
     }
 
@@ -323,9 +339,10 @@ public class MenuItem {
         }
 
         // Procesar lore con placeholders
-        if (rawLore != null && !rawLore.isEmpty()) {
+        List<String> currentLore = getCurrentLore();
+        if (currentLore != null && !currentLore.isEmpty()) {
             List<Component> processedLore = new ArrayList<>();
-            for (String line : rawLore) {
+            for (String line : currentLore) {
                 String processedLine = context.processPlaceholders(line, player);
                 processedLore.add(ColorUtils.parse(processedLine));
             }
@@ -362,6 +379,21 @@ public class MenuItem {
     }
 
     // ==================== MÉTODOS INTERNOS DE ACTUALIZACIÓN ====================
+
+    /**
+     * Obtiene el lore actual (dinámico o estático)
+     */
+    private List<String> getCurrentLore() {
+        if (loreDynamicSupplier != null) {
+            try {
+                return loreDynamicSupplier.get();
+            } catch (Exception e) {
+                // Si hay error en el supplier, devolver lista vacía
+                return new ArrayList<>();
+            }
+        }
+        return rawLore;
+    }
 
     /**
      * Actualiza el material preservando metadata
@@ -482,6 +514,7 @@ public class MenuItem {
         clone.updateInterval = this.updateInterval;
         clone.clickHandler = this.clickHandler;
         clone.context = this.context.copy(); // Copiar el contexto
+        clone.loreDynamicSupplier = this.loreDynamicSupplier; // Copiar supplier dinámico
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -595,6 +628,16 @@ public class MenuItem {
                 .withContext(context);
     }
 
+    /**
+     * Crea un MenuItem con lore dinámico y contexto
+     */
+    public static MenuItem create(Material material, String name, Supplier<List<String>> loreSupplier, ExyliaContext context) {
+        return new MenuItem(material)
+                .setName(name)
+                .setLore(loreSupplier)
+                .withContext(context);
+    }
+
     // ==================== GETTERS ====================
 
     public ItemStack getItemStack() {
@@ -606,6 +649,11 @@ public class MenuItem {
     }
 
     public List<String> getRawLore() {
-        return rawLore != null ? new ArrayList<>(rawLore) : new ArrayList<>();
+        List<String> currentLore = getCurrentLore();
+        return currentLore != null ? new ArrayList<>(currentLore) : new ArrayList<>();
+    }
+
+    public boolean hasDynamicLore() {
+        return loreDynamicSupplier != null;
     }
 }

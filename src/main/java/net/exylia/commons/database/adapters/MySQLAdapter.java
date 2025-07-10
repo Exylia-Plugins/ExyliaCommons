@@ -13,6 +13,9 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+
 public class MySQLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
@@ -64,7 +67,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         // Probar conexión
         try (Connection testConnection = dataSource.getConnection()) {
             testConnection.prepareStatement("SELECT 1").executeQuery();
-            plugin.getLogger().info("Conexión MySQL establecida exitosamente");
+            logInternalDebug(debug(), "Conexión MySQL establecida exitosamente");
         }
     }
 

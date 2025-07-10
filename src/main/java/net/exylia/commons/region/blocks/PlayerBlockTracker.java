@@ -10,6 +10,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+
 /**
  * Sistema para rastrear bloques colocados por jugadores en regiones
  */
@@ -137,7 +140,7 @@ public class PlayerBlockTracker {
         if (removed != null) {
             // Limpiar cache relacionado
             blockExistsCache.entrySet().removeIf(entry -> entry.getKey().startsWith(regionKey + ":"));
-            plugin.getLogger().info("Limpiados " + removed.size() + " bloques de jugador para región: " + regionKey);
+            logInternalDebug(debug(), "Limpiados " + removed.size() + " bloques de jugador para región: " + regionKey);
         }
     }
 
@@ -165,7 +168,7 @@ public class PlayerBlockTracker {
     private void saveData() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
             oos.writeObject(regionPlayerBlocks);
-            plugin.getLogger().info("Datos de bloques de jugador guardados: " + regionPlayerBlocks.size() + " regiones");
+            logInternalDebug(debug(), "Datos de bloques de jugador guardados: " + regionPlayerBlocks.size() + " regiones");
         } catch (IOException e) {
             plugin.getLogger().severe("Error guardando datos de bloques de jugador: " + e.getMessage());
         }
@@ -177,7 +180,7 @@ public class PlayerBlockTracker {
     @SuppressWarnings("unchecked")
     private void loadData() {
         if (!dataFile.exists()) {
-            plugin.getLogger().info("No se encontraron datos previos de bloques de jugador");
+            logInternalDebug(debug(), "No se encontraron datos previos de bloques de jugador");
             return;
         }
 
@@ -186,12 +189,12 @@ public class PlayerBlockTracker {
             if (data instanceof Map) {
                 regionPlayerBlocks.putAll((Map<String, Set<BlockPosition>>) data);
                 int totalBlocks = regionPlayerBlocks.values().stream().mapToInt(Set::size).sum();
-                plugin.getLogger().info("Cargados datos de bloques de jugador: " + regionPlayerBlocks.size() +
+                logInternalDebug(debug(), "Cargados datos de bloques de jugador: " + regionPlayerBlocks.size() +
                         " regiones, " + totalBlocks + " bloques");
             }
         } catch (IOException | ClassNotFoundException e) {
             plugin.getLogger().warning("Error cargando datos de bloques de jugador: " + e.getMessage());
-            plugin.getLogger().info("Se iniciará con datos limpios");
+            logInternalDebug(debug(), "Se iniciará con datos limpios");
         }
     }
 
@@ -222,7 +225,7 @@ public class PlayerBlockTracker {
      * Cierra el sistema y guarda datos
      */
     public void shutdown() {
-        plugin.getLogger().info("Cerrando PlayerBlockTracker...");
+        logInternalDebug(debug(), "Cerrando PlayerBlockTracker...");
         saveData();
         regionPlayerBlocks.clear();
         blockExistsCache.clear();

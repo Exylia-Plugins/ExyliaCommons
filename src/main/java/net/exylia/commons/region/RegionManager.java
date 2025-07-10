@@ -23,6 +23,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+
 /**
  * Manager principal para el sistema de regiones
  */
@@ -81,8 +84,6 @@ public class RegionManager {
         if (asyncMovementChecking) {
             startMovementTask();
         }
-
-        plugin.getLogger().info("RegionManager inicializado correctamente con sistema de flags, regeneración y rastreo de bloques");
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -125,7 +126,7 @@ public class RegionManager {
                 .add(region);
 
         if (enableDetailedLogging) {
-            plugin.getLogger().info("Región registrada: " + region.getInfo());
+            logInternalDebug(debug(), "Región registrada: " + region.getInfo());
         }
 
         return true;
@@ -175,7 +176,7 @@ public class RegionManager {
         }
 
         if (enableDetailedLogging) {
-            plugin.getLogger().info("Región eliminada: " + region.getInfo());
+            logInternalDebug(debug(), "Región eliminada: " + region.getInfo());
         }
 
         return true;
@@ -205,7 +206,7 @@ public class RegionManager {
         }
 
         if (enableDetailedLogging) {
-            plugin.getLogger().info("Todas las regiones del plugin " + pluginName + " han sido eliminadas");
+            logInternalDebug(debug(), "Todas las regiones del plugin " + pluginName + " han sido eliminadas");
         }
     }
 
@@ -316,7 +317,7 @@ public class RegionManager {
         // Si el movimiento no está permitido por flags, cancelar inmediatamente
         if (!movementAllowed) {
             if (enableDetailedLogging) {
-                plugin.getLogger().info(String.format(
+                logInternalDebug(debug(), String.format(
                         "Movement blocked by flags for player %s to location %s",
                         player.getName(), to));
             }
@@ -336,7 +337,7 @@ public class RegionManager {
                 // Es una región nueva, verificar si puede entrar
                 if (!canPlayerEnterRegion(player, region, from, to)) {
                     if (enableDetailedLogging) {
-                        plugin.getLogger().info(String.format(
+                        logInternalDebug(debug(), String.format(
                                 "Entry blocked for player %s to region %s (%s)",
                                 player.getName(), region.getId(), region.getPluginName()));
                     }
@@ -352,7 +353,7 @@ public class RegionManager {
         for (Region region : exitRegions) {
             if (!canPlayerExitRegion(player, region, from, to)) {
                 if (enableDetailedLogging) {
-                    plugin.getLogger().info(String.format(
+                    logInternalDebug(debug(), String.format(
                             "Exit blocked for player %s from region %s (%s)",
                             player.getName(), region.getId(), region.getPluginName()));
                 }
@@ -366,7 +367,7 @@ public class RegionManager {
 
         if (enableDetailedLogging) {
             if (!exitRegions.isEmpty() || !enterRegions.isEmpty()) {
-                plugin.getLogger().info(String.format(
+                logInternalDebug(debug(), String.format(
                         "Player %s movement: entering %d regions, exiting %d regions",
                         player.getName(), enterRegions.size(), exitRegions.size()));
             }
@@ -414,17 +415,13 @@ public class RegionManager {
             if (!player.hasPermission("exylia.region.bypass.entry") &&
                     !region.isMember(player.getUniqueId()) &&
                     !region.isOwner(player.getUniqueId())) {
-                player.sendMessage("§c¡No tienes permiso para entrar a esta región!");
                 return false;
             }
         }
 
         // Verificar whitelist
         if (region.getMetadata("whitelist-only", Boolean.class) == Boolean.TRUE) {
-            if (!region.isMember(player.getUniqueId()) && !region.isOwner(player.getUniqueId())) {
-                player.sendMessage("§c¡Esta región es solo para miembros!");
-                return false;
-            }
+            return region.isMember(player.getUniqueId()) || region.isOwner(player.getUniqueId());
         }
 
         return true;
@@ -450,7 +447,6 @@ public class RegionManager {
             // Verificar si el jugador tiene permisos para ignorar la restricción
             if (!player.hasPermission("exylia.region.bypass.exit") &&
                     !region.isOwner(player.getUniqueId())) {
-                player.sendMessage("§c¡No puedes salir de esta región!");
                 return false;
             }
         }
@@ -463,7 +459,7 @@ public class RegionManager {
      */
     private void handlePlayerEnter(Player player, Region region) {
         if (enableDetailedLogging) {
-            plugin.getLogger().info(String.format(
+            logInternalDebug(debug(), String.format(
                     "Processing ENTER for player %s to region %s (%s)",
                     player.getName(), region.getId(), region.getPluginName()));
         }
@@ -495,7 +491,7 @@ public class RegionManager {
      */
     private void handlePlayerExit(Player player, Region region) {
         if (enableDetailedLogging) {
-            plugin.getLogger().info(String.format(
+            logInternalDebug(debug(), String.format(
                     "Processing EXIT for player %s from region %s (%s)",
                     player.getName(), region.getId(), region.getPluginName()));
         }
@@ -515,7 +511,7 @@ public class RegionManager {
         Bukkit.getPluginManager().callEvent(exitEvent);
 
         if (enableDetailedLogging) {
-            plugin.getLogger().info(String.format(
+            logInternalDebug(debug(), String.format(
                     "EXIT event fired for player %s from region %s with flags removed",
                     player.getName(), region.getId()));
         }
@@ -678,7 +674,7 @@ public class RegionManager {
         playerRegions.clear();
 
         if (enableDetailedLogging) {
-            plugin.getLogger().info("RegionManager limpiado completamente");
+            logInternalDebug(debug(), "RegionManager limpiado completamente");
         }
     }
 

@@ -23,6 +23,7 @@ public class ItemConfiguration {
     private final int amount;
     private final boolean glowing;
     private final boolean hideAttributes;
+    private final int slot; // solo para items de lobby
 
     // Comportamiento
     private final List<String> commands;
@@ -90,6 +91,7 @@ public class ItemConfiguration {
         this.amount = builder.amount;
         this.glowing = builder.glowing;
         this.hideAttributes = builder.hideAttributes;
+        this.slot = builder.slot;
         this.commands = new ArrayList<>(builder.commands);
         this.action = builder.action;
         this.consumeOnUse = builder.consumeOnUse;

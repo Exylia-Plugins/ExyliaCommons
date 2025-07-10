@@ -125,9 +125,9 @@ public class TitleUtils {
         private String subtitle = "";
         private ExyliaContext context = ExyliaContext.create();
         private TitleType type = TitleType.SINGLE;
-        private int fadeIn = 10;
+        private int fadeIn = 0;
         private int stay = 70;
-        private int fadeOut = 20;
+        private int fadeOut = 10;
 
         // Configuraciones específicas por tipo
         private int repetitions = 3;

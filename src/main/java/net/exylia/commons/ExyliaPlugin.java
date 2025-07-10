@@ -11,7 +11,6 @@ import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
-import net.exylia.commons.wizard.LocationWizardManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
@@ -105,6 +104,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             onExyliaEnable();
         } catch (Exception e) {
             logInternalError("Error habilitando plugin: " + e.getMessage());
+            e.printStackTrace();
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -405,10 +405,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
-    public static boolean debugEnabled() {
-        return true;
-    }
-
     private void shutdownExylia() {
         logInternalInfo("Limpiando recursos globales de Exylia");
         try {
@@ -417,13 +413,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             }
         } catch (Exception e) {
             logInternalInfo("Error cerrando sistema de base de datos: " + e.getMessage());
-        }
-        try {
-            if (LocationWizardManager.getInstance() != null) {
-                LocationWizardManager.getInstance().cleanup();
-            }
-        } catch (Exception e) {
-            logInternalInfo("Error limpiando wizards: " + e.getMessage());
         }
         RedisIntegration.shutdownRedis();
         ColorUtils.shutdown();

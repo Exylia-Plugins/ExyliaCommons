@@ -2,6 +2,7 @@
 
 package net.exylia.commons.ui.manager;
 
+import lombok.Getter;
 import net.exylia.commons.ui.actions.ActionSource;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
@@ -26,9 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MenuManager implements Listener {
 
     private static MenuManager instance;
+    @Getter
     private static JavaPlugin plugin;
 
     private final Map<UUID, Menu> openMenus = new ConcurrentHashMap<>();
+    @Getter
     private boolean initialized = false;
 
     private MenuManager() {}
@@ -322,22 +325,6 @@ public class MenuManager implements Listener {
     }
 
     // ==================== UTILITY METHODS ====================
-
-    /**
-     * Gets the plugin instance
-     * @return The plugin
-     */
-    public static JavaPlugin getPlugin() {
-        return plugin;
-    }
-
-    /**
-     * Checks if the manager is initialized
-     * @return True if initialized
-     */
-    public boolean isInitialized() {
-        return initialized;
-    }
 
     /**
      * Gets all open menus
