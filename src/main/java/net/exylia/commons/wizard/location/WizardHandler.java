@@ -1,4 +1,4 @@
-package net.exylia.commons.wizard;
+package net.exylia.commons.wizard.location;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;

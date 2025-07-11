@@ -1,4 +1,4 @@
-package net.exylia.commons.wizard;
+package net.exylia.commons.wizard.location;
 
 import net.exylia.commons.utils.ActionBarUtils;
 import net.exylia.commons.utils.MessageUtils;
@@ -13,7 +13,6 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import net.exylia.commons.ExyliaPlugin;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -123,7 +122,7 @@ public final class LocationWizard implements Listener {
         }
 
         // Check for SHIFT + LEFT CLICK
-        if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR &&
+        if ((event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) &&
                 player.isSneaking()) {
 
             event.setCancelled(true);

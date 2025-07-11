@@ -1,6 +1,7 @@
 package net.exylia.commons.selection.model;
 
 import lombok.Getter;
+import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 
@@ -22,17 +23,20 @@ public class WandConfig {
     private SelectionType selectionType;
 
     public WandConfig() {
-        this.material = Material.GOLDEN_AXE;
-        this.displayName = Component.empty();
-        this.lore = new ArrayList<>();
+        this.material = Material.NETHERITE_AXE;
+        this.displayName = ColorUtils.parse("{primary}&l✦ SELECTOR WAND ✦");
+        this.lore = List.of(
+                ColorUtils.parse("{success}• {letters}Primary point {info}→ {success}Left-click"),
+                ColorUtils.parse("{error}• {letters}Secondary point {info}→ {error}Right-click"),
+                ColorUtils.parse(""),
+                ColorUtils.parse("{info}• {letters}Shift+Click to view {info}information{letters}.")
+        );
+
         this.enchanted = true;
         this.unbreakable = true;
         this.customModelData = 0;
         this.selectionId = "no-id";
         this.selectionType = SelectionType.CUBOID;
-
-        // Lore por defecto
-        this.lore.add(Component.empty());
     }
 
     // Builder pattern

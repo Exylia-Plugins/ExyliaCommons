@@ -1,4 +1,4 @@
-package net.exylia.commons.wizard;
+package net.exylia.commons.wizard.location;
 
 import lombok.Getter;
 import org.bukkit.Location;
