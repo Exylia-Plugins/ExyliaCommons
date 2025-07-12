@@ -4,8 +4,9 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
-import net.exylia.commons.ui.actions.ActionContext;
-import net.exylia.commons.ui.actions.ActionRegistry;
+import net.exylia.commons.actions.ActionContext;
+import net.exylia.commons.actions.ActionSource;
+import net.exylia.commons.actions.GlobalActionManager;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -120,12 +121,12 @@ public class MenuItemBuilder {
     }
 
     private static void configureActions(MenuItem item, ConfigurationSection config) {
-        // Acción simple
+        // Acción simple - usando el sistema global
         if (config.contains("action")) {
             String actionString = config.getString("action");
             item.setClickHandler(event -> {
-                ActionContext actionContext = ActionContext.fromMenuClick(event);
-                ActionRegistry.executeAction(actionString, actionContext);
+                ActionContext actionContext = createActionContextFromMenuClick(event);
+                GlobalActionManager.executeAction(actionString, actionContext);
             });
         }
 
@@ -138,6 +139,18 @@ public class MenuItemBuilder {
                 // Agregar más tipos según necesidad
             }
         }
+    }
+
+    private static ActionContext createActionContextFromMenuClick(MenuClickEvent event) {
+        ActionContext context = new ActionContext(event.getPlayer(), ActionSource.MENU);
+
+        // Añadir datos del menú al contexto
+        context.withData("menu", event.getMenu());
+        context.withData("item", event.getItem());
+        context.withData("slot", event.getSlot());
+        context.withData("clickType", event.getClickType());
+
+        return context;
     }
 
     private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, Object... context) {
@@ -252,15 +265,15 @@ public class MenuItemBuilder {
             return this;
         }
 
-        public FluentMenuItemBuilder click(java.util.function.Consumer<net.exylia.commons.ui.events.MenuClickEvent> handler) {
+        public FluentMenuItemBuilder click(java.util.function.Consumer<MenuClickEvent> handler) {
             item.setClickHandler(handler);
             return this;
         }
 
         public FluentMenuItemBuilder action(String actionString) {
             item.setClickHandler(event -> {
-                ActionContext actionContext = ActionContext.fromMenuClick(event);
-                ActionRegistry.executeAction(actionString, actionContext);
+                ActionContext actionContext = createActionContextFromMenuClick(event);
+                GlobalActionManager.executeAction(actionString, actionContext);
             });
             return this;
         }

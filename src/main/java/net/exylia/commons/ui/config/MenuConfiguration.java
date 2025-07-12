@@ -2,11 +2,13 @@ package net.exylia.commons.ui.config;
 
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
+import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.PaginationMenu;
 import net.exylia.commons.ui.menus.EditableMenu;
-import net.exylia.commons.ui.actions.ActionContext;
-import net.exylia.commons.ui.actions.ActionRegistry;
+import net.exylia.commons.actions.ActionContext;
+import net.exylia.commons.actions.ActionSource;
+import net.exylia.commons.actions.GlobalActionManager;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -185,24 +187,35 @@ public class MenuConfiguration {
             }
         }
 
-        // Actions
+        // Actions - usando el sistema global
         if (config.contains("action")) {
             String actionString = config.getString("action");
             item.setClickHandler(event -> {
-                ActionContext actionContext = ActionContext.fromMenuClick(event);
-                ActionRegistry.executeAction(actionString, actionContext);
+                ActionContext actionContext = createActionContextFromMenuClick(event);
+                GlobalActionManager.executeAction(actionString, actionContext);
             });
         }
 
         if (config.contains("commands")) {
             List<String> commands = config.getStringList("commands");
             item.setClickHandler(event -> {
-                // Execute commands here
                 executeCommands(commands, event.getPlayer(), context);
             });
         }
 
         return item;
+    }
+
+    private ActionContext createActionContextFromMenuClick(MenuClickEvent event) {
+        ActionContext context = new ActionContext(event.getPlayer(), ActionSource.MENU);
+
+        // Añadir datos del menú al contexto
+        context.withData("menu", event.getMenu());
+        context.withData("item", event.getItem());
+        context.withData("slot", event.getSlot());
+        context.withData("clickType", event.getClickType());
+
+        return context;
     }
 
     private void executeCommands(List<String> commands, Player player, ExyliaContext context) {

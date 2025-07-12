@@ -3,7 +3,6 @@
 package net.exylia.commons.ui.manager;
 
 import lombok.Getter;
-import net.exylia.commons.ui.actions.ActionSource;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
@@ -316,11 +315,10 @@ public class MenuManager implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
-        Menu menu = openMenus.remove(player.getUniqueId());
+        Menu menu = openMenus.get(player.getUniqueId());
         if (menu != null) {
-            // Call the package-private method through reflection or make it public
-            // For now, we'll add a public method to handle this
             menu.handleClose();
+            openMenus.remove(player.getUniqueId());
         }
     }
 

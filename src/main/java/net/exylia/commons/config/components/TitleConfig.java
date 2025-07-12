@@ -76,7 +76,7 @@ public class TitleConfig {
     public TitleConfig() {}
 
     // Constructor para inicialización manual con path base
-    public TitleConfig(String basePath, FileConfiguration config) {
+    public TitleConfig(String basePath, ConfigurationSection config) {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.title = config.getString(basePath + ".title", "");
         this.subtitle = config.getString(basePath + ".subtitle", "");
@@ -301,7 +301,7 @@ public class TitleConfig {
     /**
      * Carga los pasos de secuencia desde la configuración
      */
-    private void loadSteps(String basePath, FileConfiguration config) {
+    private void loadSteps(String basePath, ConfigurationSection config) {
         ConfigurationSection stepsSection = config.getConfigurationSection(basePath + ".steps");
         if (stepsSection == null) return;
 

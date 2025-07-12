@@ -45,6 +45,7 @@ public class Menu {
     protected Player viewer;
     @Getter
     protected ExyliaContext context = ExyliaContext.create();
+    @Getter
     protected boolean isOpen = false;
 
     // Menu configuration
@@ -145,12 +146,18 @@ public class Menu {
      */
     protected void onClose() {
         stopUpdates();
+
+        // Guardar referencia del player ANTES de establecerlo como null
+        Player currentPlayer = this.viewer;
+
+        // Llamar el handler de cierre CON el player aún disponible
+        if (closeHandler != null && currentPlayer != null) {
+            closeHandler.accept(currentPlayer);
+        }
+
+        // AHORA sí limpiar las referencias
         this.isOpen = false;
         this.viewer = null;
-
-        if (closeHandler != null) {
-            closeHandler.accept(viewer);
-        }
     }
 
     public void handleClose() {
@@ -461,8 +468,6 @@ public class Menu {
 
     // ==================== GETTERS ====================
 
-    public boolean isOpen() { return isOpen; }
-
     public Map<Integer, MenuItem> getItems() { return new HashMap<>(items); }
 
     // ==================== EVENT HANDLING ====================
@@ -475,7 +480,9 @@ public class Menu {
         // Handle global click handler first
         if (globalClickHandler != null) {
             globalClickHandler.accept(event);
-            if (event.isCancelled()) return;
+            if (event.isCancelled()) {
+                return;
+            }
         }
 
         // Handle item-specific click

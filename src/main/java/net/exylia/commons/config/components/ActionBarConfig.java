@@ -3,6 +3,7 @@ package net.exylia.commons.config.components;
 import lombok.Getter;
 import net.exylia.commons.config.ConfigValue;
 import net.exylia.commons.utils.ActionBarUtils.ActionBarAnimation;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 /**
@@ -74,7 +75,7 @@ public class ActionBarConfig {
     public ActionBarConfig() {}
 
     // Constructor para inicialización manual con path base
-    public ActionBarConfig(String basePath, FileConfiguration config) {
+    public ActionBarConfig(String basePath, ConfigurationSection config) {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.text = config.getString(basePath + ".text", "");
         this.typeString = config.getString(basePath + ".type", "SINGLE");

@@ -5,7 +5,6 @@ import net.exylia.commons.config.ConfigValue;
 import net.exylia.commons.utils.BossbarUtils.BossBarAnimation;
 import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 
 /**
  * Configuración reutilizable para BossBars
@@ -81,7 +80,7 @@ public class BossBarConfig {
     public BossBarConfig() {}
 
     // Constructor para inicialización manual con path base
-    public BossBarConfig(String basePath, FileConfiguration config) {
+    public BossBarConfig(String basePath, ConfigurationSection config) {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.text = config.getString(basePath + ".text", "");
         this.colorString = config.getString(basePath + ".color", "BLUE");

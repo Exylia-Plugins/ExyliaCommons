@@ -1,6 +1,8 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.config.components.ActionBarConfig;
 import net.exylia.commons.config.components.BossBarConfig;
+import net.exylia.commons.config.components.ScoreboardConfig;
 import net.exylia.commons.config.components.TitleConfig;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -85,7 +87,11 @@ public abstract class ConfigBase {
             return createBossBarConfig(path);
         } else if (fieldType == TitleConfig.class) {
             return createTitleConfig(path);
-        } else if (fieldType == Map.class) {
+        } else if (fieldType == ActionBarConfig.class) {
+            return createActionBarConfig(path);
+        } else if (fieldType == ScoreboardConfig.class) {
+            return createScoreboardConfig(path);
+        }else if (fieldType == Map.class) {
             return createMapFromConfig(field, path);
         } else {
             throw new IllegalArgumentException("Tipo de campo no soportado: " + fieldType.getSimpleName());
@@ -169,7 +175,19 @@ public abstract class ConfigBase {
                 return new TitleConfig(key, config);
             }
             return new TitleConfig();
-        } else {
+        } else if (valueType == ActionBarConfig.class) {
+            ConfigurationSection subSection = parentSection.getConfigurationSection(key);
+            if (subSection != null) {
+                return new ActionBarConfig(key, config);
+            }
+            return new ActionBarConfig();
+        }else if (valueType == ScoreboardConfig.class) {
+            ConfigurationSection subSection = parentSection.getConfigurationSection(key);
+            if (subSection != null) {
+                return new ScoreboardConfig(key, config);
+            }
+            return new ScoreboardConfig();
+        }else {
             // For complex objects, try to create from configuration section
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
@@ -237,7 +255,19 @@ public abstract class ConfigBase {
                 return new TitleConfig(key, config);
             }
             return new TitleConfig();
-        } else {
+        } else if (expectedType == ActionBarConfig.class) {
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null) {
+                return new ActionBarConfig(key, config);
+            }
+            return new ActionBarConfig();
+        }else if (expectedType == ScoreboardConfig.class) {
+            ConfigurationSection subSection = section.getConfigurationSection(key);
+            if (subSection != null) {
+                return new ScoreboardConfig(key, config);
+            }
+            return new ScoreboardConfig();
+        }else {
             // For nested objects, recursively create from subsection
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
@@ -254,9 +284,6 @@ public abstract class ConfigBase {
         return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
 
-    /**
-     * Creates a BossBarConfig from a configuration path
-     */
     private BossBarConfig createBossBarConfig(String basePath) {
         if (config.getConfigurationSection(basePath) != null) {
             return new BossBarConfig(basePath, config);
@@ -266,15 +293,30 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Creates a TitleConfig from a configuration path
-     */
     private TitleConfig createTitleConfig(String basePath) {
         if (config.getConfigurationSection(basePath) != null) {
             return new TitleConfig(basePath, config);
         } else {
             logInternalError("Advertencia: No se encontró configuración para Title en " + basePath + ", usando valores por defecto");
             return new TitleConfig();
+        }
+    }
+
+    private ActionBarConfig createActionBarConfig(String basePath) {
+        if (config.getConfigurationSection(basePath) != null) {
+            return new ActionBarConfig(basePath, config);
+        } else {
+            logInternalError("Advertencia: No se encontró configuración para ActionBar en " + basePath + ", usando valores por defecto");
+            return new ActionBarConfig();
+        }
+    }
+
+    private ScoreboardConfig createScoreboardConfig(String basePath) {
+        if (config.getConfigurationSection(basePath) != null) {
+            return new ScoreboardConfig(basePath, config);
+        } else {
+            logInternalError("Advertencia: No se encontró configuración para Scoreboard en " + basePath + ", usando valores por defecto");
+            return new ScoreboardConfig();
         }
     }
 
