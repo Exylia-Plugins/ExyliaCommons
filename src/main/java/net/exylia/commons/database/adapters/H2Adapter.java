@@ -61,7 +61,7 @@ public class H2Adapter implements DatabaseAdapter {
         // Probar conexión
         try (Connection testConnection = dataSource.getConnection()) {
             testConnection.setAutoCommit(true);
-            logInternalInfo("Pool de conexiones H2 inicializado exitosamente: " + poolSize + " conexiones");
+            logInternalInfo("Pool from H2 connected with " + poolSize + " connections.");
         }
     }
 

@@ -11,6 +11,7 @@ import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
+import net.exylia.commons.utils.skull.SkullManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
@@ -365,6 +366,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             ActionBarUtils.init(this);
             BossbarUtils.init(this);
             TitleUtils.init(this);
+            SkullManager.initialize(this);
         } catch (Exception e) {
             logInternalInfo("Error inicializando un sistema: " + e.getMessage());
         }

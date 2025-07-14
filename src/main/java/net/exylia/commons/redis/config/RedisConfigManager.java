@@ -34,7 +34,7 @@ public class RedisConfigManager {
             createDefaultConfig();
         }
         config = YamlConfiguration.loadConfiguration(configFile);
-        logInternalInfo("Configuración de Redis cargada desde redis.yml");
+        logInternalInfo("Redis configuration loaded");
     }
 
     /**

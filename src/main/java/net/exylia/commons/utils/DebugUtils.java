@@ -14,16 +14,12 @@ import static net.exylia.commons.utils.AnsiComponentLogger.convertHexColors;
  * Utilidades para mostrar mensajes de depuración en la consola
  */
 public class DebugUtils {
-
-    public static final String PURPLE = "\u001B[35m";
-    public static final String RESET = "\u001B[0m";
-
-    @Getter
     private static String prefix = "";
+    private static final String internalPrefix = "<#696969>[<#c995fc>ExyliaLib<#696969>] ";
 
     public static void init(ExyliaPlugin plugin) {
         prefix = "<#696969>[<gradient:#aa76de:#8a51c4:#aa76de>" + plugin.getName() + "</gradient><#696969>] ";
-        sendPluginMOTD(plugin.getName());
+        sendPluginMOTD(plugin);
     }
 
     public static void logDebug(Boolean enabled, String message){
@@ -53,42 +49,47 @@ public class DebugUtils {
     
     public static void logInternalDebug(Boolean enabled, String message){
         if (!enabled) return;
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse("<#696969>[<gradient:#b48fd9:#F2C6DE:#b48fd9>ExyliaCommons</gradient><#696969>] <#e7cfff>[DEBUG] " + message)));
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff>[DEBUG] " + message)));
     }
     
     public static void logInternalError(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse("<#696969>[<gradient:#b48fd9:#F2C6DE:#b48fd9>ExyliaCommons</gradient><#696969>] <#b36476>[ERROR] " + message)));
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#b36476>[ERROR] " + message)));
     }
     
     public static void logInternalWarn(String message){ 
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse("<#696969>[<gradient:#b48fd9:#F2C6DE:#b48fd9>ExyliaCommons</gradient><#696969>] <#ffd2a8>[WARN] " + message)));
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#ffd2a8>[WARN] " + message)));
     }
     
     public static void logInternalInfo(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse("<#696969>[<gradient:#b48fd9:#F2C6DE:#b48fd9>ExyliaCommons</gradient><#696969>] <#7db7ff>[INFO] " + message)));
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#7db7ff>[INFO] " + message)));
     }
     
     public static void logInternalSuccess(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse("<#696969>[<gradient:#b48fd9:#F2C6DE:#b48fd9>ExyliaCommons</gradient><#696969>] <#a1ffc3>[SUCCESS] " + message)));
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#a1ffc3>[SUCCESS] " + message)));
     }
 
-    public static void sendPluginMOTD(String pluginName) {
+    public static void logInternal(String message){
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff> " + message)));
+    }
+
+    public static void sendPluginMOTD(ExyliaPlugin plugin) {
         try {
-            String asciiArt = FigletFont.convertOneLine(pluginName);
+            String asciiArt = FigletFont.convertOneLine(plugin.getName());
 
             String[] lines = asciiArt.split("\n");
             Bukkit.getLogger().info("");
             for (String line : lines) {
                 if (!line.trim().isEmpty()) {
-                    log("<#8a51c4>" + line);
+                    logInternal("<#8a51c4>" + line);
                 }
             }
-            log("");
-            log("Powered by Exylia - https://discord.exylia.net");
+            logInternal("");
+            logInternal("Version: v" + plugin.getDescription().getVersion());
+            logInternal("Powered by Exylia - https://discord.exylia.net");
             Bukkit.getLogger().info("");
         } catch (Exception e) {
             // Fallback simple
-            log("<#8a51c4>========== " + pluginName.toUpperCase() + " ==========<reset>");
+            logInternal("<#8a51c4>========== " + plugin.getName().toUpperCase() + " ==========<reset>");
         }
     }
 }

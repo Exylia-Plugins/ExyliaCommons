@@ -32,7 +32,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
-import static net.exylia.commons.utils.SkullUtils.*;
+import static net.exylia.commons.utils.skull.SkullUtils.*;
 
 /**
  * InteractiveItem actualizado para el sistema modularizado
@@ -427,17 +427,17 @@ public class InteractiveItem {
 
         if (materialString.startsWith("headbase-")) {
             String base64 = materialString.substring(9);
-            return createHeadFromBase64(base64);
+            return createSkullFromTexture(base64);
         }
 
         if (materialString.startsWith("headurl-")) {
             String url = materialString.substring(8);
-            return createHeadFromUrl(url);
+            return createSkullFromUrl(url);
         }
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            return createPlayerHead(playerName);
+            return createPlayerSkull(playerName);
         }
 
         try {

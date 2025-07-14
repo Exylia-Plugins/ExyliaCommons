@@ -10,12 +10,15 @@ import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 /**
  * Clase base para crear comandos de forma sencilla
@@ -90,33 +93,161 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * Registra el comando en el servidor
+     * Registra el comando en el servidor con múltiples intentos y validación
      *
      * @return true si se registró correctamente
      */
     public boolean register() {
-        try {
-            Constructor<PluginCommand> constructor = PluginCommand.class.getDeclaredConstructor(String.class, Plugin.class);
-            constructor.setAccessible(true);
-            PluginCommand cmd = constructor.newInstance(name, plugin);
+        return register(3, 50L); // 3 intentos con 50ms de delay
+    }
 
-            cmd.setExecutor(this);
-            cmd.setTabCompleter(this);
-
-            if (!aliases.isEmpty()) {
-                cmd.setAliases(aliases);
+    /**
+     * Registra el comando con reintentos configurables
+     *
+     * @param maxAttempts Número máximo de intentos
+     * @param delayMs Delay entre intentos en milisegundos
+     * @return true si se registró correctamente
+     */
+    public boolean register(int maxAttempts, long delayMs) {
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                if (registerCommand()) {
+                    return true;
+                }
+            } catch (Exception e) {
+                logInternalError("Error en intento " + attempt + " registrando comando " + name + ": " + e.getMessage());
             }
 
-            Bukkit.getCommandMap().register(plugin.getName().toLowerCase(), cmd);
-            return true;
+            if (attempt < maxAttempts) {
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
 
+        logInternalError("Falló el registro del comando " + name + " después de " + maxAttempts + " intentos");
+        return false;
+    }
+
+    /**
+     * Lógica de registro del comando con verificaciones adicionales
+     */
+    private boolean registerCommand() throws Exception {
+        // Verificar que el CommandMap esté disponible
+        CommandMap commandMap = getCommandMap();
+        if (commandMap == null) {
+            throw new IllegalStateException("CommandMap no está disponible");
+        }
+
+        // Verificar si el comando ya existe y desregistrarlo
+        unregisterIfExists(commandMap);
+
+        // Crear el comando usando reflexión
+        Constructor<PluginCommand> constructor = PluginCommand.class.getDeclaredConstructor(String.class, Plugin.class);
+        constructor.setAccessible(true);
+        PluginCommand cmd = constructor.newInstance(name, plugin);
+
+        // Configurar el comando
+        cmd.setExecutor(this);
+        cmd.setTabCompleter(this);
+
+        if (!aliases.isEmpty()) {
+            cmd.setAliases(aliases);
+        }
+
+        // Registrar en el CommandMap
+        boolean registered = commandMap.register(plugin.getName().toLowerCase(), cmd);
+
+        if (registered) {
+            // Verificar que realmente se registró
+            return verifyRegistration(commandMap);
+        }
+
+        return false;
+    }
+
+    /**
+     * Obtiene el CommandMap del servidor
+     */
+    private CommandMap getCommandMap() {
+        try {
+            return Bukkit.getCommandMap();
         } catch (Exception e) {
-            logInternalError("Error al registrar el comando " + name + ": " + e.getMessage());
+            // Fallback para versiones más antiguas
+            try {
+                Field commandMapField = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+                commandMapField.setAccessible(true);
+                return (CommandMap) commandMapField.get(Bukkit.getServer());
+            } catch (Exception ex) {
+                logInternalError("No se pudo obtener el CommandMap: " + ex.getMessage());
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Desregistra el comando si ya existe
+     */
+    private void unregisterIfExists(CommandMap commandMap) {
+        try {
+            // Intentar desregistrar comando principal
+            Command existingCommand = commandMap.getCommand(name);
+            if (existingCommand != null) {
+                unregisterCommand(commandMap, name);
+            }
+
+            // Intentar desregistrar aliases
+            for (String alias : aliases) {
+                Command existingAlias = commandMap.getCommand(alias);
+                if (existingAlias != null) {
+                    unregisterCommand(commandMap, alias);
+                }
+            }
+        } catch (Exception e) {
+            // Ignorar errores de desregistro
+        }
+    }
+
+    /**
+     * Desregistra un comando específico del CommandMap
+     */
+    private void unregisterCommand(CommandMap commandMap, String commandName) {
+        try {
+            Field knownCommandsField = commandMap.getClass().getDeclaredField("knownCommands");
+            knownCommandsField.setAccessible(true);
+            @SuppressWarnings("unchecked")
+            Map<String, Command> knownCommands = (Map<String, Command>) knownCommandsField.get(commandMap);
+            knownCommands.remove(commandName.toLowerCase());
+        } catch (Exception e) {
+            // Ignorar errores
+        }
+    }
+
+    /**
+     * Verifica que el comando se registró correctamente
+     */
+    private boolean verifyRegistration(CommandMap commandMap) {
+        try {
+            Command registeredCommand = commandMap.getCommand(name);
+            if (registeredCommand == null) {
+                return false;
+            }
+
+            // Verificar que el executor es correcto
+            if (registeredCommand instanceof PluginCommand pluginCommand) {
+                return pluginCommand.getExecutor() == this;
+            }
+
+            return true;
+        } catch (Exception e) {
             return false;
         }
     }
 
-    // Métodos de ayuda para todos los comandos
+    // Métodos de ayuda para todos los comandos (sin cambios)
 
     /**
      * Verifica si el remitente es un jugador

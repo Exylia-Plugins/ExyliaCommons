@@ -6,6 +6,7 @@ import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.ItemMetaAdapter;
+import net.exylia.commons.utils.skull.SkullManager;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -24,7 +25,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import static net.exylia.commons.utils.SkullUtils.*;
+import static net.exylia.commons.utils.skull.SkullUtils.*;
 
 /**
  * MenuItem modernizado que usa ExyliaContext para el manejo de contextos
@@ -472,17 +473,17 @@ public class MenuItem {
 
         if (materialString.startsWith("headbase-")) {
             String base64 = materialString.substring(9);
-            return createHeadFromBase64(base64);
+            return createSkullFromTexture(base64);
         }
 
         if (materialString.startsWith("headurl-")) {
             String url = materialString.substring(8);
-            return createHeadFromUrl(url);
+            return createSkullFromUrl(url);
         }
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            return createPlayerHead(playerName);
+            return createPlayerSkull(playerName);
         }
 
         try {
