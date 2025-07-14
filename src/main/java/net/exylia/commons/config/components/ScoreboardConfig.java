@@ -34,6 +34,6 @@ public class ScoreboardConfig {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.lines = config.getStringList(basePath + ".lines");
         this.title = config.getString(basePath + ".title", "");
-        this.refreshInterval = config.getLong(basePath + ".update-ticks", 60L);
+        this.refreshInterval = config.getLong(basePath + ".update-ticks", 20L);
     }
 }

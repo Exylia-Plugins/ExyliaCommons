@@ -10,7 +10,7 @@ public class LocationUtils {
 
     private static final String SEPARATOR = "|";
 
-    public static Location getLocationFromString(String locationString) {
+    public static Location deserialize(String locationString) {
         if (locationString == null || locationString.trim().isEmpty()) {
             return null;
         }
@@ -40,15 +40,15 @@ public class LocationUtils {
             return new Location(world, x, y, z, yaw, pitch);
 
         } catch (NumberFormatException e) {
-            System.err.println("Error al parsear números en la ubicación: " + locationString);
+            DebugUtils.logInternalError("Error al parsear números en la ubicación: " + locationString);
             return null;
         } catch (Exception e) {
-            System.err.println("Error al parsear la ubicación '" + locationString + "': " + e.getMessage());
+            DebugUtils.logInternalError("Error al parsear la ubicación '" + locationString + "': " + e.getMessage());
             return null;
         }
     }
 
-    public static String getStringFromLocation(Location location) {
+    public static String serialize(Location location) {
         if (location == null || location.getWorld() == null) {
             return null;
         }
@@ -68,7 +68,7 @@ public class LocationUtils {
         );
     }
 
-    public static String getStringFromLocation(Location location, int decimals) {
+    public static String serialize(Location location, int decimals) {
         if (location == null || location.getWorld() == null) {
             return null;
         }
@@ -88,61 +88,6 @@ public class LocationUtils {
                 location.getZ(),
                 location.getPitch(),
                 location.getYaw()
-        );
-    }
-
-    public static boolean isValidLocationString(String locationString) {
-        if (locationString == null || locationString.trim().isEmpty()) {
-            return false;
-        }
-
-        String[] parts = locationString.split("\\" + SEPARATOR);
-
-        if (parts.length != 6) {
-            return false;
-        }
-
-        try {
-            World world = Bukkit.getWorld(parts[0].trim());
-            if (world == null) {
-                return false;
-            }
-
-            Double.parseDouble(parts[1].trim()); // x
-            Double.parseDouble(parts[2].trim()); // y
-            Double.parseDouble(parts[3].trim()); // z
-            Float.parseFloat(parts[4].trim());   // pitch
-            Float.parseFloat(parts[5].trim());   // yaw
-
-            return true;
-
-        } catch (NumberFormatException e) {
-            return false;
-        }
-    }
-
-    public static Location getLocationWithoutRotation(String locationString) {
-        Location loc = getLocationFromString(locationString);
-        if (loc != null) {
-            loc.setPitch(0);
-            loc.setYaw(0);
-        }
-        return loc;
-    }
-
-    public static String getCoordinatesString(Location location) {
-        if (location == null || location.getWorld() == null) {
-            return null;
-        }
-
-        return String.format("%s%s%.1f%s%.1f%s%.1f",
-                location.getWorld().getName(),
-                SEPARATOR,
-                location.getX(),
-                SEPARATOR,
-                location.getY(),
-                SEPARATOR,
-                location.getZ()
         );
     }
 

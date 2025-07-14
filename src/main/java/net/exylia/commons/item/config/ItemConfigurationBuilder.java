@@ -1,5 +1,6 @@
 package net.exylia.commons.item.config;
 
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -255,7 +256,7 @@ public class ItemConfigurationBuilder {
                 this.regionList.add(entry.getRegionName());
             } catch (IllegalArgumentException e) {
                 // Log warning pero continuar con las demás entradas
-                System.err.println("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
+                DebugUtils.logInternalError("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
             }
         }
         return this;
@@ -276,7 +277,7 @@ public class ItemConfigurationBuilder {
             RegionEntry entry = RegionEntry.parse(entryString);
             return addRegionEntry(entry);
         } catch (IllegalArgumentException e) {
-            System.err.println("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
+            DebugUtils.logInternalError("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
             return this;
         }
     }

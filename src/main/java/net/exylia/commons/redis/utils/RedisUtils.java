@@ -2,6 +2,7 @@ package net.exylia.commons.redis.utils;
 
 import net.exylia.commons.redis.RedisManager;
 import net.exylia.commons.redis.cache.RedisCache;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -333,7 +334,7 @@ public class RedisUtils {
                 action.run();
             } catch (Exception e) {
                 // Log error but don't throw
-                System.err.println("Error ejecutando acción Redis: " + e.getMessage());
+                DebugUtils.logInternalError("Error ejecutando acción Redis: " + e.getMessage());
             }
         }
     }
@@ -346,7 +347,7 @@ public class RedisUtils {
             try {
                 return supplier.get();
             } catch (Exception e) {
-                System.err.println("Error ejecutando función Redis: " + e.getMessage());
+                DebugUtils.logInternalError("Error ejecutando función Redis: " + e.getMessage());
             }
         }
         return defaultValue;

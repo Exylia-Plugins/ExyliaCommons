@@ -2,6 +2,7 @@ package net.exylia.commons.license;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
@@ -21,10 +22,14 @@ public class LicenseManager {
     private static final String USER_AGENT = "MinecraftPlugin/1.0";
 
     private final ExyliaPlugin plugin;
+    @Getter
     private final boolean isRequired;
+    @Getter
     private LicenseConfig licenseConfig;
     private String licenseKey;
+    @Getter
     private boolean isVerified = false;
+    @Getter
     private boolean isValidating = false;
 
     public LicenseManager(ExyliaPlugin plugin, boolean isRequired) {
@@ -268,43 +273,7 @@ public class LicenseManager {
     }
 
     private String getHWID() {
-        try {
-            // Obtener MAC
-            StringBuilder macBuilder = new StringBuilder();
-            Enumeration<NetworkInterface> networks = NetworkInterface.getNetworkInterfaces();
-            while (networks.hasMoreElements()) {
-                NetworkInterface net = networks.nextElement();
-                byte[] mac = net.getHardwareAddress();
-                if (mac != null && mac.length > 0) {
-                    for (byte b : mac) {
-                        macBuilder.append(String.format("%02X", b));
-                    }
-                    break;
-                }
-            }
-
-            String hostname = InetAddress.getLocalHost().getHostName();
-            String os = System.getProperty("os.name");
-            String user = System.getProperty("user.name");
-
-            String rawHWID = macBuilder + "-" + hostname + "-" + os + "-" + user;
-
-            // Hasheamos para que no sea legible directamente
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(rawHWID.getBytes(StandardCharsets.UTF_8));
-
-            // Convertimos a hex
-            StringBuilder hex = new StringBuilder();
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-
-            return hex.toString();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "UNKNOWN";
-        }
+        return "TO DO";
     }
 
     private String getServerIP() {
@@ -313,21 +282,5 @@ public class LicenseManager {
         } catch (Exception e) {
             return "unknown";
         }
-    }
-
-    public boolean isVerified() {
-        return isVerified;
-    }
-
-    public boolean isRequired() {
-        return isRequired;
-    }
-
-    public boolean isValidating() {
-        return isValidating;
-    }
-
-    public LicenseConfig getLicenseConfig() {
-        return licenseConfig;
     }
 }

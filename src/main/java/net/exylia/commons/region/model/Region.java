@@ -206,32 +206,6 @@ public class Region {
         flagStates.putAll(flags);
     }
 
-    // ===== MÉTODOS DE COMPATIBILIDAD =====
-
-    /**
-     * @deprecated Usar getFlagValue(flag) en su lugar
-     */
-    @Deprecated
-    public boolean hasFlag(RegionFlag flag) {
-        return getFlagValue(flag);
-    }
-
-    /**
-     * @deprecated Usar setFlag(flag, ALLOW) en su lugar
-     */
-    @Deprecated
-    public void addFlag(RegionFlag flag) {
-        setFlag(flag, RegionFlagType.ALLOW);
-    }
-
-    /**
-     * @deprecated Usar getConfiguredFlags().keySet() en su lugar
-     */
-    @Deprecated
-    public Set<RegionFlag> getFlags() {
-        return flagStates.keySet();
-    }
-
     // ===== GESTIÓN DE MIEMBROS =====
 
     /**

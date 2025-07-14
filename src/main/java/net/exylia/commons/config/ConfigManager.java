@@ -1,5 +1,6 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -17,21 +18,6 @@ public class ConfigManager {
         internalSystem = existingSystem; // Usar el sistema existente en lugar de crear uno nuevo
 
         // Registrar configs para acceso estático usando el sistema existente
-        for (Class<? extends ConfigBase> configClass : configClasses) {
-            staticConfigs.put(configClass, internalSystem.getConfig(configClass));
-        }
-    }
-
-    @Deprecated
-    public static void init(JavaPlugin plugin, Class<? extends ConfigBase>... configClasses) {
-        System.err.println("WARNING: Using deprecated ConfigManager.init(JavaPlugin, ...). " +
-                "Please update to use ConfigManager.init(ConfigurationSystem, ...)");
-
-        ConfigManager.configClasses = configClasses;
-        internalSystem = new ConfigurationSystem(plugin);
-        internalSystem.initialize(configClasses);
-
-        // Registrar configs para acceso estático
         for (Class<? extends ConfigBase> configClass : configClasses) {
             staticConfigs.put(configClass, internalSystem.getConfig(configClass));
         }
@@ -62,7 +48,7 @@ public class ConfigManager {
                 // 1. Recargar el sistema interno
                 boolean systemReloadSuccess = internalSystem.reloadAllAsync().join();
                 if (!systemReloadSuccess) {
-                    System.err.println("ERROR: Fallo en reload del sistema interno");
+                    DebugUtils.logInternalError("ERROR: Fallo en reload del sistema interno");
                     return false;
                 }
 
@@ -77,11 +63,11 @@ public class ConfigManager {
                         if (reloadedInstance != null) {
                             staticConfigs.put(configClass, reloadedInstance);
                         } else {
-                            System.err.println("ERROR: No se pudo obtener instancia recargada para: " + configClass.getSimpleName());
+                            DebugUtils.logInternalError("ERROR: No se pudo obtener instancia recargada para: " + configClass.getSimpleName());
                             return false;
                         }
                     } catch (Exception e) {
-                        System.err.println("ERROR: Fallo recargando " + configClass.getSimpleName() + ": " + e.getMessage());
+                        DebugUtils.logInternalError("ERROR: Fallo recargando " + configClass.getSimpleName() + ": " + e.getMessage());
                         e.printStackTrace();
                         return false;
                     }
@@ -90,7 +76,7 @@ public class ConfigManager {
                 return true;
 
             } catch (Exception e) {
-                System.err.println("ERROR: Fallo crítico en reload de ConfigManager: " + e.getMessage());
+                DebugUtils.logInternalError("ERROR: Fallo crítico en reload de ConfigManager: " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }
