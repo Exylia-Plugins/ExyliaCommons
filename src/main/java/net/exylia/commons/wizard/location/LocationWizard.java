@@ -1,5 +1,8 @@
 package net.exylia.commons.wizard.location;
 
+import net.exylia.commons.config.components.ActionBarConfig;
+import net.exylia.commons.config.components.TitleConfig;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.ActionBarUtils;
 import net.exylia.commons.utils.MessageUtils;
 import net.exylia.commons.utils.TitleUtils;
@@ -193,8 +196,18 @@ public final class LocationWizard implements Listener {
         int current = total - remaining + 1;
 
         // Send title with progress
-        TitleUtils.create().permanent().id("location_wizard").title("{warning}⚡ Use SHIFT + LEFT CLICK").subtitle("{info}Position " + current + "/" + total).sendAsync(player);
-        ActionBarUtils.create().permanent().id("location_wizard").text("{warning}Remaining positions: {info}" + remaining).sendAsync(player);
+        TitleUtils.sendTitle(player,
+                "location_wizard",
+                new TitleConfig(
+                        "{warning}⚡ Use SHIFT + LEFT CLICK", "{info}Position " + current + "/" + total, 0, 40, 0, true, 20L),
+                ExyliaContext.create());
+
+        ActionBarUtils.sendActionBar(player,
+                "location_wizard",
+                new ActionBarConfig(
+                        "{warning}Remaining positions: {info}" + remaining,
+                        20L),
+                ExyliaContext.create());
     }
 
     /**

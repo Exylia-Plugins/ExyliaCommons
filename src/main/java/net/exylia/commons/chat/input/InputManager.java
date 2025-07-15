@@ -1,6 +1,8 @@
 package net.exylia.commons.chat.input;
 
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.config.components.TitleConfig;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.MessageUtils;
 import net.exylia.commons.utils.TitleUtils;
 import org.bukkit.entity.Player;
@@ -62,7 +64,7 @@ public final class InputManager implements Listener {
         // Start the input process
         handler.onStart(player);
 
-        TitleUtils.create().fadeIn(0).fadeOut(0).countdown(30).title("{primary}Enter your input in chat.").subtitle("{info}%time%s remaining.").id("input_timeout").sendAsync(player);
+        TitleUtils.sendTitle(player, "input_timeout", new TitleConfig("{primary}Enter your input in chat.", "{info}%time%s remaining", 0, 40, 0), ExyliaContext.create());
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             InputSession timeoutSession = instance.activeSessions.get(player.getUniqueId());
             if (timeoutSession == session) {

@@ -141,7 +141,8 @@ public class TimeFormatter {
         if (seconds > 0 || result.isEmpty() || showZeroValues) {
             if (hours == 0 && minutes == 0) {
                 double secondsWithDecimals = totalSeconds % 60;
-                result.append(String.format("%.1fs", secondsWithDecimals));
+                DecimalFormat df = new DecimalFormat("#.#");
+                result.append(df.format(secondsWithDecimals)).append("s");
             } else {
                 result.append(seconds).append("s");
             }

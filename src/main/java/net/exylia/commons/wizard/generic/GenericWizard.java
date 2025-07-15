@@ -1,7 +1,10 @@
+// GenericWizard.java
 package net.exylia.commons.wizard.generic;
 
+import net.exylia.commons.config.components.ActionBarConfig;
+import net.exylia.commons.config.components.TitleConfig;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.ActionBarUtils;
-import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.TitleUtils;
 import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.entity.Player;
@@ -71,12 +74,10 @@ public final class GenericWizard implements Listener {
      * Start wizard with initial display configuration
      */
     public static <T> CompletableFuture<T> startWizard(Player player, GenericWizardHandler<T> handler,
-                                                       WizardDisplayConfig displayConfig) {
+                                                       TitleConfig titleConfig, ActionBarConfig actionBarConfig) {
         CompletableFuture<T> future = startWizard(player, handler);
 
-        if (displayConfig != null) {
-            updateDisplay(player, displayConfig);
-        }
+        updateDisplay(player, titleConfig, actionBarConfig);
 
         return future;
     }
@@ -84,33 +85,36 @@ public final class GenericWizard implements Listener {
     /**
      * Update display (title/actionbar) for active wizard
      */
-    public static void updateDisplay(Player player, WizardDisplayConfig config) {
+    public static void updateDisplay(Player player, TitleConfig titleConfig, ActionBarConfig actionBarConfig) {
         if (!hasActiveWizard(player)) {
             return;
         }
 
-        if (config.getTitleConfig() != null) {
-            WizardDisplayConfig.TitleConfig titleConfig = config.getTitleConfig();
-            TitleUtils.TitleBuilder builder = TitleUtils.create()
-                    .id(titleConfig.getId())
-                    .title(titleConfig.getTitle());
+        ExyliaContext context = ExyliaContext.create()
+                .withPlayer(player)
+                .put("wizard_active", true);
 
-            if (titleConfig.getSubtitle() != null) {
-                builder.subtitle(titleConfig.getSubtitle());
-            }
-            builder.permanent();
-            builder.send(player);
+        if (titleConfig != null && titleConfig.isEnabled()) {
+            TitleUtils.sendTitle(player, "generic_wizard", titleConfig, context);
         }
 
-        if (config.getActionBarConfig() != null) {
-            WizardDisplayConfig.ActionBarConfig actionBarConfig = config.getActionBarConfig();
-            ActionBarUtils.ActionBarBuilder builder = ActionBarUtils.create()
-                    .id(actionBarConfig.getId())
-                    .text(actionBarConfig.getText());
-            builder.permanent(20);
-
-            builder.send(player);
+        if (actionBarConfig != null && actionBarConfig.isEnabled()) {
+            ActionBarUtils.sendActionBar(player, "generic_wizard", actionBarConfig, context);
         }
+    }
+
+    /**
+     * Update only title for active wizard
+     */
+    public static void updateTitle(Player player, TitleConfig titleConfig) {
+        updateDisplay(player, titleConfig, null);
+    }
+
+    /**
+     * Update only action bar for active wizard
+     */
+    public static void updateActionBar(Player player, ActionBarConfig actionBarConfig) {
+        updateDisplay(player, null, actionBarConfig);
     }
 
     /**
@@ -224,8 +228,8 @@ public final class GenericWizard implements Listener {
         switch (result.getType()) {
             case CONTINUE:
                 // Update display if provided
-                if (result.getDisplayConfig() != null) {
-                    updateDisplay(player, result.getDisplayConfig());
+                if (result.getTitleConfig() != null || result.getActionBarConfig() != null) {
+                    updateDisplay(player, result.getTitleConfig(), result.getActionBarConfig());
                 }
                 break;
 

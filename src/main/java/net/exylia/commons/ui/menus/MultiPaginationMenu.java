@@ -527,17 +527,34 @@ public class MultiPaginationMenu extends Menu {
             int filteredIndex = (currentPage - 1) * section.getItemsPerPage() + i;
 
             if (section.isItemSelected(filteredIndex) && section.getSelectedItemTemplate() != null) {
-                item = section.getSelectedItemTemplate().clone();
+                MenuItem selectedTemplate = section.getSelectedItemTemplate().clone();
+                if (item.getContext() != null && !item.getContext().isEmpty()) {
+                    selectedTemplate.mergeContext(item.getContext());
+                }
+                item = selectedTemplate;
             }
 
-            if (context != null) {
-                item.withContext(context);
-                item.process(player);
-            }
+            ExyliaContext combinedContext = prepareItemContext(item);
+
+            item.withContext(combinedContext);
+            item.process(player);
 
             setupItemClickHandler(item, section, filteredIndex);
             items.put(slot, item);
         }
+    }
+
+    @Override
+    protected ExyliaContext prepareItemContext(MenuItem item) {
+        // Crear contexto base desde el menú
+        ExyliaContext combinedContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+
+        // Fusionar con el contexto específico del item (tiene prioridad)
+        if (item.getContext() != null && !item.getContext().isEmpty()) {
+            combinedContext.merge(item.getContext());
+        }
+
+        return combinedContext;
     }
 
     private void placeSectionNavigation(Player player, PaginationSection section, int currentPage) {
@@ -548,10 +565,15 @@ public class MultiPaginationMenu extends Menu {
         if (currentPage > 1 && section.getPreviousButton() != null && section.getPreviousButtonSlot() != -1) {
             MenuItem prevButton = section.getPreviousButton().clone();
 
-            if (context != null) {
-                prevButton.withContext(context);
-                prevButton.process(player);
-            }
+            // ✅ USAR EL CONTEXTO DEL MENÚ PARA BOTONES DE NAVEGACIÓN
+            ExyliaContext buttonContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+            // Agregar información de paginación al contexto
+            buttonContext.put("current_page", currentPage);
+            buttonContext.put("total_pages", totalPages);
+            buttonContext.put("section_name", sectionName);
+
+            prevButton.withContext(buttonContext);
+            prevButton.process(player);
 
             prevButton.setClickHandler(event -> {
                 previousPage(event.getPlayer(), sectionName);
@@ -566,10 +588,9 @@ public class MultiPaginationMenu extends Menu {
                 MenuItem filler = getEffectiveFillerForSlot(section.getPreviousButtonSlot());
                 if (filler != null) {
                     MenuItem fillerClone = filler.clone();
-                    if (context != null) {
-                        fillerClone.withContext(context);
-                        fillerClone.process(player);
-                    }
+                    ExyliaContext fillerContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+                    fillerClone.withContext(fillerContext);
+                    fillerClone.process(player);
                     items.put(section.getPreviousButtonSlot(), fillerClone);
                 }
             }
@@ -579,10 +600,15 @@ public class MultiPaginationMenu extends Menu {
         if (currentPage < totalPages && section.getNextButton() != null && section.getNextButtonSlot() != -1) {
             MenuItem nextButton = section.getNextButton().clone();
 
-            if (context != null) {
-                nextButton.withContext(context);
-                nextButton.process(player);
-            }
+            // ✅ USAR EL CONTEXTO DEL MENÚ PARA BOTONES DE NAVEGACIÓN
+            ExyliaContext buttonContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+            // Agregar información de paginación al contexto
+            buttonContext.put("current_page", currentPage);
+            buttonContext.put("total_pages", totalPages);
+            buttonContext.put("section_name", sectionName);
+
+            nextButton.withContext(buttonContext);
+            nextButton.process(player);
 
             nextButton.setClickHandler(event -> {
                 nextPage(event.getPlayer(), sectionName);
@@ -597,10 +623,9 @@ public class MultiPaginationMenu extends Menu {
                 MenuItem filler = getEffectiveFillerForSlot(section.getNextButtonSlot());
                 if (filler != null) {
                     MenuItem fillerClone = filler.clone();
-                    if (context != null) {
-                        fillerClone.withContext(context);
-                        fillerClone.process(player);
-                    }
+                    ExyliaContext fillerContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+                    fillerClone.withContext(fillerContext);
+                    fillerClone.process(player);
                     items.put(section.getNextButtonSlot(), fillerClone);
                 }
             }
@@ -649,10 +674,9 @@ public class MultiPaginationMenu extends Menu {
 
         for (int slot : section.getSlots()) {
             MenuItem filler = section.getFillerItem().clone();
-            if (context != null) {
-                filler.withContext(context);
-                filler.process(player);
-            }
+            ExyliaContext fillerContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
+            filler.withContext(fillerContext);
+            filler.process(player);
             items.put(slot, filler);
         }
     }

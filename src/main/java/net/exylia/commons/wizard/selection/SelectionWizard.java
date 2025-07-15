@@ -1,5 +1,8 @@
 package net.exylia.commons.wizard.selection;
 
+import net.exylia.commons.config.components.ActionBarConfig;
+import net.exylia.commons.config.components.TitleConfig;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.selection.SelectionManager;
 import net.exylia.commons.selection.events.SelectionCompleteEvent;
 import net.exylia.commons.selection.model.Selection;
@@ -348,18 +351,24 @@ public final class SelectionWizard implements Listener {
         int current = total - remaining + 1;
 
         // Send title with progress
-        TitleUtils.create()
-                .permanent()
-                .id("selection_wizard")
-                .title("{warning}⚡ Select Area " + current + "/" + total)
-                .subtitle("{info}Use wand: Left click pos1, Right click pos2")
-                .send(player);
+        TitleUtils.sendTitle(player,
+                "selection_wizard",
+                new TitleConfig(
+                        "{warning}⚡ Select Area " + current + "/" + total,
+                        "{info}Use wand: Left click pos1, Right click pos2",
+                        0,
+                        40,
+                        0,
+                        true,
+                        20L),
+                ExyliaContext.create());
 
-        ActionBarUtils.create()
-                .permanent(20)
-                .id("selection_wizard")
-                .text("{warning}Selecting area " + current + "/" + total + " {secondary}| Use /sel wand for wand")
-                .send(player);
+        ActionBarUtils.sendActionBar(player,
+                "selection_wizard",
+                new ActionBarConfig(
+                        "{warning}Selecting area " + current + "/" + total + " {secondary}| Use /sel wand for wand",
+                        20L),
+                ExyliaContext.create());
     }
 
     private static void sendConfirmationInstructions(Player player, SelectionWizardSession session, Selection selection) {
@@ -370,18 +379,24 @@ public final class SelectionWizard implements Listener {
         int current = total - remaining + 1;
 
         // Send title with confirmation instructions
-        TitleUtils.create()
-                .permanent()
-                .id("confirm_selection_wizard")
-                .title("{success}✓ Area " + current + " Ready")
-                .subtitle("{warning}SHIFT + LEFT CLICK to confirm")
-                .send(player);
+        TitleUtils.sendTitle(player,
+                "confirm_selection_wizard",
+                new TitleConfig(
+                        "{success}✓ Area " + current + " Ready",
+                        "{warning}SHIFT + LEFT CLICK to confirm",
+                        0,
+                        40,
+                        0,
+                        true,
+                        20L),
+                ExyliaContext.create());
 
-        ActionBarUtils.create()
-                .permanent(20)
-                .id("confirm_selection_wizard")
-                .text("{success}Volume: " + selection.getVolume() + " blocks {warning}| SHIFT + LEFT CLICK to confirm")
-                .send(player);
+        ActionBarUtils.sendActionBar(player,
+                "confirm_selection_wizard",
+                new ActionBarConfig(
+                        "{success}Volume: " + selection.getVolume() + " blocks {warning}| SHIFT + LEFT CLICK to confirm",
+                        20L),
+                ExyliaContext.create());
 
         // Optional: Send chat message with selection info
         MessageUtils.sendMessageAsync(player, "{success}Selection completed! Volume: {info}" + selection.getVolume() + " blocks");

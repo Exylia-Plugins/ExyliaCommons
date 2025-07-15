@@ -1,255 +1,263 @@
-// ==================== SCOREBOARD SYSTEM MODERNIZADO ====================
-
 package net.exylia.commons.scoreboard;
 
+import lombok.Getter;
+import net.exylia.commons.config.components.ScoreboardConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
-import net.exylia.commons.placeholders.PlaceholderSystemManager;
-import net.exylia.commons.utils.ColorUtils;
-import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
+import net.exylia.commons.scoreboard.internal.PlayerScoreboardInstance;
+import net.exylia.commons.scoreboard.internal.ScoreboardRenderer;
+import net.exylia.commons.scoreboard.metrics.ScoreboardMetrics;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
-import org.bukkit.scoreboard.*;
 
-import java.util.*;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
-import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
-import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+import static net.exylia.commons.utils.DebugUtils.*;
 
 /**
- * Gestor de Scoreboard modernizado que usa el sistema unificado de placeholders
+ * Sistema de Scoreboard simplificado y optimizado
+ * - Configuración única a través de ScoreboardConfig
+ * - Soporte completo para ExyliaContext
+ * - Optimizado para rendimiento
+ * - Estructura limpia con subpackages
  */
 public class ExyliaScoreboardManager {
 
     private final Plugin plugin;
-    private final PlaceholderSystemManager placeholderManager;
-    private final Map<String, ScoreboardTemplate> templates;
-    private final Map<UUID, PlayerScoreboard> playerScoreboards;
+    private final ScoreboardRenderer renderer;
+    @Getter
+    private final ScoreboardMetrics metrics;
 
-    private BukkitTask globalUpdateTask;
+    // Almacenamiento de scoreboards activos
+    private final Map<UUID, PlayerScoreboardInstance> activeScoreboards = new ConcurrentHashMap<>();
+
+    // Configuración global
+    @Getter
+    private boolean enabled = true;
+    private long globalUpdateTicks = 20L;
+
+    // Task de actualización global
+    private BukkitTask updateTask;
 
     public ExyliaScoreboardManager(Plugin plugin) {
         this.plugin = plugin;
-        this.placeholderManager = PlaceholderSystemManager.getInstance();
-        this.templates = new HashMap<>();
-        this.playerScoreboards = new ConcurrentHashMap<>();
+        this.renderer = new ScoreboardRenderer();
+        this.metrics = new ScoreboardMetrics();
 
-        startGlobalUpdateTask();
+        startUpdateTask();
     }
 
-    // ==================== GESTIÓN DE TEMPLATES ====================
+    // ==================== API PRINCIPAL ====================
 
     /**
-     * Registra un template con contextos personalizados
+     * Muestra un scoreboard a un jugador usando configuración
      */
-    public void registerTemplate(String templateId, String title, Map<Integer, String> lines,
-                                 int updateTicks, Function<Player, ExyliaContext> contextProvider) {
-        ScoreboardTemplate template = new ScoreboardTemplate(templateId, title, lines, updateTicks, contextProvider);
-        templates.put(templateId, template);
-        logInternalInfo("Template de scoreboard '" + templateId + "' registrado");
+    public PlayerScoreboard showScoreboard(Player player, ScoreboardConfig config) {
+        return showScoreboard(player, config, ExyliaContext.create());
     }
 
     /**
-     * Registra un template simple sin contextos dinámicos
+     * Muestra un scoreboard con contexto específico
      */
-    public void registerTemplate(String templateId, String title, Map<Integer, String> lines, int updateTicks) {
-        registerTemplate(templateId, title, lines, updateTicks, null);
-    }
-
-    /**
-     * Establece un proveedor de contexto para un template existente
-     */
-    public void setTemplateContextProvider(String templateId, Function<Player, ExyliaContext> contextProvider) {
-        ScoreboardTemplate template = templates.get(templateId);
-        if (template != null) {
-            template.setContextProvider(contextProvider);
-            logInternalInfo("Contexto establecido para template '" + templateId + "'");
-        } else {
-            logInternalWarn("Template '" + templateId + "' no encontrado");
-        }
-    }
-
-    // ==================== MOSTRAR SCOREBOARDS ====================
-
-    /**
-     * Muestra un scoreboard a un jugador con contextos específicos
-     */
-    public PlayerScoreboard showScoreboard(Player player, String templateId, ExyliaContext context) {
-        if (!player.isOnline()) {
-            throw new IllegalStateException("El jugador no está conectado");
-        }
-
-        ScoreboardTemplate template = templates.get(templateId);
-        if (template == null) {
-            throw new IllegalArgumentException("Template no encontrado: " + templateId);
+    public PlayerScoreboard showScoreboard(Player player, ScoreboardConfig config, ExyliaContext context) {
+        if (!enabled || !player.isOnline() || !config.isEnabled()) {
+            return null;
         }
 
         // Ocultar scoreboard existente
         hideScoreboard(player);
 
-        // Crear y mostrar nuevo scoreboard
-        PlayerScoreboard playerScoreboard = new PlayerScoreboard(plugin, player, template, context);
-        playerScoreboards.put(player.getUniqueId(), playerScoreboard);
-        playerScoreboard.show();
+        // Crear nueva instancia
+        PlayerScoreboardInstance instance = new PlayerScoreboardInstance(
+                plugin, player, config, context, renderer
+        );
 
-        return playerScoreboard;
-    }
+        // Almacenar y mostrar
+        activeScoreboards.put(player.getUniqueId(), instance);
+        instance.show();
 
-    /**
-     * Muestra un scoreboard con objetos como contexto
-     */
-    public PlayerScoreboard showScoreboard(Player player, String templateId, Object... contexts) {
-        ExyliaContext context = ExyliaContext.of(contexts);
-        return showScoreboard(player, templateId, context);
-    }
-
-    /**
-     * Muestra un scoreboard usando solo el contexto del template
-     */
-    public PlayerScoreboard showScoreboard(Player player, String templateId) {
-        return showScoreboard(player, templateId, Collections.emptyList());
-    }
-
-    // ==================== GESTIÓN DE JUGADORES ====================
-
-    /**
-     * Obtiene el scoreboard de un jugador
-     */
-    public PlayerScoreboard getPlayerScoreboard(Player player) {
-        return playerScoreboards.get(player.getUniqueId());
+        metrics.incrementScoreboardsShown();
+        return new PlayerScoreboard(instance);
     }
 
     /**
      * Oculta el scoreboard de un jugador
      */
     public void hideScoreboard(Player player) {
-        PlayerScoreboard scoreboard = playerScoreboards.remove(player.getUniqueId());
-        if (scoreboard != null) {
-            scoreboard.destroy();
+        PlayerScoreboardInstance instance = activeScoreboards.remove(player.getUniqueId());
+        if (instance != null) {
+            instance.hide();
+            metrics.incrementScoreboardsHidden();
         }
     }
 
     /**
-     * Verifica si un jugador tiene scoreboard
+     * Obtiene el scoreboard de un jugador
      */
-    public boolean hasScoreboard(Player player) {
-        return playerScoreboards.containsKey(player.getUniqueId());
+    public PlayerScoreboard getScoreboard(Player player) {
+        PlayerScoreboardInstance instance = activeScoreboards.get(player.getUniqueId());
+        return instance != null ? new PlayerScoreboard(instance) : null;
     }
 
-    // ==================== ACTUALIZACIÓN GLOBAL ====================
+    /**
+     * Verifica si un jugador tiene scoreboard activo
+     */
+    public boolean hasScoreboard(Player player) {
+        return activeScoreboards.containsKey(player.getUniqueId());
+    }
+
+    // ==================== ACTUALIZACIÓN ====================
 
     /**
      * Actualiza todos los scoreboards activos
      */
-    public void updateAllScoreboards() {
-        if (playerScoreboards.isEmpty()) return;
+    public void updateAll() {
+        if (activeScoreboards.isEmpty()) return;
 
-        Map<UUID, PlayerScoreboard> snapshot = new HashMap<>(playerScoreboards);
+        long startTime = System.nanoTime();
+        int updated = 0;
+        int errors = 0;
 
-        for (PlayerScoreboard scoreboard : snapshot.values()) {
+        // Crear snapshot para evitar modificaciones concurrentes
+        for (PlayerScoreboardInstance instance : activeScoreboards.values()) {
             try {
-                if (scoreboard.getPlayer().isOnline()) {
-                    scoreboard.update();
+                if (instance.getPlayer().isOnline()) {
+                    if (instance.shouldUpdate()) {
+                        instance.update();
+                        updated++;
+                    }
                 } else {
-                    hideScoreboard(scoreboard.getPlayer());
+                    // Jugador desconectado, limpiar
+                    activeScoreboards.remove(instance.getPlayer().getUniqueId());
                 }
             } catch (Exception e) {
-                logInternalWarn("Error actualizando scoreboard: " + e.getMessage());
+                errors++;
+                logInternalWarn("Error actualizando scoreboard de " + instance.getPlayer().getName() + ": " + e.getMessage());
             }
         }
+
+        long duration = System.nanoTime() - startTime;
+        metrics.recordUpdateCycle(updated, errors, duration);
     }
 
     /**
-     * Inicia la tarea global de actualización
+     * Inicia el task de actualización global
      */
-    private void startGlobalUpdateTask() {
-        if (globalUpdateTask != null) {
-            globalUpdateTask.cancel();
+    private void startUpdateTask() {
+        if (updateTask != null) {
+            updateTask.cancel();
         }
 
-        globalUpdateTask = plugin.getServer().getScheduler().runTaskTimer(
+        updateTask = plugin.getServer().getScheduler().runTaskTimer(
                 plugin,
-                this::updateAllScoreboards,
-                20L,
-                5L
+                this::updateAll,
+                globalUpdateTicks,
+                globalUpdateTicks
         );
     }
 
-    // ==================== CONFIGURACIÓN DESDE ARCHIVO ====================
+    // ==================== CONFIGURACIÓN ====================
 
     /**
-     * Carga templates desde configuración
+     * Configura el intervalo de actualización global
      */
-    public void loadTemplatesFromConfig(org.bukkit.configuration.ConfigurationSection config) {
-        if (config == null) return;
-
-        templates.clear();
-
-        for (String templateId : config.getKeys(false)) {
-            var templateConfig = config.getConfigurationSection(templateId);
-            if (templateConfig != null) {
-                try {
-                    ScoreboardTemplate template = createTemplateFromConfig(templateId, templateConfig);
-                    templates.put(templateId, template);
-                    logInternalInfo("Template '" + templateId + "' cargado correctamente");
-                } catch (Exception e) {
-                    logInternalWarn("Error cargando template '" + templateId + "': " + e.getMessage());
-                }
-            }
-        }
-
-        logInternalInfo("Cargados " + templates.size() + " templates de scoreboard");
+    public void setGlobalUpdateTicks(long ticks) {
+        this.globalUpdateTicks = Math.max(1L, ticks);
+        startUpdateTask();
     }
 
     /**
-     * Crea un template desde configuración
+     * Habilita o deshabilita el sistema
      */
-    private ScoreboardTemplate createTemplateFromConfig(String templateId, org.bukkit.configuration.ConfigurationSection config) {
-        String title = config.getString("title", "Scoreboard");
-        int updateTicks = config.getInt("update-ticks", 20);
-        List<String> linesList = config.getStringList("lines");
-        Map<Integer, String> lines = new HashMap<>();
-
-        for (int i = 0; i < linesList.size(); i++) {
-            lines.put(i, linesList.get(i));
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (!enabled) {
+            hideAllScoreboards();
         }
-
-        return new ScoreboardTemplate(templateId, title, lines, updateTicks);
     }
 
-    // ==================== ESTADÍSTICAS Y UTILIDADES ====================
+    /**
+     * Oculta todos los scoreboards activos
+     */
+    public void hideAllScoreboards() {
+        activeScoreboards.values().forEach(PlayerScoreboardInstance::hide);
+        activeScoreboards.clear();
+    }
+
+    // ==================== INFORMACIÓN Y MÉTRICAS ====================
 
     public int getActiveScoreboardCount() {
-        return playerScoreboards.size();
+        return activeScoreboards.size();
     }
 
-    public int getTemplateCount() {
-        return templates.size();
-    }
+    // ==================== SHUTDOWN ====================
 
     public void shutdown() {
-        if (globalUpdateTask != null) {
-            globalUpdateTask.cancel();
+        if (updateTask != null) {
+            updateTask.cancel();
         }
 
-        playerScoreboards.values().forEach(PlayerScoreboard::destroy);
-        playerScoreboards.clear();
-        templates.clear();
+        hideAllScoreboards();
     }
 }
 
-// ==================== TEMPLATE MODERNIZADO ====================
+// ==================== WRAPPER PÚBLICO ====================
 
 /**
- * Template de scoreboard modernizado
+ * Wrapper público para acceso controlado a scoreboard de jugador
  */
+class PlayerScoreboard {
 
+    private final PlayerScoreboardInstance instance;
 
-// ==================== PLAYER SCOREBOARD MODERNIZADO ====================
+    PlayerScoreboard(PlayerScoreboardInstance instance) {
+        this.instance = instance;
+    }
 
-/**
- * Scoreboard individual modernizado con sistema unificado de placeholders
- */
+    /**
+     * Actualiza el contexto del scoreboard
+     */
+    public PlayerScoreboard updateContext(ExyliaContext newContext) {
+        instance.updateContext(newContext);
+        return this;
+    }
+
+    /**
+     * Añade objetos al contexto
+     */
+    public PlayerScoreboard addToContext(Object... objects) {
+        instance.addToContext(objects);
+        return this;
+    }
+
+    /**
+     * Fuerza una actualización inmediata
+     */
+    public PlayerScoreboard forceUpdate() {
+        instance.update();
+        return this;
+    }
+
+    /**
+     * Obtiene el jugador propietario
+     */
+    public Player getPlayer() {
+        return instance.getPlayer();
+    }
+
+    /**
+     * Verifica si está visible
+     */
+    public boolean isVisible() {
+        return instance.isVisible();
+    }
+
+    /**
+     * Obtiene la configuración utilizada
+     */
+    public ScoreboardConfig getConfig() {
+        return instance.getConfig();
+    }
+}

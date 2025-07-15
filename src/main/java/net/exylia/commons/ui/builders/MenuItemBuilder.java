@@ -57,9 +57,14 @@ public class MenuItemBuilder {
         configureActions(item, config);
         configureCommands(item, config, player, context);
 
-        boolean usePlaceholders = config.getBoolean("use_placeholders", false);
-        if (context != null && usePlaceholders) {
+        if (context != null) {
             item.withContext(context);
+        }
+
+        boolean usePlaceholders = config.getBoolean("use_placeholders", false);
+        boolean hasContext = context != null && !context.isEmpty();
+
+        if ((usePlaceholders || hasContext) && player != null) {
             item.process(player);
         }
 

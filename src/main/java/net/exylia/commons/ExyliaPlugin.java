@@ -10,6 +10,7 @@ import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
+import net.exylia.commons.scoreboard.ExyliaScoreboardManager;
 import net.exylia.commons.utils.*;
 import net.exylia.commons.utils.skull.SkullManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
