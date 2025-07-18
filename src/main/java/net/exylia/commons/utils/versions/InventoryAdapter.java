@@ -1,7 +1,6 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.versions;
 
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.inventory.Inventory;
 
 /**

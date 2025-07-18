@@ -3,9 +3,9 @@ package net.exylia.commons.wizard.location;
 import net.exylia.commons.config.components.ActionBarConfig;
 import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
-import net.exylia.commons.utils.ActionBarUtils;
-import net.exylia.commons.utils.MessageUtils;
-import net.exylia.commons.utils.TitleUtils;
+import net.exylia.commons.utils.visuals.ActionBarUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
+import net.exylia.commons.utils.visuals.TitleUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -87,6 +87,8 @@ public final class LocationWizard implements Listener {
 
         WizardSession session = instance.activeSessions.remove(player.getUniqueId());
         if (session != null) {
+            TitleUtils.cancelTitle(player, "location_wizard");
+            ActionBarUtils.cancelActionBar(player, "location_wizard");
             session.cancel();
             player.resetTitle();
             return true;
@@ -152,10 +154,11 @@ public final class LocationWizard implements Listener {
         try {
             session.addLocation(location);
 
-            WizardHandler<Object> handler = (WizardHandler<Object>) session.getHandler();
-            WizardResult result = handler.onLocationSelected(player, location, session.getSelectedLocations(), session.getRemainingPositions());
             TitleUtils.cancelTitle(player, "location_wizard");
             ActionBarUtils.cancelActionBar(player, "location_wizard");
+
+            WizardHandler<Object> handler = (WizardHandler<Object>) session.getHandler();
+            WizardResult result = handler.onLocationSelected(player, location, session.getSelectedLocations(), session.getRemainingPositions());
 
             switch (result.getType()) {
                 case CONTINUE:
@@ -199,7 +202,7 @@ public final class LocationWizard implements Listener {
         TitleUtils.sendTitle(player,
                 "location_wizard",
                 new TitleConfig(
-                        "{warning}⚡ Use SHIFT + LEFT CLICK", "{info}Position " + current + "/" + total, 0, 40, 0, true, 20L),
+                        "{warning}⚡ Use SHIFT + LEFT CLICK", "{info}Position " + current + "/" + total, true, 20L),
                 ExyliaContext.create());
 
         ActionBarUtils.sendActionBar(player,

@@ -1,6 +1,6 @@
 package net.exylia.commons.chat.input;
 
-import net.exylia.commons.utils.MessageUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.entity.Player;
 
 public class InputHandlers {

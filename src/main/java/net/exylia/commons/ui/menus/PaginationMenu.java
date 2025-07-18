@@ -12,7 +12,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.exylia.commons.utils.MenuUtils.parseSlots;
+import static net.exylia.commons.ui.commons.SlotUtils.parseSlots;
 
 /**
  * Pagination menu implementation

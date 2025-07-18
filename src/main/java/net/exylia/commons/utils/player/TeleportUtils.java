@@ -1,4 +1,4 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.player;
 
 import org.bukkit.Location;
 import org.bukkit.Material;

@@ -26,6 +26,48 @@ public class ConfirmationMenu extends Menu {
         setupItems();
     }
 
+    /**
+     * Creates a builder for confirmation menus
+     * @return A new confirmation menu builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder class for ConfirmationMenu
+     */
+    public static class Builder {
+        private String title = "Confirm Action";
+        private String message = "";
+        private Consumer<Player> onConfirm;
+        private Consumer<Player> onCancel;
+
+        public Builder title(String title) {
+            this.title = title;
+            return this;
+        }
+
+        public Builder message(String message) {
+            this.message = message;
+            return this;
+        }
+
+        public Builder onConfirm(Consumer<Player> callback) {
+            this.onConfirm = callback;
+            return this;
+        }
+
+        public Builder onCancel(Consumer<Player> callback) {
+            this.onCancel = callback;
+            return this;
+        }
+
+        public ConfirmationMenu build() {
+            return new ConfirmationMenu(title, message, onConfirm, onCancel);
+        }
+    }
+
     private void setupItems() {
         // Confirm button (green)
         MenuItem confirmButton = new SimpleItemBuilder(Material.GREEN_WOOL)

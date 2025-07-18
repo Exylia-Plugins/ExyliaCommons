@@ -14,107 +14,247 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static net.exylia.commons.utils.DebugUtils.*;
 
 /**
- * Gestor de comandos para plugins
- * Permite registrar y gestionar comandos fácilmente con manejo de errores mejorado
+ * Gestor de comandos mejorado con mejor manejo de errores y verificaciones
  */
 public class CommandManager {
 
     private final JavaPlugin plugin;
     private final Map<String, ExyliaCommand> commands;
     private final Map<String, String> aliasMap;
+    private final Map<String, Integer> retryCount;
+    private final int maxRetries = 3;
 
-    /**
-     * Constructor
-     *
-     * @param plugin Plugin al que pertenece este gestor
-     */
     public CommandManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.commands = new HashMap<>();
         this.aliasMap = new HashMap<>();
+        this.retryCount = new HashMap<>();
     }
 
     /**
      * Registra un comando con reintentos automáticos
-     *
-     * @param command Comando a registrar
-     * @return true si se registró correctamente
      */
     public boolean registerCommand(ExyliaCommand command) {
-        return registerCommand(command, true);
-    }
-
-    /**
-     * Registra un comando
-     *
-     * @param command Comando a registrar
-     * @param useRetries Si usar reintentos automáticos
-     * @return true si se registró correctamente
-     */
-    public boolean registerCommand(ExyliaCommand command, boolean useRetries) {
         String cmdName = command.getName().toLowerCase();
 
-        // Guardar comando en el mapa
-        commands.put(cmdName, command);
-
-        // Registrar aliases
-        for (String alias : command.getAliases()) {
-            aliasMap.put(alias.toLowerCase(), cmdName);
+        // Evitar registros duplicados
+        if (commands.containsKey(cmdName)) {
+            logInternalWarn("Comando " + cmdName + " ya está registrado");
+            return true;
         }
 
-        boolean success;
-        if (useRetries) {
-            success = command.register(3, 100L); // 3 intentos con 100ms de delay
-        } else {
-            success = command.register();
-        }
+        // Intentar registro
+        boolean success = attemptRegistration(command);
 
         if (success) {
-            logInternalInfo("Command /" + command.getName() + " registered successfully");
+            // Guardar en mapas locales
+            commands.put(cmdName, command);
+            for (String alias : command.getAliases()) {
+                aliasMap.put(alias.toLowerCase(), cmdName);
+            }
+
+            logInternalInfo("Comando /" + command.getName() + " registrado exitosamente");
+
+            // Verificar registro después de algunos ticks
+            scheduleVerification(command);
+
         } else {
-            logInternalError("Falló el registro del comando /" + command.getName());
+            // Intentar reintentos si no ha superado el máximo
+            int currentRetries = retryCount.getOrDefault(cmdName, 0);
+            if (currentRetries < maxRetries) {
+                retryCount.put(cmdName, currentRetries + 1);
+                logInternalWarn("Reintentando registro de " + cmdName + " (intento " + (currentRetries + 1) + "/" + maxRetries + ")");
+
+                // Programar reintento
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    registerCommand(command);
+                }, 20L * (currentRetries + 1)); // Delay progresivo
+
+                return false;
+            } else {
+                logInternalError("Falló el registro del comando /" + command.getName() + " después de " + maxRetries + " intentos");
+                retryCount.remove(cmdName);
+            }
         }
 
         return success;
     }
 
     /**
-     * Registra múltiples comandos a la vez con manejo de errores
-     *
-     * @param commands Comandos a registrar
-     * @return Número de comandos registrados exitosamente
+     * Intenta el registro del comando con verificaciones
      */
-    public int registerCommands(ExyliaCommand... commands) {
-        int successCount = 0;
-        for (ExyliaCommand command : commands) {
-            if (registerCommand(command)) {
-                successCount++;
+    private boolean attemptRegistration(ExyliaCommand command) {
+        try {
+            boolean registered = command.register();
+
+            if (registered) {
+                // Verificación inmediata
+                if (command.isRegistered()) {
+                    retryCount.remove(command.getName().toLowerCase());
+                    return true;
+                } else {
+                    logInternalWarn("Registro reportado como exitoso pero verificación falló para " + command.getName());
+                    return false;
+                }
             }
+
+            return false;
+        } catch (Exception e) {
+            logInternalError("Error durante registro de " + command.getName() + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
         }
-        return successCount;
     }
 
     /**
-     * Registra todos los comandos de una lista
-     *
-     * @param commands Lista de comandos
-     * @return Número de comandos registrados exitosamente
+     * Programa una verificación del registro después de un delay
      */
-    public int registerCommands(List<ExyliaCommand> commands) {
-        int successCount = 0;
-        for (ExyliaCommand command : commands) {
-            if (registerCommand(command)) {
-                successCount++;
+    private void scheduleVerification(ExyliaCommand command) {
+        // Verificación inmediata
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (!command.isRegistered()) {
+                logInternalError("Verificación post-registro falló para " + command.getName());
+                // Intentar re-registro
+                if (retryCount.getOrDefault(command.getName().toLowerCase(), 0) < maxRetries) {
+                    logInternalInfo("Iniciando re-registro automático para " + command.getName());
+                    registerCommand(command);
+                }
             }
-        }
-        return successCount;
+        }, 40L); // 2 segundos después
+
+        // Verificación adicional para problemas de sincronización con jugadores
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            verifyPlayerAccess(command);
+        }, 100L); // 5 segundos después
     }
 
     /**
-     * Registra comandos de forma asíncrona con callback
-     *
-     * @param commands Lista de comandos a registrar
-     * @return CompletableFuture con el resultado del registro
+     * Verifica que los jugadores puedan acceder al comando
+     */
+    private void verifyPlayerAccess(ExyliaCommand command) {
+        if (Bukkit.getOnlinePlayers().isEmpty()) {
+            return; // No hay jugadores para verificar
+        }
+
+        try {
+            // Forzar actualización de comandos para todos los jugadores
+            for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                try {
+                    player.updateCommands();
+                } catch (Exception e) {
+                    player.sendMessage(""); // Mensaje vacío para forzar actualización
+                }
+            }
+
+            // Verificar nuevamente después de la actualización
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                boolean accessible = testCommandAccessibility(command);
+                if (!accessible) {
+                    logInternalWarn("Comando " + command.getName() + " no accesible para jugadores, forzando sincronización completa...");
+                    forceGlobalCommandSync();
+                }
+            }, 20L);
+
+        } catch (Exception e) {
+            logInternalWarn("Error verificando acceso de jugadores: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Prueba la accesibilidad del comando
+     */
+    private boolean testCommandAccessibility(ExyliaCommand command) {
+        try {
+            // Verificar que el comando existe en el CommandMap principal
+            org.bukkit.command.CommandMap commandMap = Bukkit.getServer().getCommandMap();
+            org.bukkit.command.Command cmd = commandMap.getCommand(command.getName());
+
+            if (cmd == null) {
+                cmd = commandMap.getCommand(plugin.getName() + ":" + command.getName());
+            }
+
+            return cmd != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Fuerza una sincronización global de comandos
+     */
+    private void forceGlobalCommandSync() {
+        try {
+            logInternalInfo("Forzando sincronización global de comandos...");
+
+            // Re-registrar todos los comandos con un delay escalonado
+            int delay = 0;
+            for (ExyliaCommand command : commands.values()) {
+                final int currentDelay = delay;
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    try {
+                        command.unregister();
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            attemptRegistration(command);
+                        }, 2L);
+                    } catch (Exception e) {
+                        logInternalError("Error en sincronización global para " + command.getName());
+                    }
+                }, currentDelay);
+                delay += 3; // 3 ticks entre cada comando
+            }
+
+            // Actualizar comandos de todos los jugadores después de completar el re-registro
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                    try {
+                        player.updateCommands();
+                    } catch (Exception e) {
+                        // Ignorar errores individuales
+                    }
+                }
+                logInternalInfo("Sincronización global completada");
+            }, delay + 20L);
+
+        } catch (Exception e) {
+            logInternalError("Error en sincronización global: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Registra múltiples comandos con mejor manejo de errores
+     */
+    public CommandRegistrationSummary registerCommands(ExyliaCommand... commands) {
+        List<String> successful = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+        long startTime = System.currentTimeMillis();
+
+        for (ExyliaCommand command : commands) {
+            if (registerCommand(command)) {
+                successful.add(command.getName());
+            } else {
+                failed.add(command.getName());
+            }
+        }
+
+        long duration = System.currentTimeMillis() - startTime;
+
+        CommandRegistrationSummary summary = new CommandRegistrationSummary(
+                successful, failed, duration
+        );
+
+        logInternalInfo("Registro de comandos completado: " + summary);
+        return summary;
+    }
+
+    /**
+     * Registra comandos de una lista
+     */
+    public CommandRegistrationSummary registerCommands(List<ExyliaCommand> commands) {
+        return registerCommands(commands.toArray(new ExyliaCommand[0]));
+    }
+
+    /**
+     * Registra comandos de forma asíncrona con mejor reporte
      */
     public CompletableFuture<CommandRegistrationResult> registerCommandsAsync(List<ExyliaCommand> commands) {
         return CompletableFuture.supplyAsync(() -> {
@@ -122,13 +262,20 @@ public class CommandManager {
             int successCount = 0;
             int totalCommands = commands.size();
             List<String> failedCommands = new ArrayList<>();
+            List<String> retriedCommands = new ArrayList<>();
 
             for (ExyliaCommand command : commands) {
                 try {
+                    String cmdName = command.getName();
+                    boolean hadRetries = retryCount.containsKey(cmdName.toLowerCase());
+
                     if (registerCommand(command)) {
                         successCount++;
+                        if (hadRetries) {
+                            retriedCommands.add(cmdName);
+                        }
                     } else {
-                        failedCommands.add(command.getName());
+                        failedCommands.add(cmdName);
                     }
                 } catch (Exception e) {
                     logInternalError("Error registrando comando " + command.getName() + ": " + e.getMessage());
@@ -137,94 +284,98 @@ public class CommandManager {
             }
 
             long duration = System.currentTimeMillis() - startTime;
-            return new CommandRegistrationResult(successCount, totalCommands, failedCommands, duration);
+            return new CommandRegistrationResult(successCount, totalCommands, failedCommands, retriedCommands, duration);
         });
     }
 
     /**
-     * Registra comandos con delay entre cada uno (útil para versiones problemáticas)
-     *
-     * @param commands Lista de comandos
-     * @param delayTicks Delay en ticks entre cada registro
+     * Verifica todos los comandos con reporte detallado
      */
-    public void registerCommandsWithDelay(List<ExyliaCommand> commands, long delayTicks) {
-        if (commands.isEmpty()) return;
+    public CommandVerificationResult verifyAllCommands() {
+        List<String> verified = new ArrayList<>();
+        List<String> unverified = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
 
-        AtomicInteger index = new AtomicInteger(0);
-        AtomicInteger successCount = new AtomicInteger(0);
-
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                int currentIndex = index.getAndIncrement();
-
-                if (currentIndex >= commands.size()) {
-                    cancel();
-                    logInternalInfo("Registro de comandos completado: " +
-                            successCount.get() + "/" + commands.size() + " exitosos");
-                    return;
-                }
-
-                ExyliaCommand command = commands.get(currentIndex);
-                try {
-                    if (registerCommand(command, false)) { // Sin reintentos automáticos
-                        successCount.incrementAndGet();
-                    }
-                } catch (Exception e) {
-                    logInternalError("Error registrando comando " + command.getName() + ": " + e.getMessage());
-                }
-            }
-        }.runTaskTimer(plugin, 0L, delayTicks);
-    }
-
-    /**
-     * Verifica si todos los comandos están registrados correctamente
-     *
-     * @return true si todos están registrados
-     */
-    public boolean verifyAllCommands() {
         for (ExyliaCommand command : commands.values()) {
-            if (Bukkit.getPluginCommand(command.getName()) == null) {
-                logInternalWarn("Comando " + command.getName() + " no está registrado correctamente");
-                return false;
+            String cmdName = command.getName();
+
+            if (command.isRegistered()) {
+                verified.add(cmdName);
+            } else {
+                unverified.add(cmdName);
+
+                // Verificar si existe en Bukkit
+                if (Bukkit.getPluginCommand(cmdName) == null) {
+                    missing.add(cmdName);
+                }
             }
         }
-        return true;
+
+        CommandVerificationResult result = new CommandVerificationResult(verified, unverified, missing);
+
+        if (!unverified.isEmpty()) {
+            logInternalWarn("Comandos no verificados: " + unverified);
+        }
+
+        if (!missing.isEmpty()) {
+            logInternalError("Comandos faltantes en Bukkit: " + missing);
+        }
+
+        return result;
     }
 
     /**
-     * Re-registra todos los comandos (útil para reloads)
-     *
-     * @return Número de comandos re-registrados exitosamente
+     * Re-registra todos los comandos con mejor lógica
      */
-    public int reregisterAllCommands() {
+    public CommandRegistrationSummary reregisterAllCommands() {
         logInternalInfo("Re-registrando todos los comandos...");
-        int successCount = 0;
 
+        // Limpiar contadores de reintentos
+        retryCount.clear();
+
+        List<String> successful = new ArrayList<>();
+        List<String> failed = new ArrayList<>();
+        long startTime = System.currentTimeMillis();
+
+        // Primero desregistrar todos
         for (ExyliaCommand command : new ArrayList<>(commands.values())) {
             try {
-                if (command.register(3, 150L)) {
-                    successCount++;
-                }
+                command.unregister();
             } catch (Exception e) {
-                logInternalError("Error re-registrando comando " + command.getName() + ": " + e.getMessage());
+                logInternalWarn("Error desregistrando " + command.getName() + ": " + e.getMessage());
             }
         }
 
-        logInternalInfo("Re-registro completado: " + successCount + "/" + commands.size() + " comandos");
-        return successCount;
+        // Esperar un tick para que se complete el desregistro
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // Luego re-registrar
+            for (ExyliaCommand command : new ArrayList<>(commands.values())) {
+                try {
+                    if (attemptRegistration(command)) {
+                        successful.add(command.getName());
+                    } else {
+                        failed.add(command.getName());
+                    }
+                } catch (Exception e) {
+                    logInternalError("Error re-registrando comando " + command.getName() + ": " + e.getMessage());
+                    failed.add(command.getName());
+                }
+            }
+
+            long duration = System.currentTimeMillis() - startTime;
+            CommandRegistrationSummary summary = new CommandRegistrationSummary(successful, failed, duration);
+            logInternalInfo("Re-registro completado: " + summary);
+        }, 1L);
+
+        return new CommandRegistrationSummary(successful, failed, System.currentTimeMillis() - startTime);
     }
 
     /**
      * Obtiene un comando por su nombre o alias
-     *
-     * @param name Nombre o alias del comando
-     * @return Comando o null si no existe
      */
     public ExyliaCommand getCommand(String name) {
         String lowercaseName = name.toLowerCase();
 
-        // Verificar si es un alias
         if (aliasMap.containsKey(lowercaseName)) {
             return commands.get(aliasMap.get(lowercaseName));
         }
@@ -234,86 +385,212 @@ public class CommandManager {
 
     /**
      * Obtiene todos los comandos registrados
-     *
-     * @return Lista con todos los comandos
      */
     public List<ExyliaCommand> getCommands() {
         return new ArrayList<>(commands.values());
     }
 
     /**
-     * Obtiene estadísticas de los comandos registrados
-     *
-     * @return Información sobre el estado de los comandos
+     * Obtiene estadísticas detalladas
      */
     public CommandStats getStats() {
         int totalCommands = commands.size();
         int totalAliases = aliasMap.size();
         int registeredCommands = 0;
+        int verifiedCommands = 0;
+        int failedCommands = 0;
 
         for (ExyliaCommand command : commands.values()) {
             if (Bukkit.getPluginCommand(command.getName()) != null) {
                 registeredCommands++;
             }
+
+            if (command.isRegistered()) {
+                verifiedCommands++;
+            } else {
+                failedCommands++;
+            }
         }
 
-        return new CommandStats(totalCommands, totalAliases, registeredCommands);
+        return new CommandStats(totalCommands, totalAliases, registeredCommands, verifiedCommands, failedCommands);
+    }
+
+    public void emergencyCommandSync() {
+        logInternalInfo("Iniciando sincronización de emergencia de comandos...");
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            try {
+                // Paso 1: Desregistrar
+                for (ExyliaCommand command : commands.values()) {
+                    command.unregister();
+                }
+
+                // Paso 2: Limpiar cache del servidor
+                System.gc(); // Sugerir garbage collection
+
+                // Paso 3: Re-registrar con delays
+                AtomicInteger delay = new AtomicInteger(5);
+                for (ExyliaCommand command : commands.values()) {
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        attemptRegistration(command);
+
+                        // Forzar actualización inmediata
+                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                            for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                                try {
+                                    player.updateCommands();
+                                } catch (Exception e) {
+                                    try {
+                                        // Simular desconexión/reconexión suave del comando
+                                        player.performCommand("help"); // Fuerza recarga de comandos
+                                    } catch (Exception ex) {
+                                        // Último recurso: mensaje al jugador
+                                        player.sendMessage("§aComandos actualizados. Si tienes problemas, usa §e/" +
+                                                plugin.getName().toLowerCase() + ":" + command.getName());
+                                    }
+                                }
+                            }
+                        }, 3L);
+
+                    }, delay.getAndAdd(10));
+                }
+
+                // Paso 4: Verificación final
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    CommandVerificationResult result = verifyAllCommands();
+                    logInternalInfo("Sincronización de emergencia completada: " + result);
+
+                    if (!result.allVerified) {
+                        logInternalWarn("Algunos comandos siguen sin verificarse. " +
+                                "Los jugadores pueden usar los comandos con el prefijo: /" +
+                                plugin.getName().toLowerCase() + ":nombrecomando");
+                    }
+                }, delay.get() + 40L);
+
+            } catch (Exception e) {
+                logInternalError("Error en sincronización de emergencia: " + e.getMessage());
+            }
+        });
     }
 
     /**
-     * Desregistra todos los comandos
-     * Útil para recargar el plugin
+     * Desregistra todos los comandos de forma segura
      */
     public void unregisterAll() {
         logInternalInfo("Desregistrando " + commands.size() + " comandos...");
+
+        for (ExyliaCommand command : commands.values()) {
+            try {
+                command.unregister();
+            } catch (Exception e) {
+                logInternalWarn("Error desregistrando " + command.getName() + ": " + e.getMessage());
+            }
+        }
+
         commands.clear();
         aliasMap.clear();
-        // Nota: Los comandos seguirán registrados en Bukkit hasta que el plugin se desactive
+        retryCount.clear();
     }
 
     /**
-     * Resultado del registro de comandos
+     * Resultado del registro de comandos mejorado
      */
     public static class CommandRegistrationResult {
         public final int successCount;
         public final int totalCount;
         public final List<String> failedCommands;
+        public final List<String> retriedCommands;
         public final long durationMs;
         public final boolean allSuccessful;
 
-        public CommandRegistrationResult(int successCount, int totalCount, List<String> failedCommands, long durationMs) {
+        public CommandRegistrationResult(int successCount, int totalCount, List<String> failedCommands,
+                                         List<String> retriedCommands, long durationMs) {
             this.successCount = successCount;
             this.totalCount = totalCount;
             this.failedCommands = failedCommands;
+            this.retriedCommands = retriedCommands;
             this.durationMs = durationMs;
             this.allSuccessful = successCount == totalCount;
         }
 
         @Override
         public String toString() {
-            return String.format("CommandRegistrationResult{success=%d/%d, duration=%dms, failed=%s}",
-                    successCount, totalCount, durationMs, failedCommands);
+            return String.format("CommandRegistrationResult{success=%d/%d, duration=%dms, failed=%s, retried=%s}",
+                    successCount, totalCount, durationMs, failedCommands, retriedCommands);
         }
     }
 
     /**
-     * Estadísticas de comandos
+     * Resumen del registro de comandos
+     */
+    public static class CommandRegistrationSummary {
+        public final List<String> successful;
+        public final List<String> failed;
+        public final long durationMs;
+        public final int totalCount;
+        public final boolean allSuccessful;
+
+        public CommandRegistrationSummary(List<String> successful, List<String> failed, long durationMs) {
+            this.successful = successful;
+            this.failed = failed;
+            this.durationMs = durationMs;
+            this.totalCount = successful.size() + failed.size();
+            this.allSuccessful = failed.isEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Summary{success=%d/%d, duration=%dms, failed=%s}",
+                    successful.size(), totalCount, durationMs, failed);
+        }
+    }
+
+    /**
+     * Resultado de verificación de comandos
+     */
+    public static class CommandVerificationResult {
+        public final List<String> verified;
+        public final List<String> unverified;
+        public final List<String> missing;
+        public final boolean allVerified;
+
+        public CommandVerificationResult(List<String> verified, List<String> unverified, List<String> missing) {
+            this.verified = verified;
+            this.unverified = unverified;
+            this.missing = missing;
+            this.allVerified = unverified.isEmpty();
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Verification{verified=%d, unverified=%d, missing=%d}",
+                    verified.size(), unverified.size(), missing.size());
+        }
+    }
+
+    /**
+     * Estadísticas de comandos mejoradas
      */
     public static class CommandStats {
         public final int totalCommands;
         public final int totalAliases;
         public final int registeredCommands;
+        public final int verifiedCommands;
+        public final int failedCommands;
 
-        public CommandStats(int totalCommands, int totalAliases, int registeredCommands) {
+        public CommandStats(int totalCommands, int totalAliases, int registeredCommands,
+                            int verifiedCommands, int failedCommands) {
             this.totalCommands = totalCommands;
             this.totalAliases = totalAliases;
             this.registeredCommands = registeredCommands;
+            this.verifiedCommands = verifiedCommands;
+            this.failedCommands = failedCommands;
         }
 
         @Override
         public String toString() {
-            return String.format("CommandStats{commands=%d/%d registered, aliases=%d}",
-                    registeredCommands, totalCommands, totalAliases);
+            return String.format("CommandStats{total=%d, registered=%d, verified=%d, failed=%d, aliases=%d}",
+                    totalCommands, registeredCommands, verifiedCommands, failedCommands, totalAliases);
         }
     }
 }

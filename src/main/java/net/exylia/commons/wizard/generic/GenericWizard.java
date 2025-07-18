@@ -4,8 +4,8 @@ package net.exylia.commons.wizard.generic;
 import net.exylia.commons.config.components.ActionBarConfig;
 import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
-import net.exylia.commons.utils.ActionBarUtils;
-import net.exylia.commons.utils.TitleUtils;
+import net.exylia.commons.utils.visuals.ActionBarUtils;
+import net.exylia.commons.utils.visuals.TitleUtils;
 import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -74,10 +74,10 @@ public final class GenericWizard implements Listener {
      * Start wizard with initial display configuration
      */
     public static <T> CompletableFuture<T> startWizard(Player player, GenericWizardHandler<T> handler,
-                                                       TitleConfig titleConfig, ActionBarConfig actionBarConfig) {
+                                                       TitleConfig titleConfig, ActionBarConfig actionBarConfig, ExyliaContext context) {
         CompletableFuture<T> future = startWizard(player, handler);
 
-        updateDisplay(player, titleConfig, actionBarConfig);
+        updateDisplay(player, titleConfig, actionBarConfig, context);
 
         return future;
     }
@@ -85,14 +85,17 @@ public final class GenericWizard implements Listener {
     /**
      * Update display (title/actionbar) for active wizard
      */
-    public static void updateDisplay(Player player, TitleConfig titleConfig, ActionBarConfig actionBarConfig) {
+    public static void updateDisplay(Player player, TitleConfig titleConfig, ActionBarConfig actionBarConfig, ExyliaContext context) {
         if (!hasActiveWizard(player)) {
             return;
         }
-
-        ExyliaContext context = ExyliaContext.create()
-                .withPlayer(player)
-                .put("wizard_active", true);
+        if (context == null) {
+            context = ExyliaContext.create()
+                    .withPlayer(player)
+                    .put("wizard_active", true);
+        } else {
+            context.put("wizard_active", true);
+        }
 
         if (titleConfig != null && titleConfig.isEnabled()) {
             TitleUtils.sendTitle(player, "generic_wizard", titleConfig, context);
@@ -107,14 +110,14 @@ public final class GenericWizard implements Listener {
      * Update only title for active wizard
      */
     public static void updateTitle(Player player, TitleConfig titleConfig) {
-        updateDisplay(player, titleConfig, null);
+        updateDisplay(player, titleConfig, null, null);
     }
 
     /**
      * Update only action bar for active wizard
      */
     public static void updateActionBar(Player player, ActionBarConfig actionBarConfig) {
-        updateDisplay(player, null, actionBarConfig);
+        updateDisplay(player, null, actionBarConfig, null);
     }
 
     /**
@@ -229,7 +232,7 @@ public final class GenericWizard implements Listener {
             case CONTINUE:
                 // Update display if provided
                 if (result.getTitleConfig() != null || result.getActionBarConfig() != null) {
-                    updateDisplay(player, result.getTitleConfig(), result.getActionBarConfig());
+                    updateDisplay(player, result.getTitleConfig(), result.getActionBarConfig(), result.getContext());
                 }
                 break;
 

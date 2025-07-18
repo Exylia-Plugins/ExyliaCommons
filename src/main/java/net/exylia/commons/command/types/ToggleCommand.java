@@ -2,12 +2,10 @@ package net.exylia.commons.command.types;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.command.ExyliaCommand;
 import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.utils.MessageUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;

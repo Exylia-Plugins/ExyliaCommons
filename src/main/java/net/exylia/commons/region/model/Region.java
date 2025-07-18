@@ -19,39 +19,31 @@ import java.util.concurrent.ConcurrentHashMap;
  * Representa una región en el mundo con sistema de flags mejorado
  */
 @Getter
+@Setter
 public class Region {
     private final String id;
     private final String pluginName;
-    private final Selection selection;
+    private Selection selection;
     private final long createdAt;
 
-    @Setter
     private String displayName;
-    @Setter
     private String description;
-    @Setter
     private RegionPriority priority;
-    @Setter
     private Map<String, Object> metadata;
 
     // Nuevo sistema de flags: flag -> tipo (ALLOW/DENY/DEFAULT)
     private final Map<RegionFlag, RegionFlagType> flagStates;
 
     // Lista de miembros y owners
-    @Setter
     private Set<UUID> owners;
-    @Setter
     private Set<UUID> members;
 
     // Jugadores actualmente en la región
     private final Set<UUID> playersInside;
 
     // Callbacks personalizados
-    @Setter
     private RegionCallback onEnter;
-    @Setter
     private RegionCallback onExit;
-    @Setter
     private RegionCallback onMove;
 
     public Region(String id, String pluginName, Selection selection) {

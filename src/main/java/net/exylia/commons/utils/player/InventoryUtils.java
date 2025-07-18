@@ -1,4 +1,4 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.player;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -7,7 +7,7 @@ import org.bukkit.inventory.ItemStack;
 
 public class InventoryUtils {
     /**
-     * Simula manualmente la caída de items cuando un jugador muere en FFA
+     * Simula manualmente la caída de items cuando un jugador muere
      */
     public static void simulateItemDrops(Player player) {
         Location deathLocation = player.getLocation();

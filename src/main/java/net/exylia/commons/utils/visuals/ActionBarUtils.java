@@ -1,4 +1,4 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.visuals;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -18,11 +18,6 @@ public class ActionBarUtils {
 
     private static Plugin plugin;
     private static final Map<UUID, Map<String, ActionBarInstance>> playerActionBars = new ConcurrentHashMap<>();
-    private static final Executor asyncExecutor = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "ActionBarUtils-Async");
-        t.setDaemon(true);
-        return t;
-    });
 
     public static void init(Plugin mainPlugin) {
         plugin = mainPlugin;
@@ -33,70 +28,62 @@ public class ActionBarUtils {
     /**
      * Envía un action bar usando configuración
      */
-    public static CompletableFuture<String> sendActionBar(Player player, ActionBarConfig config, ExyliaContext context) {
+    public static String sendActionBar(Player player, ActionBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Parámetros inválidos"));
+            throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            String actionBarId = generateActionBarId();
+        String actionBarId = generateActionBarId();
 
-            ExyliaContext enrichedContext = context.copy()
-                    .withPlayer(player)
-                    .withCurrentTime()
-                    .put("actionbar_id", actionBarId);
+        ExyliaContext enrichedContext = context.copy()
+                .withPlayer(player)
+                .withCurrentTime()
+                .put("actionbar_id", actionBarId);
 
-            ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
+        ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                BukkitTask task = executeActionBar(player, instance);
-                if (task != null) {
-                    instance.setTask(task);
-                }
-                storeActionBarInstance(player, actionBarId, instance);
-            });
+        BukkitTask task = executeActionBar(player, instance);
+        if (task != null) {
+            instance.setTask(task);
+        }
+        storeActionBarInstance(player, actionBarId, instance);
 
-            return actionBarId;
-        }, asyncExecutor);
+        return actionBarId;
     }
 
     /**
      * Envía un action bar sin contexto
      */
-    public static CompletableFuture<String> sendActionBar(Player player, ActionBarConfig config) {
+    public static String sendActionBar(Player player, ActionBarConfig config) {
         return sendActionBar(player, config, ExyliaContext.create());
     }
 
     /**
      * Envía un action bar con ID personalizado
      */
-    public static CompletableFuture<String> sendActionBar(Player player, String actionBarId, ActionBarConfig config, ExyliaContext context) {
+    public static String sendActionBar(Player player, String actionBarId, ActionBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Parámetros inválidos"));
+            throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            if (hasActionBar(player, actionBarId)) {
-                cancelActionBar(player, actionBarId);
-            }
+        if (hasActionBar(player, actionBarId)) {
+            cancelActionBar(player, actionBarId);
+        }
 
-            ExyliaContext enrichedContext = context.copy()
-                    .withPlayer(player)
-                    .withCurrentTime()
-                    .put("actionbar_id", actionBarId);
+        ExyliaContext enrichedContext = context.copy()
+                .withPlayer(player)
+                .withCurrentTime()
+                .put("actionbar_id", actionBarId);
 
-            ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
+        ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                BukkitTask task = executeActionBar(player, instance);
-                if (task != null) {
-                    instance.setTask(task);
-                }
-                storeActionBarInstance(player, actionBarId, instance);
-            });
+        BukkitTask task = executeActionBar(player, instance);
+        if (task != null) {
+            instance.setTask(task);
+        }
+        storeActionBarInstance(player, actionBarId, instance);
 
-            return actionBarId;
-        }, asyncExecutor);
+        return actionBarId;
     }
 
     // ==================== EJECUCIÓN ====================
@@ -121,7 +108,7 @@ public class ActionBarUtils {
                         .withCurrentTime();
 
                 String processedText = processPlaceholders(config.getText(), player, currentContext);
-                MessageUtils.sendActionBarAsync(player, processedText);
+                MessageUtils.sendActionBar(player, processedText);
 
                 updateCount++;
             }
@@ -206,8 +193,7 @@ public class ActionBarUtils {
         }
 
         // Limpiar action bar enviando uno vacío
-        Bukkit.getScheduler().runTask(plugin, () ->
-                MessageUtils.sendActionBarAsync(player, ""));
+        MessageUtils.sendActionBar(player, "");
 
         removeActionBarInstance(player, actionBarId);
         return true;
@@ -248,14 +234,12 @@ public class ActionBarUtils {
     /**
      * Actualiza el contexto de un action bar
      */
-    public static CompletableFuture<Boolean> updateActionBar(Player player, String actionBarId, ExyliaContext newContext) {
-        return CompletableFuture.supplyAsync(() -> {
-            ActionBarInstance instance = getActionBarInstance(player, actionBarId);
-            if (instance == null) return false;
+    public static boolean updateActionBar(Player player, String actionBarId, ExyliaContext newContext) {
+        ActionBarInstance instance = getActionBarInstance(player, actionBarId);
+        if (instance == null) return false;
 
-            instance.updateContext(newContext);
-            return true;
-        }, asyncExecutor);
+        instance.updateContext(newContext);
+        return true;
     }
 
     /**

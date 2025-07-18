@@ -1,4 +1,4 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.effects;
 
 import org.bukkit.Color;
 import org.bukkit.Location;

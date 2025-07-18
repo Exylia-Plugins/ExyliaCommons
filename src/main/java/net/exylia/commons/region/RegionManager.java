@@ -33,6 +33,8 @@ public class RegionManager {
     private static RegionManager instance;
 
     private final JavaPlugin plugin;
+    @Getter
+    private final String pluginName; // Nombre del plugin que inicializó el manager
     private final Map<String, Map<String, Region>> pluginRegions; // plugin -> regionId -> Region
     private final Map<World, Set<Region>> worldRegions; // Optimización por mundo
     private final Map<UUID, Set<Region>> playerRegions; // Jugador -> Regiones donde está
@@ -57,6 +59,7 @@ public class RegionManager {
 
     private RegionManager(JavaPlugin plugin) {
         this.plugin = plugin;
+        this.pluginName = plugin.getName(); // Obtener el nombre del plugin automáticamente
         this.pluginRegions = new ConcurrentHashMap<>();
         this.worldRegions = new ConcurrentHashMap<>();
         this.playerRegions = new ConcurrentHashMap<>();
@@ -101,10 +104,7 @@ public class RegionManager {
 
     // ===== GESTIÓN DE REGIONES =====
 
-    /**
-     * Registra una nueva región
-     */
-    public boolean registerRegion(String pluginName, Region region) {
+    public boolean registerRegion(Region region) {
         if (!region.isValid()) {
             return false;
         }
@@ -131,24 +131,19 @@ public class RegionManager {
 
         return true;
     }
-
-    /**
-     * Crea y registra una región desde una selección
-     */
-    public Region createRegion(String pluginName, String regionId, Selection selection) {
+    
+    public Region createRegion(String regionId, Selection selection) {
         Region region = new Region(regionId, pluginName, selection);
 
-        if (registerRegion(pluginName, region)) {
+        if (registerRegion(region)) {
             return region;
         }
 
         return null;
     }
 
-    /**
-     * Remueve una región
-     */
-    public boolean unregisterRegion(String pluginName, String regionId) {
+
+    public boolean unregisterRegion(String regionId) {
         Map<String, Region> regions = pluginRegions.get(pluginName);
         if (regions == null) {
             return false;
@@ -182,10 +177,7 @@ public class RegionManager {
         return true;
     }
 
-    /**
-     * Remueve todas las regiones de un plugin
-     */
-    public void unregisterAllRegions(String pluginName) {
+    public void unregisterAllRegions() {
         Map<String, Region> regions = pluginRegions.remove(pluginName);
         if (regions == null) {
             return;
@@ -212,27 +204,23 @@ public class RegionManager {
 
     // ===== BÚSQUEDA DE REGIONES =====
 
-    /**
-     * Obtiene una región específica
-     */
-    public Optional<Region> getRegion(String pluginName, String regionId) {
+    public Optional<Region> getRegion(String regionId) {
         Map<String, Region> regions = pluginRegions.get(pluginName);
         if (regions == null) {
             return Optional.empty();
         }
         return Optional.ofNullable(regions.get(regionId));
     }
-
     /**
-     * Obtiene todas las regiones de un plugin
+     * Obtiene todas las regiones de un plugin específico
      */
-    public Collection<Region> getRegions(String pluginName) {
+    public Collection<Region> getRegions() {
         Map<String, Region> regions = pluginRegions.get(pluginName);
         return regions != null ? new ArrayList<>(regions.values()) : Collections.emptyList();
     }
 
     /**
-     * Obtiene todas las regiones
+     * Obtiene todas las regiones de todos los plugins
      */
     public Collection<Region> getAllRegions() {
         return pluginRegions.values().stream()
@@ -289,10 +277,7 @@ public class RegionManager {
         return regions != null && regions.contains(region);
     }
 
-    /**
-     * Verifica si un jugador está en alguna región de un plugin
-     */
-    public boolean isPlayerInAnyRegion(Player player, String pluginName) {
+    public boolean isPlayerInAnyRegion(Player player) {
         Set<Region> regions = playerRegions.get(player.getUniqueId());
         if (regions == null) {
             return false;
@@ -562,7 +547,6 @@ public class RegionManager {
         flagManager.cleanupPlayerState(player);
     }
 
-
     /**
      * Obtiene estadísticas del sistema de regeneración
      */
@@ -631,10 +615,7 @@ public class RegionManager {
 
     // ===== LIMPIEZA =====
 
-    /**
-     * Limpia todos los bloques de jugador de una región (útil para regeneración)
-     */
-    public void clearRegionPlayerBlocks(String pluginName, String regionId) {
+    public void clearRegionPlayerBlocks(String regionId) {
         String regionKey = pluginName + ":" + regionId;
         PlayerBlockTracker.getInstance().clearRegionBlocks(regionKey);
     }

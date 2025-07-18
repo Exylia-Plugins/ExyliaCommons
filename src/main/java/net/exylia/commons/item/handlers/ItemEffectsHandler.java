@@ -2,9 +2,9 @@ package net.exylia.commons.item.handlers;
 
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.utils.DebugUtils;
-import net.exylia.commons.utils.FireworkUtils;
-import net.exylia.commons.utils.ParticleUtils;
-import net.exylia.commons.utils.SoundUtils;
+import net.exylia.commons.utils.effects.FireworkUtils;
+import net.exylia.commons.utils.effects.ParticleUtils;
+import net.exylia.commons.utils.effects.SoundUtils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 

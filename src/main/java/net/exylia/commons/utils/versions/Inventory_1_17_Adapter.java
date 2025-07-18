@@ -1,7 +1,5 @@
 package net.exylia.commons.utils.versions;
 
-import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.InventoryAdapter;
 import net.exylia.commons.utils.OldColorUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;

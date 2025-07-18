@@ -1,6 +1,5 @@
 package net.exylia.commons.utils.versions;
 
-import net.exylia.commons.utils.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.meta.ItemMeta;
 

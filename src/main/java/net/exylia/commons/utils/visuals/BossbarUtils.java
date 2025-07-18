@@ -1,15 +1,15 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.visuals;
 
 import lombok.Getter;
 import lombok.Setter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.config.components.BossBarConfig;
+import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
@@ -19,11 +19,6 @@ public class BossbarUtils {
 
     private static Plugin plugin;
     private static final Map<UUID, Map<String, BossBarInstance>> playerBossBars = new ConcurrentHashMap<>();
-    private static final Executor asyncExecutor = Executors.newCachedThreadPool(r -> {
-        Thread t = new Thread(r, "BossbarUtils-Async");
-        t.setDaemon(true);
-        return t;
-    });
 
     public static void init(Plugin mainPlugin) {
         plugin = mainPlugin;
@@ -34,70 +29,62 @@ public class BossbarUtils {
     /**
      * Envía una boss bar usando configuración
      */
-    public static CompletableFuture<String> sendBossBar(Player player, BossBarConfig config, ExyliaContext context) {
+    public static String sendBossBar(Player player, BossBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Parámetros inválidos"));
+            throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            String bossBarId = generateBossBarId();
+        String bossBarId = generateBossBarId();
 
-            ExyliaContext enrichedContext = context.copy()
-                    .withPlayer(player)
-                    .withCurrentTime()
-                    .put("bossbar_id", bossBarId);
+        ExyliaContext enrichedContext = context.copy()
+                .withPlayer(player)
+                .withCurrentTime()
+                .put("bossbar_id", bossBarId);
 
-            BossBarInstance instance = new BossBarInstance(bossBarId, config, enrichedContext);
+        BossBarInstance instance = new BossBarInstance(bossBarId, config, enrichedContext);
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                BukkitTask task = executeBossBar(player, instance);
-                if (task != null) {
-                    instance.setTask(task);
-                }
-                storeBossBarInstance(player, bossBarId, instance);
-            });
+        BukkitTask task = executeBossBar(player, instance);
+        if (task != null) {
+            instance.setTask(task);
+        }
+        storeBossBarInstance(player, bossBarId, instance);
 
-            return bossBarId;
-        }, asyncExecutor);
+        return bossBarId;
     }
 
     /**
      * Envía una boss bar sin contexto
      */
-    public static CompletableFuture<String> sendBossBar(Player player, BossBarConfig config) {
+    public static String sendBossBar(Player player, BossBarConfig config) {
         return sendBossBar(player, config, ExyliaContext.create());
     }
 
     /**
      * Envía una boss bar con ID personalizado
      */
-    public static CompletableFuture<String> sendBossBar(Player player, String bossBarId, BossBarConfig config, ExyliaContext context) {
+    public static String sendBossBar(Player player, String bossBarId, BossBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Parámetros inválidos"));
+            throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            if (hasBossBar(player, bossBarId)) {
-                cancelBossBar(player, bossBarId);
-            }
+        if (hasBossBar(player, bossBarId)) {
+            cancelBossBar(player, bossBarId);
+        }
 
-            ExyliaContext enrichedContext = context.copy()
-                    .withPlayer(player)
-                    .withCurrentTime()
-                    .put("bossbar_id", bossBarId);
+        ExyliaContext enrichedContext = context.copy()
+                .withPlayer(player)
+                .withCurrentTime()
+                .put("bossbar_id", bossBarId);
 
-            BossBarInstance instance = new BossBarInstance(bossBarId, config, enrichedContext);
+        BossBarInstance instance = new BossBarInstance(bossBarId, config, enrichedContext);
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                BukkitTask task = executeBossBar(player, instance);
-                if (task != null) {
-                    instance.setTask(task);
-                }
-                storeBossBarInstance(player, bossBarId, instance);
-            });
+        BukkitTask task = executeBossBar(player, instance);
+        if (task != null) {
+            instance.setTask(task);
+        }
+        storeBossBarInstance(player, bossBarId, instance);
 
-            return bossBarId;
-        }, asyncExecutor);
+        return bossBarId;
     }
 
     // ==================== EJECUCIÓN ====================
@@ -262,54 +249,41 @@ public class BossbarUtils {
     /**
      * Actualiza el contexto de una boss bar
      */
-    public static CompletableFuture<Boolean> updateBossBar(Player player, String bossBarId, ExyliaContext newContext) {
-        return CompletableFuture.supplyAsync(() -> {
-            BossBarInstance instance = getBossBarInstance(player, bossBarId);
-            if (instance == null) return false;
+    public static boolean updateBossBar(Player player, String bossBarId, ExyliaContext newContext) {
+        BossBarInstance instance = getBossBarInstance(player, bossBarId);
+        if (instance == null) return false;
 
-            instance.updateContext(newContext);
+        instance.updateContext(newContext);
 
-            // Actualizar texto si la boss bar está activa
-            if (instance.getBossBar() != null) {
-                Player targetPlayer = Bukkit.getPlayer(playerBossBars.entrySet().stream()
-                        .filter(entry -> entry.getValue().containsValue(instance))
-                        .map(Map.Entry::getKey)
-                        .findFirst().orElse(null));
+        // Actualizar texto si la boss bar está activa
+        if (instance.getBossBar() != null) {
+            String newText = processPlaceholders(instance.getConfig().getText(), player, newContext);
+            instance.getBossBar().name(ColorUtils.parse(newText));
+        }
 
-                if (targetPlayer != null) {
-                    String newText = processPlaceholders(instance.getConfig().getText(), targetPlayer, newContext);
-                    instance.getBossBar().name(ColorUtils.parse(newText));
-                }
-            }
-
-            return true;
-        }, asyncExecutor);
+        return true;
     }
 
     /**
      * Actualiza el progreso de una boss bar
      */
-    public static CompletableFuture<Boolean> updateBossBarProgress(Player player, String bossBarId, double newProgress) {
-        return CompletableFuture.supplyAsync(() -> {
-            BossBarInstance instance = getBossBarInstance(player, bossBarId);
-            if (instance == null || instance.getBossBar() == null) return false;
+    public static boolean updateBossBarProgress(Player player, String bossBarId, double newProgress) {
+        BossBarInstance instance = getBossBarInstance(player, bossBarId);
+        if (instance == null || instance.getBossBar() == null) return false;
 
-            instance.getBossBar().progress((float) Math.max(0.0, Math.min(1.0, newProgress)));
-            return true;
-        }, asyncExecutor);
+        instance.getBossBar().progress((float) Math.max(0.0, Math.min(1.0, newProgress)));
+        return true;
     }
 
     /**
      * Actualiza el color de una boss bar
      */
-    public static CompletableFuture<Boolean> updateBossBarColor(Player player, String bossBarId, String newColor) {
-        return CompletableFuture.supplyAsync(() -> {
-            BossBarInstance instance = getBossBarInstance(player, bossBarId);
-            if (instance == null || instance.getBossBar() == null) return false;
+    public static boolean updateBossBarColor(Player player, String bossBarId, String newColor) {
+        BossBarInstance instance = getBossBarInstance(player, bossBarId);
+        if (instance == null || instance.getBossBar() == null) return false;
 
-            instance.getBossBar().color(parseColor(newColor));
-            return true;
-        }, asyncExecutor);
+        instance.getBossBar().color(parseColor(newColor));
+        return true;
     }
 
     /**

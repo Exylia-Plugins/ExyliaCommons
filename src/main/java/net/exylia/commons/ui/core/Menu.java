@@ -10,7 +10,7 @@ import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.manager.MenuManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.InventoryAdapter;
+import net.exylia.commons.utils.versions.InventoryAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;

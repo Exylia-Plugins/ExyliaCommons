@@ -1,4 +1,4 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.effects;
 
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;

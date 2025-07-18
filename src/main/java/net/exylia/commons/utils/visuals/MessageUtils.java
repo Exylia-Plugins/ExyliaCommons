@@ -1,7 +1,10 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.visuals;
 
+import net.exylia.commons.utils.AdapterFactory;
+import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -103,10 +106,11 @@ public class MessageUtils {
      * @param message Mensaje con códigos de color (&)
      */
     public static void broadcastMessage(String message) {
-        Component component = ColorUtils.parse(message);
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            sendMessage(player, component);
+        if (message.trim().isEmpty()) {
+            return;
         }
+        Component component = ColorUtils.parse(message);
+        broadcastMessage(component);
     }
 
     /**
@@ -114,6 +118,11 @@ public class MessageUtils {
      * @param component Componente a enviar
      */
     public static void broadcastMessage(Component component) {
+        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
+        if (plainText.trim().isEmpty()) {
+            return;
+
+        }
         for (Player player : Bukkit.getOnlinePlayers()) {
             sendMessage(player, component);
         }

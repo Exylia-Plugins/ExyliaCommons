@@ -6,7 +6,7 @@ import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
 import net.exylia.commons.command.annotation.DefaultAction;
 import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.utils.MessageUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;

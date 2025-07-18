@@ -51,9 +51,6 @@ public class SkullManager {
         instance = new SkullManager();
         instance.startCleanupTask();
         isInitialized = true;
-
-        plugin.getLogger().info("SkullManager initialized for version: " + BUKKIT_VERSION);
-        plugin.getLogger().info("Paper support: " + IS_PAPER + ", Modern version: " + IS_MODERN_VERSION);
     }
 
     /**

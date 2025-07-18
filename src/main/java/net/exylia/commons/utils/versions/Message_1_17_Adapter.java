@@ -1,9 +1,7 @@
 package net.exylia.commons.utils.versions;
 
-import net.exylia.commons.utils.MessageAdapter;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;

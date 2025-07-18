@@ -7,9 +7,9 @@ import net.exylia.commons.selection.SelectionManager;
 import net.exylia.commons.selection.events.SelectionCompleteEvent;
 import net.exylia.commons.selection.model.Selection;
 import net.exylia.commons.selection.model.SelectionType;
-import net.exylia.commons.utils.ActionBarUtils;
-import net.exylia.commons.utils.MessageUtils;
-import net.exylia.commons.utils.TitleUtils;
+import net.exylia.commons.utils.visuals.ActionBarUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
+import net.exylia.commons.utils.visuals.TitleUtils;
 import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -356,9 +356,6 @@ public final class SelectionWizard implements Listener {
                 new TitleConfig(
                         "{warning}⚡ Select Area " + current + "/" + total,
                         "{info}Use wand: Left click pos1, Right click pos2",
-                        0,
-                        40,
-                        0,
                         true,
                         20L),
                 ExyliaContext.create());
@@ -384,9 +381,6 @@ public final class SelectionWizard implements Listener {
                 new TitleConfig(
                         "{success}✓ Area " + current + " Ready",
                         "{warning}SHIFT + LEFT CLICK to confirm",
-                        0,
-                        40,
-                        0,
                         true,
                         20L),
                 ExyliaContext.create());

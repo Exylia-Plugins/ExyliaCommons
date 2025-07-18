@@ -2,9 +2,7 @@ package net.exylia.commons.config.components;
 
 import lombok.Getter;
 import net.exylia.commons.config.ConfigValue;
-import net.exylia.commons.utils.TitleUtils.TitleAnimation;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.ArrayList;
 import java.util.List;

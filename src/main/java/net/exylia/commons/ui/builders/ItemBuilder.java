@@ -5,6 +5,7 @@ import net.exylia.commons.ui.items.MenuItem;
 import org.bukkit.Material;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Base builder for menu items
@@ -44,6 +45,12 @@ public abstract class ItemBuilder<T extends ItemBuilder<T>> {
         item.setLoreList(lore);
         return self();
     }
+
+    public T lore(Supplier<List<String>> loreSupplier) {
+        item.setLore(loreSupplier);
+        return self();
+    }
+
 
     public T amount(int amount) {
         item.setAmount(amount);

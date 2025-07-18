@@ -1,11 +1,9 @@
-package net.exylia.commons.utils;
+package net.exylia.commons.utils.effects;
 
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.List;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;

@@ -4,9 +4,8 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.MessageUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;

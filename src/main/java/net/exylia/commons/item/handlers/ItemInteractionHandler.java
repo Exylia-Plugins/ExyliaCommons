@@ -1,13 +1,11 @@
 package net.exylia.commons.item.handlers;
 
-import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.cooldown.CooldownManager;
-import net.exylia.commons.utils.MessageUtils;
-import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;

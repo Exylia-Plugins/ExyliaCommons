@@ -5,6 +5,8 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 
 public class LocationUtils {
 
@@ -22,7 +24,6 @@ public class LocationUtils {
                 throw new IllegalArgumentException("El formato debe ser: world|x|y|z|pitch|yaw");
             }
 
-            // Obtener el mundo
             String worldName = parts[0].trim();
             World world = Bukkit.getWorld(worldName);
 
@@ -30,7 +31,6 @@ public class LocationUtils {
                 throw new IllegalArgumentException("El mundo '" + worldName + "' no existe");
             }
 
-            // Parsear coordenadas
             double x = Double.parseDouble(parts[1].trim());
             double y = Double.parseDouble(parts[2].trim());
             double z = Double.parseDouble(parts[3].trim());
@@ -132,5 +132,128 @@ public class LocationUtils {
                 !ground.getType().name().contains("PRESSURE_PLATE");
 
         return feetSafe && headSafe && groundSafe;
+    }
+
+    public static void preventBoundaryCrossing(Player player, Location from, Location to) {
+        if (from == null || to == null || player == null || !player.isOnline()) {
+            return;
+        }
+
+        Vector direction = to.toVector().subtract(from.toVector()).normalize();
+        Location safeLocation = from.clone().subtract(direction.multiply(2.0));
+
+        safeLocation.setYaw(to.getYaw());
+        safeLocation.setPitch(to.getPitch());
+
+        safeLocation = findSafeLocation(safeLocation, 10);
+
+        if (safeLocation != null) {
+            player.teleport(safeLocation);
+        }
+    }
+
+    public static boolean preventBoundaryCrossing(Player player, Location from, Location to,
+                                                  Location minBounds, Location maxBounds) {
+        if (from == null || to == null || player == null || !player.isOnline() ||
+                minBounds == null || maxBounds == null) {
+            return false;
+        }
+
+        if (isOutsideBounds(to, minBounds, maxBounds)) {
+            Vector direction = from.toVector().subtract(to.toVector()).normalize();
+            Location safeLocation = from.clone().add(direction.multiply(1.0));
+            safeLocation = clampToBounds(safeLocation, minBounds, maxBounds);
+            safeLocation.setYaw(to.getYaw());
+            safeLocation.setPitch(to.getPitch());
+            safeLocation = findSafeLocation(safeLocation, 10);
+
+            if (safeLocation != null) {
+                player.teleport(safeLocation);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean teleportToSafeHeightUp(Player player) {
+        if (player == null || !player.isOnline()) {
+            return false;
+        }
+
+        Location playerLoc = player.getLocation();
+        Location safeLocation = findSafeLocationUp(playerLoc);
+
+        if (safeLocation != null) {
+            player.teleport(safeLocation);
+            return true;
+        }
+
+        return false;
+    }
+
+    public static Location findSafeLocationUp(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return null;
+        }
+
+        World world = location.getWorld();
+        int x = location.getBlockX();
+        int z = location.getBlockZ();
+        int maxHeight = world.getMaxHeight() - 2;
+
+        for (int y = location.getBlockY(); y <= maxHeight; y++) {
+            Location checkLocation = new Location(world, x + 0.5, y, z + 0.5);
+
+            if (hasTwoBlocksOfAir(checkLocation)) {
+                checkLocation.setYaw(location.getYaw());
+                checkLocation.setPitch(location.getPitch());
+                return checkLocation;
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean hasTwoBlocksOfAir(Location location) {
+        World world = location.getWorld();
+        int x = location.getBlockX();
+        int y = location.getBlockY();
+        int z = location.getBlockZ();
+
+        Block feet = world.getBlockAt(x, y, z);
+        Block head = world.getBlockAt(x, y + 1, z);
+
+        return feet.getType().isAir() && head.getType().isAir();
+    }
+
+    private static boolean isOutsideBounds(Location location, Location min, Location max) {
+        return location.getBlockX() < min.getBlockX() || location.getBlockX() > max.getBlockX() ||
+                location.getBlockY() < min.getBlockY() || location.getBlockY() > max.getBlockY() ||
+                location.getBlockZ() < min.getBlockZ() || location.getBlockZ() > max.getBlockZ();
+    }
+
+    private static Location clampToBounds(Location location, Location min, Location max) {
+        Location clamped = location.clone();
+
+        if (clamped.getBlockX() < min.getBlockX()) {
+            clamped.setX(min.getBlockX() + 0.5);
+        } else if (clamped.getBlockX() > max.getBlockX()) {
+            clamped.setX(max.getBlockX() - 0.5);
+        }
+
+        if (clamped.getBlockY() < min.getBlockY()) {
+            clamped.setY(min.getBlockY() + 1);
+        } else if (clamped.getBlockY() > max.getBlockY()) {
+            clamped.setY(max.getBlockY() - 1);
+        }
+
+        if (clamped.getBlockZ() < min.getBlockZ()) {
+            clamped.setZ(min.getBlockZ() + 0.5);
+        } else if (clamped.getBlockZ() > max.getBlockZ()) {
+            clamped.setZ(max.getBlockZ() - 0.5);
+        }
+
+        return clamped;
     }
 }
