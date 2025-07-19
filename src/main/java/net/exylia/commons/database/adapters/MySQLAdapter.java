@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.serialization.SerializationHelper;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -120,6 +121,7 @@ public class MySQLAdapter implements DatabaseAdapter {
             stmt.executeUpdate();
         }
     }
+
     @Override
     public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
@@ -423,7 +425,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 String columnName = column.name().isEmpty() ? field.getName() : column.name();
                 String sqlType = getMySQLType(field.getType(), column);
-                DebugUtils.logInternalInfo("Usando: " + sqlType + " para " + columnName);
 
                 sql.append("`").append(columnName).append("` ").append(sqlType);
 
@@ -609,6 +610,8 @@ public class MySQLAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
+    // ===== MÉTODOS ACTUALIZADOS CON AUTO-SERIALIZACIÓN =====
+
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         Map<String, Object> map = new HashMap<>();
@@ -619,7 +622,20 @@ public class MySQLAdapter implements DatabaseAdapter {
                 field.setAccessible(true);
                 Column column = field.getAnnotation(Column.class);
                 String columnName = column.name().isEmpty() ? field.getName() : column.name();
-                map.put(columnName, field.get(entity));
+
+                Object value = field.get(entity);
+
+                // AUTO-SERIALIZACIÓN: Si está habilitada, serializar automáticamente
+                if (value != null && column.autoSerialize()) {
+                    try {
+                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error auto-serializando campo " + columnName + ": " + e.getMessage());
+                        // Fallback: usar el valor original
+                    }
+                }
+
+                map.put(columnName, value);
             }
         }
 
@@ -639,7 +655,21 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                 Object value = map.get(columnName);
                 if (value != null) {
-                    field.set(entity, convertValue(value, field.getType()));
+                    // AUTO-DESERIALIZACIÓN: Si está habilitada, deserializar automáticamente
+                    if (column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            DebugUtils.logInternalDebug(debug(), "Auto-deserializado campo " + columnName + " a tipo " + field.getType().getSimpleName());
+                        } catch (Exception e) {
+                            DebugUtils.logInternalError("Error auto-deserializando campo " + columnName + ": " + e.getMessage());
+                            // Fallback: intentar conversión normal
+                            value = convertValue(value, field.getType());
+                        }
+                    } else {
+                        value = convertValue(value, field.getType());
+                    }
+
+                    field.set(entity, value);
                 }
             }
         }
@@ -661,6 +691,17 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     private String getMySQLType(Class<?> javaType, Column column) {
+        if (column.autoSerialize()) {
+            if (column.length() == -1 || column.length() > 65535) {
+                return "LONGTEXT";
+            } else if (column.length() > 255) {
+                return "TEXT";
+            } else {
+                return "VARCHAR(" + Math.max(1, column.length()) + ")";
+            }
+        }
+
+        // Tipos normales sin serialización
         if (javaType == String.class) {
             if (column.length() == -1) {
                 return "TEXT";

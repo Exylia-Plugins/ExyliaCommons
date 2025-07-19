@@ -42,15 +42,15 @@ public class PlayerScoreboardInstance {
     public void show() {
         if (visible || !player.isOnline()) return;
 
-        // Crear scoreboard renderizado
-        rendered = renderer.createScoreboard(player, config, context);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (visible || !player.isOnline()) return;
 
-        // Aplicar al jugador
-        player.setScoreboard(rendered.scoreboard);
-        visible = true;
+            rendered = renderer.createScoreboard(player, config, context);
+            player.setScoreboard(rendered.scoreboard);
+            visible = true;
 
-        // Actualización inicial
-        update();
+            update();
+        });
     }
 
     /**

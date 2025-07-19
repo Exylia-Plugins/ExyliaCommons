@@ -9,6 +9,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.serialization.SerializationHelper;
 import net.exylia.commons.utils.DebugUtils;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -16,6 +17,9 @@ import org.bukkit.configuration.file.FileConfiguration;
 
 import java.lang.reflect.Field;
 import java.util.*;
+
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 public class MongoDBAdapter implements DatabaseAdapter {
 
@@ -361,6 +365,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
+    // ===== MÉTODOS ACTUALIZADOS CON AUTO-SERIALIZACIÓN =====
+
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         Map<String, Object> map = new HashMap<>();
@@ -373,6 +379,17 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 String fieldName = column.name().isEmpty() ? field.getName() : column.name();
 
                 Object value = field.get(entity);
+
+                // AUTO-SERIALIZACIÓN: Si está habilitada, serializar automáticamente
+                if (value != null && column.autoSerialize()) {
+                    try {
+                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error auto-serializando campo MongoDB " + fieldName + ": " + e.getMessage());
+                        // Fallback: usar el valor original
+                    }
+                }
+
                 if (value != null) {
                     map.put(fieldName, value);
                 }
@@ -395,7 +412,21 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                 Object value = map.get(fieldName);
                 if (value != null) {
-                    field.set(entity, convertValue(value, field.getType()));
+                    // AUTO-DESERIALIZACIÓN: Si está habilitada, deserializar automáticamente
+                    if (column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            logInternalDebug(debug(), "Auto-deserializado campo MongoDB " + fieldName + " a tipo " + field.getType().getSimpleName());
+                        } catch (Exception e) {
+                            DebugUtils.logInternalError("Error auto-deserializando campo MongoDB " + fieldName + ": " + e.getMessage());
+                            // Fallback: intentar conversión normal
+                            value = convertValue(value, field.getType());
+                        }
+                    } else {
+                        value = convertValue(value, field.getType());
+                    }
+
+                    field.set(entity, value);
                 }
             }
         }
@@ -403,7 +434,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return entity;
     }
 
-    // Métodos específicos de MongoDB
+    // Métodos específicos de MongoDB actualizados
 
     private Document entityToDocument(Object entity) throws Exception {
         Document document = new Document();
@@ -422,6 +453,16 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 }
 
                 Object value = field.get(entity);
+
+                // AUTO-SERIALIZACIÓN para MongoDB
+                if (value != null && column.autoSerialize()) {
+                    try {
+                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error auto-serializando campo documento MongoDB " + fieldName + ": " + e.getMessage());
+                    }
+                }
+
                 if (value != null) {
                     if (fieldName.equals("_id") && value instanceof String) {
                         // Convertir String a ObjectId si es necesario
@@ -459,12 +500,30 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                 Object value = document.get(fieldName);
                 if (value != null) {
-                    if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
-                        // Convertir ObjectId a String
-                        field.set(entity, value.toString());
+                    // AUTO-DESERIALIZACIÓN para MongoDB
+                    if (column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            logInternalDebug(debug(), "Auto-deserializado campo documento MongoDB " + fieldName);
+                        } catch (Exception e) {
+                            DebugUtils.logInternalError("Error auto-deserializando campo documento MongoDB " + fieldName + ": " + e.getMessage());
+                            // Fallback a conversión normal
+                            if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
+                                value = value.toString();
+                            } else {
+                                value = convertValue(value, field.getType());
+                            }
+                        }
                     } else {
-                        field.set(entity, convertValue(value, field.getType()));
+                        if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
+                            // Convertir ObjectId a String
+                            value = value.toString();
+                        } else {
+                            value = convertValue(value, field.getType());
+                        }
                     }
+
+                    field.set(entity, value);
                 }
             }
         }

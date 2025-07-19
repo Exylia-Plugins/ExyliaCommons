@@ -15,4 +15,9 @@ public @interface Column {
     boolean unique() default false;
     int length() default 255;
     String defaultValue() default "";
+
+    // NUEVAS PROPIEDADES PARA AUTO-SERIALIZACIÓN
+    boolean autoSerialize() default false;
+    SerializationType serializationType() default SerializationType.AUTO;
 }
+

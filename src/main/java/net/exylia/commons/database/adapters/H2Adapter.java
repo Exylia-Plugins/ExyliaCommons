@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.serialization.SerializationHelper;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -13,6 +14,8 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 public class H2Adapter implements DatabaseAdapter {
@@ -208,10 +211,6 @@ public class H2Adapter implements DatabaseAdapter {
                 Map<String, Object> entityMap = entityToMap(entity);
 
                 int paramIndex = 1;
-                // Establecer valores para las columnas de actualización
-                for (String column : updateColumns) {
-                    stmt.setObject(paramIndex++, entityMap.get(column));
-                }
                 // Establecer el valor de la clave primaria para el WHERE
                 stmt.setObject(paramIndex, entityMap.get(primaryKey));
 
@@ -552,6 +551,8 @@ public class H2Adapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
+    // ===== MÉTODOS ACTUALIZADOS CON AUTO-SERIALIZACIÓN =====
+
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         Map<String, Object> map = new HashMap<>();
@@ -562,7 +563,20 @@ public class H2Adapter implements DatabaseAdapter {
                 field.setAccessible(true);
                 Column column = field.getAnnotation(Column.class);
                 String columnName = column.name().isEmpty() ? field.getName() : column.name();
-                map.put(columnName, field.get(entity));
+
+                Object value = field.get(entity);
+
+                // AUTO-SERIALIZACIÓN: Si está habilitada, serializar automáticamente
+                if (value != null && column.autoSerialize()) {
+                    try {
+                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error auto-serializando campo H2 " + columnName + ": " + e.getMessage());
+                        // Fallback: usar el valor original
+                    }
+                }
+
+                map.put(columnName, value);
             }
         }
 
@@ -582,7 +596,21 @@ public class H2Adapter implements DatabaseAdapter {
 
                 Object value = map.get(columnName);
                 if (value != null) {
-                    field.set(entity, convertValue(value, field.getType()));
+                    // AUTO-DESERIALIZACIÓN: Si está habilitada, deserializar automáticamente
+                    if (column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            logInternalDebug(debug(), "Auto-deserializado campo H2 " + columnName + " a tipo " + field.getType().getSimpleName());
+                        } catch (Exception e) {
+                            DebugUtils.logInternalError("Error auto-deserializando campo H2 " + columnName + ": " + e.getMessage());
+                            // Fallback: intentar conversión normal
+                            value = convertValue(value, field.getType());
+                        }
+                    } else {
+                        value = convertValue(value, field.getType());
+                    }
+
+                    field.set(entity, value);
                 }
             }
         }
@@ -604,6 +632,18 @@ public class H2Adapter implements DatabaseAdapter {
     }
 
     private String getSQLType(Class<?> javaType, Column column) {
+        // Si el campo tiene auto-serialización, siempre usar TEXT/VARCHAR para almacenar el string serializado
+        if (column.autoSerialize()) {
+            if (column.length() == -1 || column.length() > 8000) {
+                return "TEXT";
+            } else if (column.length() > 255) {
+                return "TEXT";
+            } else {
+                return "VARCHAR(" + Math.max(column.length(), 500) + ")"; // Mínimo 500 chars para datos serializados
+            }
+        }
+
+        // Tipos normales sin serialización
         if (javaType == String.class) {
             if (column.length() == -1 || column.length() > 8000) {
                 return "TEXT";
@@ -625,6 +665,7 @@ public class H2Adapter implements DatabaseAdapter {
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "TIMESTAMP";
         } else {
+            // Para tipos complejos que no usan auto-serialización, usar TEXT
             return "TEXT";
         }
     }

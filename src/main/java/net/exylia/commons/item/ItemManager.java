@@ -82,11 +82,7 @@ public class ItemManager implements Listener {
         // Log del estado de WorldGuard
         if (WorldGuardUtils.isWorldGuardAvailable()) {
             DebugUtils.logInternalInfo("WorldGuard detectado - Soporte de regiones habilitado");
-        } else {
-            DebugUtils.logInternalInfo("WorldGuard no detectado - Funcionalidad de regiones deshabilitada");
         }
-
-        DebugUtils.logInternalInfo("ItemManager modularizado inicializado correctamente");
     }
 
     // ===== MÉTODOS DELEGADOS AL REGISTRY =====
