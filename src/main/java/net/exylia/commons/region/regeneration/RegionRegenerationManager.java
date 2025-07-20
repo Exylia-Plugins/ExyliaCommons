@@ -146,10 +146,10 @@ public class RegionRegenerationManager {
      * Regenera una región usando su schematic guardado
      */
     public CompletableFuture<Boolean> regenerateRegion(Region region) {
-        String regionKey = getRegionKey(region);
+        String regionId = region.getId();
 
         // Verificar si ya se está regenerando
-        if (regeneratingRegions.containsKey(regionKey)) {
+        if (regeneratingRegions.containsKey(regionId)) {
             return CompletableFuture.completedFuture(false);
         }
 
@@ -158,14 +158,14 @@ public class RegionRegenerationManager {
             return CompletableFuture.completedFuture(false);
         }
 
-        regeneratingRegions.put(regionKey, true);
+        regeneratingRegions.put(regionId, true);
 
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logInternalDebug(debug(),"Regenerando región: " + region.getId());
 
                 // Intentar obtener del cache
-                Clipboard clipboard = clipboardCache.get(regionKey);
+                Clipboard clipboard = clipboardCache.get(regionId);
 
                 if (clipboard == null) {
                     // Cargar desde archivo
@@ -187,7 +187,7 @@ public class RegionRegenerationManager {
                 plugin.getLogger().severe("Error regenerando región " + region.getId() + ": " + e.getMessage());
                 return false;
             } finally {
-                regeneratingRegions.remove(regionKey);
+                regeneratingRegions.remove(regionId);
             }
         });
     }
@@ -250,7 +250,7 @@ public class RegionRegenerationManager {
      * Verifica si una región está siendo regenerada
      */
     public boolean isRegenerating(Region region) {
-        return regeneratingRegions.containsKey(getRegionKey(region));
+        return regeneratingRegions.containsKey(region.getId());
     }
 
     /**
@@ -259,10 +259,10 @@ public class RegionRegenerationManager {
     public CompletableFuture<Boolean> deleteRegionSchematic(Region region) {
         return CompletableFuture.supplyAsync(() -> {
             File schematicFile = getSchematicFile(region);
-            String regionKey = getRegionKey(region);
+            String regionId = region.getId();
 
             // Remover del cache
-            clipboardCache.remove(regionKey);
+            clipboardCache.remove(regionId);
 
             if (schematicFile.exists()) {
                 boolean deleted = schematicFile.delete();
@@ -311,7 +311,7 @@ public class RegionRegenerationManager {
     }
 
     private void cacheClipboard(Region region, Clipboard clipboard) {
-        String regionKey = getRegionKey(region);
+        String regionId = region.getId();
 
         if (clipboardCache.size() >= MAX_CACHE_SIZE) {
             // Remover el más antiguo (FIFO simple)
@@ -319,7 +319,7 @@ public class RegionRegenerationManager {
             clipboardCache.remove(oldestKey);
         }
 
-        clipboardCache.put(regionKey, clipboard);
+        clipboardCache.put(regionId, clipboard);
         logInternalDebug(debug(),"Clipboard cacheado para región: " + region.getId());
     }
 
@@ -343,8 +343,7 @@ public class RegionRegenerationManager {
                     cleanRegionEntities(region).thenRun(() -> {
 
                         // 2. Limpiar bloques de jugador del registro
-                        String regionKey = getRegionKey(region);
-                        PlayerBlockTracker.getInstance().clearRegionBlocks(regionKey);
+                        PlayerBlockTracker.getInstance().clearRegionBlocks(region.getId());
 
                         // 3. Esperar un tick y regenerar bloques
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -389,14 +388,14 @@ public class RegionRegenerationManager {
      */
     public CompletableFuture<Integer> clearRegionPlayerBlocks(Region region) {
         return CompletableFuture.supplyAsync(() -> {
-            String regionKey = getRegionKey(region);
+            String regionId = region.getId();
             PlayerBlockTracker tracker = PlayerBlockTracker.getInstance();
 
             // Obtener estadísticas antes
-            int blocksBefore = tracker.getPlayerBlocks(regionKey).size();
+            int blocksBefore = tracker.getPlayerBlocks(regionId).size();
 
             // Limpiar bloques
-            tracker.clearRegionBlocks(regionKey);
+            tracker.clearRegionBlocks(regionId);
 
             logInternalDebug(debug(), "Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
             return blocksBefore;
@@ -405,16 +404,11 @@ public class RegionRegenerationManager {
 
     private boolean shouldRemoveEntity(Entity entity) {
         EntityType type = entity.getType();
-
         return type != EntityType.PLAYER;
     }
 
-    private String getRegionKey(Region region) {
-        return region.getPluginName() + ":" + region.getId();
-    }
-
     private File getSchematicFile(Region region) {
-        return new File(schemsFolder, getRegionKey(region).replace(":", "_") + ".schem");
+        return new File(schemsFolder, region.getId() + ".schem");
     }
 
     /**
@@ -454,6 +448,5 @@ public class RegionRegenerationManager {
             this.activeRegenerations = activeRegenerations;
             this.totalSchematics = totalSchematics;
         }
-
     }
 }

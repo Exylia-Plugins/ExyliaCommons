@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Setter
 public class Region {
     private final String id;
-    private final String pluginName;
     private Selection selection;
     private final long createdAt;
 
@@ -46,9 +45,8 @@ public class Region {
     private RegionCallback onExit;
     private RegionCallback onMove;
 
-    public Region(String id, String pluginName, Selection selection) {
+    public Region(String id, Selection selection) {
         this.id = id;
-        this.pluginName = pluginName;
         this.selection = selection;
         this.createdAt = System.currentTimeMillis();
         this.displayName = id;
@@ -368,10 +366,10 @@ public class Region {
         Location max = getMaximumPoint();
 
         return String.format(
-                "Region [%s] - Plugin: %s, World: %s, " +
+                "Region [%s] - World: %s, " +
                         "Min: %d,%d,%d, Max: %d,%d,%d, " +
                         "Volume: %d, Players: %d, Priority: %s, Flags: %d",
-                id, pluginName, getWorld().getName(),
+                id, getWorld().getName(),
                 min.getBlockX(), min.getBlockY(), min.getBlockZ(),
                 max.getBlockX(), max.getBlockY(), max.getBlockZ(),
                 getVolume(), playersInside.size(), priority, flagStates.size()
@@ -383,18 +381,18 @@ public class Region {
         if (this == obj) return true;
         if (obj == null || getClass() != obj.getClass()) return false;
         Region region = (Region) obj;
-        return Objects.equals(id, region.id) && Objects.equals(pluginName, region.pluginName);
+        return Objects.equals(id, region.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, pluginName);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
-        return String.format("Region{id='%s', plugin='%s', priority=%s, flags=%d}",
-                id, pluginName, priority, flagStates.size());
+        return String.format("Region{id='%s', priority=%s, flags=%d}",
+                id, priority, flagStates.size());
     }
 
     /**
@@ -462,16 +460,14 @@ public class Region {
      * Verifica si un bloque en una ubicación específica fue colocado por un jugador
      */
     public boolean isPlayerPlacedBlock(Location location) {
-        String regionKey = pluginName + ":" + id;
-        return PlayerBlockTracker.getInstance().isPlayerPlacedBlock(regionKey, location);
+        return PlayerBlockTracker.getInstance().isPlayerPlacedBlock(id, location);
     }
 
     /**
      * Obtiene todos los bloques colocados por jugadores en esta región
      */
     public Set<PlayerBlockTracker.BlockPosition> getPlayerBlocks() {
-        String regionKey = pluginName + ":" + id;
-        return PlayerBlockTracker.getInstance().getPlayerBlocks(regionKey);
+        return PlayerBlockTracker.getInstance().getPlayerBlocks(id);
     }
 
     /**
@@ -519,21 +515,5 @@ public class Region {
      */
     public boolean hasProtectedBuilding() {
         return getFlagValue(RegionFlag.PLAYER_BUILD_ONLY);
-    }
-
-    /**
-     * Formatea tiempo en formato legible
-     */
-    private String formatTime(long milliseconds) {
-        long seconds = milliseconds / 1000;
-        if (seconds < 60) {
-            return seconds + "s";
-        } else if (seconds < 3600) {
-            return (seconds / 60) + "m " + (seconds % 60) + "s";
-        } else {
-            long hours = seconds / 3600;
-            long minutes = (seconds % 3600) / 60;
-            return hours + "h " + minutes + "m";
-        }
     }
 }

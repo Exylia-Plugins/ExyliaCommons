@@ -600,7 +600,6 @@ public class H2Adapter implements DatabaseAdapter {
                     if (column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
-                            logInternalDebug(debug(), "Auto-deserializado campo H2 " + columnName + " a tipo " + field.getType().getSimpleName());
                         } catch (Exception e) {
                             DebugUtils.logInternalError("Error auto-deserializando campo H2 " + columnName + ": " + e.getMessage());
                             // Fallback: intentar conversión normal

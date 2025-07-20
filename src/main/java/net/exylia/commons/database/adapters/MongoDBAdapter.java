@@ -416,7 +416,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     if (column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
-                            logInternalDebug(debug(), "Auto-deserializado campo MongoDB " + fieldName + " a tipo " + field.getType().getSimpleName());
                         } catch (Exception e) {
                             DebugUtils.logInternalError("Error auto-deserializando campo MongoDB " + fieldName + ": " + e.getMessage());
                             // Fallback: intentar conversión normal
@@ -504,7 +503,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     if (column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
-                            logInternalDebug(debug(), "Auto-deserializado campo documento MongoDB " + fieldName);
                         } catch (Exception e) {
                             DebugUtils.logInternalError("Error auto-deserializando campo documento MongoDB " + fieldName + ": " + e.getMessage());
                             // Fallback a conversión normal

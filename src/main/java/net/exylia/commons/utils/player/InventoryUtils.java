@@ -36,7 +36,7 @@ public class InventoryUtils {
         }
 
         ItemStack offHand = player.getInventory().getItemInOffHand();
-        if (offHand != null && offHand.getType() != Material.AIR) {
+        if (offHand.getType() != Material.AIR) {
             Location dropLocation = deathLocation.clone().add(
                     (Math.random() - 0.5) * 2,
                     0.5,
@@ -45,5 +45,6 @@ public class InventoryUtils {
 
             deathLocation.getWorld().dropItemNaturally(dropLocation, offHand);
         }
+        player.getInventory().clear();
     }
 }

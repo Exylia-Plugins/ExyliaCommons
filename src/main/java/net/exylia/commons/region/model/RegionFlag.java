@@ -22,7 +22,6 @@ public enum RegionFlag {
     PLAYER_BUILD_ONLY("player-build-only", "Solo permite romper/explotar bloques colocados por jugadores", false, FlagType.PROTECTION),
     TRACK_PLAYER_BLOCKS("track-player-blocks", "Rastrea bloques colocados por jugadores en esta región", false, FlagType.PROTECTION),
 
-
     // Protección específica de bloques
     CHEST_ACCESS("chest-access", "Permite acceder a cofres y contenedores", true, FlagType.PROTECTION),
     USE_DOORS("use-doors", "Permite usar puertas y compuertas", true, FlagType.PROTECTION),
@@ -161,8 +160,8 @@ public enum RegionFlag {
     /**
      * Obtiene el permiso necesario para modificar esta flag
      */
-    public String getRequiredPermission(String pluginName, String regionId) {
-        String base = pluginName + ".region.flag.";
+    public String getRequiredPermission(String regionId) {
+        String base = "exylia.region.flag.";
 
         if (requiresSpecialPermission()) {
             base += "special.";

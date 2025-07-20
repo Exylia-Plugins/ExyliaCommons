@@ -29,5 +29,7 @@ public class PlayerUtils {
         player.setExp(0);
         player.setLevel(0);
         player.setTotalExperience(0);
+        player.setFlying(false);
+        player.setAllowFlight(false);
     }
 }

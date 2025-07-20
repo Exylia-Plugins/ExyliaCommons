@@ -133,7 +133,7 @@ public class FlagManager {
             }
 
             // Verificar permisos específicos
-            String flagPermission = flag.getRequiredPermission(region.getPluginName(), region.getId());
+            String flagPermission = flag.getRequiredPermission(region.getId());
             if (player.hasPermission(flagPermission)) {
                 return true;
             }

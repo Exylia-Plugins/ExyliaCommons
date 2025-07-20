@@ -54,12 +54,11 @@ public class PlayerBuildListener implements Listener {
         // Si la región tiene rastreo de bloques habilitado
         if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
             // Registrar que el jugador colocó este bloque
-            String regionKey = getRegionKey(region);
-            blockTracker.addPlayerBlock(regionKey, location, event.getBlock().getType());
+            blockTracker.addPlayerBlock(region.getId(), location, event.getBlock().getType());
 
             if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
                 plugin.getLogger().fine("Bloque registrado: " + player.getName() + " colocó " +
-                        event.getBlock().getType() + " en " + regionKey + " " +
+                        event.getBlock().getType() + " en " + region.getId() + " " +
                         location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
             }
 
@@ -82,13 +81,12 @@ public class PlayerBuildListener implements Listener {
         }
 
         Region region = regions.get(0); // Mayor prioridad
-        String regionKey = getRegionKey(region);
         boolean shouldAllow = true;
 
         // Si la región tiene construcción solo de jugadores habilitada
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
             // Verificar si el bloque fue colocado por un jugador
-            if (!blockTracker.isPlayerPlacedBlock(regionKey, location)) {
+            if (!blockTracker.isPlayerPlacedBlock(region.getId(), location)) {
                 // Es un bloque original de la región, no permitir romper
                 shouldAllow = false;
             }
@@ -103,11 +101,11 @@ public class PlayerBuildListener implements Listener {
 
             // Si la región tiene rastreo habilitado, remover el bloque del registro
             if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-                blockTracker.removePlayerBlock(regionKey, location);
+                blockTracker.removePlayerBlock(region.getId(), location);
 
                 if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
                     plugin.getLogger().fine("Bloque removido del registro: " + player.getName() + " rompió bloque en " +
-                            regionKey + " " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
+                            region.getId() + " " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
                 }
             }
         } else {
@@ -131,7 +129,6 @@ public class PlayerBuildListener implements Listener {
         }
 
         Region region = regions.get(0); // Mayor prioridad
-        String regionKey = getRegionKey(region);
 
         // Si la región tiene construcción solo de jugadores habilitada
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
@@ -144,7 +141,7 @@ public class PlayerBuildListener implements Listener {
                 Location blockLocation = block.getLocation();
 
                 // Verificar si el bloque fue colocado por un jugador
-                if (!blockTracker.isPlayerPlacedBlock(regionKey, blockLocation)) {
+                if (!blockTracker.isPlayerPlacedBlock(region.getId(), blockLocation)) {
                     // Es un bloque original de la región, no puede ser destruido
                     iterator.remove();
                 } else {
@@ -152,7 +149,7 @@ public class PlayerBuildListener implements Listener {
                     hasAllowedBlocks = true;
                     // Removerlo del registro
                     if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-                        blockTracker.removePlayerBlock(regionKey, blockLocation);
+                        blockTracker.removePlayerBlock(region.getId(), blockLocation);
                     }
                 }
             }
@@ -163,7 +160,7 @@ public class PlayerBuildListener implements Listener {
             }
 
             if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
-                plugin.getLogger().fine("Explosión filtrada en región " + regionKey + ": " +
+                plugin.getLogger().fine("Explosión filtrada en región " + region.getId() + ": " +
                         event.blockList().size() + " bloques pueden ser destruidos");
             }
         } else if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
@@ -173,7 +170,7 @@ public class PlayerBuildListener implements Listener {
             }
 
             for (Block block : event.blockList()) {
-                blockTracker.removePlayerBlock(regionKey, block.getLocation());
+                blockTracker.removePlayerBlock(region.getId(), block.getLocation());
             }
         }
     }
@@ -189,7 +186,6 @@ public class PlayerBuildListener implements Listener {
         }
 
         Region region = regions.get(0); // Mayor prioridad
-        String regionKey = getRegionKey(region);
 
         // Si la región tiene construcción solo de jugadores habilitada
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
@@ -202,7 +198,7 @@ public class PlayerBuildListener implements Listener {
                 Location blockLocation = block.getLocation();
 
                 // Verificar si el bloque fue colocado por un jugador
-                if (!blockTracker.isPlayerPlacedBlock(regionKey, blockLocation)) {
+                if (!blockTracker.isPlayerPlacedBlock(region.getId(), blockLocation)) {
                     // Es un bloque original de la región, no puede ser destruido
                     iterator.remove();
                 } else {
@@ -210,7 +206,7 @@ public class PlayerBuildListener implements Listener {
                     hasAllowedBlocks = true;
                     // Removerlo del registro
                     if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-                        blockTracker.removePlayerBlock(regionKey, blockLocation);
+                        blockTracker.removePlayerBlock(region.getId(), blockLocation);
                     }
                 }
             }
@@ -221,7 +217,7 @@ public class PlayerBuildListener implements Listener {
             }
 
             if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
-                plugin.getLogger().fine("Explosión de bloque filtrada en región " + regionKey + ": " +
+                plugin.getLogger().fine("Explosión de bloque filtrada en región " + region.getId() + ": " +
                         event.blockList().size() + " bloques pueden ser destruidos");
             }
         } else if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
@@ -231,15 +227,8 @@ public class PlayerBuildListener implements Listener {
             }
 
             for (Block block : event.blockList()) {
-                blockTracker.removePlayerBlock(regionKey, block.getLocation());
+                blockTracker.removePlayerBlock(region.getId(), block.getLocation());
             }
         }
-    }
-
-    /**
-     * Genera clave única para una región
-     */
-    private String getRegionKey(Region region) {
-        return region.getPluginName() + ":" + region.getId();
     }
 }

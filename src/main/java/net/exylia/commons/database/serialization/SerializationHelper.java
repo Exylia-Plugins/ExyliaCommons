@@ -1,6 +1,8 @@
 package net.exylia.commons.database.serialization;
 
 import net.exylia.commons.database.annotations.SerializationType;
+import net.exylia.commons.region.model.Region;
+import net.exylia.commons.region.serialization.RegionSerializer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
@@ -15,6 +17,7 @@ import java.util.Map;
 
 /**
  * Helper para manejar la auto-serialización de tipos complejos
+ * ACTUALIZADO: Ahora incluye soporte para Region
  */
 public class SerializationHelper {
 
@@ -28,8 +31,21 @@ public class SerializationHelper {
         Class<?> type = field.getType();
         SerializationType actualType = serType == SerializationType.AUTO ? detectSerializationType(type, field) : serType;
 
+        // NUEVO: Soporte para Region - SIEMPRE usar RegionSerializer para Region
+        if (type == Region.class || value instanceof Region) {
+            try {
+                String result = RegionSerializer.serialize((Region) value);
+                if (result == null || result.trim().isEmpty()) {
+                    throw new RuntimeException("RegionSerializer returned null or empty result");
+                }
+                return result;
+            } catch (Exception e) {
+                throw new RuntimeException("Error serializing Region: " + e.getMessage(), e);
+            }
+        }
+
         // Tipos específicos de Bukkit
-        if (type == Location.class) {
+        else if (type == Location.class) {
             return SerializationUtils.serializeLocation((Location) value);
         } else if (type == Component.class) {
             return SerializationUtils.serializeComponent((Component) value);
@@ -87,8 +103,17 @@ public class SerializationHelper {
         Class<?> type = field.getType();
         SerializationType actualType = serType == SerializationType.AUTO ? detectSerializationType(type, field) : serType;
 
+        // NUEVO: Soporte para Region - SIEMPRE usar RegionSerializer para Region
+        if (type == Region.class) {
+            try {
+                return RegionSerializer.deserialize(stringValue);
+            } catch (Exception e) {
+                throw new RuntimeException("Error deserializing Region: " + e.getMessage(), e);
+            }
+        }
+
         // Tipos específicos de Bukkit
-        if (type == Location.class) {
+        else if (type == Location.class) {
             return SerializationUtils.deserializeLocation(stringValue);
         } else if (type == Component.class) {
             return SerializationUtils.deserializeComponent(stringValue);
@@ -141,6 +166,11 @@ public class SerializationHelper {
      * Detecta automáticamente el mejor tipo de serialización para un campo
      */
     private static SerializationType detectSerializationType(Class<?> type, Field field) {
+        // NUEVO: Region - usar JSON para legibilidad y flexibilidad
+        if (type == Region.class) {
+            return SerializationType.JSON;
+        }
+
         // Tipos de Bukkit específicos
         if (type == Location.class || type == Component.class) {
             return SerializationType.STRING;
@@ -194,6 +224,18 @@ public class SerializationHelper {
                 if (elementType == PotionEffect.class) {
                     return SerializationUtils.serializePotionEffectsToJson((List<PotionEffect>) collection);
                 }
+
+                // NUEVO: Lista de Regions
+                if (elementType == Region.class) {
+                    List<Region> regions = (List<Region>) collection;
+                    StringBuilder json = new StringBuilder("[");
+                    for (int i = 0; i < regions.size(); i++) {
+                        if (i > 0) json.append(",");
+                        json.append(RegionSerializer.serialize(regions.get(i)));
+                    }
+                    json.append("]");
+                    return json.toString();
+                }
             }
         }
 
@@ -222,6 +264,47 @@ public class SerializationHelper {
                 if (elementType == PotionEffect.class) {
                     return SerializationUtils.deserializePotionEffectsFromJson(stringValue);
                 }
+
+                // NUEVO: Lista de Regions
+                if (elementType == Region.class) {
+                    try {
+                        // Parsear JSON array manualmente para regions
+                        List<Region> regions = new java.util.ArrayList<>();
+                        if (stringValue.startsWith("[") && stringValue.endsWith("]")) {
+                            String content = stringValue.substring(1, stringValue.length() - 1);
+                            if (!content.trim().isEmpty()) {
+                                // Simple parser para objetos JSON separados por comas
+                                int braceCount = 0;
+                                StringBuilder currentRegion = new StringBuilder();
+
+                                for (char c : content.toCharArray()) {
+                                    if (c == '{') braceCount++;
+                                    else if (c == '}') braceCount--;
+
+                                    currentRegion.append(c);
+
+                                    if (braceCount == 0 && currentRegion.length() > 0) {
+                                        String regionJson = currentRegion.toString().trim();
+                                        if (regionJson.endsWith(",")) {
+                                            regionJson = regionJson.substring(0, regionJson.length() - 1);
+                                        }
+
+                                        Region region = RegionSerializer.deserialize(regionJson);
+                                        if (region != null) {
+                                            regions.add(region);
+                                        }
+
+                                        currentRegion.setLength(0);
+                                    }
+                                }
+                            }
+                        }
+                        return regions;
+                    } catch (Exception e) {
+                        // Fallback a deserialización de objeto
+                        return SerializationUtils.deserializeObject(stringValue, field.getType());
+                    }
+                }
             }
         }
 
@@ -240,6 +323,18 @@ public class SerializationHelper {
             return SerializationUtils.serializePotionEffectsToJson(List.of(effects));
         }
 
+        // NUEVO: Array de Regions
+        if (componentType == Region.class) {
+            Region[] regions = (Region[]) value;
+            StringBuilder json = new StringBuilder("[");
+            for (int i = 0; i < regions.length; i++) {
+                if (i > 0) json.append(",");
+                json.append(RegionSerializer.serialize(regions[i]));
+            }
+            json.append("]");
+            return json.toString();
+        }
+
         // Arrays primitivos y otros - usar serialización de objeto
         return SerializationUtils.serializeObject(value);
     }
@@ -253,6 +348,44 @@ public class SerializationHelper {
         if (componentType == PotionEffect.class) {
             List<PotionEffect> effects = SerializationUtils.deserializePotionEffectsFromJson(stringValue);
             return effects.toArray(new PotionEffect[0]);
+        }
+
+        // NUEVO: Array de Regions (similar a la deserialización de List<Region>)
+        if (componentType == Region.class) {
+            try {
+                List<Region> regions = new java.util.ArrayList<>();
+                if (stringValue.startsWith("[") && stringValue.endsWith("]")) {
+                    String content = stringValue.substring(1, stringValue.length() - 1);
+                    if (!content.trim().isEmpty()) {
+                        int braceCount = 0;
+                        StringBuilder currentRegion = new StringBuilder();
+
+                        for (char c : content.toCharArray()) {
+                            if (c == '{') braceCount++;
+                            else if (c == '}') braceCount--;
+
+                            currentRegion.append(c);
+
+                            if (braceCount == 0 && currentRegion.length() > 0) {
+                                String regionJson = currentRegion.toString().trim();
+                                if (regionJson.endsWith(",")) {
+                                    regionJson = regionJson.substring(0, regionJson.length() - 1);
+                                }
+
+                                Region region = RegionSerializer.deserialize(regionJson);
+                                if (region != null) {
+                                    regions.add(region);
+                                }
+
+                                currentRegion.setLength(0);
+                            }
+                        }
+                    }
+                }
+                return regions.toArray(new Region[0]);
+            } catch (Exception e) {
+                return SerializationUtils.deserializeObject(stringValue, arrayType);
+            }
         }
 
         // Arrays primitivos y otros
@@ -269,6 +402,7 @@ public class SerializationHelper {
                 type == ItemStack[].class ||
                 type == PotionEffect.class ||
                 type == PotionEffect[].class ||
+                type == Region.class ||  // NUEVO
                 Collection.class.isAssignableFrom(type) ||
                 Map.class.isAssignableFrom(type) ||
                 (type.isArray() && !type.getComponentType().isPrimitive() && type.getComponentType() != String.class) ||

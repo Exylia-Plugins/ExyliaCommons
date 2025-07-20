@@ -659,7 +659,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                     if (column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
-                            DebugUtils.logInternalDebug(debug(), "Auto-deserializado campo " + columnName + " a tipo " + field.getType().getSimpleName());
                         } catch (Exception e) {
                             DebugUtils.logInternalError("Error auto-deserializando campo " + columnName + ": " + e.getMessage());
                             // Fallback: intentar conversión normal
