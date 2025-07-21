@@ -94,7 +94,7 @@ public class FlagManager {
         } else {
             // Usar la región de mayor prioridad
             Region highestPriorityRegion = regions.get(0);
-            result = evaluateFlagInRegion(player, highestPriorityRegion, flag);
+            result = evaluateFlagInRegion(player, highestPriorityRegion, flag, location);
         }
 
         // Cachear resultado solo si player no es null
@@ -107,8 +107,29 @@ public class FlagManager {
     /**
      * Evalúa una flag en una región específica considerando permisos y configuración
      */
-    private boolean evaluateFlagInRegion(Player player, Region region, RegionFlag flag) {
-        // 1. Verificar permisos específicos del jugador en la región (solo si player no es null)
+    private boolean evaluateFlagInRegion(Player player, Region region, RegionFlag flag, Location actionLocation) {
+        // 1. Verificar REGION_MEMBERS_ONLY antes que cualquier otra cosa
+        if (player != null && region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY) && flag.isAffectedByRegionMembersOnly()) {
+            // Si REGION_MEMBERS_ONLY está activo y la flag es afectada por él
+            // Solo permitir si el jugador está DENTRO de la región
+            boolean playerInRegion = region.contains(player.getLocation());
+
+            if (!playerInRegion) {
+                // El jugador no está dentro de la región, denegar acceso independientemente de otros permisos
+                plugin.getLogger().fine(String.format(
+                        "REGION_MEMBERS_ONLY: Denying %s for player %s (outside region %s) trying to affect location in region",
+                        flag.getKey(), player.getName(), region.getId()
+                ));
+                return false;
+            }
+
+            plugin.getLogger().fine(String.format(
+                    "REGION_MEMBERS_ONLY: Player %s is inside region %s, continuing with normal flag evaluation",
+                    player.getName(), region.getId()
+            ));
+        }
+
+        // 2. Verificar permisos específicos del jugador en la región (solo si player no es null)
         if (player != null) {
             // Verificar si es owner o miembro
             UUID playerId = player.getUniqueId();
@@ -139,15 +160,68 @@ public class FlagManager {
             }
         }
 
-        // 2. Obtener el valor de la flag en la región
+        // 3. Obtener el valor de la flag en la región
         boolean flagValue = region.getFlagValue(flag);
 
-        // 3. Verificar incompatibilidades de flags
+        // 4. Verificar incompatibilidades de flags
         if (hasIncompatibleFlags(region, flag)) {
             return false;
         }
 
         return flagValue;
+    }
+
+    /**
+     * Verificación especial para PvP considerando REGION_MEMBERS_ONLY
+     */
+    public boolean isPvpAllowed(Player attacker, Player target) {
+        // Obtener ubicaciones
+        Location attackerLoc = attacker.getLocation();
+        Location targetLoc = target.getLocation();
+
+        // Verificar si el target es invencible
+        if (isPlayerInvincible(target)) {
+            return false;
+        }
+
+        // Obtener regiones de ambos jugadores
+        List<Region> attackerRegions = RegionManager.getInstance().getRegionsAt(attackerLoc);
+        List<Region> targetRegions = RegionManager.getInstance().getRegionsAt(targetLoc);
+
+        // Si cualquiera de los dos está en una región, verificar PvP
+        Set<Region> allRegions = new HashSet<>();
+        allRegions.addAll(attackerRegions);
+        allRegions.addAll(targetRegions);
+
+        if (allRegions.isEmpty()) {
+            // Ninguno está en regiones, usar valor por defecto
+            return RegionFlag.PVP.isDefaultValue();
+        }
+
+        // Verificar cada región relevante
+        for (Region region : allRegions) {
+            // Si la región tiene REGION_MEMBERS_ONLY activo
+            if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
+                // Ambos jugadores deben estar dentro de la región para poder hacer PvP
+                boolean attackerInRegion = region.contains(attackerLoc);
+                boolean targetInRegion = region.contains(targetLoc);
+
+                if (!attackerInRegion || !targetInRegion) {
+                    plugin.getLogger().fine(String.format(
+                            "PvP denied by REGION_MEMBERS_ONLY: attacker %s in region: %b, target %s in region: %b",
+                            attacker.getName(), attackerInRegion, target.getName(), targetInRegion
+                    ));
+                    return false;
+                }
+            }
+
+            // Verificar si PvP está permitido en la región
+            if (!region.getFlagValue(RegionFlag.PVP)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -256,6 +330,11 @@ public class FlagManager {
                     state.addAppliedFlag(flag);
                 }
                 break;
+
+            case REGION_MEMBERS_ONLY:
+                // Esta flag no tiene efecto directo, solo modifica el comportamiento de otras flags
+                state.addAppliedFlag(flag);
+                break;
         }
     }
 
@@ -294,6 +373,10 @@ public class FlagManager {
                 if (previous != null) {
                     player.setGameMode(previous);
                 }
+                break;
+
+            case REGION_MEMBERS_ONLY:
+                // Esta flag no tiene efecto directo que remover
                 break;
         }
 
@@ -456,15 +539,6 @@ public class FlagManager {
     public boolean isPlayerInvincible(Player player) {
         FlagState state = playerStates.get(player.getUniqueId());
         return state != null && state.hasAppliedFlag(RegionFlag.INVINCIBLE);
-    }
-
-    /**
-     * Verifica si el PvP está permitido entre dos jugadores
-     */
-    public boolean isPvpAllowed(Player attacker, Player target) {
-        return canPlayerPerformAction(attacker, RegionFlag.PVP) &&
-                canPlayerPerformAction(target, RegionFlag.PVP) &&
-                !isPlayerInvincible(target);
     }
 
     /**

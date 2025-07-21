@@ -398,45 +398,124 @@ public class ConfigurationSystem {
 
     /**
      * Recarga todas las configuraciones de forma asíncrona
+     * CORREGIDO: Ahora recrea completamente las instancias en lugar de solo actualizar campos
      */
     public CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logInternalInfo("Iniciando reload del sistema de configuración...");
 
+                // 1. Limpiar cache
                 cache.invalidateAll();
 
-                boolean allSuccess = true;
+                // 2. Recargar todos los archivos de configuración
+                boolean allFilesSuccess = true;
                 for (String fileName : configFiles.keySet()) {
                     if (!reloadFile(fileName)) {
-                        allSuccess = false;
+                        allFilesSuccess = false;
                     }
                 }
 
-                // Recargar instancias de configuración
-                for (Object instance : configInstances.values()) {
-                    if (instance instanceof ConfigBase) {
-                        ((ConfigBase) instance).onReload();
+                if (!allFilesSuccess) {
+                    logInternalError("Error recargando algunos archivos de configuración");
+                    return false;
+                }
+
+                // 3. CRÍTICO: Recrear completamente todas las instancias de configuración
+                Map<Class<?>, Object> oldInstances = new HashMap<>(configInstances);
+                configInstances.clear();
+
+                boolean allInstancesSuccess = true;
+                for (Map.Entry<Class<?>, Object> entry : oldInstances.entrySet()) {
+                    Class<?> configClass = entry.getKey();
+
+                    try {
+                        // Recrear la instancia completamente
+                        if (recreateConfigInstance(configClass)) {
+                            logInternalDebug(debugMode, "Instancia recreada exitosamente: " + configClass.getSimpleName());
+                        } else {
+                            logInternalError("Error recreando instancia: " + configClass.getSimpleName());
+                            allInstancesSuccess = false;
+                        }
+                    } catch (Exception e) {
+                        logInternalError("Excepción recreando " + configClass.getSimpleName() + ": " + e.getMessage());
+                        e.printStackTrace();
+                        allInstancesSuccess = false;
                     }
                 }
 
+                if (!allInstancesSuccess) {
+                    logInternalError("Error recreando algunas instancias de configuración");
+                    return false;
+                }
+
+                // 4. Recargar configuraciones globales
                 setupGlobalPrefix();
                 ColorUtils.reloadPresets();
 
-                logInternalSuccess("Reload " + (allSuccess ? "exitoso" : "con advertencias"));
+                logInternalSuccess("Reload completo exitoso - " + configInstances.size() + " instancias recreadas");
 
+                // 5. Notificar listeners en el hilo principal
                 Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);
-                return allSuccess;
+                return true;
 
             } catch (Exception e) {
-                logInternalError("Error durante reload: " + e.getMessage());
+                logInternalError("Error crítico durante reload: " + e.getMessage());
+                e.printStackTrace();
                 return false;
             }
         });
     }
 
     /**
-     * Recarga un archivo específico
+     * NUEVO: Recrea completamente una instancia de configuración
+     */
+    @SuppressWarnings("unchecked")
+    private boolean recreateConfigInstance(Class<?> configClass) {
+        try {
+            // Verificar que sea una clase de configuración válida
+            if (!ConfigBase.class.isAssignableFrom(configClass)) {
+                logInternalError("Clase no es ConfigBase: " + configClass.getSimpleName());
+                return false;
+            }
+
+            // Obtener anotación de archivo
+            ConfigFile annotation = configClass.getAnnotation(ConfigFile.class);
+            if (annotation == null) {
+                logInternalError("Clase sin anotación @ConfigFile: " + configClass.getSimpleName());
+                return false;
+            }
+
+            String fileName = annotation.value();
+            ConfigFileData fileData = configFiles.get(fileName);
+            if (fileData == null) {
+                logInternalError("Archivo no encontrado para " + configClass.getSimpleName() + ": " + fileName);
+                return false;
+            }
+
+            // Crear nueva instancia
+            logInternalDebug(debugMode, "Creando nueva instancia de: " + configClass.getSimpleName());
+            ConfigBase newInstance = (ConfigBase) configClass.getDeclaredConstructor().newInstance();
+
+            // Inicializar la nueva instancia
+            logInternalDebug(debugMode, "Inicializando nueva instancia de: " + configClass.getSimpleName());
+            newInstance.initialize(this, fileData);
+
+            // Guardar la nueva instancia
+            configInstances.put(configClass, newInstance);
+
+            logInternalDebug(debugMode, "Instancia recreada y registrada: " + configClass.getSimpleName());
+            return true;
+
+        } catch (Exception e) {
+            logInternalError("Error recreando instancia de " + configClass.getSimpleName() + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * MEJORADO: Recarga un archivo específico con mejor manejo de errores
      */
     public boolean reloadFile(String fileName) {
         try {
@@ -447,21 +526,30 @@ public class ConfigurationSystem {
             }
 
             File file = new File(plugin.getDataFolder(), fileName + ".yml");
+            if (!file.exists()) {
+                logInternalError("Archivo físico no existe: " + file.getAbsolutePath());
+                return false;
+            }
+
+            logInternalDebug(debugMode, "Recargando archivo: " + fileName);
             FileConfiguration newConfig = YamlConfiguration.loadConfiguration(file);
 
+            // Validar si hay un validador
             if (oldData.validator != null && !oldData.validator.apply(newConfig)) {
                 logInternalError("Validación fallida para " + fileName + " durante reload");
                 return false;
             }
 
+            // Actualizar la configuración
             oldData.configuration = newConfig;
             oldData.lastModified = file.lastModified();
 
-            logInternalDebug(debugMode, "Archivo recargado: " + fileName);
+            logInternalDebug(debugMode, "Archivo recargado exitosamente: " + fileName);
             return true;
 
         } catch (Exception e) {
-            logInternalError("Error recargando " + fileName + ": " + e.getMessage());
+            logInternalError("Excepción recargando " + fileName + ": " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }

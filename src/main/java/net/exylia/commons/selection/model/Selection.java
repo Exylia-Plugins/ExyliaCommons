@@ -71,6 +71,18 @@ public class Selection {
         return new Location(world, maxX, maxY, maxZ);
     }
 
+    public Location getCenter() {
+        if (!isComplete()) return null;
+
+        World world = pos1.getWorld();
+
+        double centerX = (pos1.getBlockX() + pos2.getBlockX()) / 2.0;
+        double centerY = (pos1.getBlockY() + pos2.getBlockY()) / 2.0;
+        double centerZ = (pos1.getBlockZ() + pos2.getBlockZ()) / 2.0;
+
+        return new Location(world, centerX, centerY, centerZ);
+    }
+
     public boolean contains(Location location) {
         if (!isComplete() || !location.getWorld().equals(pos1.getWorld())) {
             return false;

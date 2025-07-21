@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
@@ -63,13 +64,26 @@ public abstract class ConfigBase {
                 field.setAccessible(true);
                 Object value = getValueForField(field, annotation);
                 field.set(this, value);
+
+                // Log de debug para componentes
+                if (isConfigComponent(field.getType())) {
+                    logInternalDebug(debug(), "Campo de componente recargado: " + field.getName() + " = " + value);
+                }
             }
         }
+    }
+
+    private boolean isConfigComponent(Class<?> type) {
+        return type == BossBarConfig.class ||
+                type == TitleConfig.class ||
+                type == ActionBarConfig.class ||
+                type == ScoreboardConfig.class;
     }
 
     private Object getValueForField(java.lang.reflect.Field field, ConfigValue annotation) {
         String path = annotation.value();
         Class<?> fieldType = field.getType();
+
         if (fieldType == String.class) {
             return config.getString(path, annotation.defaultValue());
         } else if (fieldType == int.class || fieldType == Integer.class) {
@@ -97,6 +111,7 @@ public abstract class ConfigBase {
             throw new IllegalArgumentException("Tipo de campo no soportado: " + fieldType.getSimpleName());
         }
     }
+
     /**
      * Creates a Map from a configuration section
      */
@@ -164,31 +179,34 @@ public abstract class ConfigBase {
         } else if (valueType == Long.class || valueType == long.class) {
             return parentSection.getLong(key);
         } else if (valueType == BossBarConfig.class) {
+            String fullPath = parentSection.getCurrentPath() + "." + key;
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
-                return new BossBarConfig(key, config);
+                return new BossBarConfig(fullPath, config);
             }
             return new BossBarConfig();
         } else if (valueType == TitleConfig.class) {
+            String fullPath = parentSection.getCurrentPath() + "." + key;
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
-                return new TitleConfig(key, config);
+                return new TitleConfig(fullPath, config);
             }
             return new TitleConfig();
         } else if (valueType == ActionBarConfig.class) {
+            String fullPath = parentSection.getCurrentPath() + "." + key;
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
-                return new ActionBarConfig(key, config);
+                return new ActionBarConfig(fullPath, config);
             }
             return new ActionBarConfig();
         }else if (valueType == ScoreboardConfig.class) {
+            String fullPath = parentSection.getCurrentPath() + "." + key;
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
-                return new ScoreboardConfig(key, config);
+                return new ScoreboardConfig(fullPath, config);
             }
             return new ScoreboardConfig();
         }else {
-            // For complex objects, try to create from configuration section
             ConfigurationSection subSection = parentSection.getConfigurationSection(key);
             if (subSection != null) {
                 return createComplexObjectFromSection(subSection, valueType);
@@ -244,31 +262,34 @@ public abstract class ConfigBase {
         } else if (expectedType == long.class || expectedType == Long.class) {
             return section.getLong(key);
         } else if (expectedType == BossBarConfig.class) {
+            String fullPath = section.getCurrentPath() + "." + key;
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
-                return new BossBarConfig(key, config);
+                return new BossBarConfig(fullPath, config);
             }
             return new BossBarConfig();
         } else if (expectedType == TitleConfig.class) {
+            String fullPath = section.getCurrentPath() + "." + key;
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
-                return new TitleConfig(key, config);
+                return new TitleConfig(fullPath, config);
             }
             return new TitleConfig();
         } else if (expectedType == ActionBarConfig.class) {
+            String fullPath = section.getCurrentPath() + "." + key;
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
-                return new ActionBarConfig(key, config);
+                return new ActionBarConfig(fullPath, config);
             }
             return new ActionBarConfig();
         }else if (expectedType == ScoreboardConfig.class) {
+            String fullPath = section.getCurrentPath() + "." + key;
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
-                return new ScoreboardConfig(key, config);
+                return new ScoreboardConfig(fullPath, config);
             }
             return new ScoreboardConfig();
         }else {
-            // For nested objects, recursively create from subsection
             ConfigurationSection subSection = section.getConfigurationSection(key);
             if (subSection != null) {
                 return createComplexObjectFromSection(subSection, expectedType);
@@ -285,37 +306,45 @@ public abstract class ConfigBase {
     }
 
     private BossBarConfig createBossBarConfig(String basePath) {
-        if (config.getConfigurationSection(basePath) != null) {
+        ConfigurationSection section = config.getConfigurationSection(basePath);
+        if (section != null) {
+            logInternalDebug(debug(), "Creando BossBarConfig desde sección: " + basePath);
             return new BossBarConfig(basePath, config);
         } else {
-            logInternalError("Advertencia: No se encontró configuración para BossBar en " + basePath + ", usando valores por defecto");
+            logInternalDebug(debug(), "Creando BossBarConfig por defecto para: " + basePath);
             return new BossBarConfig();
         }
     }
 
     private TitleConfig createTitleConfig(String basePath) {
-        if (config.getConfigurationSection(basePath) != null) {
+        ConfigurationSection section = config.getConfigurationSection(basePath);
+        if (section != null) {
+            logInternalDebug(debug(), "Creando TitleConfig desde sección: " + basePath);
             return new TitleConfig(basePath, config);
         } else {
-            logInternalError("Advertencia: No se encontró configuración para Title en " + basePath + ", usando valores por defecto");
+            logInternalDebug(debug(), "Creando TitleConfig por defecto para: " + basePath);
             return new TitleConfig();
         }
     }
 
     private ActionBarConfig createActionBarConfig(String basePath) {
-        if (config.getConfigurationSection(basePath) != null) {
+        ConfigurationSection section = config.getConfigurationSection(basePath);
+        if (section != null) {
+            logInternalDebug(debug(), "Creando ActionBarConfig desde sección: " + basePath);
             return new ActionBarConfig(basePath, config);
         } else {
-            logInternalError("Advertencia: No se encontró configuración para ActionBar en " + basePath + ", usando valores por defecto");
+            logInternalDebug(debug(), "Creando ActionBarConfig por defecto para: " + basePath);
             return new ActionBarConfig();
         }
     }
 
     private ScoreboardConfig createScoreboardConfig(String basePath) {
-        if (config.getConfigurationSection(basePath) != null) {
+        ConfigurationSection section = config.getConfigurationSection(basePath);
+        if (section != null) {
+            logInternalDebug(debug(), "Creando ScoreboardConfig desde sección: " + basePath);
             return new ScoreboardConfig(basePath, config);
         } else {
-            logInternalError("Advertencia: No se encontró configuración para Scoreboard en " + basePath + ", usando valores por defecto");
+            logInternalDebug(debug(), "Creando ScoreboardConfig por defecto para: " + basePath);
             return new ScoreboardConfig();
         }
     }
@@ -351,7 +380,7 @@ public abstract class ConfigBase {
                 data.lastModified = configFile.lastModified();
             }
 
-            logInternalDebug(true, "Configuración guardada: " + fileName);
+            logInternalDebug(debug(), "Configuración guardada: " + fileName);
         } catch (Exception e) {
             logInternalError("Error guardando configuración " + fileName + ": " + e.getMessage());
             throw new RuntimeException("Error guardando configuración", e);
@@ -380,10 +409,24 @@ public abstract class ConfigBase {
                     field.setAccessible(true);
                     Object value = getValueForField(field, annotation);
                     field.set(this, value);
+                    logInternalDebug(debug(), "Campo recargado: " + fieldName + " = " + value);
                 }
             }
         } catch (Exception e) {
             logInternalError("Error recargando campo " + fieldName + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * NUEVO: Recarga todos los campos de configuración (útil para reload manual)
+     */
+    protected void reloadAllFields() {
+        try {
+            logInternalDebug(debug(), "Recargando todos los campos de configuración para: " + fileName);
+            loadAnnotatedFields();
+            logInternalDebug(debug(), "Todos los campos recargados correctamente para: " + fileName);
+        } catch (Exception e) {
+            logInternalError("Error recargando todos los campos para " + fileName + ": " + e.getMessage());
         }
     }
 
@@ -419,8 +462,11 @@ public abstract class ConfigBase {
     }
 
     public final void onReload() {
-        loadAnnotatedFields();
+        // CORREGIDO: Asegurar que se recargan todos los campos incluyendo componentes
+        logInternalDebug(debug(), "Ejecutando onReload para: " + fileName);
+        loadAnnotatedFields(); // Esto recarga TODOS los campos, incluyendo componentes
         onCustomReload();
+        logInternalDebug(debug(), "onReload completado para: " + fileName);
     }
 
     // Métodos que pueden ser sobrescritos por las clases hijas

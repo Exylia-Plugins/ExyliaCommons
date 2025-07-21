@@ -69,7 +69,7 @@ public class PlayerBuildListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false) // LOWEST = se ejecuta AL FINAL
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
@@ -81,36 +81,32 @@ public class PlayerBuildListener implements Listener {
         }
 
         Region region = regions.get(0); // Mayor prioridad
-        boolean shouldAllow = true;
 
         // Si la región tiene construcción solo de jugadores habilitada
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
             // Verificar si el bloque fue colocado por un jugador
             if (!blockTracker.isPlayerPlacedBlock(region.getId(), location)) {
-                // Es un bloque original de la región, no permitir romper
-                shouldAllow = false;
+                event.setCancelled(true);
+                if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
+                    plugin.getLogger().fine("FINAL DENIAL: " + player.getName() + " no puede romper bloque original en " + region.getId());
+                }
+                return;
             }
         }
 
-        // Aplicar resultado
-        if (shouldAllow) {
-            // Si nuestro sistema permite la acción, descancelar si fue cancelado
-            if (event.isCancelled()) {
-                event.setCancelled(false);
-            }
+        // Si llegamos aquí y PLAYER_BUILD_ONLY está activo, el bloque SÍ puede romperse
+        // Si otros sistemas lo cancelaron pero nosotros lo permitimos, descancelar
+        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY) && event.isCancelled()) {
+            event.setCancelled(false);
 
-            // Si la región tiene rastreo habilitado, remover el bloque del registro
-            if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-                blockTracker.removePlayerBlock(region.getId(), location);
-
-                if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
-                    plugin.getLogger().fine("Bloque removido del registro: " + player.getName() + " rompió bloque en " +
-                            region.getId() + " " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
-                }
+            if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
+                plugin.getLogger().fine("FINAL OVERRIDE: " + player.getName() + " puede romper bloque de jugador en " + region.getId());
             }
-        } else {
-            // Si nuestro sistema no permite la acción, cancelar
-            event.setCancelled(true);
+        }
+
+        // Si la región tiene rastreo habilitado, remover el bloque del registro
+        if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
+            blockTracker.removePlayerBlock(region.getId(), location);
         }
     }
 

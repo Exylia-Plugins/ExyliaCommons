@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
+
 public class TitleUtils {
 
     private static Plugin plugin;
@@ -194,6 +196,7 @@ public class TitleUtils {
                 // Actualizar contexto con información del countdown
                 ExyliaContext currentContext = instance.getContext().copy()
                         .put("time", secondsRemaining)
+                        .put("time_formatted", timeFormatter.format(secondsRemaining))
                         .put("ticks_remaining", ticksRemaining)
                         .put("update_count", updateCount)
                         .put("countdown_active", true)
@@ -366,7 +369,7 @@ public class TitleUtils {
 
                     updateCount++;
                 }
-            }.runTaskTimer(plugin, 0L, config.getRefreshInterval());
+            }.runTaskTimer(plugin, 0L, config.getUpdateInterval());
         } else {
             // Título normal (una vez)
             String processedTitle = processPlaceholders(config.getTitle(), player, instance.getContext());

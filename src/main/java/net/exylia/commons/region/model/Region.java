@@ -516,4 +516,50 @@ public class Region {
     public boolean hasProtectedBuilding() {
         return getFlagValue(RegionFlag.PLAYER_BUILD_ONLY);
     }
+
+    // ===== MÉTODOS PARA REGION_MEMBERS_ONLY =====
+
+    /**
+     * Habilita la restricción de que solo jugadores dentro de la región puedan afectarla
+     */
+    public void enableRegionMembersOnly() {
+        setFlag(RegionFlag.REGION_MEMBERS_ONLY, RegionFlagType.ALLOW);
+    }
+
+    /**
+     * Deshabilita la restricción de miembros de región
+     */
+    public void disableRegionMembersOnly() {
+        setFlag(RegionFlag.REGION_MEMBERS_ONLY, RegionFlagType.DEFAULT);
+    }
+
+    /**
+     * Verifica si esta región tiene la restricción de miembros habilitada
+     */
+    public boolean hasRegionMembersOnly() {
+        return getFlagValue(RegionFlag.REGION_MEMBERS_ONLY);
+    }
+
+    /**
+     * Verifica si un jugador puede afectar esta región desde su ubicación actual
+     * Considera la flag REGION_MEMBERS_ONLY
+     */
+    public boolean canPlayerAffectRegion(Player player, RegionFlag action) {
+        if (!hasRegionMembersOnly()) {
+            // Si REGION_MEMBERS_ONLY no está activo, usar lógica normal
+            return getFlagValue(action);
+        }
+
+        // Si REGION_MEMBERS_ONLY está activo y la acción es afectada por él
+        if (action.isAffectedByRegionMembersOnly()) {
+            // El jugador debe estar dentro de la región
+            boolean playerInside = contains(player.getLocation());
+            if (!playerInside) {
+                return false;
+            }
+        }
+
+        // Si el jugador está dentro o la acción no es afectada, usar valor normal de la flag
+        return getFlagValue(action);
+    }
 }

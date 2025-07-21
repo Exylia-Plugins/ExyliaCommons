@@ -22,8 +22,8 @@ public class TitleConfig {
     private int fadeOut = 20;
     @ConfigValue("permanent")
     private boolean permanent = false;
-    @ConfigValue("refresh-interval")
-    private long refreshInterval = 20L;
+    @ConfigValue("update-interval")
+    private long updateInterval = 20L;
 
     // Constructor para inicialización manual con path base
     public TitleConfig(String basePath, ConfigurationSection config) {
@@ -33,6 +33,8 @@ public class TitleConfig {
         this.fadeIn = config.getInt(basePath + ".fadeIn", 10);
         this.stay = config.getInt(basePath + ".stay", 70);
         this.fadeOut = config.getInt(basePath + ".fadeOut", 20);
+        this.permanent = config.getBoolean(basePath + ".permanent", false);
+        this.updateInterval = config.getLong(basePath + ".update-interval", 20L);
     }
 
     public TitleConfig(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
@@ -43,14 +45,14 @@ public class TitleConfig {
         this.fadeOut = fadeOut;
     }
 
-    public TitleConfig(String title, String subtitle, boolean permanent, long refreshInterval) {
+    public TitleConfig(String title, String subtitle, boolean permanent, long updateInterval) {
         this.title = title;
         this.subtitle = subtitle;
         this.fadeIn = 0;
         this.stay = 40;
         this.fadeOut = 0;
         this.permanent = permanent;
-        this.refreshInterval = refreshInterval;
+        this.updateInterval = updateInterval;
     }
 
     public TitleConfig(String title, String subtitle, boolean isCountdown) {
@@ -60,6 +62,6 @@ public class TitleConfig {
         this.stay = 40;
         this.fadeOut = 0;
         this.permanent = false;
-        this.refreshInterval = isCountdown ? 1L : 20L;
+        this.updateInterval = isCountdown ? 1L : 20L;
     }
 }

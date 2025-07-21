@@ -15,10 +15,11 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
 public abstract class AutoSubCommandCommand extends PermissionCommand {
 
-    private final Map<String, SubCommandInfo> subCommandInfoMap = new HashMap<>();
+    // Estructura jerárquica de comandos
+    private final Map<String, CommandNode> commandTree = new HashMap<>();
+    private final Map<String, Method> methodMap = new HashMap<>();
     private CommandInfo mainCommandInfo;
     private DefaultAction defaultAction;
 
@@ -42,6 +43,9 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         return false;
     }
 
+    /**
+     * Carga y analiza automáticamente la estructura de comandos
+     */
     private void loadSubCommandInfo() {
         Class<?> clazz = this.getClass();
 
@@ -55,44 +59,124 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
             defaultAction = clazz.getAnnotation(DefaultAction.class);
         }
 
-        // Cargar información de subcomandos
+        // Paso 1: Recopilar todos los métodos con @CommandInfo
+        List<MethodInfo> methods = new ArrayList<>();
         for (Method method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(CommandInfo.class)) {
                 CommandInfo info = method.getAnnotation(CommandInfo.class);
                 String methodName = method.getName();
 
-                String subCommandName = extractSubCommandName(methodName);
+                // Extraer la estructura de comando del nombre del método
+                List<String> commandPath = extractCommandPath(methodName);
 
-                String permission = info.permission().isEmpty() ?
-                        getSubCommandPermission(subCommandName) : info.permission();
+                methods.add(new MethodInfo(method, info, commandPath));
+            }
+        }
 
-                SubCommandInfo subInfo = new SubCommandInfo(
-                        subCommandName,
-                        info.usage(),
-                        permission,
-                        info.playerOnly(),
-                        info.aliases(),
-                        info.order()
-                );
+        // Paso 2: Construir el árbol de comandos automáticamente
+        buildCommandTree(methods);
+    }
 
-                subCommandInfoMap.put(subCommandName.toLowerCase(), subInfo);
+    /**
+     * Extrae automáticamente la ruta de comando del nombre del método
+     * Ejemplo: executeSchematicSave -> [schematic, save]
+     * Ejemplo: executeSpawnAdd -> [spawn, add]
+     * Ejemplo: executeReload -> [reload]
+     */
+    private List<String> extractCommandPath(String methodName) {
+        // Remover 'execute' del inicio si existe
+        String cleanName = methodName.startsWith("execute") ?
+                methodName.substring(7) : methodName;
 
-                // registrar aliases
-                for (String alias : info.aliases()) {
-                    subCommandInfoMap.put(alias.toLowerCase(), subInfo);
+        // Dividir usando mayúsculas como separadores
+        List<String> parts = splitByCapitalLetters(cleanName);
+
+        // Convertir a minúsculas
+        return parts.stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Divide una string usando las mayúsculas como separadores
+     * Ejemplo: "SchematicSave" -> ["Schematic", "Save"]
+     * Ejemplo: "SpawnAdd" -> ["Spawn", "Add"]
+     * Ejemplo: "Reload" -> ["Reload"]
+     */
+    private List<String> splitByCapitalLetters(String input) {
+        if (input == null || input.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            // Si encontramos una mayúscula y ya tenemos contenido
+            if (Character.isUpperCase(c) && current.length() > 0) {
+                // Guardar la palabra actual
+                result.add(current.toString());
+                current = new StringBuilder();
+            }
+
+            current.append(c);
+        }
+
+        // Agregar la última palabra
+        if (current.length() > 0) {
+            result.add(current.toString());
+        }
+
+        return result;
+    }
+
+    /**
+     * Construye el árbol de comandos a partir de los métodos analizados
+     */
+    private void buildCommandTree(List<MethodInfo> methods) {
+        for (MethodInfo methodInfo : methods) {
+            List<String> path = methodInfo.commandPath;
+
+            if (path.isEmpty()) {
+                continue;
+            }
+
+            // Obtener o crear el nodo raíz
+            String rootCommand = path.get(0);
+            CommandNode rootNode = commandTree.computeIfAbsent(rootCommand, k ->
+                    new CommandNode(k, methodInfo.commandInfo, methodInfo.method));
+
+            // Si solo hay un nivel, es un comando simple
+            if (path.size() == 1) {
+                rootNode.method = methodInfo.method;
+                rootNode.commandInfo = methodInfo.commandInfo;
+                methodMap.put(rootCommand, methodInfo.method);
+            } else {
+                // Es un comando jerárquico, construir la estructura
+                CommandNode currentNode = rootNode;
+
+                for (int i = 1; i < path.size(); i++) {
+                    String subCommand = path.get(i);
+                    boolean isLast = (i == path.size() - 1);
+
+                    CommandNode childNode = currentNode.children.computeIfAbsent(subCommand, k ->
+                            new CommandNode(k, isLast ? methodInfo.commandInfo : null, isLast ? methodInfo.method : null));
+
+                    if (isLast) {
+                        childNode.method = methodInfo.method;
+                        childNode.commandInfo = methodInfo.commandInfo;
+                        // Registrar el método con la ruta completa para búsqueda
+                        String fullPath = String.join(".", path);
+                        methodMap.put(fullPath, methodInfo.method);
+                    }
+
+                    currentNode = childNode;
                 }
             }
         }
     }
-
-    private String extractSubCommandName(String methodName) {
-        if (methodName.startsWith("execute")) {
-            String name = methodName.substring(7); // Remover "execute"
-            return name.toLowerCase();
-        }
-        return methodName.toLowerCase();
-    }
-
 
     @Override
     protected boolean onCommand(CommandSender sender, String label, String[] args) {
@@ -106,8 +190,8 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
                         return true;
                     }
 
-                    SubCommandInfo info = subCommandInfoMap.get(defaultSubCommand.toLowerCase());
-                    if (info != null && info.playerOnly() && !(sender instanceof Player)) {
+                    CommandNode node = commandTree.get(defaultSubCommand.toLowerCase());
+                    if (node != null && node.commandInfo != null && node.commandInfo.playerOnly() && !(sender instanceof Player)) {
                         onPlayerOnly(sender);
                         return true;
                     }
@@ -134,8 +218,8 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
             return true;
         }
 
-        SubCommandInfo info = subCommandInfoMap.get(subCommand);
-        if (info != null && info.playerOnly() && !(sender instanceof Player)) {
+        CommandNode node = commandTree.get(subCommand);
+        if (node != null && node.getCommandInfo() != null && node.getCommandInfo().playerOnly() && !(sender instanceof Player)) {
             onPlayerOnly(sender);
             return true;
         }
@@ -160,7 +244,8 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull org.bukkit.command.Command command,
                                       @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
-            return filterSuggestions(getAvailableSubCommands(sender), args[0]);
+            // Completar comandos de primer nivel
+            return getAvailableSubCommands(sender, args[0]);
         } else if (args.length > 1) {
             String subCommand = args[0].toLowerCase();
             String[] subArgs = Arrays.copyOfRange(args, 1, args.length);
@@ -184,15 +269,50 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         return super.onTabComplete(sender, command, alias, args);
     }
 
-    protected List<String> getAvailableSubCommands(CommandSender sender) {
-        return subCommandInfoMap.values().stream()
-                .filter(info -> {
-                    String permission = info.permission();
-                    return permission == null || hasPermission(sender, permission);
+    /**
+     * Obtiene los comandos disponibles para autocompletado
+     */
+    protected List<String> getAvailableSubCommands(CommandSender sender, String partial) {
+        return commandTree.keySet().stream()
+                .filter(command -> {
+                    CommandNode node = commandTree.get(command);
+                    if (node.getCommandInfo() == null) return true; // Comando jerárquico sin implementación directa
+
+                    String permission = node.getCommandInfo().permission().isEmpty() ?
+                            getSubCommandPermission(command) : node.getCommandInfo().permission();
+
+                    boolean hasPermission = permission == null || hasPermission(sender, permission);
+                    boolean canExecute = !node.getCommandInfo().playerOnly() || sender instanceof Player;
+
+                    return hasPermission && canExecute;
                 })
-                .filter(info -> !info.playerOnly() || sender instanceof Player)
-                .map(SubCommandInfo::name)
-                .distinct()
+                .filter(command -> command.startsWith(partial.toLowerCase()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene los subcomandos disponibles para un comando jerárquico
+     */
+    public List<String> getAvailableSubCommands(String parentCommand, CommandSender sender, String partial) {
+        CommandNode parentNode = commandTree.get(parentCommand.toLowerCase());
+        if (parentNode == null) {
+            return new ArrayList<>();
+        }
+
+        return parentNode.children.keySet().stream()
+                .filter(subCommand -> {
+                    CommandNode node = parentNode.children.get(subCommand);
+                    if (node.getCommandInfo() == null) return true;
+
+                    String permission = node.getCommandInfo().permission().isEmpty() ?
+                            getSubCommandPermission(parentCommand + "." + subCommand) : node.getCommandInfo().permission();
+
+                    boolean hasPermission = permission == null || hasPermission(sender, permission);
+                    boolean canExecute = !node.getCommandInfo().playerOnly() || sender instanceof Player;
+
+                    return hasPermission && canExecute;
+                })
+                .filter(subCommand -> subCommand.startsWith(partial.toLowerCase()))
                 .collect(Collectors.toList());
     }
 
@@ -204,26 +324,36 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
             MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
         }
 
-        // Obtener subcomandos disponibles y ordenarlos
-        List<SubCommandInfo> availableCommands = subCommandInfoMap.values().stream()
-                .filter(info -> {
-                    String permission = info.permission();
-                    return permission == null || hasPermission(sender, permission);
-                })
-                .filter(info -> !info.playerOnly() || sender instanceof Player)
-                .distinct()
-                .sorted(Comparator.comparingInt(SubCommandInfo::order)
-                        .thenComparing(SubCommandInfo::name))
-                .toList();
+        // Mostrar comandos disponibles
+        List<CommandNode> availableCommands = new ArrayList<>();
+
+        for (CommandNode node : commandTree.values()) {
+            if (node.getCommandInfo() == null) continue; // Skip jerárquicos sin implementación directa
+
+            String permission = node.getCommandInfo().permission().isEmpty() ?
+                    getSubCommandPermission(node.getName()) : node.getCommandInfo().permission();
+
+            boolean hasPermission = permission == null || hasPermission(sender, permission);
+            boolean canExecute = !node.getCommandInfo().playerOnly() || sender instanceof Player;
+
+            if (hasPermission && canExecute) {
+                availableCommands.add(node);
+            }
+        }
 
         if (availableCommands.isEmpty()) {
             MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.no_subcommands"));
             return;
         }
 
-        // subcomandos
-        for (SubCommandInfo info : availableCommands) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", info.usage()));
+        // Ordenar por order y luego por nombre
+        availableCommands.sort(Comparator.comparingInt((CommandNode node) ->
+                        node.getCommandInfo() != null ? node.getCommandInfo().order() : 100)
+                .thenComparing(CommandNode::getName));
+
+        // Mostrar subcomandos
+        for (CommandNode node : availableCommands) {
+            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", node.getCommandInfo().usage()));
         }
         sender.sendMessage("");
     }
@@ -232,12 +362,72 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     protected abstract boolean executeSubCommand(SubCommandContext context);
     protected abstract List<String> tabCompleteSubCommand(SubCommandContext context);
 
-    protected SubCommandInfo getSubCommandInfo(String subCommand) {
-        return subCommandInfoMap.get(subCommand.toLowerCase());
+    protected CommandNode getSubCommandNode(String subCommand) {
+        return commandTree.get(subCommand.toLowerCase());
     }
 
-    protected Collection<SubCommandInfo> getAllSubCommands() {
-        return subCommandInfoMap.values();
+    protected Collection<CommandNode> getAllCommandNodes() {
+        return commandTree.values();
+    }
+
+    protected Method getSubCommandMethod(String subCommand) {
+        return methodMap.get(subCommand.toLowerCase());
+    }
+
+    /**
+     * Clase interna para representar la información de métodos
+     */
+    private static class MethodInfo {
+        final Method method;
+        final CommandInfo commandInfo;
+        final List<String> commandPath;
+
+        MethodInfo(Method method, CommandInfo commandInfo, List<String> commandPath) {
+            this.method = method;
+            this.commandInfo = commandInfo;
+            this.commandPath = commandPath;
+        }
+    }
+
+    /**
+     * Nodo del árbol de comandos
+     */
+    @Getter
+    public static class CommandNode {
+        private final String name;
+        private CommandInfo commandInfo;
+        private Method method;
+        private final Map<String, CommandNode> children = new HashMap<>();
+
+        CommandNode(String name, CommandInfo commandInfo, Method method) {
+            this.name = name;
+            this.commandInfo = commandInfo;
+            this.method = method;
+        }
+
+        public boolean hasChildren() {
+            return !children.isEmpty();
+        }
+
+        public boolean isExecutable() {
+            return method != null;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public CommandInfo getCommandInfo() {
+            return commandInfo;
+        }
+
+        public Method getMethod() {
+            return method;
+        }
+
+        public Map<String, CommandNode> getChildren() {
+            return children;
+        }
     }
 
     @Getter
@@ -261,5 +451,6 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         public boolean isPlayer() { return sender instanceof Player; }
         public int getSubArgsLength() { return subArgs.length; }
         public String getSubArg(int index) { return index < subArgs.length ? subArgs[index] : null; }
+        public String[] getArgs() { return fullArgs; }
     }
 }

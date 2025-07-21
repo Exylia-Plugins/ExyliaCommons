@@ -22,6 +22,9 @@ public enum RegionFlag {
     PLAYER_BUILD_ONLY("player-build-only", "Solo permite romper/explotar bloques colocados por jugadores", false, FlagType.PROTECTION),
     TRACK_PLAYER_BLOCKS("track-player-blocks", "Rastrea bloques colocados por jugadores en esta región", false, FlagType.PROTECTION),
 
+    // Nueva flag para restricción regional
+    REGION_MEMBERS_ONLY("region-members-only", "Solo jugadores dentro de la región pueden realizar acciones que afecten la región", false, FlagType.PROTECTION),
+
     // Protección específica de bloques
     CHEST_ACCESS("chest-access", "Permite acceder a cofres y contenedores", true, FlagType.PROTECTION),
     USE_DOORS("use-doors", "Permite usar puertas y compuertas", true, FlagType.PROTECTION),
@@ -48,11 +51,6 @@ public enum RegionFlag {
     INVINCIBLE("invincible", "Hace a los jugadores invencibles", false, FlagType.SPECIAL),
     HEAL("heal", "Regenera vida automáticamente", false, FlagType.SPECIAL),
     FEED("feed", "Mantiene la comida llena", false, FlagType.SPECIAL),
-
-    // === FLAGS DE COMUNICACIÓN ===
-    CHAT("chat", "Permite chatear en la región", true, FlagType.COMMUNICATION),
-    COMMANDS("commands", "Permite usar comandos", true, FlagType.COMMUNICATION),
-    SEND_MESSAGE("send-message", "Permite enviar mensajes privados", true, FlagType.COMMUNICATION),
 
     // === FLAGS DE TIEMPO Y CLIMA ===
     TIME_LOCK("time-lock", "Bloquea el tiempo en la región", false, FlagType.ENVIRONMENT),
@@ -130,7 +128,8 @@ public enum RegionFlag {
     public boolean affectsBuilding() {
         return this == BUILD || this == BREAK || this == INTERACT ||
                 this == CHEST_ACCESS || this == USE_DOORS || this == USE_BUTTONS ||
-                this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS;
+                this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
+                this == REGION_MEMBERS_ONLY;
     }
 
     /**
@@ -144,7 +143,23 @@ public enum RegionFlag {
      * Verifica si esta flag afecta el combate
      */
     public boolean affectsCombat() {
-        return this == PVP || this == MOB_DAMAGE || this == INVINCIBLE;
+        return this == PVP || this == MOB_DAMAGE || this == INVINCIBLE || this == REGION_MEMBERS_ONLY;
+    }
+
+    /**
+     * Verifica si esta flag requiere que el jugador esté dentro de la región
+     */
+    public boolean requiresPlayerInRegion() {
+        return this == REGION_MEMBERS_ONLY;
+    }
+
+    /**
+     * Verifica si esta flag es afectada por REGION_MEMBERS_ONLY
+     */
+    public boolean isAffectedByRegionMembersOnly() {
+        return this == BUILD || this == BREAK || this == INTERACT ||
+                this == PVP || this == CHEST_ACCESS || this == USE_DOORS ||
+                this == USE_BUTTONS || this == ITEM_FRAME;
     }
 
     /**
@@ -154,7 +169,8 @@ public enum RegionFlag {
         return type == FlagType.SPECIAL || type == FlagType.GAMEMODE ||
                 this == INVINCIBLE || this == FORCE_ADVENTURE ||
                 this == FORCE_SURVIVAL || this == FORCE_CREATIVE ||
-                this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS;
+                this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
+                this == REGION_MEMBERS_ONLY;
     }
 
     /**

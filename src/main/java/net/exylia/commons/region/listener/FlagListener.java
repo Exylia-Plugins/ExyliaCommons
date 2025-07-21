@@ -1,11 +1,9 @@
 package net.exylia.commons.region.listener;
 
-import io.papermc.paper.event.player.AsyncChatEvent;
 import net.exylia.commons.region.RegionManager;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.EntityType;
@@ -20,7 +18,6 @@ import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.hanging.HangingPlaceEvent;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.*;
-import org.bukkit.event.weather.WeatherChangeEvent;
 import org.bukkit.inventory.InventoryHolder;
 
 import java.util.List;
@@ -62,7 +59,7 @@ public class FlagListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
 
@@ -72,7 +69,14 @@ public class FlagListener implements Listener {
             return; // No hay regiones, no interferir
         }
 
-        // Si nuestro sistema permite la acción, descancelar si fue cancelado por otro plugin
+        Region region = regions.get(0); // Mayor prioridad
+
+        // NUEVA LÓGICA: Verificar PLAYER_BUILD_ONLY antes de descancelar
+        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+            return;
+        }
+
+        // Solo aplicar lógica normal si PLAYER_BUILD_ONLY no está activo
         if (flagManager.canPlayerPerformActionAt(player, event.getBlock().getLocation(), RegionFlag.BREAK)) {
             if (event.isCancelled()) {
                 event.setCancelled(false);
@@ -137,7 +141,7 @@ public class FlagListener implements Listener {
 
     // ===== EVENTOS DE COMBATE =====
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player target)) return;
         if (!(event.getDamager() instanceof Player attacker)) return;
@@ -173,7 +177,7 @@ public class FlagListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
@@ -269,46 +273,6 @@ public class FlagListener implements Listener {
             } else {
                 event.setCancelled(true);
             }
-        }
-    }
-
-    // ===== EVENTOS DE COMUNICACIÓN =====
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onPlayerChat(AsyncChatEvent event) {
-        Player player = event.getPlayer();
-
-        // Solo actuar si el jugador está en una región
-        List<Region> regions = regionManager.getRegionsAt(player.getLocation());
-        if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
-        }
-
-        if (flagManager.canPlayerPerformAction(player, RegionFlag.CHAT)) {
-            if (event.isCancelled()) {
-                event.setCancelled(false);
-            }
-        } else {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
-    public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
-        Player player = event.getPlayer();
-
-        // Solo actuar si el jugador está en una región
-        List<Region> regions = regionManager.getRegionsAt(player.getLocation());
-        if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
-        }
-
-        if (flagManager.canPlayerPerformAction(player, RegionFlag.COMMANDS)) {
-            if (event.isCancelled()) {
-                event.setCancelled(false);
-            }
-        } else {
-                event.setCancelled(true);
         }
     }
 

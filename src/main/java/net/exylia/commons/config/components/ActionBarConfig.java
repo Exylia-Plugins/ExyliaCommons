@@ -4,16 +4,17 @@ import lombok.Getter;
 import net.exylia.commons.config.ConfigValue;
 import org.bukkit.configuration.ConfigurationSection;
 
+@Getter
 public class ActionBarConfig {
-    @Getter
     @ConfigValue("enabled")
     private boolean enabled = true;
 
-    @Getter
     @ConfigValue("text")
     private String text = "";
 
-    @Getter
+    @ConfigValue("permanent")
+    private boolean permanent = false;
+
     @ConfigValue("update-interval")
     private long updateInterval = 20L;
 
@@ -24,6 +25,7 @@ public class ActionBarConfig {
     public ActionBarConfig(String basePath, ConfigurationSection config) {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.text = config.getString(basePath + ".text", "");
+        this.permanent = config.getBoolean(basePath + ".permanent", false);
         this.updateInterval = config.getLong(basePath + ".update-interval", 20L);
     }
 

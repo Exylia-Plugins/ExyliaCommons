@@ -21,8 +21,8 @@ public class ScoreboardConfig {
     private List<String> lines = new ArrayList<>();
 
     @Getter
-    @ConfigValue("update-ticks")
-    private long refreshInterval = 20L;
+    @ConfigValue("update-interval")
+    private long updateInterval = 20L;
 
     // Constructor para inicialización automática
     public ScoreboardConfig() {}
@@ -32,6 +32,6 @@ public class ScoreboardConfig {
         this.enabled = config.getBoolean(basePath + ".enabled", true);
         this.lines = config.getStringList(basePath + ".lines");
         this.title = config.getString(basePath + ".title", "");
-        this.refreshInterval = config.getLong(basePath + ".update-ticks", 20L);
+        this.updateInterval = config.getLong(basePath + ".update-interval", 20L);
     }
 }

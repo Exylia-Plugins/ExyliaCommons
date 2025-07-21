@@ -94,11 +94,11 @@ public class PlayerScoreboardInstance {
      * Verifica si el scoreboard debe actualizarse según su configuración
      */
     public boolean shouldUpdate() {
-        if (!visible || config.getRefreshInterval() <= 0) {
+        if (!visible || config.getUpdateInterval() <= 0) {
             return false;
         }
 
-        long interval = config.getRefreshInterval() * 50L; // Convertir ticks a ms
+        long interval = config.getUpdateInterval() * 50L; // Convertir ticks a ms
         return (System.currentTimeMillis() - lastUpdate) >= interval;
     }
 

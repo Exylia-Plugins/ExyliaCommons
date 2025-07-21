@@ -4,26 +4,28 @@ import lombok.Getter;
 import net.exylia.commons.config.ConfigValue;
 import org.bukkit.configuration.ConfigurationSection;
 
+@Getter
 public class BossBarConfig {
-    @Getter
     @ConfigValue("enabled")
     private boolean enabled = true;
 
-    @Getter
     @ConfigValue("text")
     private String text = "";
 
-    @Getter
     @ConfigValue("color")
     private String color = "BLUE";
 
-    @Getter
     @ConfigValue("style")
     private String style = "PROGRESS";
 
-    @Getter
     @ConfigValue("progress")
     private double progress = 1.0;
+
+    @ConfigValue("permanent")
+    private boolean permanent = false;
+
+    @ConfigValue("update-interval")
+    private long updateInterval = 20L;
 
     // Constructor para inicialización automática
     public BossBarConfig() {}
@@ -35,5 +37,15 @@ public class BossBarConfig {
         this.color = config.getString(basePath + ".color", "BLUE");
         this.style = config.getString(basePath + ".style", "PROGRESS");
         this.progress = config.getDouble(basePath + ".progress", 1.0);
+        this.permanent = config.getBoolean(basePath + ".permanent", false);
+        this.updateInterval = config.getLong(basePath + ".update-interval", 20L);
+    }
+
+    public BossBarConfig(String text, String color, String style, double progress, long updateInterval) {
+        this.text = text;
+        this.color = color;
+        this.style = style;
+        this.progress = progress;
+        this.updateInterval = updateInterval;
     }
 }
