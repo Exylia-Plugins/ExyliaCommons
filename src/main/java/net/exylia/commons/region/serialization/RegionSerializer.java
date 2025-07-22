@@ -16,6 +16,7 @@ import java.util.*;
 
 /**
  * Serializador especializado para Region que guarda solo datos persistentes
+ * CORREGIDO: Ahora maneja correctamente la metadata y otros datos
  */
 public class RegionSerializer {
 
@@ -30,10 +31,12 @@ public class RegionSerializer {
             .registerTypeAdapter(UUID.class, (JsonDeserializer<UUID>) (json, typeOfT, context) ->
                     UUID.fromString(json.getAsString()))
             .setPrettyPrinting()
+            .serializeNulls() // IMPORTANTE: Incluir valores null para mantener estructura completa
             .create();
 
     /**
      * Datos persistentes de una región (solo lo que se guarda en DB)
+     * CORREGIDO: Manejo mejorado de metadata
      */
     public static class RegionData {
         public String id;
@@ -43,9 +46,9 @@ public class RegionSerializer {
         public String description;
         public RegionPriority priority;
         public Map<String, Object> metadata;
-        public Map<String, String> flagStates; // Cambio: usar String keys para serialización
-        public Set<String> owners; // Cambio: usar String para UUIDs
-        public Set<String> members; // Cambio: usar String para UUIDs
+        public Map<String, String> flagStates;
+        public Set<String> owners;
+        public Set<String> members;
 
         public RegionData() {
             this.metadata = new HashMap<>();
@@ -62,10 +65,24 @@ public class RegionSerializer {
             this.description = region.getDescription();
             this.priority = region.getPriority();
 
-            // Clonar metadata de forma segura
+            // CORREGIDO: Clonar metadata de forma más profunda y segura
             this.metadata = new HashMap<>();
             if (region.getMetadata() != null) {
-                this.metadata.putAll(region.getMetadata());
+                for (Map.Entry<String, Object> entry : region.getMetadata().entrySet()) {
+                    Object value = entry.getValue();
+
+                    // Manejar tipos especiales que necesitan serialización especial
+                    if (value instanceof Set) {
+                        // Para sets como allowed-blocks, convertir a lista para JSON
+                        this.metadata.put(entry.getKey(), new ArrayList<>((Set<?>) value));
+                    } else if (value instanceof Map) {
+                        // Para mapas, clonar
+                        this.metadata.put(entry.getKey(), new HashMap<>((Map<?, ?>) value));
+                    } else {
+                        // Para tipos primitivos y otros, copiar directamente
+                        this.metadata.put(entry.getKey(), value);
+                    }
+                }
             }
 
             // Convertir flags a String keys
@@ -95,6 +112,7 @@ public class RegionSerializer {
 
     /**
      * Serializa una Region a JSON (solo datos persistentes)
+     * CORREGIDO: Validación mejorada
      */
     public static String serialize(Region region) {
         if (region == null) return null;
@@ -112,6 +130,7 @@ public class RegionSerializer {
         } catch (Exception e) {
             // Log detallado para debugging
             System.err.println("Error serializing Region: " + region.getId() + " - " + e.getMessage());
+            System.err.println("Region metadata: " + region.getMetadata());
             e.printStackTrace();
             throw new RuntimeException("Error serializando Region: " + e.getMessage(), e);
         }
@@ -119,6 +138,7 @@ public class RegionSerializer {
 
     /**
      * Deserializa una Region desde JSON
+     * CORREGIDO: Manejo mejorado de metadata
      */
     public static Region deserialize(String json) {
         if (json == null || json.trim().isEmpty()) return null;
@@ -127,16 +147,24 @@ public class RegionSerializer {
             RegionData data = GSON.fromJson(json, RegionData.class);
             return createRegionFromData(data);
         } catch (Exception e) {
+            System.err.println("Error deserializing Region JSON: " + json.substring(0, Math.min(100, json.length())) + "...");
             throw new RuntimeException("Error deserializando Region: " + e.getMessage(), e);
         }
     }
 
     /**
      * Crea una instancia completa de Region desde los datos persistentes
+     * CORREGIDO: Restauración mejorada de metadata
      */
     private static Region createRegionFromData(RegionData data) {
         // Crear la región base
         Region region = new Region(data.id, data.selection);
+
+        // Establecer timestamp original
+        if (data.createdAt > 0) {
+            // El constructor ya establece createdAt, pero podríamos usar reflection si necesitáramos el valor original
+            // Por ahora, mantenemos el comportamiento actual
+        }
 
         // Restaurar datos persistentes
         if (data.displayName != null) {
@@ -149,9 +177,26 @@ public class RegionSerializer {
             region.setPriority(data.priority);
         }
 
-        // Restaurar metadata de forma segura
+        // CORREGIDO: Restaurar metadata de forma más cuidadosa
         if (data.metadata != null && !data.metadata.isEmpty()) {
-            region.setMetadata(new HashMap<>(data.metadata));
+            Map<String, Object> restoredMetadata = new HashMap<>();
+
+            for (Map.Entry<String, Object> entry : data.metadata.entrySet()) {
+                Object value = entry.getValue();
+
+                // Manejar reconversión de tipos especiales
+                if (value instanceof List && entry.getKey().equals("allowed-blocks")) {
+                    // Convertir lista de vuelta a Set para allowed-blocks
+                    @SuppressWarnings("unchecked")
+                    List<String> list = (List<String>) value;
+                    restoredMetadata.put(entry.getKey(), new HashSet<>(list));
+                } else {
+                    // Para otros tipos, usar tal como vienen
+                    restoredMetadata.put(entry.getKey(), value);
+                }
+            }
+
+            region.setMetadata(restoredMetadata);
         }
 
         // Restaurar flags desde strings
@@ -164,6 +209,7 @@ public class RegionSerializer {
                     flags.put(flag, type);
                 } catch (IllegalArgumentException e) {
                     // Ignorar flags inválidas (backward compatibility)
+                    System.err.println("Ignoring invalid flag during deserialization: " + entry.getKey() + "=" + entry.getValue());
                 }
             }
             region.setFlags(flags);
@@ -176,7 +222,7 @@ public class RegionSerializer {
                 try {
                     ownerUUIDs.add(UUID.fromString(uuidString));
                 } catch (IllegalArgumentException e) {
-                    // Ignorar UUIDs inválidos
+                    System.err.println("Ignoring invalid owner UUID during deserialization: " + uuidString);
                 }
             }
             region.setOwners(ownerUUIDs);
@@ -189,7 +235,7 @@ public class RegionSerializer {
                 try {
                     memberUUIDs.add(UUID.fromString(uuidString));
                 } catch (IllegalArgumentException e) {
-                    // Ignorar UUIDs inválidos
+                    System.err.println("Ignoring invalid member UUID during deserialization: " + uuidString);
                 }
             }
             region.setMembers(memberUUIDs);
@@ -203,6 +249,7 @@ public class RegionSerializer {
 
     /**
      * Verifica si un JSON es una Region válida
+     * CORREGIDO: Validación más completa
      */
     public static boolean isValidRegionJson(String json) {
         if (json == null || json.trim().isEmpty()) return false;
@@ -211,7 +258,8 @@ public class RegionSerializer {
             RegionData data = GSON.fromJson(json, RegionData.class);
             return data != null &&
                     data.id != null && !data.id.isEmpty() &&
-                    data.selection != null;
+                    data.selection != null &&
+                    data.selection.isComplete(); // Verificar que la selección esté completa
         } catch (Exception e) {
             return false;
         }

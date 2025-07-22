@@ -21,6 +21,8 @@ public enum RegionFlag {
     INTERACT("interact", "Permite interactuar con bloques y entidades", true, FlagType.PROTECTION),
     PLAYER_BUILD_ONLY("player-build-only", "Solo permite romper/explotar bloques colocados por jugadores", false, FlagType.PROTECTION),
     TRACK_PLAYER_BLOCKS("track-player-blocks", "Rastrea bloques colocados por jugadores en esta región", false, FlagType.PROTECTION),
+    ALLOWED_BLOCKS_ONLY("allowed-blocks-only", "Solo permite colocar bloques específicos de una lista", false, FlagType.PROTECTION),
+    TEMPORARY_BLOCKS("temporary-blocks", "Los bloques colocados por jugadores desaparecen automáticamente", false, FlagType.SPECIAL),
 
     // Nueva flag para restricción regional
     REGION_MEMBERS_ONLY("region-members-only", "Solo jugadores dentro de la región pueden realizar acciones que afecten la región", false, FlagType.PROTECTION),
@@ -129,7 +131,8 @@ public enum RegionFlag {
         return this == BUILD || this == BREAK || this == INTERACT ||
                 this == CHEST_ACCESS || this == USE_DOORS || this == USE_BUTTONS ||
                 this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
-                this == REGION_MEMBERS_ONLY;
+                this == REGION_MEMBERS_ONLY || this == ALLOWED_BLOCKS_ONLY ||
+                this == TEMPORARY_BLOCKS;
     }
 
     /**
@@ -170,7 +173,8 @@ public enum RegionFlag {
                 this == INVINCIBLE || this == FORCE_ADVENTURE ||
                 this == FORCE_SURVIVAL || this == FORCE_CREATIVE ||
                 this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
-                this == REGION_MEMBERS_ONLY;
+                this == REGION_MEMBERS_ONLY || this == ALLOWED_BLOCKS_ONLY ||
+                this == TEMPORARY_BLOCKS;
     }
 
     /**

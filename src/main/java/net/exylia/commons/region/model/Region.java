@@ -3,10 +3,14 @@ package net.exylia.commons.region.model;
 import lombok.Getter;
 import lombok.Setter;
 import net.exylia.commons.region.RegionManager;
+import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
+import net.exylia.commons.region.blocks.TemporaryBlocksManager;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.selection.model.Selection;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import net.exylia.commons.region.regeneration.RegionRegenerationManager;
@@ -30,17 +34,13 @@ public class Region {
     private RegionPriority priority;
     private Map<String, Object> metadata;
 
-    // Nuevo sistema de flags: flag -> tipo (ALLOW/DENY/DEFAULT)
     private final Map<RegionFlag, RegionFlagType> flagStates;
 
-    // Lista de miembros y owners
     private Set<UUID> owners;
     private Set<UUID> members;
 
-    // Jugadores actualmente en la región
     private final Set<UUID> playersInside;
 
-    // Callbacks personalizados
     private RegionCallback onEnter;
     private RegionCallback onExit;
     private RegionCallback onMove;
@@ -59,11 +59,8 @@ public class Region {
         this.playersInside = ConcurrentHashMap.newKeySet();
     }
 
-    // ===== GESTIÓN DE FLAGS MEJORADA =====
+    // ===== GESTIÓN DE FLAGS =====
 
-    /**
-     * Establece el estado de una flag
-     */
     public void setFlag(RegionFlag flag, RegionFlagType type) {
         RegionFlagType previousType = flagStates.get(flag);
 
@@ -77,30 +74,23 @@ public class Region {
         if (previousType != type) {
             invalidateCacheForFlag(flag);
         }
+        Bukkit.getLogger().info("Setting flags to region: " + this.hashCode());
     }
 
-    /**
-     * Invalida el cache para esta región y flag específica
-     */
     private void invalidateCacheForFlag(RegionFlag flag) {
         try {
             FlagManager flagManager = FlagManager.getInstance();
             flagManager.invalidateRegionFlagCache(this, flag);
 
-            // Para flags críticas, también invalidar jugadores en la región
             if (isCriticalFlag(flag)) {
                 for (Player player : getPlayersInside()) {
                     RegionManager.getInstance().refreshPlayerFlags(player);
                 }
             }
-        } catch (Exception e) {
-            // FlagManager podría no estar inicializado durante tests
+        } catch (Exception ignored) {
         }
     }
 
-    /**
-     * Verifica si una flag es crítica y requiere aplicación inmediata
-     */
     private boolean isCriticalFlag(RegionFlag flag) {
         return flag == RegionFlag.PVP ||
                 flag == RegionFlag.INVINCIBLE ||
@@ -112,59 +102,31 @@ public class Region {
                 flag.affectsMovement();
     }
 
-    /**
-     * Obtiene el tipo de una flag (ALLOW/DENY/DEFAULT)
-     */
     public RegionFlagType getFlagType(RegionFlag flag) {
         return flagStates.getOrDefault(flag, RegionFlagType.DEFAULT);
     }
 
-    /**
-     * Obtiene el valor efectivo de una flag considerando defaults
-     */
     public boolean getFlagValue(RegionFlag flag) {
         RegionFlagType type = getFlagType(flag);
         return type.getEffectiveValue(flag);
     }
 
-    /**
-     * Verifica si una flag está explícitamente configurada (no DEFAULT)
-     */
     public boolean isFlagSet(RegionFlag flag) {
         return flagStates.containsKey(flag);
     }
-
-    /**
-     * Verifica si una flag está permitida (ALLOW o DEFAULT=true)
-     */
     public boolean isFlagAllowed(RegionFlag flag) {
         return getFlagValue(flag);
     }
-
-    /**
-     * Verifica si una flag está denegada (DENY o DEFAULT=false)
-     */
     public boolean isFlagDenied(RegionFlag flag) {
         return !getFlagValue(flag);
     }
-
-    /**
-     * Remueve una flag (vuelve a DEFAULT)
-     */
     public void removeFlag(RegionFlag flag) {
         flagStates.remove(flag);
     }
-
-    /**
-     * Obtiene todas las flags configuradas (no DEFAULT)
-     */
     public Map<RegionFlag, RegionFlagType> getConfiguredFlags() {
         return new HashMap<>(flagStates);
     }
 
-    /**
-     * Obtiene todas las flags con sus valores efectivos
-     */
     public Map<RegionFlag, Boolean> getAllFlagValues() {
         Map<RegionFlag, Boolean> allFlags = new EnumMap<>(RegionFlag.class);
 
@@ -181,16 +143,9 @@ public class Region {
         return allFlags;
     }
 
-    /**
-     * Limpia todas las flags configuradas
-     */
     public void clearFlags() {
         flagStates.clear();
     }
-
-    /**
-     * Aplica configuración de flags desde un mapa
-     */
     public void setFlags(Map<RegionFlag, RegionFlagType> flags) {
         flagStates.clear();
         flagStates.putAll(flags);
@@ -198,91 +153,44 @@ public class Region {
 
     // ===== GESTIÓN DE MIEMBROS =====
 
-    /**
-     * Verifica si un jugador es owner de la región
-     */
     public boolean isOwner(UUID playerId) {
         return owners.contains(playerId);
     }
-
-    /**
-     * Verifica si un jugador es miembro de la región
-     */
     public boolean isMember(UUID playerId) {
         return members.contains(playerId) || isOwner(playerId);
     }
-
-    /**
-     * Añade un owner a la región
-     */
     public void addOwner(UUID playerId) {
         owners.add(playerId);
-        // Los owners son también miembros
         members.add(playerId);
     }
-
-    /**
-     * Añade un miembro a la región
-     */
     public void addMember(UUID playerId) {
         members.add(playerId);
     }
-
-    /**
-     * Remueve un owner (pero mantiene como miembro si estaba)
-     */
     public void removeOwner(UUID playerId) {
         owners.remove(playerId);
     }
-
-    /**
-     * Remueve un miembro completamente
-     */
     public void removeMember(UUID playerId) {
         members.remove(playerId);
         owners.remove(playerId); // También remover de owners si estaba
     }
 
-    // ===== RESTO DE MÉTODOS ORIGINALES =====
+    // ===== MÉTODOS =====
 
-    /**
-     * Verifica si una ubicación está dentro de la región
-     */
     public boolean contains(Location location) {
         return selection.contains(location);
     }
-
-    /**
-     * Verifica si un jugador está dentro de la región
-     */
     public boolean contains(Player player) {
         return contains(player.getLocation());
     }
-
-    /**
-     * Verifica si un jugador está registrado como dentro de la región
-     */
     public boolean isPlayerInside(Player player) {
         return playersInside.contains(player.getUniqueId());
     }
-
-    /**
-     * Registra que un jugador entró a la región
-     */
     public void addPlayer(Player player) {
         playersInside.add(player.getUniqueId());
     }
-
-    /**
-     * Registra que un jugador salió de la región
-     */
     public void removePlayer(Player player) {
         playersInside.remove(player.getUniqueId());
     }
-
-    /**
-     * Obtiene todos los jugadores dentro de la región
-     */
     public Set<Player> getPlayersInside() {
         Set<Player> players = new HashSet<>();
         for (UUID uuid : playersInside) {
@@ -293,48 +201,24 @@ public class Region {
         }
         return players;
     }
-
-    /**
-     * Limpia jugadores desconectados
-     */
     public void cleanupOfflinePlayers() {
         playersInside.removeIf(uuid -> {
             Player player = org.bukkit.Bukkit.getPlayer(uuid);
             return player == null || !player.isOnline();
         });
     }
-
-    /**
-     * Obtiene el mundo de la región
-     */
     public World getWorld() {
         return selection.getPos1().getWorld();
     }
-
-    /**
-     * Obtiene el punto mínimo de la región
-     */
     public Location getMinimumPoint() {
         return selection.getMinimumPoint();
     }
-
-    /**
-     * Obtiene el punto máximo de la región
-     */
     public Location getMaximumPoint() {
         return selection.getMaximumPoint();
     }
-
-    /**
-     * Obtiene el volumen de la región
-     */
     public long getVolume() {
         return selection.getVolume();
     }
-
-    /**
-     * Obtiene un valor de metadata
-     */
     @SuppressWarnings("unchecked")
     public <T> T getMetadata(String key, Class<T> type) {
         Object value = metadata.get(key);
@@ -343,24 +227,45 @@ public class Region {
         }
         return null;
     }
-
-    /**
-     * Establece un valor de metadata
-     */
     public void setMetadata(String key, Object value) {
+        if (this.metadata == null) {
+            this.metadata = new ConcurrentHashMap<>();
+        }
         this.metadata.put(key, value);
     }
-
-    /**
-     * Verifica si la región es válida
-     */
+    public void setMetadata(Map<String, Object> metadata) {
+        if (this.metadata == null) {
+            this.metadata = new ConcurrentHashMap<>();
+        } else {
+            this.metadata.clear();
+        }
+        if (metadata != null) {
+            this.metadata.putAll(metadata);
+        }
+    }
+    public boolean hasMetadata() {
+        return metadata != null && !metadata.isEmpty();
+    }
+    public boolean hasMetadata(String key) {
+        return metadata != null && metadata.containsKey(key);
+    }
+    public void removeMetadata(String key) {
+        if (metadata != null) {
+            metadata.remove(key);
+        }
+    }
+    public void clearMetadata() {
+        if (metadata != null) {
+            metadata.clear();
+        }
+    }
+    public Map<String, Object> getMetadataCopy() {
+        if (metadata == null) return new HashMap<>();
+        return new HashMap<>(metadata);
+    }
     public boolean isValid() {
         return selection.isComplete() && id != null && !id.isEmpty();
     }
-
-    /**
-     * Obtiene la información de la región en formato legible
-     */
     public String getInfo() {
         Location min = getMinimumPoint();
         Location max = getMaximumPoint();
@@ -395,9 +300,6 @@ public class Region {
                 id, priority, flagStates.size());
     }
 
-    /**
-     * Interface para callbacks de región
-     */
     @FunctionalInterface
     public interface RegionCallback {
         void execute(Player player, Region region);
@@ -405,96 +307,46 @@ public class Region {
 
     // ===== MÉTODOS DE REGENERACIÓN =====
 
-    /**
-     * Guarda el estado actual de la región como schematic para regeneración
-     */
     public CompletableFuture<Boolean> saveSchematic() {
         return RegionRegenerationManager.getInstance().saveRegionSchematic(this);
     }
-
-    /**
-     * Regenera la región usando su schematic guardado
-     */
     public CompletableFuture<Boolean> regenerate() {
         return RegionRegenerationManager.getInstance().regenerateRegion(this);
     }
-
-    /**
-     * Limpia solo las entidades de la región sin regenerar bloques
-     */
     public CompletableFuture<Integer> cleanEntities() {
         return RegionRegenerationManager.getInstance().cleanRegionEntities(this);
     }
-
-    /**
-     * Verifica si la región tiene un schematic guardado
-     */
     public boolean hasSchematic() {
         return RegionRegenerationManager.getInstance().hasSchematic(this);
     }
-
-    /**
-     * Verifica si la región está siendo regenerada actualmente
-     */
     public boolean isRegenerating() {
         return RegionRegenerationManager.getInstance().isRegenerating(this);
     }
-
-    /**
-     * Elimina el schematic guardado de la región
-     */
     public CompletableFuture<Boolean> deleteSchematic() {
         return RegionRegenerationManager.getInstance().deleteRegionSchematic(this);
     }
-
-    /**
-     * Limpia solo los bloques colocados por jugadores en esta región
-     */
     public CompletableFuture<Integer> clearPlayerBlocks() {
         return RegionRegenerationManager.getInstance().clearRegionPlayerBlocks(this);
     }
 
     // ===== MÉTODOS DE RASTREO DE BLOQUES =====
 
-    /**
-     * Verifica si un bloque en una ubicación específica fue colocado por un jugador
-     */
     public boolean isPlayerPlacedBlock(Location location) {
         return PlayerBlockTracker.getInstance().isPlayerPlacedBlock(id, location);
     }
-
-    /**
-     * Obtiene todos los bloques colocados por jugadores en esta región
-     */
     public Set<PlayerBlockTracker.BlockPosition> getPlayerBlocks() {
         return PlayerBlockTracker.getInstance().getPlayerBlocks(id);
     }
-
-    /**
-     * Obtiene el número de bloques colocados por jugadores en esta región
-     */
     public int getPlayerBlockCount() {
         return getPlayerBlocks().size();
     }
-
-    /**
-     * Habilita el rastreo de bloques de jugador en esta región
-     */
     public void enablePlayerBlockTracking() {
         setFlag(RegionFlag.TRACK_PLAYER_BLOCKS, RegionFlagType.ALLOW);
     }
-
-    /**
-     * Habilita la construcción protegida (solo bloques de jugador pueden ser destruidos)
-     */
     public void enableProtectedBuilding() {
         setFlag(RegionFlag.PLAYER_BUILD_ONLY, RegionFlagType.ALLOW);
-        setFlag(RegionFlag.TRACK_PLAYER_BLOCKS, RegionFlagType.ALLOW); // Necesario para saber qué bloques son de jugador
+        setFlag(RegionFlag.TRACK_PLAYER_BLOCKS, RegionFlagType.ALLOW);
     }
-
-    /**
-     * Deshabilita el rastreo de bloques de jugador en esta región
-     */
     public void disablePlayerBlockTracking() {
         setFlag(RegionFlag.TRACK_PLAYER_BLOCKS, RegionFlagType.DEFAULT);
         setFlag(RegionFlag.PLAYER_BUILD_ONLY, RegionFlagType.DEFAULT);
@@ -502,48 +354,24 @@ public class Region {
         // Limpiar datos existentes
         clearPlayerBlocks();
     }
-
-    /**
-     * Verifica si esta región tiene rastreo de bloques de jugador habilitado
-     */
     public boolean hasPlayerBlockTracking() {
         return getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS);
     }
-
-    /**
-     * Verifica si esta región tiene construcción protegida habilitada
-     */
     public boolean hasProtectedBuilding() {
         return getFlagValue(RegionFlag.PLAYER_BUILD_ONLY);
     }
 
     // ===== MÉTODOS PARA REGION_MEMBERS_ONLY =====
 
-    /**
-     * Habilita la restricción de que solo jugadores dentro de la región puedan afectarla
-     */
     public void enableRegionMembersOnly() {
         setFlag(RegionFlag.REGION_MEMBERS_ONLY, RegionFlagType.ALLOW);
     }
-
-    /**
-     * Deshabilita la restricción de miembros de región
-     */
     public void disableRegionMembersOnly() {
         setFlag(RegionFlag.REGION_MEMBERS_ONLY, RegionFlagType.DEFAULT);
     }
-
-    /**
-     * Verifica si esta región tiene la restricción de miembros habilitada
-     */
     public boolean hasRegionMembersOnly() {
         return getFlagValue(RegionFlag.REGION_MEMBERS_ONLY);
     }
-
-    /**
-     * Verifica si un jugador puede afectar esta región desde su ubicación actual
-     * Considera la flag REGION_MEMBERS_ONLY
-     */
     public boolean canPlayerAffectRegion(Player player, RegionFlag action) {
         if (!hasRegionMembersOnly()) {
             // Si REGION_MEMBERS_ONLY no está activo, usar lógica normal
@@ -561,5 +389,66 @@ public class Region {
 
         // Si el jugador está dentro o la acción no es afectada, usar valor normal de la flag
         return getFlagValue(action);
+    }
+
+    // ===== MÉTODOS PARA BLOQUES PERMITIDOS =====
+
+    public void enableAllowedBlocksOnly() {
+        setFlag(RegionFlag.ALLOWED_BLOCKS_ONLY, RegionFlagType.ALLOW);
+    }
+    public void disableAllowedBlocksOnly() {
+        setFlag(RegionFlag.ALLOWED_BLOCKS_ONLY, RegionFlagType.DEFAULT);
+    }
+    public boolean hasAllowedBlocksOnly() {
+        return getFlagValue(RegionFlag.ALLOWED_BLOCKS_ONLY);
+    }
+    public void setAllowedBlocks(Set<Material> materials) {
+        AllowedBlocksManager.getInstance().setAllowedBlocks(this, materials);
+    }
+    public void addAllowedMaterials(Set<Material> materials) {
+        AllowedBlocksManager.getInstance().addAllowedMaterials(this, materials);
+    }
+    public void removeAllowedMaterials(Set<Material> materials) {
+        AllowedBlocksManager.getInstance().removeAllowedMaterials(this, materials);
+    }
+    public Set<Material> getAllowedBlocks() {
+        return AllowedBlocksManager.getInstance().getAllowedBlocks(this);
+    }
+    public boolean isMaterialAllowed(Material material) {
+        return AllowedBlocksManager.getInstance().isMaterialAllowed(this, material);
+    }
+
+
+    // ===== MÉTODOS PARA BLOQUES TEMPORALES =====
+
+    public void enableTemporaryBlocks() {
+        setFlag(RegionFlag.TEMPORARY_BLOCKS, RegionFlagType.ALLOW);
+    }
+    public void enableTemporaryBlocks(int seconds) {
+        setFlag(RegionFlag.TEMPORARY_BLOCKS, RegionFlagType.ALLOW);
+        setTemporaryBlocksTime(seconds);
+    }
+    public void disableTemporaryBlocks() {
+        setFlag(RegionFlag.TEMPORARY_BLOCKS, RegionFlagType.DEFAULT);
+        removeMetadata("temporary-blocks-seconds");
+    }
+    public boolean hasTemporaryBlocks() {
+        return getFlagValue(RegionFlag.TEMPORARY_BLOCKS);
+    }
+    public void setTemporaryBlocksTime(int seconds) {
+        if (seconds <= 0) {
+            throw new IllegalArgumentException("El tiempo debe ser mayor a 0 segundos");
+        }
+        setMetadata("temporary-blocks-seconds", seconds);
+    }
+    public int getTemporaryBlocksTime() {
+        Integer time = getMetadata("temporary-blocks-seconds", Integer.class);
+        return time != null ? time : 30;
+    }
+    public boolean hasTemporaryBlockAt(Location location) {
+        return TemporaryBlocksManager.getInstance().isTemporaryBlock(location);
+    }
+    public TemporaryBlocksManager.TemporaryBlock getTemporaryBlockAt(Location location) {
+        return TemporaryBlocksManager.getInstance().getTemporaryBlock(location);
     }
 }

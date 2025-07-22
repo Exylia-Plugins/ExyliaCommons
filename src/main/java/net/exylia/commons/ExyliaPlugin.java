@@ -18,6 +18,7 @@ import net.exylia.commons.utils.visuals.TitleUtils;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -83,7 +84,12 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onDisable() {
         registeredPlugins.remove(this);
-        Bukkit.getOnlinePlayers().forEach(HumanEntity::closeInventory);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            player.closeInventory();
+            TitleUtils.cancelAllTitles(player);
+            ActionBarUtils.cancelAllActionBars(player);
+            BossbarUtils.cancelAllBossBars(player);
+        }
         onExyliaDisable();
 
         if (configSystem != null) {

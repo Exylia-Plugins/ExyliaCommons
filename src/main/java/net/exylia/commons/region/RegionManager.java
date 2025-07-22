@@ -1,21 +1,22 @@
 package net.exylia.commons.region;
 
 import lombok.Getter;
+import net.exylia.commons.region.blocks.AllowedBlocksManager;
+import net.exylia.commons.region.blocks.TemporaryBlocksManager;
 import net.exylia.commons.region.events.*;
-import net.exylia.commons.region.listener.RegionMovementListener;
+import net.exylia.commons.region.listener.UnifiedRegionListener;
 import net.exylia.commons.region.model.*;
 import net.exylia.commons.selection.model.Selection;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import net.exylia.commons.region.flags.FlagManager;
-import net.exylia.commons.region.listener.FlagListener;
 import net.exylia.commons.region.regeneration.RegionRegenerationManager;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
-import net.exylia.commons.region.listener.PlayerBuildListener;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +28,7 @@ import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**
- * Manager principal para el sistema de regiones
+ * Manager principal para el sistema de regiones - ACTUALIZADO con listener unificado
  */
 public class RegionManager {
     private static RegionManager instance;
@@ -37,9 +38,6 @@ public class RegionManager {
     private final Map<World, Set<Region>> worldRegions; // Optimización por mundo
     private final Map<UUID, Set<Region>> playerRegions; // Jugador -> Regiones donde está
 
-    @Getter
-    private final RegionMovementListener movementListener;
-
     // Configuración del sistema
     @Getter
     private boolean asyncMovementChecking = true;
@@ -48,8 +46,9 @@ public class RegionManager {
 
     @Getter
     private FlagManager flagManager;
-    private FlagListener flagListener;
-    private PlayerBuildListener playerBuildListener;
+
+    // LISTENER UNIFICADO
+    private UnifiedRegionListener unifiedListener;
 
     private BukkitRunnable movementTask;
 
@@ -58,27 +57,25 @@ public class RegionManager {
         this.regions = new ConcurrentHashMap<>();
         this.worldRegions = new ConcurrentHashMap<>();
         this.playerRegions = new ConcurrentHashMap<>();
-        this.movementListener = new RegionMovementListener(this, plugin);
 
         // Inicializar sistema de flags
         FlagManager.initialize(plugin);
         this.flagManager = FlagManager.getInstance();
-        this.flagListener = new FlagListener(flagManager, this);
 
-        // Inicializar sistema de regeneración
+        // Inicializar sistemas auxiliares
         RegionRegenerationManager.initialize(plugin);
-
-        // Inicializar sistema de rastreo de bloques de jugador
+        AllowedBlocksManager.initialize(plugin);
+        TemporaryBlocksManager.initialize(plugin);
         PlayerBlockTracker.initialize(plugin);
-        this.playerBuildListener = new PlayerBuildListener(plugin, this);
 
-        // Registrar listeners
-        plugin.getServer().getPluginManager().registerEvents(movementListener, plugin);
-        plugin.getServer().getPluginManager().registerEvents(flagListener, plugin);
+        // USAR LISTENER UNIFICADO
+        this.unifiedListener = new UnifiedRegionListener(plugin, this);
 
         if (asyncMovementChecking) {
             startMovementTask();
         }
+
+        logInternalDebug(debug(), "RegionManager inicializado con listener unificado");
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -262,9 +259,10 @@ public class RegionManager {
 
     /**
      * Procesa el movimiento de un jugador
+     *
      * @param player El jugador que se mueve
-     * @param from Ubicación de origen
-     * @param to Ubicación de destino
+     * @param from   Ubicación de origen
+     * @param to     Ubicación de destino
      * @return true si el movimiento está permitido, false si debe ser cancelado
      */
     public boolean processPlayerMovement(Player player, Location from, Location to) {
@@ -505,18 +503,92 @@ public class RegionManager {
         flagManager.cleanupPlayerState(player);
     }
 
+    // ===== API PARA VALIDACIONES =====
+
     /**
-     * Obtiene estadísticas del sistema de regeneración
+     * Verifica si un jugador puede realizar una acción específica
      */
-    public RegionRegenerationManager.RegenerationStats getRegenerationStats() {
-        return RegionRegenerationManager.getInstance().getStats();
+    public boolean canPlayerPerformAction(Player player, RegionFlag flag) {
+        return flagManager.canPlayerPerformAction(player, flag);
     }
 
     /**
-     * Limpia el cache de regeneración
+     * Verifica si un jugador puede realizar una acción en una ubicación específica
      */
-    public void clearRegenerationCache() {
-        RegionRegenerationManager.getInstance().clearCache();
+    public boolean canPlayerPerformActionAt(Player player, Location location, RegionFlag flag) {
+        return flagManager.canPlayerPerformActionAt(player, location, flag);
+    }
+
+    /**
+     * Verifica si el PvP está permitido entre dos jugadores
+     */
+    public boolean isPvpAllowed(Player attacker, Player target) {
+        return flagManager.isPvpAllowed(attacker, target);
+    }
+
+    /**
+     * Verifica si un jugador puede colocar un material específico en una ubicación
+     */
+    public boolean canPlayerPlaceMaterial(Player player, Location location, Material material) {
+        // Verificar permisos básicos de construcción primero
+        if (!canPlayerPerformActionAt(player, location, RegionFlag.BUILD)) {
+            return false;
+        }
+
+        // Obtener región de mayor prioridad
+        List<Region> regions = getRegionsAt(location);
+        if (regions.isEmpty()) {
+            return true; // No hay regiones, permitir
+        }
+
+        Region region = regions.get(0);
+
+        // Si la región tiene restricción de bloques permitidos, verificar
+        if (region.hasAllowedBlocksOnly()) {
+            return region.isMaterialAllowed(material);
+        }
+
+        return true; // No hay restricciones especiales
+    }
+
+    /**
+     * Fuerza la re-evaluación de flags para un jugador (mejorado)
+     */
+    public void refreshPlayerFlags(Player player) {
+        Set<Region> currentRegions = playerRegions.get(player.getUniqueId());
+        if (currentRegions != null) {
+            // Remover efectos actuales
+            for (Region region : currentRegions) {
+                flagManager.removeRegionEffects(player, region);
+            }
+
+            // Reaplicar efectos basados en ubicación actual
+            List<Region> newRegions = getRegionsAt(player.getLocation());
+            for (Region region : newRegions) {
+                if (currentRegions.contains(region)) {
+                    flagManager.applyRegionEffects(player, region);
+                }
+            }
+        }
+
+        // Invalidar cache específico del jugador
+        flagManager.invalidatePlayerCache(player);
+    }
+
+    /**
+     * Invalida cache y reaplica flags cuando una región cambia
+     */
+    public void onRegionFlagChanged(Region region, RegionFlag flag) {
+        // Invalidar cache
+        flagManager.invalidateRegionFlagCache(region, flag);
+
+        // Rerefrescar jugadores en la región
+        for (Player player : region.getPlayersInside()) {
+            // Solo rerefrescar si es una flag que afecta al jugador actual
+            if (flag.affectsCombat() || flag.affectsMovement() || flag.affectsBuilding()) {
+                refreshPlayerFlags(player);
+            }
+        }
     }
 
     // ===== CONFIGURACIÓN =====
@@ -567,8 +639,25 @@ public class RegionManager {
         }
     }
 
-    // ===== LIMPIEZA =====
+    // ===== ESTADÍSTICAS Y GESTIÓN =====
 
+    /**
+     * Obtiene estadísticas del sistema de regeneración
+     */
+    public RegionRegenerationManager.RegenerationStats getRegenerationStats() {
+        return RegionRegenerationManager.getInstance().getStats();
+    }
+
+    /**
+     * Limpia el cache de regeneración
+     */
+    public void clearRegenerationCache() {
+        RegionRegenerationManager.getInstance().clearCache();
+    }
+
+    /**
+     * Limpia los bloques de jugador de una región
+     */
     public void clearRegionPlayerBlocks(String regionId) {
         PlayerBlockTracker.getInstance().clearRegionBlocks(regionId);
     }
@@ -588,6 +677,77 @@ public class RegionManager {
     }
 
     /**
+     * Obtiene estadísticas del sistema de bloques temporales
+     */
+    public TemporaryBlocksManager.TemporaryBlocksStats getTemporaryBlocksStats() {
+        return TemporaryBlocksManager.getInstance().getStats();
+    }
+
+    /**
+     * Obtiene todas las regiones que tienen bloques temporales habilitados
+     */
+    public List<Region> getRegionsWithTemporaryBlocks() {
+        return regions.values().stream()
+                .filter(Region::hasTemporaryBlocks)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Obtiene información de todos los bloques temporales activos en el servidor
+     */
+    public Map<String, List<TemporaryBlocksManager.TemporaryBlock>> getActiveTemporaryBlocks() {
+        Map<String, List<TemporaryBlocksManager.TemporaryBlock>> activeBlocks = new HashMap<>();
+
+        for (Region region : getRegionsWithTemporaryBlocks()) {
+            List<TemporaryBlocksManager.TemporaryBlock> regionBlocks = new ArrayList<>();
+
+            // Recorrer el área de la región buscando bloques temporales
+            Location min = region.getMinimumPoint();
+            Location max = region.getMaximumPoint();
+
+            for (int x = min.getBlockX(); x <= max.getBlockX(); x++) {
+                for (int y = min.getBlockY(); y <= max.getBlockY(); y++) {
+                    for (int z = min.getBlockZ(); z <= max.getBlockZ(); z++) {
+                        Location loc = new Location(min.getWorld(), x, y, z);
+                        TemporaryBlocksManager.TemporaryBlock tempBlock =
+                                TemporaryBlocksManager.getInstance().getTemporaryBlock(loc);
+
+                        if (tempBlock != null) {
+                            regionBlocks.add(tempBlock);
+                        }
+                    }
+                }
+            }
+
+            if (!regionBlocks.isEmpty()) {
+                activeBlocks.put(region.getId(), regionBlocks);
+            }
+        }
+
+        return activeBlocks;
+    }
+
+    public CompletableFuture<Integer> clearAllTemporaryBlocks() {
+        return CompletableFuture.supplyAsync(() -> {
+            int cleared = 0;
+            Map<String, List<TemporaryBlocksManager.TemporaryBlock>> activeBlocks = getActiveTemporaryBlocks();
+
+            for (Map.Entry<String, List<TemporaryBlocksManager.TemporaryBlock>> entry : activeBlocks.entrySet()) {
+                for (TemporaryBlocksManager.TemporaryBlock block : entry.getValue()) {
+                    TemporaryBlocksManager.getInstance().cancelBlockRemoval(block.getLocation());
+                    block.getLocation().getBlock().setType(Material.AIR);
+                    cleared++;
+                }
+            }
+
+            logInternalDebug(debug(), "Limpiados " + cleared + " bloques temporales activos");
+            return cleared;
+        });
+    }
+
+    // ===== LIMPIEZA =====
+
+    /**
      * Limpia todos los recursos
      */
     public void cleanup() {
@@ -597,10 +757,9 @@ public class RegionManager {
             cleanupPlayer(player);
         }
 
-        // Cerrar sistema de regeneración
+        // Cerrar sistemas auxiliares
+        TemporaryBlocksManager.getInstance().shutdown();
         RegionRegenerationManager.getInstance().shutdown();
-
-        // Cerrar sistema de rastreo de bloques
         PlayerBlockTracker.getInstance().shutdown();
 
         regions.clear();
@@ -608,68 +767,5 @@ public class RegionManager {
         playerRegions.clear();
 
         logInternalDebug(debug(), "RegionManager limpiado completamente");
-    }
-
-    // ===== ESTADÍSTICAS =====
-
-    /**
-     * Verifica si un jugador puede realizar una acción específica
-     */
-    public boolean canPlayerPerformAction(Player player, RegionFlag flag) {
-        return flagManager.canPlayerPerformAction(player, flag);
-    }
-
-    /**
-     * Verifica si un jugador puede realizar una acción en una ubicación específica
-     */
-    public boolean canPlayerPerformActionAt(Player player, Location location, RegionFlag flag) {
-        return flagManager.canPlayerPerformActionAt(player, location, flag);
-    }
-
-    /**
-     * Verifica si el PvP está permitido entre dos jugadores
-     */
-    public boolean isPvpAllowed(Player attacker, Player target) {
-        return flagManager.isPvpAllowed(attacker, target);
-    }
-
-    /**
-     * Fuerza la re-evaluación de flags para un jugador (mejorado)
-     */
-    public void refreshPlayerFlags(Player player) {
-        Set<Region> currentRegions = playerRegions.get(player.getUniqueId());
-        if (currentRegions != null) {
-            // Remover efectos actuales
-            for (Region region : currentRegions) {
-                flagManager.removeRegionEffects(player, region);
-            }
-
-            // Reaplicar efectos basados en ubicación actual
-            List<Region> newRegions = getRegionsAt(player.getLocation());
-            for (Region region : newRegions) {
-                if (currentRegions.contains(region)) {
-                    flagManager.applyRegionEffects(player, region);
-                }
-            }
-        }
-
-        // Invalidar cache específico del jugador
-        flagManager.invalidatePlayerCache(player);
-    }
-
-    /**
-     * Invalida cache y reaplica flags cuando una región cambia
-     */
-    public void onRegionFlagChanged(Region region, RegionFlag flag) {
-        // Invalidar cache
-        flagManager.invalidateRegionFlagCache(region, flag);
-
-        // Rerefrescar jugadores en la región
-        for (Player player : region.getPlayersInside()) {
-            // Solo rerefrescar si es una flag que afecta al jugador actual
-            if (flag.affectsCombat() || flag.affectsMovement() || flag.affectsBuilding()) {
-                refreshPlayerFlags(player);
-            }
-        }
     }
 }

@@ -68,6 +68,7 @@ public class FlagManager {
             throw new IllegalArgumentException("Location y flag no pueden ser null");
         }
 
+
         // Verificar cache primero
         String cacheKey = null;
         if (player != null) {
@@ -131,25 +132,17 @@ public class FlagManager {
 
         // 2. Verificar permisos específicos del jugador en la región (solo si player no es null)
         if (player != null) {
-            // Verificar si es owner o miembro
             UUID playerId = player.getUniqueId();
             if (region.isOwner(playerId)) {
                 RegionFlagType flagType = region.getFlagType(flag);
-                if (flagType == RegionFlagType.DENY) {
-                    // Solo negar si está explícitamente denegado
-                    return false;
-                }
-                return true;
+                return flagType != RegionFlagType.DENY;
             }
 
             if (region.isMember(playerId)) {
                 // Los miembros pueden hacer cosas básicas
                 if (flag.affectsBuilding() || flag == RegionFlag.INTERACT) {
                     RegionFlagType flagType = region.getFlagType(flag);
-                    if (flagType == RegionFlagType.DENY) {
-                        return false;
-                    }
-                    return true;
+                    return flagType != RegionFlagType.DENY;
                 }
             }
 
