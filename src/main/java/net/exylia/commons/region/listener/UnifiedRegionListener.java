@@ -22,16 +22,19 @@ import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**
- * Listener unificado que maneja TODOS los eventos de región con lógica jerárquica
- * Usa prioridad NORMAL para no interferir con otros plugins
+ * Listener unificado CORREGIDO - Procesamiento inmediato de movimientos
+ * Elimina el batching agresivo que causaba detección tardía
  */
 public class UnifiedRegionListener implements Listener {
 
@@ -42,6 +45,15 @@ public class UnifiedRegionListener implements Listener {
     private final AllowedBlocksManager allowedBlocksManager;
     private final TemporaryBlocksManager temporaryBlocksManager;
 
+    // ===== CACHE DE VALIDACIONES (mantener solo este cache) =====
+    private final ConcurrentHashMap<String, CachedValidation> validationCache;
+    private static final long VALIDATION_CACHE_EXPIRE = 1000; // REDUCIDO a 1 segundo para mejor respuesta
+
+    // ===== ESTADÍSTICAS =====
+    private volatile long totalEvents = 0;
+    private volatile long cachedValidations = 0;
+    private volatile long immediateMovements = 0;
+
     public UnifiedRegionListener(JavaPlugin plugin, RegionManager regionManager) {
         this.plugin = plugin;
         this.regionManager = regionManager;
@@ -49,79 +61,106 @@ public class UnifiedRegionListener implements Listener {
         this.blockTracker = PlayerBlockTracker.getInstance();
         this.allowedBlocksManager = AllowedBlocksManager.getInstance();
         this.temporaryBlocksManager = TemporaryBlocksManager.getInstance();
+
+        // Solo cache de validaciones - SIN batching
+        this.validationCache = new ConcurrentHashMap<>();
+
+        // Registrar eventos
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+
+        // Solo tarea de limpieza de cache
+        startCacheCleanupTask();
+
+        logInternalDebug(debug(), "UnifiedRegionListener iniciado con procesamiento inmediato");
     }
 
-    // ===== EVENTOS DE CONSTRUCCIÓN =====
+    // ===== EVENTOS DE CONSTRUCCIÓN (sin cambios significativos) =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
+        totalEvents++;
+
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
         Material material = event.getBlock().getType();
 
-        // Obtener regiones en la ubicación
-        List<Region> regions = regionManager.getRegionsAt(location);
-        if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
+        // Cache de validación (reducido a 1 segundo)
+        String cacheKey = getValidationCacheKey(player, location, "place", material.name());
+        CachedValidation cached = validationCache.get(cacheKey);
+
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            } else {
+                executePostPlacementEffects(player, cached.region, location, material);
+                return;
+            }
         }
 
-        Region region = regions.get(0); // Mayor prioridad
+        List<Region> regions = regionManager.getRegionsAt(location);
+        if (regions.isEmpty()) {
+            cacheValidation(cacheKey, true, null);
+            return;
+        }
 
-        // === JERARQUÍA DE VALIDACIÓN ===
+        Region region = regions.get(0);
         ActionResult result = validateBlockPlacement(player, region, location, material);
 
-        // Solo cancelar si no está permitido
+        cacheValidation(cacheKey, result.isAllowed(), region);
+
         if (!result.isAllowed()) {
             event.setCancelled(true);
-
             logInternalDebug(debug(), String.format(
                     "Colocación de bloque denegada: %s intentó colocar %s en región %s - Razón: %s",
                     player.getName(), material.name(), region.getId(), result.getReason()
             ));
         } else {
-            // Ejecutar efectos post-validación
             executePostPlacementEffects(player, region, location, material);
-
-            logInternalDebug(debug(), String.format(
-                    "Colocación de bloque permitida: %s colocó %s en región %s",
-                    player.getName(), material.name(), region.getId()
-            ));
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
+        totalEvents++;
+
         Player player = event.getPlayer();
         Location location = event.getBlock().getLocation();
 
-        // Obtener regiones en la ubicación
-        List<Region> regions = regionManager.getRegionsAt(location);
-        if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
+        String cacheKey = getValidationCacheKey(player, location, "break", "");
+        CachedValidation cached = validationCache.get(cacheKey);
+
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            } else {
+                executePostBreakEffects(player, cached.region, location);
+                return;
+            }
         }
 
-        Region region = regions.get(0); // Mayor prioridad
+        List<Region> regions = regionManager.getRegionsAt(location);
+        if (regions.isEmpty()) {
+            cacheValidation(cacheKey, true, null);
+            return;
+        }
 
-        // === JERARQUÍA DE VALIDACIÓN ===
+        Region region = regions.get(0);
         ActionResult result = validateBlockBreaking(player, region, location);
 
-        // Solo cancelar si no está permitido
+        cacheValidation(cacheKey, result.isAllowed(), region);
+
         if (!result.isAllowed()) {
             event.setCancelled(true);
-
             logInternalDebug(debug(), String.format(
                     "Rotura de bloque denegada: %s intentó romper bloque en región %s - Razón: %s",
                     player.getName(), region.getId(), result.getReason()
             ));
         } else {
-            // Ejecutar efectos post-validación
             executePostBreakEffects(player, region, location);
-
-            logInternalDebug(debug(), String.format(
-                    "Rotura de bloque permitida: %s rompió bloque en región %s",
-                    player.getName(), region.getId()
-            ));
         }
     }
 
@@ -129,55 +168,67 @@ public class UnifiedRegionListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getClickedBlock() == null) return;
 
+        totalEvents++;
+
         Player player = event.getPlayer();
         Block block = event.getClickedBlock();
         Location location = block.getLocation();
 
-        // Obtener regiones en la ubicación
-        List<Region> regions = regionManager.getRegionsAt(location);
-        if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
-        }
+        String cacheKey = getValidationCacheKey(player, location, "interact", block.getType().name());
+        CachedValidation cached = validationCache.get(cacheKey);
 
-        Region region = regions.get(0); // Mayor prioridad
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            }
+        } else {
+            List<Region> regions = regionManager.getRegionsAt(location);
+            if (regions.isEmpty()) {
+                cacheValidation(cacheKey, true, null);
+                return;
+            }
 
-        // === JERARQUÍA DE VALIDACIÓN ===
-        ActionResult result = validateInteraction(player, region, location, block.getType());
+            Region region = regions.get(0);
+            ActionResult result = validateInteraction(player, region, location, block.getType());
 
-        // Solo cancelar si no está permitido
-        if (!result.isAllowed()) {
-            event.setCancelled(true);
+            cacheValidation(cacheKey, result.isAllowed(), region);
 
-            logInternalDebug(debug(), String.format(
-                    "Interacción denegada: %s intentó interactuar con %s en región %s - Razón: %s",
-                    player.getName(), block.getType().name(), region.getId(), result.getReason()
-            ));
+            if (!result.isAllowed()) {
+                event.setCancelled(true);
+                logInternalDebug(debug(), String.format(
+                        "Interacción denegada: %s intentó interactuar con %s en región %s - Razón: %s",
+                        player.getName(), block.getType().name(), region.getId(), result.getReason()
+                ));
+            }
         }
     }
 
-    // ===== EVENTOS DE COMBATE =====
+    // ===== EVENTOS DE COMBATE (sin cambios) =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player target)) return;
         if (!(event.getDamager() instanceof Player attacker)) return;
 
-        // Verificar si alguno de los jugadores está en una región
-        List<Region> targetRegions = regionManager.getRegionsAt(target.getLocation());
-        List<Region> attackerRegions = regionManager.getRegionsAt(attacker.getLocation());
+        totalEvents++;
 
-        if (targetRegions.isEmpty() && attackerRegions.isEmpty()) {
-            return; // Ninguno está en regiones, no interferir
-        }
+        String pvpCacheKey = getPvpCacheKey(attacker, target);
+        CachedValidation cached = validationCache.get(pvpCacheKey);
 
-        // === JERARQUÍA DE VALIDACIÓN ===
-        ActionResult result = validatePvP(attacker, target);
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            }
+        } else {
+            ActionResult result = validatePvP(attacker, target);
+            cacheValidation(pvpCacheKey, result.isAllowed(), null);
 
-        // Solo cancelar si no está permitido
-        if (!result.isAllowed()) {
-            event.setCancelled(true);
-
-            if (result.getMessage() != null) {
+            if (!result.isAllowed()) {
+                event.setCancelled(true);
                 logInternalDebug(debug(), String.format(
                         "PvP denegado: %s intentó atacar a %s - Razón: %s",
                         attacker.getName(), target.getName(), result.getReason()
@@ -190,53 +241,59 @@ public class UnifiedRegionListener implements Listener {
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
-        // Solo actuar si el jugador está en una región
+        totalEvents++;
+
         List<Region> regions = regionManager.getRegionsAt(player.getLocation());
         if (regions.isEmpty()) {
-            return; // No hay regiones, no interferir
+            return;
         }
 
-        Region region = regions.get(0); // Mayor prioridad
-
-        // === JERARQUÍA DE VALIDACIÓN ===
+        Region region = regions.get(0);
         ActionResult result = validateDamage(player, region, event.getCause());
 
-        // Solo cancelar si no está permitido
         if (!result.isAllowed()) {
             event.setCancelled(true);
-
-            if (result.getMessage() != null) {
-                logInternalDebug(debug(), String.format(
-                        "Daño denegado: %s iba a recibir daño por %s en región %s",
-                        player.getName(), event.getCause().name(), region.getId()
-                ));
-            }
+            logInternalDebug(debug(), String.format(
+                    "Daño denegado: %s iba a recibir daño por %s en región %s",
+                    player.getName(), event.getCause().name(), region.getId()
+            ));
         }
     }
 
-    // ===== EVENTOS DE MOVIMIENTO =====
+    // ===== EVENTOS DE MOVIMIENTO CORREGIDOS =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPlayerMove(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
 
-        // Optimización: Solo procesar si realmente se movió a un bloque diferente
-        if (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY() &&
-                from.getBlockZ() == to.getBlockZ() && from.getWorld().equals(to.getWorld())) {
+        // CORRECCIÓN 1: Filtro menos agresivo - solo si es exactamente el mismo bloque
+        if (from.getBlockX() == to.getBlockX() &&
+                from.getBlockY() == to.getBlockY() &&
+                from.getBlockZ() == to.getBlockZ() &&
+                from.getWorld().equals(to.getWorld())) {
             return;
         }
 
-        // Usar el sistema existente del RegionManager
+        immediateMovements++;
+
+        // CORRECCIÓN 2: PROCESAR INMEDIATAMENTE - Sin batching
         boolean movementAllowed = regionManager.processPlayerMovement(event.getPlayer(), from, to);
 
         if (!movementAllowed) {
             event.setCancelled(true);
+            logInternalDebug(debug(), String.format(
+                    "Movimiento cancelado inmediatamente para %s de %s a %s",
+                    event.getPlayer().getName(),
+                    String.format("(%d,%d,%d)", from.getBlockX(), from.getBlockY(), from.getBlockZ()),
+                    String.format("(%d,%d,%d)", to.getBlockX(), to.getBlockY(), to.getBlockZ())
+            ));
         }
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
+        // Los teleports siempre se procesan inmediatamente
         Location from = event.getFrom();
         Location to = event.getTo();
 
@@ -244,37 +301,35 @@ public class UnifiedRegionListener implements Listener {
 
         if (!teleportAllowed) {
             event.setCancelled(true);
+            logInternalDebug(debug(), String.format(
+                    "Teleport cancelado para %s de %s a %s",
+                    event.getPlayer().getName(), from, to
+            ));
         }
     }
 
-    // ===== EVENTOS DE EXPLOSIONES =====
+    // ===== EVENTOS DE EXPLOSIONES (sin cambios) =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
-        Location explosionLocation = event.getLocation();
+        totalEvents++;
 
-        // Obtener regiones en la ubicación de la explosión
+        Location explosionLocation = event.getLocation();
         List<Region> regions = regionManager.getRegionsAt(explosionLocation);
         if (regions.isEmpty()) {
             return;
         }
 
-        Region region = regions.get(0); // Mayor prioridad
-
-        // === JERARQUÍA DE VALIDACIÓN ===
+        Region region = regions.get(0);
         ActionResult result = validateExplosion(region, event.getEntityType());
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-
-            event.getEntityType();
             logInternalDebug(debug(), String.format(
                     "Explosión denegada: %s en región %s - Razón: %s",
-                    event.getEntityType().name(),
-                    region.getId(), result.getReason()
+                    event.getEntityType().name(), region.getId(), result.getReason()
             ));
         } else {
-            // Si la explosión está permitida, filtrar bloques según PLAYER_BUILD_ONLY
             if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
                 filterExplosionBlocks(event, region);
             }
@@ -283,21 +338,19 @@ public class UnifiedRegionListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
-        Location explosionLocation = event.getBlock().getLocation();
+        totalEvents++;
 
+        Location explosionLocation = event.getBlock().getLocation();
         List<Region> regions = regionManager.getRegionsAt(explosionLocation);
         if (regions.isEmpty()) {
             return;
         }
 
         Region region = regions.get(0);
-
-        // Usar la misma lógica que EntityExplode
-        ActionResult result = validateExplosion(region, null); // null para explosiones de bloque
+        ActionResult result = validateExplosion(region, null);
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-
             logInternalDebug(debug(), String.format(
                     "Explosión de bloque denegada en región %s - Razón: %s",
                     region.getId(), result.getReason()
@@ -309,7 +362,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    // ===== EVENTOS ADICIONALES =====
+    // ===== EVENTOS ADICIONALES (sin cambios) =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onInventoryOpen(InventoryOpenEvent event) {
@@ -326,7 +379,6 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-
                 logInternalDebug(debug(), String.format(
                         "Acceso a inventario denegado: %s intentó abrir %s en región %s",
                         player.getName(), block.getType().name(), regions.get(0).getId()
@@ -339,14 +391,21 @@ public class UnifiedRegionListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+
+        // Limpiar cache de validaciones del jugador
+        String playerPrefix = playerId.toString();
+        validationCache.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
+
+        // Limpiar estado en los managers
         regionManager.cleanupPlayer(event.getPlayer());
         flagManager.cleanupPlayerState(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerKick(PlayerKickEvent event) {
-        regionManager.cleanupPlayer(event.getPlayer());
-        flagManager.cleanupPlayerState(event.getPlayer());
+        // Misma lógica que quit
+        onPlayerQuit(new PlayerQuitEvent(event.getPlayer(), ""));
     }
 
     @EventHandler(priority = EventPriority.NORMAL)
@@ -361,18 +420,13 @@ public class UnifiedRegionListener implements Listener {
                 regionManager.processPlayerMovement(player, emptyLocation, player.getLocation()), 1L);
     }
 
-    // ===== MÉTODOS DE VALIDACIÓN JERÁRQUICA =====
+    // ===== MÉTODOS DE VALIDACIÓN (sin cambios) =====
 
-    /**
-     * Valida la colocación de bloques con jerarquía de flags
-     */
     private ActionResult validateBlockPlacement(Player player, Region region, Location location, Material material) {
-        // 1. Verificar BUILD primero (flag padre)
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.BUILD)) {
             return ActionResult.deny("build-denied", "No puedes construir en esta región");
         }
 
-        // 2. Si BUILD está permitido, verificar ALLOWED_BLOCKS_ONLY
         if (region.getFlagValue(RegionFlag.ALLOWED_BLOCKS_ONLY)) {
             if (!allowedBlocksManager.isMaterialAllowed(region, material)) {
                 return ActionResult.deny("material-not-allowed",
@@ -380,25 +434,18 @@ public class UnifiedRegionListener implements Listener {
             }
         }
 
-        // 3. Si llega aquí, está permitido
         return ActionResult.allow();
     }
 
-    /**
-     * Valida la rotura de bloques con jerarquía de flags
-     */
     private ActionResult validateBlockBreaking(Player player, Region region, Location location) {
-        // 1. Verificar PLAYER_BUILD_ONLY primero (más restrictivo)
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
             if (!blockTracker.isPlayerPlacedBlock(region.getId(), location)) {
                 return ActionResult.deny("not-player-block",
                         "Solo puedes romper bloques que hayas colocado");
             }
-            // Si es un bloque de jugador, permitir independientemente de BREAK
             return ActionResult.allow();
         }
 
-        // 2. Si PLAYER_BUILD_ONLY no está activo, verificar BREAK
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.BREAK)) {
             return ActionResult.deny("break-denied", "No puedes romper bloques en esta región");
         }
@@ -406,29 +453,20 @@ public class UnifiedRegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    /**
-     * Valida la interacción con bloques
-     */
     private ActionResult validateInteraction(Player player, Region region, Location location, Material material) {
-        // 1. Verificar INTERACT primero (flag padre)
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.INTERACT)) {
             return ActionResult.deny("interact-denied", "No puedes interactuar en esta región");
         }
 
-        // 2. Verificaciones específicas solo si INTERACT está permitido
         if (isChestOrContainer(material)) {
             if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.CHEST_ACCESS)) {
                 return ActionResult.deny("chest-access-denied", "No puedes acceder a contenedores");
             }
-        }
-
-        if (isDoorOrGate(material)) {
+        } else if (isDoorOrGate(material)) {
             if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.USE_DOORS)) {
                 return ActionResult.deny("door-access-denied", "No puedes usar puertas");
             }
-        }
-
-        if (isButtonOrLever(material)) {
+        } else if (isButtonOrLever(material)) {
             if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.USE_BUTTONS)) {
                 return ActionResult.deny("button-access-denied", "No puedes usar botones o palancas");
             }
@@ -437,16 +475,11 @@ public class UnifiedRegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    /**
-     * Valida PvP entre jugadores
-     */
     private ActionResult validatePvP(Player attacker, Player target) {
-        // Verificar invencibilidad primero
         if (flagManager.isPlayerInvincible(target)) {
             return ActionResult.deny("target-invincible", null);
         }
 
-        // Verificar PvP usando el sistema existente del FlagManager
         if (!flagManager.isPvpAllowed(attacker, target)) {
             return ActionResult.deny("pvp-disabled", "PvP no está permitido aquí");
         }
@@ -454,16 +487,11 @@ public class UnifiedRegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    /**
-     * Valida daño a jugadores
-     */
     private ActionResult validateDamage(Player player, Region region, EntityDamageEvent.DamageCause cause) {
-        // Verificar invencibilidad general
         if (flagManager.isPlayerInvincible(player)) {
             return ActionResult.deny("invincible", null);
         }
 
-        // Verificar daño por fuego específico
         if (cause == EntityDamageEvent.DamageCause.FIRE ||
                 cause == EntityDamageEvent.DamageCause.FIRE_TICK ||
                 cause == EntityDamageEvent.DamageCause.LAVA) {
@@ -475,9 +503,6 @@ public class UnifiedRegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    /**
-     * Valida explosiones
-     */
     private ActionResult validateExplosion(Region region, EntityType entityType) {
         if (entityType == EntityType.PRIMED_TNT || entityType == EntityType.MINECART_TNT) {
             if (!region.getFlagValue(RegionFlag.TNT)) {
@@ -496,9 +521,6 @@ public class UnifiedRegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    /**
-     * Valida acceso a cofres
-     */
     private ActionResult validateChestAccess(Player player, Region region, Location location) {
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.CHEST_ACCESS)) {
             return ActionResult.deny("chest-access-denied", "No puedes acceder a contenedores");
@@ -508,39 +530,30 @@ public class UnifiedRegionListener implements Listener {
 
     // ===== MÉTODOS DE EFECTOS POST-VALIDACIÓN =====
 
-    /**
-     * Ejecuta efectos después de colocar un bloque exitosamente
-     */
     private void executePostPlacementEffects(Player player, Region region, Location location, Material material) {
-        // Rastreo de bloques de jugador
+        if (region == null) return;
+
         if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
             blockTracker.addPlayerBlock(region.getId(), location, material);
         }
 
-        // Bloques temporales
         if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
             temporaryBlocksManager.scheduleBlockRemoval(region, location, material);
         }
     }
 
-    /**
-     * Ejecuta efectos después de romper un bloque exitosamente
-     */
     private void executePostBreakEffects(Player player, Region region, Location location) {
-        // Cancelar remoción temporal si existe
+        if (region == null) return;
+
         if (temporaryBlocksManager.isTemporaryBlock(location)) {
             temporaryBlocksManager.cancelBlockRemoval(location);
         }
 
-        // Remover del tracker si existe
         if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
             blockTracker.removePlayerBlock(region.getId(), location);
         }
     }
 
-    /**
-     * Filtra bloques en explosiones según PLAYER_BUILD_ONLY
-     */
     private void filterExplosionBlocks(EntityExplodeEvent event, Region region) {
         Iterator<Block> iterator = event.blockList().iterator();
         int originalCount = event.blockList().size();
@@ -549,16 +562,13 @@ public class UnifiedRegionListener implements Listener {
             Block block = iterator.next();
             Location blockLocation = block.getLocation();
 
-            // Cancelar remoción de bloques temporales
             if (temporaryBlocksManager.isTemporaryBlock(blockLocation)) {
                 temporaryBlocksManager.cancelBlockRemoval(blockLocation);
             }
 
-            // Verificar si el bloque fue colocado por un jugador
             if (!blockTracker.isPlayerPlacedBlock(region.getId(), blockLocation)) {
                 iterator.remove();
             } else {
-                // Remover del registro
                 if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
                     blockTracker.removePlayerBlock(region.getId(), blockLocation);
                 }
@@ -571,9 +581,6 @@ public class UnifiedRegionListener implements Listener {
         ));
     }
 
-    /**
-     * Filtra bloques en explosiones de bloque según PLAYER_BUILD_ONLY
-     */
     private void filterBlockExplosionBlocks(BlockExplodeEvent event, Region region) {
         Iterator<Block> iterator = event.blockList().iterator();
 
@@ -593,6 +600,55 @@ public class UnifiedRegionListener implements Listener {
                 }
             }
         }
+    }
+
+    // ===== CACHE DE VALIDACIONES (solo cache ligero) =====
+
+    private String getValidationCacheKey(Player player, Location location, String action, String extra) {
+        return String.format("%s:%d:%d:%d:%s:%s",
+                player.getUniqueId().toString(),
+                location.getBlockX(),
+                location.getBlockY(),
+                location.getBlockZ(),
+                action,
+                extra);
+    }
+
+    private String getPvpCacheKey(Player attacker, Player target) {
+        UUID id1 = attacker.getUniqueId();
+        UUID id2 = target.getUniqueId();
+
+        if (id1.compareTo(id2) < 0) {
+            return "pvp:" + id1 + ":" + id2;
+        } else {
+            return "pvp:" + id2 + ":" + id1;
+        }
+    }
+
+    private void cacheValidation(String key, boolean allowed, Region region) {
+        validationCache.put(key, new CachedValidation(allowed, region, System.currentTimeMillis()));
+
+        // Limitar tamaño del cache (más conservador)
+        if (validationCache.size() > 500) { // Reducido de 1000 a 500
+            cleanupValidationCache();
+        }
+    }
+
+    // ===== LIMPIEZA DE CACHE =====
+
+    private void startCacheCleanupTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupValidationCache();
+            }
+        }.runTaskTimerAsynchronously(plugin, 20L, 20L); // Cada segundo
+    }
+
+    private void cleanupValidationCache() {
+        long currentTime = System.currentTimeMillis();
+        validationCache.entrySet().removeIf(entry ->
+                currentTime - entry.getValue().timestamp > VALIDATION_CACHE_EXPIRE);
     }
 
     // ===== MÉTODOS AUXILIARES =====
@@ -618,11 +674,33 @@ public class UnifiedRegionListener implements Listener {
                 material.name().contains("PRESSURE_PLATE");
     }
 
-    // ===== CLASE AUXILIAR PARA RESULTADOS =====
+    // ===== ESTADÍSTICAS =====
 
-    /**
-     * Representa el resultado de una validación de acción
-     */
+    public ListenerStats getStats() {
+        return new ListenerStats(
+                totalEvents,
+                cachedValidations,
+                immediateMovements,
+                0, // No more pending movements
+                0, // No more pending actions
+                validationCache.size()
+        );
+    }
+
+    public void resetStats() {
+        totalEvents = 0;
+        cachedValidations = 0;
+        immediateMovements = 0;
+    }
+
+    // ===== LIMPIEZA =====
+
+    public void shutdown() {
+        validationCache.clear();
+    }
+
+    // ===== CLASES AUXILIARES =====
+
     @Getter
     private static class ActionResult {
         private final boolean allowed;
@@ -642,6 +720,60 @@ public class UnifiedRegionListener implements Listener {
         public static ActionResult deny(String reason, String message) {
             return new ActionResult(false, reason, message);
         }
+    }
 
+    private static class CachedValidation {
+        final boolean allowed;
+        final Region region;
+        final long timestamp;
+
+        CachedValidation(boolean allowed, Region region, long timestamp) {
+            this.allowed = allowed;
+            this.region = region;
+            this.timestamp = timestamp;
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - timestamp > VALIDATION_CACHE_EXPIRE;
+        }
+    }
+
+    public static class ListenerStats {
+        private final long totalEvents;
+        private final long cachedValidations;
+        private final long immediateMovements;
+        private final int pendingMovements;
+        private final int pendingActions;
+        private final int cacheSize;
+
+        public ListenerStats(long totalEvents, long cachedValidations, long immediateMovements,
+                             int pendingMovements, int pendingActions, int cacheSize) {
+            this.totalEvents = totalEvents;
+            this.cachedValidations = cachedValidations;
+            this.immediateMovements = immediateMovements;
+            this.pendingMovements = pendingMovements;
+            this.pendingActions = pendingActions;
+            this.cacheSize = cacheSize;
+        }
+
+        public long getTotalEvents() { return totalEvents; }
+        public long getCachedValidations() { return cachedValidations; }
+        public long getImmediateMovements() { return immediateMovements; }
+        public int getPendingMovements() { return pendingMovements; }
+        public int getPendingActions() { return pendingActions; }
+        public int getCacheSize() { return cacheSize; }
+
+        public double getCacheHitRatio() {
+            return totalEvents > 0 ? (double) cachedValidations / totalEvents : 0.0;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "ListenerStats{events=%d, cached=%d (%.1f%%), immediate_moves=%d, cache_size=%d}",
+                    totalEvents, cachedValidations, getCacheHitRatio() * 100,
+                    immediateMovements, cacheSize
+            );
+        }
     }
 }

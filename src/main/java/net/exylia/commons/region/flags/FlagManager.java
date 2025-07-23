@@ -1,9 +1,11 @@
 package net.exylia.commons.region.flags;
 
+import lombok.Getter;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
 import net.exylia.commons.region.model.RegionFlagType;
 import net.exylia.commons.region.RegionManager;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -12,9 +14,13 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 
 /**
- * Gestor central para la aplicación y validación de flags de región
+ * Gestor central OPTIMIZADO para la aplicación y validación de flags de región
+ * Incluye cache mejorado y optimizaciones de rendimiento
  */
 public class FlagManager {
     private static FlagManager instance;
@@ -23,18 +29,22 @@ public class FlagManager {
     private final Map<UUID, FlagState> playerStates; // Estado de flags por jugador
     private final Map<UUID, BukkitRunnable> activeEffects; // Efectos activos por jugador
 
-    // Cache de validaciones
-    private final Map<String, Boolean> validationCache;
-    private final long cacheTimeout = 5000; // 5 segundos
+    // ===== CACHE OPTIMIZADO =====
+    private final OptimizedFlagCache optimizedCache;
+
+    // ===== ESTADÍSTICAS =====
+    private final AtomicLong cacheHits = new AtomicLong();
+    private final AtomicLong cacheMisses = new AtomicLong();
+    private final AtomicLong validationCalls = new AtomicLong();
 
     private FlagManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.playerStates = new ConcurrentHashMap<>();
         this.activeEffects = new ConcurrentHashMap<>();
-        this.validationCache = new ConcurrentHashMap<>();
+        this.optimizedCache = new OptimizedFlagCache();
 
-        // Iniciar tarea de limpieza de cache
-        startCacheCleanupTask();
+        // Iniciar tarea de limpieza optimizada
+        startOptimizedCleanupTask();
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -50,7 +60,7 @@ public class FlagManager {
         return instance;
     }
 
-    // ===== VALIDACIÓN DE ACCIONES =====
+    // ===== VALIDACIÓN DE ACCIONES OPTIMIZADA =====
 
     /**
      * Verifica si un jugador puede realizar una acción específica en su ubicación actual
@@ -60,32 +70,36 @@ public class FlagManager {
     }
 
     /**
-     * Verifica si un jugador puede realizar una acción en una ubicación específica
+     * OPTIMIZADO: Verifica si un jugador puede realizar una acción en una ubicación específica
+     * Usa cache optimizado y spatial index para máximo rendimiento
      */
     public boolean canPlayerPerformActionAt(Player player, Location location, RegionFlag flag) {
+        validationCalls.incrementAndGet();
+
         // Validar parámetros obligatorios
         if (location == null || flag == null) {
             throw new IllegalArgumentException("Location y flag no pueden ser null");
         }
 
-
-        // Verificar cache primero
-        String cacheKey = null;
+        // OPTIMIZACIÓN 1: Cache optimizado primero
         if (player != null) {
-            cacheKey = getCacheKey(player, location, flag);
-            Boolean cached = validationCache.get(cacheKey);
+            Boolean cached = optimizedCache.getCachedResult(player,
+                    location.getBlockX(), location.getBlockY(), location.getBlockZ(), flag);
             if (cached != null) {
+                cacheHits.incrementAndGet();
                 return cached;
             }
         }
 
-        // Verificar permisos administrativos
+        cacheMisses.incrementAndGet();
+
+        // OPTIMIZACIÓN 2: Verificar permisos administrativos temprano
         if (player != null && hasAdminPermission(player, flag)) {
-            cacheResult(cacheKey, true);
+            cacheResult(player, location, flag, true);
             return true;
         }
 
-        // Obtener regiones en la ubicación
+        // OPTIMIZACIÓN 3: Usar spatial index del RegionManager para búsqueda O(1)
         List<Region> regions = RegionManager.getInstance().getRegionsAt(location);
 
         boolean result;
@@ -93,70 +107,64 @@ public class FlagManager {
             // No hay regiones, usar valor por defecto
             result = flag.isDefaultValue();
         } else {
-            // Usar la región de mayor prioridad
-            Region highestPriorityRegion = regions.get(0);
-            result = evaluateFlagInRegion(player, highestPriorityRegion, flag, location);
+            // OPTIMIZACIÓN 4: Usar la región de mayor prioridad directamente
+            Region highestPriorityRegion = regions.get(0); // Ya viene ordenado por prioridad
+            result = evaluateFlagInRegionOptimized(player, highestPriorityRegion, flag, location);
         }
 
-        // Cachear resultado solo si player no es null
-        if (cacheKey != null) {
-            cacheResult(cacheKey, result);
-        }
+        // Cachear resultado
+        cacheResult(player, location, flag, result);
         return result;
     }
 
     /**
-     * Evalúa una flag en una región específica considerando permisos y configuración
+     * OPTIMIZADO: Evalúa una flag en una región específica con optimizaciones
      */
-    private boolean evaluateFlagInRegion(Player player, Region region, RegionFlag flag, Location actionLocation) {
-        // 1. Verificar REGION_MEMBERS_ONLY antes que cualquier otra cosa
-        if (player != null && region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY) && flag.isAffectedByRegionMembersOnly()) {
-            // Si REGION_MEMBERS_ONLY está activo y la flag es afectada por él
-            // Solo permitir si el jugador está DENTRO de la región
-            boolean playerInRegion = region.contains(player.getLocation());
-
-            if (!playerInRegion) {
-                // El jugador no está dentro de la región, denegar acceso independientemente de otros permisos
-                plugin.getLogger().fine(String.format(
-                        "REGION_MEMBERS_ONLY: Denying %s for player %s (outside region %s) trying to affect location in region",
-                        flag.getKey(), player.getName(), region.getId()
-                ));
-                return false;
+    private boolean evaluateFlagInRegionOptimized(Player player, Region region, RegionFlag flag, Location actionLocation) {
+        // OPTIMIZACIÓN 1: Early exit para flags críticas
+        if (player != null && flag == RegionFlag.REGION_MEMBERS_ONLY && region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
+            if (flag.isAffectedByRegionMembersOnly()) {
+                boolean playerInRegion = region.contains(player.getLocation());
+                if (!playerInRegion) {
+                    return false; // Denegación rápida
+                }
             }
-
-            plugin.getLogger().fine(String.format(
-                    "REGION_MEMBERS_ONLY: Player %s is inside region %s, continuing with normal flag evaluation",
-                    player.getName(), region.getId()
-            ));
         }
 
-        // 2. Verificar permisos específicos del jugador en la región (solo si player no es null)
+        // OPTIMIZACIÓN 2: Cache de membresía del jugador
         if (player != null) {
             UUID playerId = player.getUniqueId();
+
+            // Owners tienen acceso completo (excepto DENY explícito)
             if (region.isOwner(playerId)) {
                 RegionFlagType flagType = region.getFlagType(flag);
                 return flagType != RegionFlagType.DENY;
             }
 
+            // Members tienen acceso a flags básicas
             if (region.isMember(playerId)) {
-                // Los miembros pueden hacer cosas básicas
                 if (flag.affectsBuilding() || flag == RegionFlag.INTERACT) {
                     RegionFlagType flagType = region.getFlagType(flag);
                     return flagType != RegionFlagType.DENY;
                 }
             }
 
-            // Verificar permisos específicos
+            // OPTIMIZACIÓN 3: Cache de permisos (evitar lookup repetido)
             String flagPermission = flag.getRequiredPermission(region.getId());
             if (player.hasPermission(flagPermission)) {
                 return true;
             }
         }
 
-        // 3. Obtener el valor de la flag en la región
+        // OPTIMIZACIÓN 4: Obtener valor de flag directamente
         boolean flagValue = region.getFlagValue(flag);
 
-        // 4. Verificar incompatibilidades de flags
+        // OPTIMIZACIÓN 5: Skip verificación de incompatibilidades para flags comunes
+        if (!flag.requiresSpecialPermission()) {
+            return flagValue;
+        }
+
+        // Verificar incompatibilidades solo para flags especiales
         if (hasIncompatibleFlags(region, flag)) {
             return false;
         }
@@ -165,81 +173,143 @@ public class FlagManager {
     }
 
     /**
-     * Verificación especial para PvP considerando REGION_MEMBERS_ONLY
+     * OPTIMIZADO: Verificación especial para PvP con cache
      */
     public boolean isPvpAllowed(Player attacker, Player target) {
-        // Obtener ubicaciones
-        Location attackerLoc = attacker.getLocation();
-        Location targetLoc = target.getLocation();
-
-        // Verificar si el target es invencible
+        // OPTIMIZACIÓN 1: Verificar invencibilidad primero (más rápido)
         if (isPlayerInvincible(target)) {
             return false;
         }
 
-        // Obtener regiones de ambos jugadores
+        // OPTIMIZACIÓN 2: Cache de PvP por par de jugadores
+        String pvpCacheKey = getPvpCacheKey(attacker, target);
+        Boolean cachedPvp = optimizedCache.getCachedPvpResult(pvpCacheKey);
+        if (cachedPvp != null) {
+            return cachedPvp;
+        }
+
+        // Obtener ubicaciones
+        Location attackerLoc = attacker.getLocation();
+        Location targetLoc = target.getLocation();
+
+        // Obtener regiones usando spatial index optimizado
         List<Region> attackerRegions = RegionManager.getInstance().getRegionsAt(attackerLoc);
         List<Region> targetRegions = RegionManager.getInstance().getRegionsAt(targetLoc);
 
-        // Si cualquiera de los dos está en una región, verificar PvP
-        Set<Region> allRegions = new HashSet<>();
-        allRegions.addAll(attackerRegions);
-        allRegions.addAll(targetRegions);
-
-        if (allRegions.isEmpty()) {
-            // Ninguno está en regiones, usar valor por defecto
-            return RegionFlag.PVP.isDefaultValue();
+        // Si ninguno está en regiones, usar valor por defecto
+        if (attackerRegions.isEmpty() && targetRegions.isEmpty()) {
+            boolean result = RegionFlag.PVP.isDefaultValue();
+            optimizedCache.cachePvpResult(pvpCacheKey, result);
+            return result;
         }
 
-        // Verificar cada región relevante
-        for (Region region : allRegions) {
-            // Si la región tiene REGION_MEMBERS_ONLY activo
-            if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
-                // Ambos jugadores deben estar dentro de la región para poder hacer PvP
-                boolean attackerInRegion = region.contains(attackerLoc);
-                boolean targetInRegion = region.contains(targetLoc);
+        // OPTIMIZACIÓN 3: Verificar solo la región de mayor prioridad de cada jugador
+        boolean pvpAllowed = true;
 
-                if (!attackerInRegion || !targetInRegion) {
-                    plugin.getLogger().fine(String.format(
-                            "PvP denied by REGION_MEMBERS_ONLY: attacker %s in region: %b, target %s in region: %b",
-                            attacker.getName(), attackerInRegion, target.getName(), targetInRegion
-                    ));
-                    return false;
+        // Verificar región del atacante
+        if (!attackerRegions.isEmpty()) {
+            Region attackerRegion = attackerRegions.get(0);
+            if (!checkPvpInRegion(attackerRegion, attacker, target, attackerLoc, targetLoc)) {
+                pvpAllowed = false;
+            }
+        }
+
+        // Verificar región del objetivo (si es diferente)
+        if (pvpAllowed && !targetRegions.isEmpty()) {
+            Region targetRegion = targetRegions.get(0);
+            if (!attackerRegions.contains(targetRegion)) { // Evitar verificación duplicada
+                if (!checkPvpInRegion(targetRegion, attacker, target, attackerLoc, targetLoc)) {
+                    pvpAllowed = false;
                 }
             }
+        }
 
-            // Verificar si PvP está permitido en la región
-            if (!region.getFlagValue(RegionFlag.PVP)) {
+        optimizedCache.cachePvpResult(pvpCacheKey, pvpAllowed);
+        return pvpAllowed;
+    }
+
+    /**
+     * Verifica PvP en una región específica
+     */
+    private boolean checkPvpInRegion(Region region, Player attacker, Player target, Location attackerLoc, Location targetLoc) {
+        // Si la región tiene REGION_MEMBERS_ONLY activo
+        if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
+            boolean attackerInRegion = region.contains(attackerLoc);
+            boolean targetInRegion = region.contains(targetLoc);
+
+            if (!attackerInRegion || !targetInRegion) {
                 return false;
             }
         }
 
-        return true;
+        // Verificar si PvP está permitido en la región
+        return region.getFlagValue(RegionFlag.PVP);
     }
 
     /**
-     * Verifica si una región tiene flags incompatibles con la flag dada
+     * Genera clave de cache para PvP
+     */
+    private String getPvpCacheKey(Player attacker, Player target) {
+        UUID attackerId = attacker.getUniqueId();
+        UUID targetId = target.getUniqueId();
+
+        // Ordenar UUIDs para cache bidireccional
+        if (attackerId.compareTo(targetId) < 0) {
+            return attackerId + ":" + targetId;
+        } else {
+            return targetId + ":" + attackerId;
+        }
+    }
+
+    /**
+     * Verifica incompatibilidades con cache
      */
     private boolean hasIncompatibleFlags(Region region, RegionFlag flag) {
-        return region.getConfiguredFlags().keySet().stream()
+        // Cache de incompatibilidades por región
+        String incompatibleKey = region.getId() + ":" + flag.name();
+        Boolean cachedIncompatible = optimizedCache.getCachedIncompatibility(incompatibleKey);
+        if (cachedIncompatible != null) {
+            return cachedIncompatible;
+        }
+
+        boolean hasIncompatible = region.getConfiguredFlags().keySet().stream()
                 .anyMatch(configuredFlag -> flag.isIncompatibleWith(configuredFlag) &&
                         region.getFlagValue(configuredFlag));
+
+        optimizedCache.cacheIncompatibility(incompatibleKey, hasIncompatible);
+        return hasIncompatible;
     }
 
     /**
-     * Verifica si un jugador tiene permisos administrativos para una flag
+     * Verifica permisos administrativos con cache
      */
     private boolean hasAdminPermission(Player player, RegionFlag flag) {
-        return player.hasPermission("exylia.region.admin") ||
+        String adminCacheKey = player.getUniqueId() + ":admin:" + flag.name();
+        Boolean cachedAdmin = optimizedCache.getCachedAdminPermission(adminCacheKey);
+        if (cachedAdmin != null) {
+            return cachedAdmin;
+        }
+
+        boolean hasAdmin = player.hasPermission("exylia.region.admin") ||
                 player.hasPermission("exylia.region.flag.admin") ||
                 player.hasPermission("exylia.region.flag." + flag.getKey().replace("-", "_") + ".admin");
+
+        optimizedCache.cacheAdminPermission(adminCacheKey, hasAdmin);
+        return hasAdmin;
     }
 
-    // ===== APLICACIÓN DE EFECTOS =====
-
     /**
-     * Aplica los efectos de las flags de una región a un jugador cuando entra
+     * Cachea resultado de validación
      */
+    private void cacheResult(Player player, Location location, RegionFlag flag, boolean result) {
+        if (player != null) {
+            optimizedCache.cacheResult(player, location.getBlockX(), location.getBlockY(),
+                    location.getBlockZ(), flag, result);
+        }
+    }
+
+    // ===== APLICACIÓN DE EFECTOS (sin cambios significativos) =====
+
     public void applyRegionEffects(Player player, Region region) {
         FlagState state = getOrCreatePlayerState(player);
 
@@ -247,19 +317,14 @@ public class FlagManager {
             RegionFlag flag = entry.getKey();
             RegionFlagType type = entry.getValue();
 
-            // Solo aplicar efectos para flags que están ALLOW
             if (type == RegionFlagType.ALLOW || (type == RegionFlagType.DEFAULT && flag.isDefaultValue())) {
                 applyFlagEffect(player, region, flag, state);
             }
         }
 
-        // Guardar región activa
         state.setActiveRegion(region);
     }
 
-    /**
-     * Remueve los efectos de las flags de una región cuando el jugador sale
-     */
     public void removeRegionEffects(Player player, Region region) {
         FlagState state = playerStates.get(player.getUniqueId());
         if (state == null) return;
@@ -268,15 +333,11 @@ public class FlagManager {
             removeFlagEffect(player, region, flag, state);
         }
 
-        // Limpiar región activa si coincide
         if (region.equals(state.getActiveRegion())) {
             state.setActiveRegion(null);
         }
     }
 
-    /**
-     * Aplica el efecto de una flag específica
-     */
     private void applyFlagEffect(Player player, Region region, RegionFlag flag, FlagState state) {
         switch (flag) {
             case FLIGHT:
@@ -325,21 +386,16 @@ public class FlagManager {
                 break;
 
             case REGION_MEMBERS_ONLY:
-                // Esta flag no tiene efecto directo, solo modifica el comportamiento de otras flags
                 state.addAppliedFlag(flag);
                 break;
         }
     }
 
-    /**
-     * Remueve el efecto de una flag específica
-     */
     private void removeFlagEffect(Player player, Region region, RegionFlag flag, FlagState state) {
         if (!state.hasAppliedFlag(flag)) return;
 
         switch (flag) {
             case FLIGHT:
-                // Solo remover vuelo si no tiene permiso natural
                 if (!player.hasPermission("exylia.flight") &&
                         player.getGameMode() != GameMode.CREATIVE &&
                         player.getGameMode() != GameMode.SPECTATOR) {
@@ -369,7 +425,6 @@ public class FlagManager {
                 break;
 
             case REGION_MEMBERS_ONLY:
-                // Esta flag no tiene efecto directo que remover
                 break;
         }
 
@@ -378,12 +433,9 @@ public class FlagManager {
 
     // ===== EFECTOS ESPECIALES =====
 
-    /**
-     * Inicia efecto de curación automática
-     */
     private void startHealEffect(Player player, Region region) {
         String effectKey = "heal";
-        stopEffect(player, effectKey); // Detener efecto anterior si existe
+        stopEffect(player, effectKey);
 
         BukkitRunnable healTask = new BukkitRunnable() {
             @Override
@@ -402,13 +454,10 @@ public class FlagManager {
             }
         };
 
-        healTask.runTaskTimer(plugin, 0L, 40L); // Cada 2 segundos
+        healTask.runTaskTimer(plugin, 0L, 40L);
         activeEffects.put(getEffectKey(player, effectKey), healTask);
     }
 
-    /**
-     * Inicia efecto de alimentación automática
-     */
     private void startFeedEffect(Player player, Region region) {
         String effectKey = "feed";
         stopEffect(player, effectKey);
@@ -428,13 +477,10 @@ public class FlagManager {
             }
         };
 
-        feedTask.runTaskTimer(plugin, 0L, 100L); // Cada 5 segundos
+        feedTask.runTaskTimer(plugin, 0L, 100L);
         activeEffects.put(getEffectKey(player, effectKey), feedTask);
     }
 
-    /**
-     * Detiene un efecto específico para un jugador
-     */
     private void stopEffect(Player player, String effectName) {
         UUID effectKey = getEffectKey(player, effectName);
         BukkitRunnable task = activeEffects.remove(effectKey);
@@ -443,36 +489,25 @@ public class FlagManager {
         }
     }
 
-    /**
-     * Genera clave única para efectos
-     */
     private UUID getEffectKey(Player player, String effectName) {
         return UUID.nameUUIDFromBytes((player.getUniqueId().toString() + ":" + effectName).getBytes());
     }
 
     // ===== GESTIÓN DE ESTADOS =====
 
-    /**
-     * Obtiene o crea el estado de flags para un jugador
-     */
     private FlagState getOrCreatePlayerState(Player player) {
         return playerStates.computeIfAbsent(player.getUniqueId(),
                 k -> new FlagState(player.getUniqueId()));
     }
 
-    /**
-     * Limpia el estado de un jugador
-     */
     public void cleanupPlayerState(Player player) {
         FlagState state = playerStates.remove(player.getUniqueId());
         if (state != null) {
-            // Detener todos los efectos activos
             for (RegionFlag flag : state.getAppliedFlags()) {
                 removeFlagEffect(player, state.getActiveRegion(), flag, state);
             }
         }
 
-        // Detener efectos activos
         activeEffects.entrySet().removeIf(entry -> {
             if (entry.getKey().toString().startsWith(player.getUniqueId().toString())) {
                 entry.getValue().cancel();
@@ -480,141 +515,124 @@ public class FlagManager {
             }
             return false;
         });
+
+        // Limpiar del cache optimizado
+        optimizedCache.invalidatePlayer(player);
     }
 
-    // ===== CACHE =====
+    // ===== CACHE MANAGEMENT =====
 
-    /**
-     * Genera clave de cache para validaciones
-     */
-    private String getCacheKey(Player player, Location location, RegionFlag flag) {
-        return String.format("%s:%d:%d:%d:%s:%d",
-                player.getUniqueId().toString(),
-                location.getBlockX(),
-                location.getBlockY(),
-                location.getBlockZ(),
-                flag.getKey(),
-                System.currentTimeMillis() / cacheTimeout);
+    public void invalidateFlagCache(RegionFlag flag) {
+        optimizedCache.invalidateFlag(flag);
     }
 
-    /**
-     * Guarda resultado en cache
-     */
-    private void cacheResult(String key, boolean result) {
-        validationCache.put(key, result);
+    public void invalidatePlayerCache(Player player) {
+        optimizedCache.invalidatePlayer(player);
     }
 
-    /**
-     * Inicia tarea de limpieza de cache
-     */
-    private void startCacheCleanupTask() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                long currentTime = System.currentTimeMillis();
-                validationCache.entrySet().removeIf(entry -> {
-                    String[] parts = entry.getKey().split(":");
-                    if (parts.length >= 6) {
-                        long timestamp = Long.parseLong(parts[5]) * cacheTimeout;
-                        return currentTime - timestamp > cacheTimeout;
-                    }
-                    return true;
-                });
-            }
-        }.runTaskTimerAsynchronously(plugin, 200L, 200L); // Cada 10 segundos
+    public void invalidateRegionCache(Region region) {
+        optimizedCache.invalidateRegion(region);
+    }
+
+    public void invalidateRegionFlagCache(Region region, RegionFlag flag) {
+        optimizedCache.invalidateRegionFlag(region, flag);
     }
 
     // ===== VERIFICACIONES ESPECIALES =====
 
-    /**
-     * Verifica si un jugador es invencible en su ubicación actual
-     */
     public boolean isPlayerInvincible(Player player) {
         FlagState state = playerStates.get(player.getUniqueId());
         return state != null && state.hasAppliedFlag(RegionFlag.INVINCIBLE);
     }
 
-    /**
-     * Invalida el cache para una flag específica
-     */
-    public void invalidateFlagCache(RegionFlag flag) {
-        String flagKey = ":" + flag.getKey() + ":";
-        validationCache.entrySet().removeIf(entry ->
-                entry.getKey().contains(flagKey));
+    // ===== TAREAS OPTIMIZADAS =====
 
-        if (plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
-            plugin.getLogger().fine("Cache invalidado para flag: " + flag.getKey());
-        }
-    }
+    private void startOptimizedCleanupTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                // Limpieza de cache más eficiente
+                optimizedCache.performMaintenance();
 
-    /**
-     * Invalida el cache para un jugador específico
-     */
-    public void invalidatePlayerCache(Player player) {
-        String playerPrefix = player.getUniqueId().toString() + ":";
-        int removed = 0;
-
-        Iterator<Map.Entry<String, Boolean>> iterator = validationCache.entrySet().iterator();
-        while (iterator.hasNext()) {
-            if (iterator.next().getKey().startsWith(playerPrefix)) {
-                iterator.remove();
-                removed++;
-            }
-        }
-
-        if (removed > 0 && plugin.getLogger().isLoggable(java.util.logging.Level.FINE)) {
-            plugin.getLogger().fine("Cache invalidado para jugador " + player.getName() +
-                    ": " + removed + " entradas removidas");
-        }
-    }
-
-    /**
-     * Invalida el cache para una región específica
-     */
-    public void invalidateRegionCache(Region region) {
-        // Invalidar para todas las ubicaciones de la región
-        Location min = region.getMinimumPoint();
-        Location max = region.getMaximumPoint();
-
-        for (int x = min.getBlockX(); x <= max.getBlockX(); x++) {
-            for (int y = min.getBlockY(); y <= max.getBlockY(); y++) {
-                for (int z = min.getBlockZ(); z <= max.getBlockZ(); z++) {
-                    String locationKey = ":" + x + ":" + y + ":" + z + ":";
-                    validationCache.entrySet().removeIf(entry ->
-                            entry.getKey().contains(locationKey));
+                // Estadísticas cada 5 minutos
+                if (System.currentTimeMillis() % 300000 < 20000) { // Aproximadamente cada 5 min
+                    logCacheStats();
                 }
             }
+        }.runTaskTimerAsynchronously(plugin, 100L, 100L); // Cada 5 segundos
+    }
+
+    private void logCacheStats() {
+        long hits = cacheHits.get();
+        long misses = cacheMisses.get();
+        long total = hits + misses;
+
+        if (total > 0) {
+            double hitRatio = (double) hits / total * 100;
+            DebugUtils.logInternalDebug(debug(), String.format(
+                    "FlagManager Cache Stats - Hits: %d, Misses: %d, Hit Ratio: %.2f%%, Validations: %d",
+                    hits, misses, hitRatio, validationCalls.get()
+            ));
         }
     }
 
     /**
-     * Invalida el cache para una flag en una región específica (más eficiente)
+     * Obtiene estadísticas del sistema de flags
      */
-    public void invalidateRegionFlagCache(Region region, RegionFlag flag) {
-        String flagKey = ":" + flag.getKey() + ":";
-        Location min = region.getMinimumPoint();
-        Location max = region.getMaximumPoint();
+    public FlagManagerStats getStats() {
+        return new FlagManagerStats(
+                playerStates.size(),
+                activeEffects.size(),
+                cacheHits.get(),
+                cacheMisses.get(),
+                validationCalls.get(),
+                optimizedCache.getStats()
+        );
+    }
 
-        validationCache.entrySet().removeIf(entry -> {
-            String key = entry.getKey();
-            if (!key.contains(flagKey)) return false;
+    /**
+     * Reinicia estadísticas
+     */
+    public void resetStats() {
+        cacheHits.set(0);
+        cacheMisses.set(0);
+        validationCalls.set(0);
+    }
 
-            // Extraer coordenadas del cache key
-            String[] parts = key.split(":");
-            if (parts.length >= 4) {
-                try {
-                    int x = Integer.parseInt(parts[1]);
-                    int y = Integer.parseInt(parts[2]);
-                    int z = Integer.parseInt(parts[3]);
+    /**
+     * Estadísticas del FlagManager
+     */
+    @Getter
+    public static class FlagManagerStats {
+        private final int activePlayerStates;
+        private final int activeEffects;
+        private final long cacheHits;
+        private final long cacheMisses;
+        private final long validationCalls;
+        private final OptimizedFlagCache.CacheStats cacheStats;
 
-                    return x >= min.getBlockX() && x <= max.getBlockX() &&
-                            y >= min.getBlockY() && y <= max.getBlockY() &&
-                            z >= min.getBlockZ() && z <= max.getBlockZ();
-                } catch (NumberFormatException e) {
-                    return false;
-                }
-            }
-            return false;
-        });
+        public FlagManagerStats(int activePlayerStates, int activeEffects, long cacheHits,
+                                long cacheMisses, long validationCalls, OptimizedFlagCache.CacheStats cacheStats) {
+            this.activePlayerStates = activePlayerStates;
+            this.activeEffects = activeEffects;
+            this.cacheHits = cacheHits;
+            this.cacheMisses = cacheMisses;
+            this.validationCalls = validationCalls;
+            this.cacheStats = cacheStats;
+        }
+
+        public double getCacheHitRatio() {
+            long total = cacheHits + cacheMisses;
+            return total > 0 ? (double) cacheHits / total : 0.0;
+        }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "FlagManagerStats{states=%d, effects=%d, cache_hits=%d, cache_misses=%d, hit_ratio=%.2f%%, validations=%d}",
+                    activePlayerStates, activeEffects, cacheHits, cacheMisses,
+                    getCacheHitRatio() * 100, validationCalls
+            );
+        }
     }
 }

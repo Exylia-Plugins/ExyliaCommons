@@ -74,7 +74,6 @@ public class Region {
         if (previousType != type) {
             invalidateCacheForFlag(flag);
         }
-        Bukkit.getLogger().info("Setting flags to region: " + this.hashCode());
     }
 
     private void invalidateCacheForFlag(RegionFlag flag) {
