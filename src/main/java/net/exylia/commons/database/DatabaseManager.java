@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.adapters.*;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.exceptions.*;
 import net.exylia.commons.database.migration.MigrationManager;
 import net.exylia.commons.database.repository.Repository;
 import net.exylia.commons.database.repository.RepositoryImpl;
@@ -35,37 +36,55 @@ public class DatabaseManager {
     private volatile boolean tablesInitialized = false;
     private final Object initializationLock = new Object();
 
+    // Enhanced error handling
+    @Getter
+    private DatabaseErrorHandler errorHandler;
+
     private DatabaseManager(ExyliaPlugin plugin) {
         this.plugin = plugin;
         this.executor = Executors.newFixedThreadPool(4);
         this.repositories = new HashMap<>();
         this.registeredEntities = new HashSet<>();
         this.migrationManager = new MigrationManager();
+        this.errorHandler = new DatabaseErrorHandler(plugin, debug());
     }
 
     public static void initialize(ExyliaPlugin plugin) {
         if (instance == null) {
             instance = new DatabaseManager(plugin);
-            instance.loadConfiguration();
-            instance.connectToDatabase();
+            try {
+                instance.loadConfiguration();
+                instance.connectToDatabase();
+            } catch (Exception e) {
+                instance.errorHandler.handleGenericError("Initialization", "DatabaseManager", "System", e);
+                throw new DatabaseException("Initialization", "DatabaseManager", "System",
+                        "Failed to initialize database manager", e);
+            }
         }
     }
 
     public static DatabaseManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("DatabaseManager no ha sido inicializado");
+            throw new IllegalStateException("DatabaseManager has not been initialized. Call initialize() first.");
         }
         return instance;
     }
 
     private void loadConfiguration() {
-        File configFile = new File(plugin.getDataFolder(), "database.yml");
+        try {
+            File configFile = new File(plugin.getDataFolder(), "database.yml");
 
-        if (!configFile.exists()) {
-            createDefaultConfig(configFile);
+            if (!configFile.exists()) {
+                createDefaultConfig(configFile);
+            }
+
+            databaseConfig = YamlConfiguration.loadConfiguration(configFile);
+            logInternalInfo("Database configuration loaded successfully");
+
+        } catch (Exception e) {
+            throw new DatabaseException("Configuration Loading", "DatabaseManager", "System",
+                    "Failed to load database configuration", e);
         }
-
-        databaseConfig = YamlConfiguration.loadConfiguration(configFile);
     }
 
     private void createDefaultConfig(File configFile) {
@@ -75,14 +94,14 @@ public class DatabaseManager {
 
             FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
 
-            // Configuración por defecto con H2
+            // Default configuration with H2
             config.set("database.type", "H2");
             config.set("database.h2.file", "database/h2");
             config.set("database.h2.username", "sa");
             config.set("database.h2.password", "");
             config.set("database.h2.pool-size", 5);
 
-            // Configuración MySQL/MariaDB optimizada
+            // Optimized MySQL/MariaDB configuration
             config.set("database.mysql.host", "localhost");
             config.set("database.mysql.port", 3306);
             config.set("database.mysql.database", "minecraft");
@@ -95,7 +114,7 @@ public class DatabaseManager {
             config.set("database.mysql.idle-timeout", 600000);
             config.set("database.mysql.max-lifetime", 1800000);
 
-            // Configuración MongoDB
+            // MongoDB configuration
             config.set("database.mongodb.host", "localhost");
             config.set("database.mongodb.port", 27017);
             config.set("database.mongodb.database", "minecraft");
@@ -104,97 +123,130 @@ public class DatabaseManager {
             config.set("database.mongodb.auth-database", "admin");
             config.set("database.mongodb.connection-pool-size", 10);
 
-            // Configuración general
+            // General configuration
             config.set("database.auto-migrate", true);
             config.set("database.debug", false);
             config.set("database.enable-metrics", false);
 
             config.save(configFile);
+            logInternalInfo("Default database configuration created");
+
         } catch (IOException e) {
-            plugin.getLogger().severe("Error creando archivo database.yml: " + e.getMessage());
+            throw new DatabaseException("Configuration Creation", "DatabaseManager", "System",
+                    "Failed to create default database configuration file", e);
         }
     }
 
     private void connectToDatabase() {
         String type = databaseConfig.getString("database.type", "H2").toUpperCase();
+        String connectionInfo = null;
 
         try {
             switch (type) {
                 case "H2":
-                    adapter = new H2Adapter(databaseConfig, plugin);
+                    String fileName = databaseConfig.getString("database.h2.file", "database/h2");
+                    connectionInfo = "H2 file: " + fileName;
+                    adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
                     break;
                 case "MYSQL":
                 case "MARIADB":
-                    adapter = new MySQLAdapter(databaseConfig, plugin);
+                    String host = databaseConfig.getString("database.mysql.host", "localhost");
+                    int port = databaseConfig.getInt("database.mysql.port", 3306);
+                    String database = databaseConfig.getString("database.mysql.database", "minecraft");
+                    connectionInfo = String.format("MySQL: %s:%d/%s", host, port, database);
+                    adapter = new MySQLAdapter(databaseConfig, plugin, errorHandler);
                     break;
                 case "MONGODB":
-                    adapter = new MongoDBAdapter(databaseConfig, plugin);
+                    String mongoHost = databaseConfig.getString("database.mongodb.host", "localhost");
+                    int mongoPort = databaseConfig.getInt("database.mongodb.port", 27017);
+                    String mongoDb = databaseConfig.getString("database.mongodb.database", "minecraft");
+                    connectionInfo = String.format("MongoDB: %s:%d/%s", mongoHost, mongoPort, mongoDb);
+                    adapter = new MongoDBAdapter(databaseConfig, plugin, errorHandler);
                     break;
                 default:
-                    throw new IllegalArgumentException("Tipo de base de datos no soportado: " + type);
+                    throw new IllegalArgumentException("Unsupported database type: " + type);
             }
 
+            logInternalInfo("Attempting to connect to database: " + connectionInfo);
             adapter.connect();
+            logInternalSuccess("Successfully connected to " + type + " database");
 
         } catch (Exception e) {
-            plugin.getLogger().severe("Error conectando a la base de datos: " + e.getMessage());
+            String errorMsg = String.format("Failed to connect to %s database (%s)", type, connectionInfo);
+
             if (!type.equals("H2")) {
+                errorHandler.logWarning("Connection", type, "Primary database connection failed, attempting H2 fallback");
+
                 try {
-                    adapter = new H2Adapter(databaseConfig, plugin);
+                    adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
                     adapter.connect();
+                    errorHandler.logRecovery("Connection", "H2", "Successfully fell back to H2 database");
+
                 } catch (Exception fallbackError) {
-                    plugin.getLogger().severe("Error en fallback a H2: " + fallbackError.getMessage());
+                    throw new ConnectionException("H2", "fallback",
+                            "Both primary database and H2 fallback failed", fallbackError);
                 }
+            } else {
+                throw new ConnectionException(type, connectionInfo, errorMsg, e);
             }
         }
     }
 
     public <T> void registerEntity(Class<T> entityClass) {
-        if (!entityClass.isAnnotationPresent(Table.class)) {
-            throw new IllegalArgumentException("La clase " + entityClass.getName() + " debe tener la anotación @Table");
-        }
+        try {
+            if (!entityClass.isAnnotationPresent(Table.class)) {
+                throw new IllegalArgumentException("Class " + entityClass.getName() + " must have @Table annotation");
+            }
 
-        registeredEntities.add(entityClass);
-        logInternalDebug(debug(), "Entidad registrada para inicialización: " + entityClass.getSimpleName());
+            registeredEntities.add(entityClass);
+            logInternalDebug(debug(), "Entity registered for initialization: " + entityClass.getSimpleName());
+
+        } catch (Exception e) {
+            throw new DatabaseException("Entity Registration", entityClass.getSimpleName(),
+                    getAdapterType(), "Failed to register entity", e);
+        }
     }
 
     public CompletableFuture<Void> initializeAllTables() {
         return CompletableFuture.runAsync(() -> {
             synchronized (initializationLock) {
                 if (tablesInitialized) {
-                    logInternalDebug(debug(), "Tablas ya inicializadas, omitiendo...");
+                    logInternalDebug(debug(), "Tables already initialized, skipping...");
                     return;
                 }
 
                 try {
-                    logInternalDebug(debug(), "=== INICIANDO INICIALIZACIÓN DE TABLAS ===");
+                    logInternalDebug(debug(), "=== STARTING TABLE INITIALIZATION ===");
 
                     if (databaseConfig.getBoolean("database.auto-migrate", true)) {
                         for (Class<?> entityClass : registeredEntities) {
                             try {
-                                logInternalDebug(debug(), "Inicializando tabla para: " + entityClass.getSimpleName());
+                                logInternalDebug(debug(), "Initializing table for: " + entityClass.getSimpleName());
                                 migrationManager.createOrUpdateTable(adapter, entityClass);
-                                logInternalDebug(debug(), "✅ Tabla inicializada: " + entityClass.getSimpleName());
+                                logInternalInfo("Table initialized: " + entityClass.getSimpleName());
+
                             } catch (Exception e) {
-                                logInternalError("❌ Error inicializando tabla " + entityClass.getSimpleName() + ": " + e.getMessage());
-                                throw new RuntimeException("Error inicializando tabla " + entityClass.getSimpleName(), e);
+                                String errorMsg = "Failed to initialize table for " + entityClass.getSimpleName();
+                                DatabaseException dbException = new DatabaseException("Table Initialization",
+                                        entityClass.getSimpleName(), getAdapterType(), errorMsg, e);
+                                errorHandler.handleError(dbException);
+                                throw dbException;
                             }
                         }
                     }
 
                     tablesInitialized = true;
-                    logInternalDebug(debug(), "=== INICIALIZACIÓN DE TABLAS COMPLETADA ===");
+                    logInternalDebug(debug(), "=== TABLE INITIALIZATION COMPLETED ===");
 
                 } catch (Exception e) {
-                    logInternalError("Error durante inicialización de tablas: " + e.getMessage());
-                    throw new RuntimeException("Error durante inicialización de tablas", e);
+                    String errorMsg = "Critical error during table initialization";
+                    DatabaseException dbException = new DatabaseException("Table Initialization",
+                            "Multiple", getAdapterType(), errorMsg, e);
+                    errorHandler.handleError(dbException);
+                    throw dbException;
                 }
             }
         }, executor);
-    }
-
-    public void waitForTablesInitialization() {
-        waitForTablesInitialization(30); // 30 segundos timeout
     }
 
     public boolean waitForTablesInitialization(int timeoutSeconds) {
@@ -209,19 +261,24 @@ public class DatabaseManager {
 
         while (!tablesInitialized && (System.currentTimeMillis() - startTime) < timeoutMs) {
             try {
-                Thread.sleep(100); // Check cada 100ms
+                Thread.sleep(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                errorHandler.logWarning("Table Initialization", "System",
+                        "Thread interrupted while waiting for table initialization");
                 return false;
             }
         }
 
         if (!tablesInitialized) {
-            logInternalError("Timeout esperando inicialización de tablas (" + timeoutSeconds + "s)");
+            String errorMsg = String.format("Timeout waiting for table initialization (%d seconds)", timeoutSeconds);
+            DatabaseException dbException = new DatabaseException("Table Initialization",
+                    "System", getAdapterType(), errorMsg);
+            errorHandler.handleError(dbException);
             return false;
         }
 
-        logInternalDebug(debug(), "Tablas inicializadas correctamente");
+        logInternalDebug(debug(), "Tables initialized successfully");
         return true;
     }
 
@@ -229,140 +286,138 @@ public class DatabaseManager {
         return tablesInitialized;
     }
 
-
-    public void reregisterAllEntities() {
-        CompletableFuture.runAsync(() -> {
-            synchronized (initializationLock) {
-                for (Class<?> entityClass : registeredEntities) {
-                    try {
-                        if (databaseConfig.getBoolean("database.auto-migrate", true)) {
-                            migrationManager.createOrUpdateTable(adapter, entityClass);
-                        }
-                    } catch (Exception e) {
-                        logInternalError("Error re-registrando entidad " + entityClass.getName() + ": " + e.getMessage());
-                    }
-                }
-            }
-        }, executor);
-    }
-
     @SuppressWarnings("unchecked")
     public <T> Repository<T> getRepository(Class<T> entityClass) {
-        if (!areTablesReady()) {
-            logInternalError("Intento de obtener repositorio antes de inicialización de tablas: " + entityClass.getSimpleName());
-            if (!waitForTablesInitialization(5)) {
-                throw new IllegalStateException("Tablas no están inicializadas para " + entityClass.getSimpleName());
+        try {
+            if (!areTablesReady()) {
+                String errorMsg = "Attempted to get repository before table initialization: " + entityClass.getSimpleName();
+                logInternalError(errorMsg);
+
+                if (!waitForTablesInitialization(5)) {
+                    throw new RepositoryException("getRepository", entityClass.getSimpleName(),
+                            "Tables are not initialized and timeout occurred", null);
+                }
+            }
+
+            return (Repository<T>) repositories.computeIfAbsent(entityClass, clazz -> {
+                try {
+                    Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
+                            DatabaseAdapter.class, Class.class, ExecutorService.class, DatabaseErrorHandler.class
+                    );
+                    return constructor.newInstance(adapter, clazz, executor, errorHandler);
+
+                } catch (Exception e) {
+                    throw new RepositoryException("getRepository", clazz.getSimpleName(),
+                            "Failed to create repository instance", e);
+                }
+            });
+
+        } catch (Exception e) {
+            if (e instanceof RepositoryException) {
+                errorHandler.handleError((RepositoryException) e);
+                throw e;
+            } else {
+                RepositoryException repoException = new RepositoryException("getRepository",
+                        entityClass.getSimpleName(), "Unexpected error while getting repository", e);
+                errorHandler.handleError(repoException);
+                throw repoException;
             }
         }
-
-        return (Repository<T>) repositories.computeIfAbsent(entityClass, clazz -> {
-            try {
-                Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
-                        DatabaseAdapter.class, Class.class, ExecutorService.class
-                );
-                return constructor.newInstance(adapter, clazz, executor);
-            } catch (Exception e) {
-                logInternalError("Error creando repositorio para " + clazz.getName() + ": " + e.getMessage());
-                throw new RuntimeException("Error creando repositorio para " + clazz.getName(), e);
-            }
-        });
-    }
-
-    public void recreateAllRepositories() {
-        Set<Class<?>> entityClasses = new HashSet<>(repositories.keySet());
-        repositories.clear();
-        for (Class<?> entityClass : entityClasses) {
-            try {
-                Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
-                        DatabaseAdapter.class, Class.class, ExecutorService.class
-                );
-                Repository<?> newRepository = constructor.newInstance(adapter, entityClass, executor);
-                repositories.put(entityClass, newRepository);
-
-            } catch (Exception e) {
-                logInternalError("Error recreando repositorio para " + entityClass.getName() + ": " + e.getMessage());
-            }
-        }
-
-        logInternalDebug(debug(), "Recreación de repositorios completada");
     }
 
     public boolean performCompleteReload() {
         try {
-            logInternalDebug(debug(), "=== INICIANDO RELOAD COMPLETO ===");
+            logInternalDebug(debug(), "=== STARTING COMPLETE RELOAD ===");
 
-            // 1. Resetear estado de inicialización
+            // 1. Reset initialization state
             synchronized (initializationLock) {
                 tablesInitialized = false;
             }
 
-            // 2. Reconectar
+            // 2. Reconnect
             logInternalDebug(debug(), "Reconnecting to database...");
             reconnect();
 
             if (!isConnected()) {
-                logInternalError("Error: No se pudo establecer conexión a la base de datos");
-                return false;
+                throw new ConnectionException(getAdapterType(), "reload",
+                        "Failed to establish database connection during reload", null);
             }
 
-            // 3. Inicializar tablas de forma sincronizada
+            // 3. Initialize tables synchronously
             logInternalDebug(debug(), "Initializing tables synchronously...");
             CompletableFuture<Void> initFuture = initializeAllTables();
 
-            // Esperar a que termine la inicialización (máximo 30 segundos)
             try {
                 initFuture.get(30, TimeUnit.SECONDS);
             } catch (Exception e) {
-                logInternalError("Error durante inicialización de tablas en reload: " + e.getMessage());
-                return false;
+                throw new DatabaseException("Table Initialization", "System", getAdapterType(),
+                        "Failed during table initialization in reload", e);
             }
 
-            // 4. Recrear repositorios
+            // 4. Recreate repositories
             logInternalDebug(debug(), "Recreating all repositories...");
             recreateAllRepositories();
 
-            logInternalSuccess("=== RELOAD COMPLETO EXITOSO ===");
+            logInternalSuccess("=== COMPLETE RELOAD SUCCESSFUL ===");
             return true;
 
         } catch (Exception e) {
-            logInternalError("Error durante reload completo: " + e.getMessage());
-            e.printStackTrace();
+            String errorMsg = "Critical error during complete database reload";
+            DatabaseException dbException = new DatabaseException("Complete Reload", "System",
+                    getAdapterType(), errorMsg, e);
+            errorHandler.handleError(dbException);
             return false;
         }
     }
 
-    public void clearRepositoryCache() {
-        logInternalDebug(debug(), "Cleaning repository cache...");
-        repositories.clear();
+    public void recreateAllRepositories() {
+        try {
+            Set<Class<?>> entityClasses = new HashSet<>(repositories.keySet());
+            repositories.clear();
+
+            for (Class<?> entityClass : entityClasses) {
+                try {
+                    Constructor<RepositoryImpl> constructor = RepositoryImpl.class.getConstructor(
+                            DatabaseAdapter.class, Class.class, ExecutorService.class, DatabaseErrorHandler.class
+                    );
+                    Repository<?> newRepository = constructor.newInstance(adapter, entityClass, executor, errorHandler);
+                    repositories.put(entityClass, newRepository);
+
+                } catch (Exception e) {
+                    errorHandler.logWarning("Repository Recreation", entityClass.getSimpleName(),
+                            "Failed to recreate repository: " + e.getMessage());
+                }
+            }
+
+            logInternalDebug(debug(), "Repository recreation completed");
+
+        } catch (Exception e) {
+            DatabaseException dbException = new DatabaseException("Repository Recreation", "Multiple",
+                    getAdapterType(), "Failed to recreate repositories", e);
+            errorHandler.handleError(dbException);
+        }
     }
 
-    /**
-     * Ejecuta una operación asíncrona en la base de datos
-     */
     public <T> CompletableFuture<T> executeAsync(DatabaseOperation<T> operation) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return operation.execute(adapter);
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new DatabaseException("Async Operation", "Unknown", getAdapterType(),
+                        "Failed to execute async database operation", e);
             }
         }, executor);
     }
 
-    /**
-     * Ejecuta una operación síncrona en la base de datos
-     */
     public <T> T executeSync(DatabaseOperation<T> operation) {
         try {
             return operation.execute(adapter);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new DatabaseException("Sync Operation", "Unknown", getAdapterType(),
+                    "Failed to execute sync database operation", e);
         }
     }
 
-    /**
-     * Reconecta a la base de datos
-     */
     public void reconnect() {
         try {
             if (adapter != null) {
@@ -371,9 +426,10 @@ public class DatabaseManager {
             Thread.sleep(500);
             loadConfiguration();
             connectToDatabase();
+
         } catch (Exception e) {
-            logInternalError("Error durante reconexión: " + e.getMessage());
-            throw new RuntimeException("Error durante reconexión", e);
+            throw new ConnectionException(getAdapterType(), "reconnect",
+                    "Failed during database reconnection", e);
         }
     }
 
@@ -385,34 +441,48 @@ public class DatabaseManager {
         return new HashSet<>(registeredEntities);
     }
 
+    public void clearRepositoryCache() {
+        logInternalDebug(debug(), "Clearing repository cache...");
+        repositories.clear();
+    }
 
     public void shutdown() {
-        logInternalDebug(debug(), "Closing database connections...");
+        try {
+            logInternalDebug(debug(), "Shutting down database connections...");
 
-        synchronized (initializationLock) {
-            tablesInitialized = false;
-        }
-
-        clearRepositoryCache();
-        registeredEntities.clear();
-
-        if (executor != null && !executor.isShutdown()) {
-            executor.shutdown();
-            try {
-                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
+            synchronized (initializationLock) {
+                tablesInitialized = false;
             }
-        }
 
-        if (adapter != null) {
-            adapter.disconnect();
-        }
+            clearRepositoryCache();
+            registeredEntities.clear();
 
-        instance = null;
+            if (executor != null && !executor.isShutdown()) {
+                executor.shutdown();
+                try {
+                    if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                        executor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    executor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+            if (adapter != null) {
+                adapter.disconnect();
+            }
+
+            instance = null;
+            logInternalInfo("Database manager shutdown completed");
+
+        } catch (Exception e) {
+            errorHandler.handleGenericError("Shutdown", "DatabaseManager", "System", e);
+        }
+    }
+
+    private String getAdapterType() {
+        return adapter != null ? adapter.getClass().getSimpleName() : "Unknown";
     }
 
     @FunctionalInterface

@@ -5,8 +5,12 @@ import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.exceptions.ConnectionException;
+import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
+import net.exylia.commons.database.exceptions.DatabaseException;
+import net.exylia.commons.database.exceptions.SerializationException;
+import net.exylia.commons.database.serialization.CollectionUtils;
 import net.exylia.commons.database.serialization.SerializationHelper;
-import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.lang.reflect.Field;
@@ -14,24 +18,23 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
-import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 public class MySQLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
     private final ExyliaPlugin plugin;
+    private final DatabaseErrorHandler errorHandler;
     private HikariDataSource dataSource;
 
-    public MySQLAdapter(FileConfiguration config, ExyliaPlugin plugin) {
+    public MySQLAdapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
+        this.errorHandler = errorHandler;
     }
 
     @Override
     public void connect() throws Exception {
-        HikariConfig hikariConfig = new HikariConfig();
-
         String host = config.getString("database.mysql.host", "localhost");
         int port = config.getInt("database.mysql.port", 3306);
         String database = config.getString("database.mysql.database", "minecraft");
@@ -43,82 +46,125 @@ public class MySQLAdapter implements DatabaseAdapter {
         String url = String.format("jdbc:mysql://%s:%d/%s?useSSL=%s&serverTimezone=UTC&allowPublicKeyRetrieval=true&useUnicode=true&characterEncoding=UTF-8",
                 host, port, database, ssl);
 
-        hikariConfig.setJdbcUrl(url);
-        hikariConfig.setUsername(username);
-        hikariConfig.setPassword(password);
-        hikariConfig.setMaximumPoolSize(poolSize);
-        hikariConfig.setMinimumIdle(2);
-        hikariConfig.setConnectionTimeout(30000);
-        hikariConfig.setIdleTimeout(600000);
-        hikariConfig.setMaxLifetime(1800000);
-        hikariConfig.setLeakDetectionThreshold(60000);
-        hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
-        hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
-        hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
-        hikariConfig.addDataSourceProperty("useLocalSessionState", "true");
-        hikariConfig.addDataSourceProperty("rewriteBatchedStatements", "true");
-        hikariConfig.addDataSourceProperty("cacheResultSetMetadata", "true");
-        hikariConfig.addDataSourceProperty("cacheServerConfiguration", "true");
-        hikariConfig.addDataSourceProperty("elideSetAutoCommits", "true");
-        hikariConfig.addDataSourceProperty("maintainTimeStats", "false");
+        try {
+            HikariConfig hikariConfig = new HikariConfig();
+            hikariConfig.setJdbcUrl(url);
+            hikariConfig.setUsername(username);
+            hikariConfig.setPassword(password);
+            hikariConfig.setMaximumPoolSize(poolSize);
+            hikariConfig.setMinimumIdle(2);
+            hikariConfig.setConnectionTimeout(30000);
+            hikariConfig.setIdleTimeout(600000);
+            hikariConfig.setMaxLifetime(1800000);
+            hikariConfig.setLeakDetectionThreshold(60000);
+            hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
+            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
+            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
+            hikariConfig.addDataSourceProperty("useLocalSessionState", "true");
+            hikariConfig.addDataSourceProperty("rewriteBatchedStatements", "true");
+            hikariConfig.addDataSourceProperty("cacheResultSetMetadata", "true");
+            hikariConfig.addDataSourceProperty("cacheServerConfiguration", "true");
+            hikariConfig.addDataSourceProperty("elideSetAutoCommits", "true");
+            hikariConfig.addDataSourceProperty("maintainTimeStats", "false");
 
-        dataSource = new HikariDataSource(hikariConfig);
+            dataSource = new HikariDataSource(hikariConfig);
 
-        // Probar conexión
-        try (Connection testConnection = dataSource.getConnection()) {
-            testConnection.prepareStatement("SELECT 1").executeQuery();
-            logInternalDebug(debug(), "Conexión MySQL establecida exitosamente");
+            // Test connection
+            try (Connection testConnection = dataSource.getConnection()) {
+                testConnection.prepareStatement("SELECT 1").executeQuery();
+                logInternalInfo("MySQL connection pool established successfully with " + poolSize + " connections");
+            }
+
+        } catch (Exception e) {
+            throw new ConnectionException("MySQL", url, "Failed to establish MySQL connection pool", e);
         }
     }
 
     @Override
     public void disconnect() {
-        if (dataSource != null && !dataSource.isClosed()) {
-            dataSource.close();
+        try {
+            if (dataSource != null && !dataSource.isClosed()) {
+                dataSource.close();
+                logInternalInfo("MySQL connection pool closed successfully");
+            }
+        } catch (Exception e) {
+            errorHandler.logWarning("Disconnect", "MySQLAdapter", "Error closing MySQL connection pool: " + e.getMessage());
         }
     }
 
     @Override
     public boolean isConnected() {
-        return dataSource != null && !dataSource.isClosed();
+        try {
+            return dataSource != null && !dataSource.isClosed() && dataSource.getConnection().isValid(2);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
+        try {
+            return dataSource.getConnection();
+        } catch (SQLException e) {
+            throw new ConnectionException("MySQL", "pool", "Failed to get connection from MySQL pool", e);
+        }
     }
 
     @Override
     public <T> void save(T entity) throws Exception {
-        String tableName = getTableName(entity.getClass());
-        Map<String, Object> values = entityToMap(entity);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
-        StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
+        try {
+            String tableName = getTableName(entity.getClass());
+            Map<String, Object> values = entityToMap(entity);
 
-        List<Object> parameters = new ArrayList<>();
-        boolean first = true;
+            StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
+            StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
 
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            if (!first) {
-                sql.append(", ");
-                valuePlaceholders.append(", ");
+            List<Object> parameters = new ArrayList<>();
+            boolean first = true;
+
+            for (Map.Entry<String, Object> entry : values.entrySet()) {
+                if (!first) {
+                    sql.append(", ");
+                    valuePlaceholders.append(", ");
+                }
+                sql.append("`").append(entry.getKey()).append("`");
+                valuePlaceholders.append("?");
+                parameters.add(entry.getValue());
+                first = false;
             }
-            sql.append("`").append(entry.getKey()).append("`");
-            valuePlaceholders.append("?");
-            parameters.add(entry.getValue());
-            first = false;
-        }
 
-        sql.append(") ").append(valuePlaceholders).append(")");
+            sql.append(") ").append(valuePlaceholders).append(")");
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
-            for (int i = 0; i < parameters.size(); i++) {
-                stmt.setObject(i + 1, parameters.get(i));
+                for (int i = 0; i < parameters.size(); i++) {
+                    stmt.setObject(i + 1, parameters.get(i));
+                }
+
+                int result = stmt.executeUpdate();
+                if (result == 0) {
+                    throw new DatabaseException("Save", entityClassName, "MySQL",
+                            "No rows were inserted, save operation failed");
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("Save", entityClassName, "MySQL",
+                        "SQL error during save operation: " + e.getMessage(), e);
             }
-            stmt.executeUpdate();
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Save", entityClassName, "MySQL",
+                        "Unexpected error during save operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
@@ -128,79 +174,122 @@ public class MySQLAdapter implements DatabaseAdapter {
             return;
         }
 
-        String tableName = getTableName(entities.get(0).getClass());
-        String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
+        String entityClassName = entities.get(0).getClass().getSimpleName();
 
-        // Usar ON DUPLICATE KEY UPDATE de MySQL para mejor rendimiento
-        Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+        try {
+            String tableName = getTableName(entities.get(0).getClass());
+            String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-        StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
-        StringBuilder valuePlaceholders = new StringBuilder("VALUES ");
-        StringBuilder updateClause = new StringBuilder(" ON DUPLICATE KEY UPDATE ");
+            // Use MySQL's ON DUPLICATE KEY UPDATE for better performance
+            Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
 
-        List<String> columns = new ArrayList<>();
-        List<Object> allParameters = new ArrayList<>();
+            StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
+            StringBuilder valuePlaceholders = new StringBuilder("VALUES ");
+            StringBuilder updateClause = new StringBuilder(" ON DUPLICATE KEY UPDATE ");
 
-        // Construir la parte de columnas
-        boolean first = true;
-        for (String columnName : firstEntityMap.keySet()) {
-            if (!first) {
-                sql.append(", ");
-            }
-            sql.append("`").append(columnName).append("`");
-            columns.add(columnName);
-            first = false;
-        }
-        sql.append(") ");
+            List<String> columns = new ArrayList<>();
+            List<Object> allParameters = new ArrayList<>();
 
-        // Construir los VALUES para todas las entidades
-        for (int i = 0; i < entities.size(); i++) {
-            if (i > 0) {
-                valuePlaceholders.append(", ");
-            }
-            valuePlaceholders.append("(");
-
-            Map<String, Object> entityMap = entityToMap(entities.get(i));
-            boolean firstValue = true;
-
-            for (String column : columns) {
-                if (!firstValue) {
-                    valuePlaceholders.append(", ");
-                }
-                valuePlaceholders.append("?");
-                allParameters.add(entityMap.get(column));
-                firstValue = false;
-            }
-            valuePlaceholders.append(")");
-        }
-
-        // Construir la cláusula UPDATE (excluir primary key)
-        first = true;
-        for (String column : columns) {
-            if (!column.equals(primaryKey)) {
+            // Build column part
+            boolean first = true;
+            for (String columnName : firstEntityMap.keySet()) {
                 if (!first) {
-                    updateClause.append(", ");
+                    sql.append(", ");
                 }
-                updateClause.append("`").append(column).append("` = VALUES(`").append(column).append("`)");
+                sql.append("`").append(columnName).append("`");
+                columns.add(columnName);
                 first = false;
             }
-        }
+            sql.append(") ");
 
-        String finalSql = sql.toString() + valuePlaceholders.toString() + updateClause.toString();
+            // Build VALUES for all entities
+            int successCount = 0;
+            int failureCount = 0;
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(finalSql)) {
+            for (int i = 0; i < entities.size(); i++) {
+                if (i > 0) {
+                    valuePlaceholders.append(", ");
+                }
+                valuePlaceholders.append("(");
 
-            for (int i = 0; i < allParameters.size(); i++) {
-                stmt.setObject(i + 1, allParameters.get(i));
+                try {
+                    Map<String, Object> entityMap = entityToMap(entities.get(i));
+                    boolean firstValue = true;
+
+                    for (String column : columns) {
+                        if (!firstValue) {
+                            valuePlaceholders.append(", ");
+                        }
+                        valuePlaceholders.append("?");
+                        allParameters.add(entityMap.get(column));
+                        firstValue = false;
+                    }
+                    valuePlaceholders.append(")");
+                    successCount++;
+                } catch (Exception e) {
+                    failureCount++;
+                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                            "Failed to prepare entity " + (i + 1) + " for batch: " + e.getMessage());
+                    // Remove the partial entry we just added
+                    if (i > 0) {
+                        // Remove the last ", " we added
+                        valuePlaceholders.setLength(valuePlaceholders.length() - 2);
+                    } else {
+                        // This was the first entity, we need to handle this differently
+                        valuePlaceholders.setLength("VALUES ".length());
+                    }
+                }
             }
 
-            stmt.executeUpdate();
-            DebugUtils.logInternalInfo("saveOrUpdateAll completado para " + entities.size() + " entidades");
+            // Build UPDATE clause (exclude primary key)
+            first = true;
+            for (String column : columns) {
+                if (!column.equals(primaryKey)) {
+                    if (!first) {
+                        updateClause.append(", ");
+                    }
+                    updateClause.append("`").append(column).append("` = VALUES(`").append(column).append("`)");
+                    first = false;
+                }
+            }
 
-        } catch (SQLException e) {
-            DebugUtils.logInternalError("Error en saveOrUpdateAll: " + e.getMessage());
-            throw e;
+            if (successCount == 0) {
+                throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
+                        "No entities could be prepared for batch operation");
+            }
+
+            String finalSql = sql.toString() + valuePlaceholders.toString() + updateClause.toString();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(finalSql)) {
+
+                for (int i = 0; i < allParameters.size(); i++) {
+                    stmt.setObject(i + 1, allParameters.get(i));
+                }
+
+                stmt.executeUpdate();
+                logInternalInfo("saveOrUpdateAll completed for " + successCount + " entities");
+
+                if (failureCount > 0) {
+                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                            String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
+                        "SQL error during batch saveOrUpdate operation", e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
+                        "Unexpected error during batch saveOrUpdate operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
@@ -210,395 +299,673 @@ public class MySQLAdapter implements DatabaseAdapter {
             return;
         }
 
-        String tableName = getTableName(entities.get(0).getClass());
-        String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
+        String entityClassName = entities.get(0).getClass().getSimpleName();
 
-        // Para MySQL, usar batch updates para mejor rendimiento
-        Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+        try {
+            String tableName = getTableName(entities.get(0).getClass());
+            String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-        StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
-        List<String> updateColumns = new ArrayList<>();
+            // Use batch updates for MySQL for better performance
+            Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
 
-        boolean first = true;
-        for (String column : firstEntityMap.keySet()) {
-            if (!column.equals(primaryKey)) {
-                if (!first) {
-                    sql.append(", ");
+            StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
+            List<String> updateColumns = new ArrayList<>();
+
+            boolean first = true;
+            for (String column : firstEntityMap.keySet()) {
+                if (!column.equals(primaryKey)) {
+                    if (!first) {
+                        sql.append(", ");
+                    }
+                    sql.append("`").append(column).append("` = ?");
+                    updateColumns.add(column);
+                    first = false;
                 }
-                sql.append("`").append(column).append("` = ?");
-                updateColumns.add(column);
-                first = false;
             }
-        }
 
-        sql.append(" WHERE `").append(primaryKey).append("` = ?");
+            sql.append(" WHERE `").append(primaryKey).append("` = ?");
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
-            for (T entity : entities) {
-                Map<String, Object> entityMap = entityToMap(entity);
+                int successCount = 0;
+                int failureCount = 0;
 
-                int paramIndex = 1;
-                // Establecer valores para las columnas de actualización
-                for (String column : updateColumns) {
-                    stmt.setObject(paramIndex++, entityMap.get(column));
+                for (T entity : entities) {
+                    try {
+                        Map<String, Object> entityMap = entityToMap(entity);
+
+                        int paramIndex = 1;
+                        // Set values for update columns
+                        for (String column : updateColumns) {
+                            stmt.setObject(paramIndex++, entityMap.get(column));
+                        }
+                        // Set primary key value for WHERE clause
+                        stmt.setObject(paramIndex, entityMap.get(primaryKey));
+
+                        stmt.addBatch();
+                        successCount++;
+                    } catch (Exception e) {
+                        failureCount++;
+                        errorHandler.logWarning("UpdateAll", entityClassName,
+                                "Failed to prepare entity for batch update: " + e.getMessage());
+                    }
                 }
-                // Establecer el valor de la clave primaria para el WHERE
-                stmt.setObject(paramIndex, entityMap.get(primaryKey));
 
-                stmt.addBatch();
+                int[] results = stmt.executeBatch();
+                int updated = 0;
+                for (int result : results) {
+                    if (result > 0) updated++;
+                }
+
+                logInternalInfo("updateAll completed: " + updated + " of " + entities.size() + " entities updated");
+
+                if (failureCount > 0) {
+                    errorHandler.logWarning("UpdateAll", entityClassName,
+                            String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("UpdateAll", entityClassName, "MySQL",
+                        "SQL error during batch update operation", e);
             }
 
-            int[] results = stmt.executeBatch();
-            int updated = 0;
-            for (int result : results) {
-                if (result > 0) updated++;
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("UpdateAll", entityClassName, "MySQL",
+                        "Unexpected error during batch update operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
-
-            DebugUtils.logInternalInfo("updateAll completado: " + updated + " de " + entities.size() + " entidades actualizadas");
-
-        } catch (SQLException e) {
-            DebugUtils.logInternalError("Error en updateAll: " + e.getMessage());
-            throw e;
         }
     }
 
     @Override
     public <T> void update(T entity) throws Exception {
-        String tableName = getTableName(entity.getClass());
-        Map<String, Object> values = entityToMap(entity);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        String primaryKey = getPrimaryKeyField(entity.getClass());
-        Object primaryKeyValue = values.get(primaryKey);
+        try {
+            String tableName = getTableName(entity.getClass());
+            Map<String, Object> values = entityToMap(entity);
 
-        StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
-        List<Object> parameters = new ArrayList<>();
-        boolean first = true;
+            String primaryKey = getPrimaryKeyField(entity.getClass());
+            Object primaryKeyValue = values.get(primaryKey);
 
-        for (Map.Entry<String, Object> entry : values.entrySet()) {
-            if (!entry.getKey().equals(primaryKey)) {
-                if (!first) {
-                    sql.append(", ");
+            if (primaryKeyValue == null) {
+                throw new DatabaseException("Update", entityClassName, "MySQL",
+                        "Cannot update entity without primary key value");
+            }
+
+            StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
+            List<Object> parameters = new ArrayList<>();
+            boolean first = true;
+
+            for (Map.Entry<String, Object> entry : values.entrySet()) {
+                if (!entry.getKey().equals(primaryKey)) {
+                    if (!first) {
+                        sql.append(", ");
+                    }
+                    sql.append("`").append(entry.getKey()).append("` = ?");
+                    parameters.add(entry.getValue());
+                    first = false;
                 }
-                sql.append("`").append(entry.getKey()).append("` = ?");
-                parameters.add(entry.getValue());
-                first = false;
             }
-        }
 
-        sql.append(" WHERE `").append(primaryKey).append("` = ?");
-        parameters.add(primaryKeyValue);
+            sql.append(" WHERE `").append(primaryKey).append("` = ?");
+            parameters.add(primaryKeyValue);
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
 
-            for (int i = 0; i < parameters.size(); i++) {
-                stmt.setObject(i + 1, parameters.get(i));
+                for (int i = 0; i < parameters.size(); i++) {
+                    stmt.setObject(i + 1, parameters.get(i));
+                }
+
+                int result = stmt.executeUpdate();
+                if (result == 0) {
+                    errorHandler.logWarning("Update", entityClassName,
+                            "No rows were updated for primary key: " + primaryKeyValue);
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("Update", entityClassName, "MySQL",
+                        "SQL error during update operation for primary key: " + primaryKeyValue, e);
             }
-            stmt.executeUpdate();
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Update", entityClassName, "MySQL",
+                        "Unexpected error during update operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public <T> void delete(T entity) throws Exception {
-        String tableName = getTableName(entity.getClass());
-        String primaryKey = getPrimaryKeyField(entity.getClass());
-        Object primaryKeyValue = entityToMap(entity).get(primaryKey);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        String sql = "DELETE FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
+        try {
+            String tableName = getTableName(entity.getClass());
+            String primaryKey = getPrimaryKeyField(entity.getClass());
+            Object primaryKeyValue = entityToMap(entity).get(primaryKey);
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            if (primaryKeyValue == null) {
+                throw new DatabaseException("Delete", entityClassName, "MySQL",
+                        "Cannot delete entity without primary key value");
+            }
 
-            stmt.setObject(1, primaryKeyValue);
-            stmt.executeUpdate();
+            String sql = "DELETE FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setObject(1, primaryKeyValue);
+                int result = stmt.executeUpdate();
+
+                if (result == 0) {
+                    errorHandler.logWarning("Delete", entityClassName,
+                            "No rows were deleted for primary key: " + primaryKeyValue);
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("Delete", entityClassName, "MySQL",
+                        "SQL error during delete operation for primary key: " + primaryKeyValue, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Delete", entityClassName, "MySQL",
+                        "Unexpected error during delete operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public <T> Optional<T> findById(Class<T> entityClass, Object id) throws Exception {
-        String tableName = getTableName(entityClass);
-        String primaryKey = getPrimaryKeyField(entityClass);
+        String entityClassName = entityClass.getSimpleName();
 
-        String sql = "SELECT * FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
+        try {
+            String tableName = getTableName(entityClass);
+            String primaryKey = getPrimaryKeyField(entityClass);
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            String sql = "SELECT * FROM `" + tableName + "` WHERE `" + primaryKey + "` = ?";
 
-            stmt.setObject(1, id);
-            ResultSet rs = stmt.executeQuery();
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            if (rs.next()) {
-                return Optional.of(mapToEntity(resultSetToMap(rs), entityClass));
+                stmt.setObject(1, id);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    try {
+                        T entity = mapToEntity(resultSetToMap(rs), entityClass);
+                        return Optional.of(entity);
+                    } catch (Exception e) {
+                        throw new DatabaseException("FindById", entityClassName, "MySQL",
+                                "Failed to map result set to entity for ID: " + id, e);
+                    }
+                }
+
+                return Optional.empty();
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindById", entityClassName, "MySQL",
+                        "SQL error during findById operation for ID: " + id, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindById", entityClassName, "MySQL",
+                        "Unexpected error during findById operation for ID: " + id, e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return Optional.empty();
     }
 
     @Override
     public <T> List<T> findAll(Class<T> entityClass) throws Exception {
-        String tableName = getTableName(entityClass);
-        String sql = "SELECT * FROM `" + tableName + "`";
+        String entityClassName = entityClass.getSimpleName();
 
-        List<T> results = new ArrayList<>();
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "SELECT * FROM `" + tableName + "`";
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            List<T> results = new ArrayList<>();
 
-            ResultSet rs = stmt.executeQuery();
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAll", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindAll", entityClassName, "MySQL",
+                        "SQL error during findAll operation", e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAll", entityClassName, "MySQL",
+                        "Unexpected error during findAll operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public <T> List<T> findBy(Class<T> entityClass, String field, Object value) throws Exception {
-        String tableName = getTableName(entityClass);
-        String sql = "SELECT * FROM `" + tableName + "` WHERE `" + field + "` = ?";
+        String entityClassName = entityClass.getSimpleName();
 
-        List<T> results = new ArrayList<>();
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "SELECT * FROM `" + tableName + "` WHERE `" + field + "` = ?";
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            List<T> results = new ArrayList<>();
 
-            stmt.setObject(1, value);
-            ResultSet rs = stmt.executeQuery();
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                stmt.setObject(1, value);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindBy", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindBy", entityClassName, "MySQL",
+                        String.format("SQL error during findBy operation for field '%s' with value: %s", field, value), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindBy", entityClassName, "MySQL",
+                        String.format("Unexpected error during findBy operation for field '%s'", field), e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public <T> List<T> executeQuery(Class<T> entityClass, String query, Object... params) throws Exception {
-        List<T> results = new ArrayList<>();
+        String entityClassName = entityClass.getSimpleName();
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
+        try {
+            List<T> results = new ArrayList<>();
 
-            for (int i = 0; i < params.length; i++) {
-                stmt.setObject(i + 1, params[i]);
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(query)) {
+
+                for (int i = 0; i < params.length; i++) {
+                    stmt.setObject(i + 1, params[i]);
+                }
+
+                ResultSet rs = stmt.executeQuery();
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("ExecuteQuery", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("ExecuteQuery", entityClassName, "MySQL",
+                        "SQL error during custom query execution: " + query, e);
             }
 
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                results.add(mapToEntity(resultSetToMap(rs), entityClass));
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("ExecuteQuery", entityClassName, "MySQL",
+                        "Unexpected error during custom query execution", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public int executeUpdate(String query, Object... params) throws Exception {
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(query)) {
+        try {
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
-            for (int i = 0; i < params.length; i++) {
-                stmt.setObject(i + 1, params[i]);
+                for (int i = 0; i < params.length; i++) {
+                    stmt.setObject(i + 1, params[i]);
+                }
+
+                return stmt.executeUpdate();
+
+            } catch (SQLException e) {
+                throw new DatabaseException("ExecuteUpdate", "Unknown", "MySQL",
+                        "SQL error during update query execution: " + query, e);
             }
-            return stmt.executeUpdate();
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("ExecuteUpdate", "Unknown", "MySQL",
+                        "Unexpected error during update query execution", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public void createTable(Class<?> entityClass) throws Exception {
-        String tableName = getTableName(entityClass);
-        StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + tableName + "` (");
+        String entityClassName = entityClass.getSimpleName();
 
-        Field[] fields = entityClass.getDeclaredFields();
-        boolean first = true;
+        try {
+            String tableName = getTableName(entityClass);
+            StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + tableName + "` (");
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                if (!first) sql.append(", ");
+            Field[] fields = entityClass.getDeclaredFields();
+            boolean first = true;
 
-                Column column = field.getAnnotation(Column.class);
-                String columnName = column.name().isEmpty() ? field.getName() : column.name();
-                String sqlType = getMySQLType(field.getType(), column);
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    if (!first) sql.append(", ");
 
-                sql.append("`").append(columnName).append("` ").append(sqlType);
+                    Column column = field.getAnnotation(Column.class);
+                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
+                    String sqlType = getMySQLType(field.getType(), column);
 
-                if (column.primaryKey()) {
-                    sql.append(" PRIMARY KEY");
-                    if (column.autoIncrement()) {
-                        sql.append(" AUTO_INCREMENT");
-                    }
-                }
+                    sql.append("`").append(columnName).append("` ").append(sqlType);
 
-                if (!column.nullable() && !column.primaryKey()) {
-                    sql.append(" NOT NULL");
-                }
-
-                if (column.unique() && !column.primaryKey()) {
-                    sql.append(" UNIQUE");
-                }
-
-                // Manejar valores por defecto específicos para MySQL
-                if (!column.defaultValue().isEmpty()) {
-                    String defaultValue = column.defaultValue();
-
-                    // Para BOOLEAN, convertir true/false a 1/0
-                    if ((field.getType() == boolean.class || field.getType() == Boolean.class)) {
-                        if ("true".equalsIgnoreCase(defaultValue)) {
-                            sql.append(" DEFAULT 1");
-                        } else if ("false".equalsIgnoreCase(defaultValue)) {
-                            sql.append(" DEFAULT 0");
+                    if (column.primaryKey()) {
+                        sql.append(" PRIMARY KEY");
+                        if (column.autoIncrement()) {
+                            sql.append(" AUTO_INCREMENT");
                         }
-                    } else if ("CURRENT_TIMESTAMP".equalsIgnoreCase(defaultValue)) {
-                        sql.append(" DEFAULT CURRENT_TIMESTAMP");
-                    } else {
-                        sql.append(" DEFAULT '").append(defaultValue).append("'");
                     }
+
+                    if (!column.nullable() && !column.primaryKey()) {
+                        sql.append(" NOT NULL");
+                    }
+
+                    if (column.unique() && !column.primaryKey()) {
+                        sql.append(" UNIQUE");
+                    }
+
+                    // Handle default values specific for MySQL
+                    if (!column.defaultValue().isEmpty()) {
+                        String defaultValue = column.defaultValue();
+
+                        // For BOOLEAN, convert true/false to 1/0
+                        if ((field.getType() == boolean.class || field.getType() == Boolean.class)) {
+                            if ("true".equalsIgnoreCase(defaultValue)) {
+                                sql.append(" DEFAULT 1");
+                            } else if ("false".equalsIgnoreCase(defaultValue)) {
+                                sql.append(" DEFAULT 0");
+                            }
+                        } else if ("CURRENT_TIMESTAMP".equalsIgnoreCase(defaultValue)) {
+                            sql.append(" DEFAULT CURRENT_TIMESTAMP");
+                        } else {
+                            sql.append(" DEFAULT '").append(defaultValue).append("'");
+                        }
+                    }
+
+                    first = false;
                 }
-
-                first = false;
             }
-        }
 
-        sql.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+            sql.append(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
-        try (Connection conn = getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(sql.toString());
-            DebugUtils.logInternalInfo("Tabla creada exitosamente: " + tableName);
-        } catch (SQLException e) {
-            DebugUtils.logInternalError("Error creando tabla " + tableName + ": " + e.getMessage());
-            throw e;
+            try (Connection conn = getConnection();
+                 Statement stmt = conn.createStatement()) {
+                stmt.execute(sql.toString());
+                logInternalInfo("Table created successfully: " + tableName);
+            } catch (SQLException e) {
+                throw new DatabaseException("CreateTable", entityClassName, "MySQL",
+                        "SQL error during table creation: " + e.getMessage(), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("CreateTable", entityClassName, "MySQL",
+                        "Unexpected error during table creation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public void updateTable(Class<?> entityClass) throws Exception {
-        if (!tableExists(entityClass)) {
-            createTable(entityClass);
-            return;
-        }
+        String entityClassName = entityClass.getSimpleName();
 
-        List<String> existingColumns = getTableColumns(entityClass);
-        Field[] fields = entityClass.getDeclaredFields();
-        boolean hasUpdates = false;
+        try {
+            if (!tableExists(entityClass)) {
+                createTable(entityClass);
+                return;
+            }
 
-        try (Connection conn = getConnection()) {
-            for (Field field : fields) {
-                if (field.isAnnotationPresent(Column.class)) {
-                    Column column = field.getAnnotation(Column.class);
-                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
+            List<String> existingColumns = getTableColumns(entityClass);
+            Field[] fields = entityClass.getDeclaredFields();
+            boolean hasUpdates = false;
 
-                    if (!existingColumns.contains(columnName.toLowerCase())) {
-                        String sqlType = getMySQLType(field.getType(), column);
-                        String alterSql = "ALTER TABLE `" + getTableName(entityClass) +
-                                "` ADD COLUMN `" + columnName + "` " + sqlType;
+            try (Connection conn = getConnection()) {
+                for (Field field : fields) {
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        String columnName = column.name().isEmpty() ? field.getName() : column.name();
 
-                        // Primero agregar como nullable
-                        try (Statement stmt = conn.createStatement()) {
-                            stmt.execute(alterSql);
-                            DebugUtils.logInternalInfo("Columna agregada: " + columnName);
-                            hasUpdates = true;
-                        }
+                        if (!existingColumns.contains(columnName.toLowerCase())) {
+                            String sqlType = getMySQLType(field.getType(), column);
+                            String alterSql = "ALTER TABLE `" + getTableName(entityClass) +
+                                    "` ADD COLUMN `" + columnName + "` " + sqlType;
 
-                        // Si tiene valor por defecto, actualizar registros existentes
-                        if (!column.defaultValue().isEmpty()) {
-                            String defaultValue = column.defaultValue();
-                            Object actualValue = defaultValue;
+                            // First add as nullable
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(alterSql);
+                                logInternalInfo("Column added: " + columnName);
+                                hasUpdates = true;
+                            }
 
-                            // Convertir valores para tipos específicos
-                            if (field.getType() == boolean.class || field.getType() == Boolean.class) {
-                                if ("true".equalsIgnoreCase(defaultValue)) {
-                                    actualValue = 1;
-                                } else if ("false".equalsIgnoreCase(defaultValue)) {
-                                    actualValue = 0;
+                            // If has default value, update existing records
+                            if (!column.defaultValue().isEmpty()) {
+                                String defaultValue = column.defaultValue();
+                                Object actualValue = defaultValue;
+
+                                // Convert values for specific types
+                                if (field.getType() == boolean.class || field.getType() == Boolean.class) {
+                                    if ("true".equalsIgnoreCase(defaultValue)) {
+                                        actualValue = 1;
+                                    } else if ("false".equalsIgnoreCase(defaultValue)) {
+                                        actualValue = 0;
+                                    }
+                                }
+
+                                String updateSql = "UPDATE `" + getTableName(entityClass) +
+                                        "` SET `" + columnName + "` = ? WHERE `" + columnName + "` IS NULL";
+                                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+                                    updateStmt.setObject(1, actualValue);
+                                    int updated = updateStmt.executeUpdate();
+                                    logInternalInfo("Updated " + updated + " records with default value for " + columnName);
                                 }
                             }
 
-                            String updateSql = "UPDATE `" + getTableName(entityClass) +
-                                    "` SET `" + columnName + "` = ? WHERE `" + columnName + "` IS NULL";
-                            try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                                updateStmt.setObject(1, actualValue);
-                                int updated = updateStmt.executeUpdate();
-                                DebugUtils.logInternalInfo("Actualizados " + updated + " registros con valor por defecto para " + columnName);
-                            }
-                        }
-
-                        // Hacer NOT NULL si es necesario
-                        if (!column.nullable() && !column.primaryKey()) {
-                            String alterNotNullSql = "ALTER TABLE `" + getTableName(entityClass) +
-                                    "` MODIFY COLUMN `" + columnName + "` " + sqlType + " NOT NULL";
-                            try (Statement stmt = conn.createStatement()) {
-                                stmt.execute(alterNotNullSql);
-                                DebugUtils.logInternalInfo("Columna configurada como NOT NULL: " + columnName);
+                            // Make NOT NULL if necessary
+                            if (!column.nullable() && !column.primaryKey()) {
+                                String alterNotNullSql = "ALTER TABLE `" + getTableName(entityClass) +
+                                        "` MODIFY COLUMN `" + columnName + "` " + sqlType + " NOT NULL";
+                                try (Statement stmt = conn.createStatement()) {
+                                    stmt.execute(alterNotNullSql);
+                                    logInternalInfo("Column configured as NOT NULL: " + columnName);
+                                }
                             }
                         }
                     }
                 }
+
+                if (hasUpdates) {
+                    logInternalInfo("Table update completed: " + getTableName(entityClass));
+                } else {
+                    logInternalInfo("No updates required for table: " + getTableName(entityClass));
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("UpdateTable", entityClassName, "MySQL",
+                        "SQL error during table update: " + e.getMessage(), e);
             }
 
-            if (hasUpdates) {
-                DebugUtils.logInternalInfo("Actualización de tabla completada: " + getTableName(entityClass));
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
             } else {
-                DebugUtils.logInternalInfo("No se requieren actualizaciones para la tabla: " + getTableName(entityClass));
+                DatabaseException dbException = new DatabaseException("UpdateTable", entityClassName, "MySQL",
+                        "Unexpected error during table update", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
     }
 
     @Override
     public boolean tableExists(Class<?> entityClass) throws Exception {
-        String tableName = getTableName(entityClass);
-        String sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+        String entityClassName = entityClass.getSimpleName();
 
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
 
-            stmt.setString(1, tableName);
-            ResultSet rs = stmt.executeQuery();
-            rs.next();
-            return rs.getInt(1) > 0;
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, tableName);
+                ResultSet rs = stmt.executeQuery();
+                rs.next();
+                return rs.getInt(1) > 0;
+
+            } catch (SQLException e) {
+                throw new DatabaseException("TableExists", entityClassName, "MySQL",
+                        "SQL error while checking table existence: " + e.getMessage(), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("TableExists", entityClassName, "MySQL",
+                        "Unexpected error while checking table existence", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public List<String> getTableColumns(Class<?> entityClass) throws Exception {
-        String tableName = getTableName(entityClass);
-        String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+        String entityClassName = entityClass.getSimpleName();
 
-        List<String> columns = new ArrayList<>();
-        try (Connection conn = getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
 
-            stmt.setString(1, tableName);
-            ResultSet rs = stmt.executeQuery();
+            List<String> columns = new ArrayList<>();
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                stmt.setString(1, tableName);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("GetTableColumns", entityClassName, "MySQL",
+                        "SQL error while getting table columns: " + e.getMessage(), e);
+            }
+
+            return columns;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetTableColumns", entityClassName, "MySQL",
+                        "Unexpected error while getting table columns", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return columns;
     }
 
     @Override
     public void beginTransaction() throws Exception {
-        // Las transacciones se manejan por conexión en MySQL con HikariCP
-        // Esto se implementaría usando ThreadLocal para conexiones por transacción
+        // Transactions are handled per connection in MySQL with HikariCP
+        // This would be implemented using ThreadLocal for per-transaction connections
+        throw new UnsupportedOperationException("Transactions require specific implementation with ThreadLocal connections");
     }
 
     @Override
     public void commit() throws Exception {
-        // Implementar manejo de transacciones
+        // Implement transaction handling
+        throw new UnsupportedOperationException("Transaction commit requires specific implementation");
     }
 
     @Override
     public void rollback() throws Exception {
-        // Implementar manejo de transacciones
+        // Implement transaction handling
+        throw new UnsupportedOperationException("Transaction rollback requires specific implementation");
     }
 
     @Override
@@ -610,10 +977,10 @@ public class MySQLAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
-    // ===== MÉTODOS ACTUALIZADOS CON AUTO-SERIALIZACIÓN =====
-
+    // Enhanced entityToMap with better error handling
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
+        String entityClassName = entity.getClass().getSimpleName();
         Map<String, Object> map = new HashMap<>();
         Field[] fields = entity.getClass().getDeclaredFields();
 
@@ -623,19 +990,31 @@ public class MySQLAdapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 String columnName = column.name().isEmpty() ? field.getName() : column.name();
 
-                Object value = field.get(entity);
+                try {
+                    Object value = field.get(entity);
 
-                // AUTO-SERIALIZACIÓN: Si está habilitada, serializar automáticamente
-                if (value != null && column.autoSerialize()) {
-                    try {
-                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error auto-serializando campo " + columnName + ": " + e.getMessage());
-                        // Fallback: usar el valor original
+                    // AUTO-SERIALIZATION with enhanced error handling
+                    if (value != null && column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                        } catch (SerializationException e) {
+                            errorHandler.handleError(e);
+                            throw e;
+                        } catch (Exception e) {
+                            SerializationException serException = new SerializationException("Serialize",
+                                    entityClassName, columnName, column.serializationType().toString(), value,
+                                    "Failed to auto-serialize field during entityToMap", e);
+                            errorHandler.handleError(serException);
+                            throw serException;
+                        }
                     }
-                }
 
-                map.put(columnName, value);
+                    map.put(columnName, value);
+
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("EntityToMap", entityClassName, "MySQL",
+                            "Failed to access field: " + columnName, e);
+                }
             }
         }
 
@@ -644,38 +1023,97 @@ public class MySQLAdapter implements DatabaseAdapter {
 
     @Override
     public <T> T mapToEntity(Map<String, Object> map, Class<T> entityClass) throws Exception {
-        T entity = entityClass.getDeclaredConstructor().newInstance();
-        Field[] fields = entityClass.getDeclaredFields();
+        String entityClassName = entityClass.getSimpleName();
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                field.setAccessible(true);
-                Column column = field.getAnnotation(Column.class);
-                String columnName = column.name().isEmpty() ? field.getName() : column.name();
+        try {
+            T entity = entityClass.getDeclaredConstructor().newInstance();
+            Field[] fields = entityClass.getDeclaredFields();
 
-                Object value = map.get(columnName);
-                if (value != null) {
-                    // AUTO-DESERIALIZACIÓN: Si está habilitada, deserializar automáticamente
-                    if (column.autoSerialize()) {
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    field.setAccessible(true);
+                    Column column = field.getAnnotation(Column.class);
+                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
+
+                    Object value = map.get(columnName);
+
+                    // NUEVA LÓGICA: Inicializar colecciones vacías automáticamente
+                    if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
-                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            Object emptyCollection = CollectionUtils.createEmptyCollection(field);
+                            if (emptyCollection != null) {
+                                field.set(entity, emptyCollection);
+                                continue; // Skip further processing for this field
+                            }
                         } catch (Exception e) {
-                            DebugUtils.logInternalError("Error auto-deserializando campo " + columnName + ": " + e.getMessage());
-                            // Fallback: intentar conversión normal
-                            value = convertValue(value, field.getType());
+                            errorHandler.logWarning("MapToEntity", entityClassName,
+                                    "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
-                    } else {
-                        value = convertValue(value, field.getType());
                     }
 
-                    field.set(entity, value);
+                    if (value != null) {
+                        try {
+                            // AUTO-DESERIALIZATION with enhanced error handling
+                            if (column.autoSerialize()) {
+                                try {
+                                    value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                                } catch (SerializationException e) {
+                                    errorHandler.handleError(e);
+
+                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
+                                    if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
+                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                                "Deserialization failed for collection " + columnName + ", initializing empty collection");
+                                        value = CollectionUtils.createEmptyCollection(field);
+                                    } else {
+                                        throw e;
+                                    }
+                                } catch (Exception e) {
+                                    SerializationException serException = new SerializationException("Deserialize",
+                                            entityClassName, columnName, column.serializationType().toString(), value,
+                                            "Failed to auto-deserialize field during mapToEntity", e);
+                                    errorHandler.handleError(serException);
+
+                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
+                                    if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
+                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                                "Deserialization failed for collection " + columnName + ", initializing empty collection");
+                                        value = CollectionUtils.createEmptyCollection(field);
+                                    } else {
+                                        throw serException;
+                                    }
+                                }
+                            } else {
+                                value = convertValue(value, field.getType());
+                            }
+
+                            field.set(entity, value);
+
+                        } catch (IllegalAccessException e) {
+                            throw new DatabaseException("MapToEntity", entityClassName, getAdapterType(),
+                                    "Failed to set field value: " + columnName, e);
+                        }
+                    }
                 }
             }
-        }
 
-        return entity;
+            return entity;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException || e instanceof SerializationException) {
+                throw e;
+            } else {
+                throw new DatabaseException("MapToEntity", entityClassName, getAdapterType(),
+                        "Failed to create entity instance or map fields", e);
+            }
+        }
     }
 
+    private String getAdapterType() {
+        return this.getClass().getSimpleName().replace("Adapter", "");
+    }
+
+    // Helper methods with better error context
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {
@@ -690,6 +1128,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     private String getMySQLType(Class<?> javaType, Column column) {
+        // Auto-serialization fields always use TEXT/VARCHAR for serialized string
         if (column.autoSerialize()) {
             if (column.length() == -1 || column.length() > 65535) {
                 return "LONGTEXT";
@@ -700,7 +1139,7 @@ public class MySQLAdapter implements DatabaseAdapter {
             }
         }
 
-        // Tipos normales sin serialización
+        // Normal types without serialization
         if (javaType == String.class) {
             if (column.length() == -1) {
                 return "TEXT";
@@ -727,7 +1166,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         } else if (javaType == float.class || javaType == Float.class) {
             return "FLOAT";
         } else if (javaType == boolean.class || javaType == Boolean.class) {
-            return "TINYINT(1)"; // MySQL estándar para boolean
+            return "TINYINT(1)"; // MySQL standard for boolean
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "DATETIME";
         } else {
@@ -740,36 +1179,41 @@ public class MySQLAdapter implements DatabaseAdapter {
             return value;
         }
 
-        if (targetType == String.class) {
-            return value.toString();
-        } else if (targetType == int.class || targetType == Integer.class) {
-            if (value instanceof Number) {
-                return ((Number) value).intValue();
+        try {
+            if (targetType == String.class) {
+                return value.toString();
+            } else if (targetType == int.class || targetType == Integer.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).intValue();
+                }
+                return Integer.valueOf(value.toString());
+            } else if (targetType == long.class || targetType == Long.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+                return Long.valueOf(value.toString());
+            } else if (targetType == double.class || targetType == Double.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).doubleValue();
+                }
+                return Double.valueOf(value.toString());
+            } else if (targetType == float.class || targetType == Float.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).floatValue();
+                }
+                return Float.valueOf(value.toString());
+            } else if (targetType == boolean.class || targetType == Boolean.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).intValue() != 0;
+                }
+                return Boolean.valueOf(value.toString());
             }
-            return Integer.valueOf(value.toString());
-        } else if (targetType == long.class || targetType == Long.class) {
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-            return Long.valueOf(value.toString());
-        } else if (targetType == double.class || targetType == Double.class) {
-            if (value instanceof Number) {
-                return ((Number) value).doubleValue();
-            }
-            return Double.valueOf(value.toString());
-        } else if (targetType == float.class || targetType == Float.class) {
-            if (value instanceof Number) {
-                return ((Number) value).floatValue();
-            }
-            return Float.valueOf(value.toString());
-        } else if (targetType == boolean.class || targetType == Boolean.class) {
-            if (value instanceof Number) {
-                return ((Number) value).intValue() != 0;
-            }
-            return Boolean.valueOf(value.toString());
-        }
 
-        return value;
+            return value;
+        } catch (Exception e) {
+            throw new DatabaseException("Value Conversion", "Unknown", "MySQL",
+                    String.format("Failed to convert value '%s' to type %s", value, targetType.getSimpleName()), e);
+        }
     }
 
     private Map<String, Object> resultSetToMap(ResultSet rs) throws SQLException {

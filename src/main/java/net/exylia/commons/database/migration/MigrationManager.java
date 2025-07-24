@@ -8,8 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
-import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.*;
 
 public class MigrationManager {
 
@@ -22,10 +22,10 @@ public class MigrationManager {
         String version = tableAnnotation.version();
         String tableName = adapter.getTableName(entityClass);
 
-        logInternalInfo("Checking table: " + tableName + " (version: " + version + ")");
+        logInternalDebug(debug(), "Checking table: " + tableName + " (version: " + version + ")");
 
         if (!adapter.tableExists(entityClass)) {
-            logInternalInfo("Creating table: " + tableName);
+            logInternalDebug(debug(), "Creating table: " + tableName);
             adapter.createTable(entityClass);
 
             // Guardar información de versión si es SQL
@@ -34,22 +34,22 @@ public class MigrationManager {
                 saveTableVersion(adapter, tableName, version);
             }
 
-            logInternalInfo("Table created: " + tableName);
+            logInternalDebug(debug(), "Table created: " + tableName);
         } else {
             // Verificar si necesita actualización
             if (isSQLAdapter(adapter)) {
                 String currentVersion = getTableVersion(adapter, tableName);
 
-                logInternalInfo("Actual table version for " + tableName + ": " + currentVersion +
+                logInternalDebug(debug(), "Actual table version for " + tableName + ": " + currentVersion +
                         ", Version to check: " + version);
 
                 if (!version.equals(currentVersion)) {
-                    logInternalInfo("Updating table " + tableName + " from " + currentVersion + " to " + version);
+                    logInternalDebug(debug(), "Updating table " + tableName + " from " + currentVersion + " to " + version);
                     adapter.updateTable(entityClass);
                     updateTableVersion(adapter, tableName, version);
-                    logInternalInfo("Table updated: " + tableName);
+                    logInternalDebug(debug(), "Table updated: " + tableName);
                 } else {
-                    logInternalInfo("Table " + tableName + " is up to date: " + version);
+                    logInternalDebug(debug(), "Table " + tableName + " is up to date: " + version);
                 }
             } else {
                 // Para MongoDB, siempre actualizar (es seguro)
@@ -106,7 +106,7 @@ public class MigrationManager {
                 adapter.executeUpdate(sql, tableName, version);
             }
 
-            logInternalInfo("Versión de tabla guardada: " + tableName + " -> " + version);
+            logInternalDebug(debug(), "Versión de tabla guardada: " + tableName + " -> " + version);
         } catch (Exception e) {
             logInternalError("Error guardando versión de tabla: " + e.getMessage());
         }
@@ -132,13 +132,13 @@ public class MigrationManager {
                             Object versionObj = map.get("version");
                             if (versionObj != null) {
                                 String foundVersion = versionObj.toString();
-                                logInternalInfo("Versión encontrada para tabla " + tableName + ": " + foundVersion);
+                                logInternalDebug(debug(), "Versión encontrada para tabla " + tableName + ": " + foundVersion);
                                 return foundVersion;
                             }
                         }
                     }
                 } catch (Exception e) {
-                    logInternalInfo("No se encontró versión para tabla " + tableName + ", usando versión por defecto");
+                    logInternalDebug(debug(), "No se encontró versión para tabla " + tableName + ", usando versión por defecto");
                 }
             }
 

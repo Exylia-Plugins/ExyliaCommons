@@ -2,7 +2,8 @@ package net.exylia.commons.database.repository;
 
 import net.exylia.commons.database.adapters.DatabaseAdapter;
 import net.exylia.commons.database.annotations.Column;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
+import net.exylia.commons.database.exceptions.RepositoryException;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -15,11 +16,13 @@ public class RepositoryImpl<T> implements Repository<T> {
     private final DatabaseAdapter adapter;
     private final Class<T> entityClass;
     private final ExecutorService executor;
+    private final DatabaseErrorHandler errorHandler;
 
-    public RepositoryImpl(DatabaseAdapter adapter, Class<T> entityClass, ExecutorService executor) {
+    public RepositoryImpl(DatabaseAdapter adapter, Class<T> entityClass, ExecutorService executor, DatabaseErrorHandler errorHandler) {
         this.adapter = adapter;
         this.entityClass = entityClass;
         this.executor = executor;
+        this.errorHandler = errorHandler;
     }
 
     @Override
@@ -27,8 +30,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.save(entity);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error guardando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
-            throw new RuntimeException("Error guardando entidad: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("save", entityClass.getSimpleName(),
+                    "Failed to save entity to database", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -37,8 +42,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.update(entity);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error actualizando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
-            throw new RuntimeException("Error actualizando entidad: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("update", entityClass.getSimpleName(),
+                    "Failed to update entity in database", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -47,8 +54,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.delete(entity);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error eliminando entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
-            throw new RuntimeException("Error eliminando entidad: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("delete", entityClass.getSimpleName(),
+                    "Failed to delete entity from database", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -57,7 +66,9 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findById(entityClass, id);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error buscando entidad " + entityClass.getSimpleName() + " por ID " + id + ": " + e.getMessage());
+            RepositoryException repoException = new RepositoryException("findById", entityClass.getSimpleName(),
+                    String.format("Failed to find entity by ID: %s", id), e);
+            errorHandler.handleError(repoException);
             return Optional.empty();
         }
     }
@@ -67,8 +78,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findAll(entityClass);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error obteniendo todas las entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
-            throw new RuntimeException("Error obteniendo todas las entidades: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("findAll", entityClass.getSimpleName(),
+                    "Failed to retrieve all entities from database", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -77,8 +90,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.findBy(entityClass, field, value);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error buscando entidades " + entityClass.getSimpleName() + " por campo " + field + ": " + e.getMessage());
-            throw new RuntimeException("Error buscando entidades por campo: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("findBy", entityClass.getSimpleName(),
+                    String.format("Failed to find entities by field '%s' with value: %s", field, value), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -87,7 +102,9 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return findById(id).isPresent();
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error verificando existencia de entidad " + entityClass.getSimpleName() + " con ID " + id + ": " + e.getMessage());
+            RepositoryException repoException = new RepositoryException("exists", entityClass.getSimpleName(),
+                    String.format("Failed to check entity existence for ID: %s", id), e);
+            errorHandler.handleError(repoException);
             return false;
         }
     }
@@ -97,7 +114,9 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return findAll().size();
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error contando entidades " + entityClass.getSimpleName() + ": " + e.getMessage());
+            RepositoryException repoException = new RepositoryException("count", entityClass.getSimpleName(),
+                    "Failed to count entities in database", e);
+            errorHandler.handleError(repoException);
             return 0;
         }
     }
@@ -108,7 +127,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 save(entity);
             } catch (Exception e) {
-                throw new RuntimeException("Error en saveAsync: " + e.getMessage(), e);
+                throw new RepositoryException("saveAsync", entityClass.getSimpleName(),
+                        "Failed in async save operation", e);
             }
         }, executor);
     }
@@ -119,7 +139,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 update(entity);
             } catch (Exception e) {
-                throw new RuntimeException("Error en updateAsync: " + e.getMessage(), e);
+                throw new RepositoryException("updateAsync", entityClass.getSimpleName(),
+                        "Failed in async update operation", e);
             }
         }, executor);
     }
@@ -130,7 +151,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 delete(entity);
             } catch (Exception e) {
-                throw new RuntimeException("Error en deleteAsync: " + e.getMessage(), e);
+                throw new RepositoryException("deleteAsync", entityClass.getSimpleName(),
+                        "Failed in async delete operation", e);
             }
         }, executor);
     }
@@ -141,7 +163,9 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return findById(id);
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error en findByIdAsync para ID " + id + ": " + e.getMessage());
+                RepositoryException repoException = new RepositoryException("findByIdAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findById for ID: %s", id), e);
+                errorHandler.handleError(repoException);
                 return Optional.empty();
             }
         }, executor);
@@ -153,7 +177,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return findAll();
             } catch (Exception e) {
-                throw new RuntimeException("Error en findAllAsync: " + e.getMessage(), e);
+                throw new RepositoryException("findAllAsync", entityClass.getSimpleName(),
+                        "Failed in async findAll operation", e);
             }
         }, executor);
     }
@@ -164,7 +189,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return findBy(field, value);
             } catch (Exception e) {
-                throw new RuntimeException("Error en findByAsync: " + e.getMessage(), e);
+                throw new RepositoryException("findByAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findBy for field '%s' with value: %s", field, value), e);
             }
         }, executor);
     }
@@ -175,7 +201,9 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return exists(id);
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error en existsAsync para ID " + id + ": " + e.getMessage());
+                RepositoryException repoException = new RepositoryException("existsAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async exists check for ID: %s", id), e);
+                errorHandler.handleError(repoException);
                 return false;
             }
         }, executor);
@@ -187,7 +215,9 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return count();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error en countAsync: " + e.getMessage());
+                RepositoryException repoException = new RepositoryException("countAsync", entityClass.getSimpleName(),
+                        "Failed in async count operation", e);
+                errorHandler.handleError(repoException);
                 return 0L;
             }
         }, executor);
@@ -198,8 +228,10 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.executeQuery(entityClass, query, params);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error ejecutando consulta personalizada: " + e.getMessage());
-            throw new RuntimeException("Error ejecutando consulta personalizada: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("query", entityClass.getSimpleName(),
+                    String.format("Failed to execute custom query: %s", query), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -209,7 +241,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 return query(query, params);
             } catch (Exception e) {
-                throw new RuntimeException("Error en queryAsync: " + e.getMessage(), e);
+                throw new RepositoryException("queryAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async custom query: %s", query), e);
             }
         }, executor);
     }
@@ -220,13 +253,25 @@ public class RepositoryImpl<T> implements Repository<T> {
             return;
         }
 
+        int successCount = 0;
+        int failureCount = 0;
+
         for (T entity : entities) {
             try {
                 save(entity);
+                successCount++;
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error guardando entidad en saveAll: " + e.getMessage());
-                // Continúa con las demás entidades incluso si una falla
+                failureCount++;
+                errorHandler.logWarning("saveAll", entityClass.getSimpleName(),
+                        String.format("Failed to save entity %d of %d: %s",
+                                successCount + failureCount, entities.size(), e.getMessage()));
             }
+        }
+
+        if (failureCount > 0) {
+            String message = String.format("saveAll completed with %d successes and %d failures out of %d total entities",
+                    successCount, failureCount, entities.size());
+            errorHandler.logWarning("saveAll", entityClass.getSimpleName(), message);
         }
     }
 
@@ -236,20 +281,31 @@ public class RepositoryImpl<T> implements Repository<T> {
             return;
         }
 
+        int successCount = 0;
+        int failureCount = 0;
+
         for (T entity : entities) {
             try {
                 delete(entity);
+                successCount++;
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error eliminando entidad en deleteAll: " + e.getMessage());
-                // Continúa con las demás entidades incluso si una falla
+                failureCount++;
+                errorHandler.logWarning("deleteAll", entityClass.getSimpleName(),
+                        String.format("Failed to delete entity %d of %d: %s",
+                                successCount + failureCount, entities.size(), e.getMessage()));
             }
+        }
+
+        if (failureCount > 0) {
+            String message = String.format("deleteAll completed with %d successes and %d failures out of %d total entities",
+                    successCount, failureCount, entities.size());
+            errorHandler.logWarning("deleteAll", entityClass.getSimpleName(), message);
         }
     }
 
     @Override
     public void saveOrUpdate(T entity) {
         try {
-            // Get the primary key value from the entity
             String primaryKey = getPrimaryKeyField(entity.getClass());
             Object primaryKeyValue = getPrimaryKeyValue(entity, primaryKey);
 
@@ -259,8 +315,10 @@ public class RepositoryImpl<T> implements Repository<T> {
                 save(entity);
             }
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error en saveOrUpdate para entidad " + entityClass.getSimpleName() + ": " + e.getMessage());
-            throw new RuntimeException("Error en saveOrUpdate: " + e.getMessage(), e);
+            RepositoryException repoException = new RepositoryException("saveOrUpdate", entityClass.getSimpleName(),
+                    "Failed to perform saveOrUpdate operation", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
         }
     }
 
@@ -273,15 +331,29 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             adapter.saveOrUpdateAll(entities);
         } catch (Exception e) {
-            // Si el adaptador no lo soporta, hacerlo uno por uno
-            DebugUtils.logInternalError("Adaptador no soporta saveOrUpdateAll, ejecutando individualmente: " + e.getMessage());
+            // If adapter doesn't support bulk operations, do it individually
+            errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+                    "Adapter doesn't support bulk saveOrUpdate, executing individually: " + e.getMessage());
+
+            int successCount = 0;
+            int failureCount = 0;
+
             for (T entity : entities) {
                 try {
                     saveOrUpdate(entity);
+                    successCount++;
                 } catch (Exception entityException) {
-                    DebugUtils.logInternalError("Error en saveOrUpdate para entidad individual: " + entityException.getMessage());
-                    // Continúa con las demás entidades
+                    failureCount++;
+                    errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+                            String.format("Failed to saveOrUpdate entity %d of %d: %s",
+                                    successCount + failureCount, entities.size(), entityException.getMessage()));
                 }
+            }
+
+            if (failureCount > 0) {
+                String message = String.format("saveOrUpdateAll completed with %d successes and %d failures out of %d total entities",
+                        successCount, failureCount, entities.size());
+                errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
             }
         }
     }
@@ -292,7 +364,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 saveOrUpdate(entity);
             } catch (Exception e) {
-                throw new RuntimeException("Error en saveOrUpdateAsync: " + e.getMessage(), e);
+                throw new RepositoryException("saveOrUpdateAsync", entityClass.getSimpleName(),
+                        "Failed in async saveOrUpdate operation", e);
             }
         }, executor);
     }
@@ -303,7 +376,8 @@ public class RepositoryImpl<T> implements Repository<T> {
             try {
                 saveOrUpdateAll(entities);
             } catch (Exception e) {
-                throw new RuntimeException("Error en saveOrUpdateAllAsync: " + e.getMessage(), e);
+                throw new RepositoryException("saveOrUpdateAllAsync", entityClass.getSimpleName(),
+                        "Failed in async saveOrUpdateAll operation", e);
             }
         }, executor);
     }

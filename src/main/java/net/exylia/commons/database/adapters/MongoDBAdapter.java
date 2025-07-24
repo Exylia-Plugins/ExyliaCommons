@@ -9,8 +9,12 @@ import com.mongodb.client.model.UpdateOneModel;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.exceptions.ConnectionException;
+import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
+import net.exylia.commons.database.exceptions.DatabaseException;
+import net.exylia.commons.database.exceptions.SerializationException;
+import net.exylia.commons.database.serialization.CollectionUtils;
 import net.exylia.commons.database.serialization.SerializationHelper;
-import net.exylia.commons.utils.DebugUtils;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -20,17 +24,20 @@ import java.util.*;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 public class MongoDBAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
     private final ExyliaPlugin plugin;
+    private final DatabaseErrorHandler errorHandler;
     private MongoClient mongoClient;
     private MongoDatabase database;
 
-    public MongoDBAdapter(FileConfiguration config, ExyliaPlugin plugin) {
+    public MongoDBAdapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
+        this.errorHandler = errorHandler;
     }
 
     @Override
@@ -44,24 +51,37 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
         String connectionString;
 
-        if (!username.isEmpty() && !password.isEmpty()) {
-            connectionString = String.format("mongodb://%s:%s@%s:%d/%s?authSource=%s",
-                    username, password, host, port, databaseName, authDatabase);
-        } else {
-            connectionString = String.format("mongodb://%s:%d", host, port);
+        try {
+            if (!username.isEmpty() && !password.isEmpty()) {
+                connectionString = String.format("mongodb://%s:%s@%s:%d/%s?authSource=%s",
+                        username, password, host, port, databaseName, authDatabase);
+            } else {
+                connectionString = String.format("mongodb://%s:%d", host, port);
+            }
+
+            mongoClient = MongoClients.create(connectionString);
+            database = mongoClient.getDatabase(databaseName);
+
+            // Test connection
+            database.runCommand(new Document("ping", 1));
+            logInternalInfo("MongoDB connection established successfully to " + host + ":" + port + "/" + databaseName);
+
+        } catch (Exception e) {
+            throw new ConnectionException("MongoDB",
+                    String.format("mongodb://%s:%d/%s", host, port, databaseName),
+                    "Failed to establish MongoDB connection", e);
         }
-
-        mongoClient = MongoClients.create(connectionString);
-        database = mongoClient.getDatabase(databaseName);
-
-        // Probar conexión
-        database.runCommand(new Document("ping", 1));
     }
 
     @Override
     public void disconnect() {
-        if (mongoClient != null) {
-            mongoClient.close();
+        try {
+            if (mongoClient != null) {
+                mongoClient.close();
+                logInternalInfo("MongoDB connection closed successfully");
+            }
+        } catch (Exception e) {
+            errorHandler.logWarning("Disconnect", "MongoDBAdapter", "Error closing MongoDB connection: " + e.getMessage());
         }
     }
 
@@ -81,14 +101,31 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public <T> void save(T entity) throws Exception {
-        String collectionName = getTableName(entity.getClass());
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        Document document = entityToDocument(entity);
-        collection.insertOne(document);
+        try {
+            String collectionName = getTableName(entity.getClass());
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        // Si tiene un campo _id y es ObjectId, establecerlo de vuelta en la entidad
-        setIdFromDocument(entity, document);
+            Document document = entityToDocument(entity);
+            collection.insertOne(document);
+
+            // If has _id field and is ObjectId, set it back in the entity
+            setIdFromDocument(entity, document);
+
+            logInternalDebug(debug(), "Entity saved successfully to MongoDB collection: " + collectionName);
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Save", entityClassName, "MongoDB",
+                        "Unexpected error during save operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
     }
 
     @Override
@@ -97,36 +134,70 @@ public class MongoDBAdapter implements DatabaseAdapter {
             return;
         }
 
-        String collectionName = getTableName(entities.get(0).getClass());
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entities.get(0).getClass().getSimpleName();
 
-        List<ReplaceOneModel<Document>> operations = new ArrayList<>();
+        try {
+            String collectionName = getTableName(entities.get(0).getClass());
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        for (T entity : entities) {
-            Object id = getEntityId(entity);
-            Document document = entityToDocument(entity);
+            List<ReplaceOneModel<Document>> operations = new ArrayList<>();
+            int successCount = 0;
+            int failureCount = 0;
 
-            if (id != null) {
-                // Si tiene ID, hacer upsert (actualizar o insertar)
-                Document filter = new Document("_id", convertToObjectId(id));
-                ReplaceOptions options = new ReplaceOptions().upsert(true);
-                operations.add(new ReplaceOneModel<>(filter, document, options));
-            } else {
-                // Si no tiene ID, es una inserción (MongoDB generará el _id)
-                operations.add(new ReplaceOneModel<>(
-                        new Document("_id", new ObjectId()), // Filtro que nunca coincidirá
-                        document,
-                        new ReplaceOptions().upsert(true)
-                ));
+            for (T entity : entities) {
+                try {
+                    Object id = getEntityId(entity);
+                    Document document = entityToDocument(entity);
+
+                    if (id != null) {
+                        // If has ID, do upsert (update or insert)
+                        Document filter = new Document("_id", convertToObjectId(id));
+                        ReplaceOptions options = new ReplaceOptions().upsert(true);
+                        operations.add(new ReplaceOneModel<>(filter, document, options));
+                    } else {
+                        // If no ID, it's an insert (MongoDB will generate _id)
+                        operations.add(new ReplaceOneModel<>(
+                                new Document("_id", new ObjectId()), // Filter that will never match
+                                document,
+                                new ReplaceOptions().upsert(true)
+                        ));
+                    }
+                    successCount++;
+                } catch (Exception e) {
+                    failureCount++;
+                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                            "Failed to prepare entity for bulk operation: " + e.getMessage());
+                }
             }
-        }
 
-        if (!operations.isEmpty()) {
-            BulkWriteResult result = collection.bulkWrite(operations);
-            DebugUtils.logInternalInfo("saveOrUpdateAll completado: " +
-                    result.getInsertedCount() + " insertadas, " +
-                    result.getModifiedCount() + " actualizadas, " +
-                    result.getUpserts().size() + " upserts");
+            if (!operations.isEmpty()) {
+                try {
+                    BulkWriteResult result = collection.bulkWrite(operations);
+                    logInternalInfo("saveOrUpdateAll completed: " +
+                            result.getInsertedCount() + " inserted, " +
+                            result.getModifiedCount() + " updated, " +
+                            result.getUpserts().size() + " upserts");
+                } catch (Exception e) {
+                    throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MongoDB",
+                            "MongoDB bulk write operation failed", e);
+                }
+            }
+
+            if (failureCount > 0) {
+                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                        String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("SaveOrUpdateAll", entityClassName, "MongoDB",
+                        "Unexpected error during batch saveOrUpdate operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
@@ -136,196 +207,439 @@ public class MongoDBAdapter implements DatabaseAdapter {
             return;
         }
 
-        String collectionName = getTableName(entities.get(0).getClass());
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entities.get(0).getClass().getSimpleName();
 
-        List<UpdateOneModel<Document>> operations = new ArrayList<>();
+        try {
+            String collectionName = getTableName(entities.get(0).getClass());
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        for (T entity : entities) {
-            Object id = getEntityId(entity);
+            List<UpdateOneModel<Document>> operations = new ArrayList<>();
+            int successCount = 0;
+            int failureCount = 0;
 
-            if (id == null) {
-                DebugUtils.logInternalError("No se puede actualizar entidad sin ID en updateAll");
-                continue;
+            for (T entity : entities) {
+                try {
+                    Object id = getEntityId(entity);
+
+                    if (id == null) {
+                        failureCount++;
+                        errorHandler.logWarning("UpdateAll", entityClassName,
+                                "Cannot update entity without ID in updateAll");
+                        continue;
+                    }
+
+                    Document filter = new Document("_id", convertToObjectId(id));
+                    Document updateDocument = entityToDocument(entity);
+
+                    // Remove _id from update document to avoid errors
+                    updateDocument.remove("_id");
+
+                    Document update = new Document("$set", updateDocument);
+                    operations.add(new UpdateOneModel<>(filter, update));
+                    successCount++;
+                } catch (Exception e) {
+                    failureCount++;
+                    errorHandler.logWarning("UpdateAll", entityClassName,
+                            "Failed to prepare entity for bulk update: " + e.getMessage());
+                }
             }
 
-            Document filter = new Document("_id", convertToObjectId(id));
-            Document updateDocument = entityToDocument(entity);
+            if (!operations.isEmpty()) {
+                try {
+                    BulkWriteResult result = collection.bulkWrite(operations);
+                    logInternalInfo("updateAll completed: " +
+                            result.getModifiedCount() + " of " + entities.size() + " entities updated");
+                } catch (Exception e) {
+                    throw new DatabaseException("UpdateAll", entityClassName, "MongoDB",
+                            "MongoDB bulk update operation failed", e);
+                }
+            }
 
-            // Remover el _id del documento de actualización para evitar errores
-            updateDocument.remove("_id");
+            if (failureCount > 0) {
+                errorHandler.logWarning("UpdateAll", entityClassName,
+                        String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
+            }
 
-            Document update = new Document("$set", updateDocument);
-            operations.add(new UpdateOneModel<>(filter, update));
-        }
-
-        if (!operations.isEmpty()) {
-            BulkWriteResult result = collection.bulkWrite(operations);
-            DebugUtils.logInternalInfo("updateAll completado: " +
-                    result.getModifiedCount() + " de " + entities.size() + " entidades actualizadas");
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("UpdateAll", entityClassName, "MongoDB",
+                        "Unexpected error during batch update operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 
     @Override
     public <T> void update(T entity) throws Exception {
-        String collectionName = getTableName(entity.getClass());
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        Object id = getEntityId(entity);
-        if (id == null) {
-            throw new IllegalArgumentException("No se puede actualizar una entidad sin ID");
+        try {
+            String collectionName = getTableName(entity.getClass());
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            Object id = getEntityId(entity);
+            if (id == null) {
+                throw new DatabaseException("Update", entityClassName, "MongoDB",
+                        "Cannot update entity without ID");
+            }
+
+            Document document = entityToDocument(entity);
+            Document filter = new Document("_id", convertToObjectId(id));
+
+            try {
+                collection.replaceOne(filter, document, new ReplaceOptions().upsert(false));
+                logInternalDebug(debug(), "Entity updated successfully in MongoDB collection: " + collectionName);
+            } catch (Exception e) {
+                throw new DatabaseException("Update", entityClassName, "MongoDB",
+                        "MongoDB update operation failed for ID: " + id, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Update", entityClassName, "MongoDB",
+                        "Unexpected error during update operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
-
-        Document document = entityToDocument(entity);
-        Document filter = new Document("_id", convertToObjectId(id));
-
-        collection.replaceOne(filter, document, new ReplaceOptions().upsert(false));
     }
 
     @Override
     public <T> void delete(T entity) throws Exception {
-        String collectionName = getTableName(entity.getClass());
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entity.getClass().getSimpleName();
 
-        Object id = getEntityId(entity);
-        if (id == null) {
-            throw new IllegalArgumentException("No se puede eliminar una entidad sin ID");
+        try {
+            String collectionName = getTableName(entity.getClass());
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            Object id = getEntityId(entity);
+            if (id == null) {
+                throw new DatabaseException("Delete", entityClassName, "MongoDB",
+                        "Cannot delete entity without ID");
+            }
+
+            Document filter = new Document("_id", convertToObjectId(id));
+
+            try {
+                collection.deleteOne(filter);
+                logInternalDebug(debug(), "Entity deleted successfully from MongoDB collection: " + collectionName);
+            } catch (Exception e) {
+                throw new DatabaseException("Delete", entityClassName, "MongoDB",
+                        "MongoDB delete operation failed for ID: " + id, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("Delete", entityClassName, "MongoDB",
+                        "Unexpected error during delete operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
-
-        Document filter = new Document("_id", convertToObjectId(id));
-        collection.deleteOne(filter);
     }
 
     @Override
     public <T> Optional<T> findById(Class<T> entityClass, Object id) throws Exception {
-        String collectionName = getTableName(entityClass);
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entityClass.getSimpleName();
 
-        Document filter = new Document("_id", convertToObjectId(id));
-        Document document = collection.find(filter).first();
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        if (document != null) {
-            return Optional.of(documentToEntity(document, entityClass));
+            Document filter = new Document("_id", convertToObjectId(id));
+
+            try {
+                Document document = collection.find(filter).first();
+
+                if (document != null) {
+                    try {
+                        T entity = documentToEntity(document, entityClass);
+                        return Optional.of(entity);
+                    } catch (Exception e) {
+                        throw new DatabaseException("FindById", entityClassName, "MongoDB",
+                                "Failed to map document to entity for ID: " + id, e);
+                    }
+                }
+
+                return Optional.empty();
+            } catch (Exception e) {
+                throw new DatabaseException("FindById", entityClassName, "MongoDB",
+                        "MongoDB find operation failed for ID: " + id, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindById", entityClassName, "MongoDB",
+                        "Unexpected error during findById operation for ID: " + id, e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
-
-        return Optional.empty();
     }
 
     @Override
     public <T> List<T> findAll(Class<T> entityClass) throws Exception {
-        String collectionName = getTableName(entityClass);
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entityClass.getSimpleName();
 
-        List<T> results = new ArrayList<>();
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        try (MongoCursor<Document> cursor = collection.find().iterator()) {
-            while (cursor.hasNext()) {
-                Document document = cursor.next();
-                results.add(documentToEntity(document, entityClass));
+            List<T> results = new ArrayList<>();
+
+            try (MongoCursor<Document> cursor = collection.find().iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAll", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindAll", entityClassName, "MongoDB",
+                        "MongoDB find operation failed", e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAll", entityClassName, "MongoDB",
+                        "Unexpected error during findAll operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public <T> List<T> findBy(Class<T> entityClass, String field, Object value) throws Exception {
-        String collectionName = getTableName(entityClass);
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entityClass.getSimpleName();
 
-        List<T> results = new ArrayList<>();
-        Document filter = new Document(field, value);
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        try (MongoCursor<Document> cursor = collection.find(filter).iterator()) {
-            while (cursor.hasNext()) {
-                Document document = cursor.next();
-                results.add(documentToEntity(document, entityClass));
+            List<T> results = new ArrayList<>();
+            Document filter = new Document(field, value);
+
+            try (MongoCursor<Document> cursor = collection.find(filter).iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindBy", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindBy", entityClassName, "MongoDB",
+                        String.format("MongoDB findBy operation failed for field '%s' with value: %s", field, value), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindBy", entityClassName, "MongoDB",
+                        String.format("Unexpected error during findBy operation for field '%s'", field), e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public <T> List<T> executeQuery(Class<T> entityClass, String query, Object... params) throws Exception {
-        // Para MongoDB, interpretamos el query como un filtro JSON
-        String collectionName = getTableName(entityClass);
-        MongoCollection<Document> collection = database.getCollection(collectionName);
+        String entityClassName = entityClass.getSimpleName();
 
-        Document filter = Document.parse(query);
-        List<T> results = new ArrayList<>();
+        try {
+            // For MongoDB, interpret query as JSON filter
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
 
-        try (MongoCursor<Document> cursor = collection.find(filter).iterator()) {
-            while (cursor.hasNext()) {
-                Document document = cursor.next();
-                results.add(documentToEntity(document, entityClass));
+            Document filter;
+            try {
+                filter = Document.parse(query);
+            } catch (Exception e) {
+                throw new DatabaseException("ExecuteQuery", entityClassName, "MongoDB",
+                        "Failed to parse query as JSON filter: " + query, e);
+            }
+
+            List<T> results = new ArrayList<>();
+
+            try (MongoCursor<Document> cursor = collection.find(filter).iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("ExecuteQuery", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("ExecuteQuery", entityClassName, "MongoDB",
+                        "MongoDB query execution failed: " + query, e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("ExecuteQuery", entityClassName, "MongoDB",
+                        "Unexpected error during custom query execution", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return results;
     }
 
     @Override
     public int executeUpdate(String query, Object... params) throws Exception {
-        // Para operaciones de actualización en masa en MongoDB
-        throw new UnsupportedOperationException("executeUpdate no está implementado para MongoDB. Use métodos específicos del repositorio.");
+        // For bulk update operations in MongoDB
+        throw new UnsupportedOperationException("executeUpdate is not implemented for MongoDB. Use specific repository methods.");
     }
 
     @Override
     public void createTable(Class<?> entityClass) throws Exception {
-        // MongoDB crea colecciones automáticamente, pero podemos crear índices aquí
-        String collectionName = getTableName(entityClass);
+        String entityClassName = entityClass.getSimpleName();
 
-        // Verificar si la colección ya existe
-        boolean exists = false;
-        for (String name : database.listCollectionNames()) {
-            if (name.equals(collectionName)) {
-                exists = true;
-                break;
-            }
-        }
+        try {
+            // MongoDB creates collections automatically, but we can create indexes here
+            String collectionName = getTableName(entityClass);
 
-        if (!exists) {
-            database.createCollection(collectionName);
-        }
-
-        // Crear índices para campos únicos
-        MongoCollection<Document> collection = database.getCollection(collectionName);
-        Field[] fields = entityClass.getDeclaredFields();
-
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column column = field.getAnnotation(Column.class);
-                if (column.unique() && !column.primaryKey()) {
-                    String fieldName = column.name().isEmpty() ? field.getName() : column.name();
-                    collection.createIndex(new Document(fieldName, 1));
+            // Check if collection already exists
+            boolean exists = false;
+            for (String name : database.listCollectionNames()) {
+                if (name.equals(collectionName)) {
+                    exists = true;
+                    break;
                 }
+            }
+
+            if (!exists) {
+                try {
+                    database.createCollection(collectionName);
+                    logInternalInfo("MongoDB collection created: " + collectionName);
+                } catch (Exception e) {
+                    throw new DatabaseException("CreateTable", entityClassName, "MongoDB",
+                            "Failed to create MongoDB collection: " + collectionName, e);
+                }
+            }
+
+            // Create indexes for unique fields
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+            Field[] fields = entityClass.getDeclaredFields();
+
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    Column column = field.getAnnotation(Column.class);
+                    if (column.unique() && !column.primaryKey()) {
+                        String fieldName = column.name().isEmpty() ? field.getName() : column.name();
+                        try {
+                            collection.createIndex(new Document(fieldName, 1));
+                            logInternalInfo("Index created for unique field: " + fieldName);
+                        } catch (Exception e) {
+                            errorHandler.logWarning("CreateTable", entityClassName,
+                                    "Failed to create index for field " + fieldName + ": " + e.getMessage());
+                        }
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("CreateTable", entityClassName, "MongoDB",
+                        "Unexpected error during collection creation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
     }
 
     @Override
     public void updateTable(Class<?> entityClass) throws Exception {
-        // MongoDB es schema-less, así que solo necesitamos asegurar que la colección existe
-        createTable(entityClass);
+        // MongoDB is schema-less, so we only need to ensure collection exists
+        try {
+            createTable(entityClass);
+        } catch (Exception e) {
+            String entityClassName = entityClass.getSimpleName();
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("UpdateTable", entityClassName, "MongoDB",
+                        "Unexpected error during collection update", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
     }
 
     @Override
     public boolean tableExists(Class<?> entityClass) throws Exception {
-        String collectionName = getTableName(entityClass);
+        String entityClassName = entityClass.getSimpleName();
 
-        for (String name : database.listCollectionNames()) {
-            if (name.equals(collectionName)) {
-                return true;
+        try {
+            String collectionName = getTableName(entityClass);
+
+            try {
+                for (String name : database.listCollectionNames()) {
+                    if (name.equals(collectionName)) {
+                        return true;
+                    }
+                }
+                return false;
+            } catch (Exception e) {
+                throw new DatabaseException("TableExists", entityClassName, "MongoDB",
+                        "Failed to check collection existence: " + collectionName, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("TableExists", entityClassName, "MongoDB",
+                        "Unexpected error while checking collection existence", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
             }
         }
-
-        return false;
     }
 
     @Override
     public List<String> getTableColumns(Class<?> entityClass) throws Exception {
-        // En MongoDB, retornamos los campos definidos en la entidad
+        // In MongoDB, return fields defined in the entity
         List<String> fields = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
@@ -341,19 +655,21 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public void beginTransaction() throws Exception {
-        // MongoDB soporta transacciones solo en replica sets
-        // Para simplificar, no implementamos transacciones por ahora
-        throw new UnsupportedOperationException("Transacciones no implementadas para MongoDB en esta versión");
+        // MongoDB supports transactions only in replica sets
+        // For simplicity, we don't implement transactions in this version
+        throw new UnsupportedOperationException("Transactions not implemented for MongoDB in this version");
     }
 
     @Override
     public void commit() throws Exception {
-        // No implementado
+        // Not implemented
+        throw new UnsupportedOperationException("Transaction commit not implemented for MongoDB");
     }
 
     @Override
     public void rollback() throws Exception {
-        // No implementado
+        // Not implemented
+        throw new UnsupportedOperationException("Transaction rollback not implemented for MongoDB");
     }
 
     @Override
@@ -365,10 +681,10 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
-    // ===== MÉTODOS ACTUALIZADOS CON AUTO-SERIALIZACIÓN =====
-
+    // Enhanced entityToMap with better error handling
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
+        String entityClassName = entity.getClass().getSimpleName();
         Map<String, Object> map = new HashMap<>();
         Field[] fields = entity.getClass().getDeclaredFields();
 
@@ -378,20 +694,32 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 String fieldName = column.name().isEmpty() ? field.getName() : column.name();
 
-                Object value = field.get(entity);
+                try {
+                    Object value = field.get(entity);
 
-                // AUTO-SERIALIZACIÓN: Si está habilitada, serializar automáticamente
-                if (value != null && column.autoSerialize()) {
-                    try {
-                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error auto-serializando campo MongoDB " + fieldName + ": " + e.getMessage());
-                        // Fallback: usar el valor original
+                    // AUTO-SERIALIZATION with enhanced error handling
+                    if (value != null && column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                        } catch (SerializationException e) {
+                            errorHandler.handleError(e);
+                            throw e;
+                        } catch (Exception e) {
+                            SerializationException serException = new SerializationException("Serialize",
+                                    entityClassName, fieldName, column.serializationType().toString(), value,
+                                    "Failed to auto-serialize field during entityToMap", e);
+                            errorHandler.handleError(serException);
+                            throw serException;
+                        }
                     }
-                }
 
-                if (value != null) {
-                    map.put(fieldName, value);
+                    if (value != null) {
+                        map.put(fieldName, value);
+                    }
+
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("EntityToMap", entityClassName, "MongoDB",
+                            "Failed to access field: " + fieldName, e);
                 }
             }
         }
@@ -401,41 +729,99 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public <T> T mapToEntity(Map<String, Object> map, Class<T> entityClass) throws Exception {
-        T entity = entityClass.getDeclaredConstructor().newInstance();
-        Field[] fields = entityClass.getDeclaredFields();
+        String entityClassName = entityClass.getSimpleName();
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                field.setAccessible(true);
-                Column column = field.getAnnotation(Column.class);
-                String fieldName = column.name().isEmpty() ? field.getName() : column.name();
+        try {
+            T entity = entityClass.getDeclaredConstructor().newInstance();
+            Field[] fields = entityClass.getDeclaredFields();
 
-                Object value = map.get(fieldName);
-                if (value != null) {
-                    // AUTO-DESERIALIZACIÓN: Si está habilitada, deserializar automáticamente
-                    if (column.autoSerialize()) {
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    field.setAccessible(true);
+                    Column column = field.getAnnotation(Column.class);
+                    String columnName = column.name().isEmpty() ? field.getName() : column.name();
+
+                    Object value = map.get(columnName);
+
+                    // NUEVA LÓGICA: Inicializar colecciones vacías automáticamente
+                    if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
-                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                            Object emptyCollection = CollectionUtils.createEmptyCollection(field);
+                            if (emptyCollection != null) {
+                                field.set(entity, emptyCollection);
+                                continue; // Skip further processing for this field
+                            }
                         } catch (Exception e) {
-                            DebugUtils.logInternalError("Error auto-deserializando campo MongoDB " + fieldName + ": " + e.getMessage());
-                            // Fallback: intentar conversión normal
-                            value = convertValue(value, field.getType());
+                            errorHandler.logWarning("MapToEntity", entityClassName,
+                                    "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
-                    } else {
-                        value = convertValue(value, field.getType());
                     }
 
-                    field.set(entity, value);
+                    if (value != null) {
+                        try {
+                            // AUTO-DESERIALIZATION with enhanced error handling
+                            if (column.autoSerialize()) {
+                                try {
+                                    value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                                } catch (SerializationException e) {
+                                    errorHandler.handleError(e);
+
+                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
+                                    if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
+                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                                "Deserialization failed for collection " + columnName + ", initializing empty collection");
+                                        value = CollectionUtils.createEmptyCollection(field);
+                                    } else {
+                                        throw e;
+                                    }
+                                } catch (Exception e) {
+                                    SerializationException serException = new SerializationException("Deserialize",
+                                            entityClassName, columnName, column.serializationType().toString(), value,
+                                            "Failed to auto-deserialize field during mapToEntity", e);
+                                    errorHandler.handleError(serException);
+
+                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
+                                    if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
+                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                                "Deserialization failed for collection " + columnName + ", initializing empty collection");
+                                        value = CollectionUtils.createEmptyCollection(field);
+                                    } else {
+                                        throw serException;
+                                    }
+                                }
+                            } else {
+                                value = convertValue(value, field.getType());
+                            }
+
+                            field.set(entity, value);
+
+                        } catch (IllegalAccessException e) {
+                            throw new DatabaseException("MapToEntity", entityClassName, getAdapterType(),
+                                    "Failed to set field value: " + columnName, e);
+                        }
+                    }
                 }
             }
-        }
 
-        return entity;
+            return entity;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException || e instanceof SerializationException) {
+                throw e;
+            } else {
+                throw new DatabaseException("MapToEntity", entityClassName, getAdapterType(),
+                        "Failed to create entity instance or map fields", e);
+            }
+        }
     }
 
-    // Métodos específicos de MongoDB actualizados
+    private String getAdapterType() {
+        return this.getClass().getSimpleName().replace("Adapter", "");
+    }
 
+    // MongoDB-specific methods with enhanced error handling
     private Document entityToDocument(Object entity) throws Exception {
+        String entityClassName = entity.getClass().getSimpleName();
         Document document = new Document();
         Field[] fields = entity.getClass().getDeclaredFields();
 
@@ -451,29 +837,42 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     fieldName = column.name().isEmpty() ? field.getName() : column.name();
                 }
 
-                Object value = field.get(entity);
+                try {
+                    Object value = field.get(entity);
 
-                // AUTO-SERIALIZACIÓN para MongoDB
-                if (value != null && column.autoSerialize()) {
-                    try {
-                        value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error auto-serializando campo documento MongoDB " + fieldName + ": " + e.getMessage());
-                    }
-                }
-
-                if (value != null) {
-                    if (fieldName.equals("_id") && value instanceof String) {
-                        // Convertir String a ObjectId si es necesario
+                    // AUTO-SERIALIZATION for MongoDB
+                    if (value != null && column.autoSerialize()) {
                         try {
-                            document.put(fieldName, new ObjectId(value.toString()));
-                        } catch (IllegalArgumentException e) {
-                            // Si no es un ObjectId válido, usar como String
+                            value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                        } catch (SerializationException e) {
+                            errorHandler.handleError(e);
+                            throw e;
+                        } catch (Exception e) {
+                            SerializationException serException = new SerializationException("Serialize",
+                                    entityClassName, fieldName, column.serializationType().toString(), value,
+                                    "Failed to auto-serialize field during document creation", e);
+                            errorHandler.handleError(serException);
+                            throw serException;
+                        }
+                    }
+
+                    if (value != null) {
+                        if (fieldName.equals("_id") && value instanceof String) {
+                            // Convert String to ObjectId if necessary
+                            try {
+                                document.put(fieldName, new ObjectId(value.toString()));
+                            } catch (IllegalArgumentException e) {
+                                // If not a valid ObjectId, use as String
+                                document.put(fieldName, value);
+                            }
+                        } else {
                             document.put(fieldName, value);
                         }
-                    } else {
-                        document.put(fieldName, value);
                     }
+
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("EntityToDocument", entityClassName, "MongoDB",
+                            "Failed to access field: " + fieldName, e);
                 }
             }
         }
@@ -482,51 +881,70 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     private <T> T documentToEntity(Document document, Class<T> entityClass) throws Exception {
-        T entity = entityClass.getDeclaredConstructor().newInstance();
-        Field[] fields = entityClass.getDeclaredFields();
+        String entityClassName = entityClass.getSimpleName();
 
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Column.class)) {
-                field.setAccessible(true);
-                Column column = field.getAnnotation(Column.class);
-                String fieldName;
+        try {
+            T entity = entityClass.getDeclaredConstructor().newInstance();
+            Field[] fields = entityClass.getDeclaredFields();
 
-                if (column.primaryKey()) {
-                    fieldName = "_id";
-                } else {
-                    fieldName = column.name().isEmpty() ? field.getName() : column.name();
-                }
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    field.setAccessible(true);
+                    Column column = field.getAnnotation(Column.class);
+                    String fieldName;
 
-                Object value = document.get(fieldName);
-                if (value != null) {
-                    // AUTO-DESERIALIZACIÓN para MongoDB
-                    if (column.autoSerialize()) {
-                        try {
-                            value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
-                        } catch (Exception e) {
-                            DebugUtils.logInternalError("Error auto-deserializando campo documento MongoDB " + fieldName + ": " + e.getMessage());
-                            // Fallback a conversión normal
-                            if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
-                                value = value.toString();
-                            } else {
-                                value = convertValue(value, field.getType());
-                            }
-                        }
+                    if (column.primaryKey()) {
+                        fieldName = "_id";
                     } else {
-                        if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
-                            // Convertir ObjectId a String
-                            value = value.toString();
-                        } else {
-                            value = convertValue(value, field.getType());
-                        }
+                        fieldName = column.name().isEmpty() ? field.getName() : column.name();
                     }
 
-                    field.set(entity, value);
+                    Object value = document.get(fieldName);
+                    if (value != null) {
+                        try {
+                            // AUTO-DESERIALIZATION for MongoDB
+                            if (column.autoSerialize()) {
+                                try {
+                                    value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
+                                } catch (SerializationException e) {
+                                    errorHandler.handleError(e);
+                                    throw e;
+                                } catch (Exception e) {
+                                    SerializationException serException = new SerializationException("Deserialize",
+                                            entityClassName, fieldName, column.serializationType().toString(), value,
+                                            "Failed to auto-deserialize field during entity creation", e);
+                                    errorHandler.handleError(serException);
+                                    throw serException;
+                                }
+                            } else {
+                                if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
+                                    // Convert ObjectId to String
+                                    value = value.toString();
+                                } else {
+                                    value = convertValue(value, field.getType());
+                                }
+                            }
+
+                            field.set(entity, value);
+
+                        } catch (IllegalAccessException e) {
+                            throw new DatabaseException("DocumentToEntity", entityClassName, "MongoDB",
+                                    "Failed to set field value: " + fieldName, e);
+                        }
+                    }
                 }
             }
-        }
 
-        return entity;
+            return entity;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException || e instanceof SerializationException) {
+                throw e;
+            } else {
+                throw new DatabaseException("DocumentToEntity", entityClassName, "MongoDB",
+                        "Failed to create entity instance or map fields", e);
+            }
+        }
     }
 
     private Object getEntityId(Object entity) throws Exception {
@@ -537,7 +955,12 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 if (column.primaryKey()) {
                     field.setAccessible(true);
-                    return field.get(entity);
+                    try {
+                        return field.get(entity);
+                    } catch (IllegalAccessException e) {
+                        throw new DatabaseException("GetEntityId", entity.getClass().getSimpleName(), "MongoDB",
+                                "Failed to access primary key field", e);
+                    }
                 }
             }
         }
@@ -556,10 +979,15 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     Object id = document.get("_id");
 
                     if (id != null) {
-                        if (field.getType() == String.class && id instanceof ObjectId) {
-                            field.set(entity, id.toString());
-                        } else {
-                            field.set(entity, id);
+                        try {
+                            if (field.getType() == String.class && id instanceof ObjectId) {
+                                field.set(entity, id.toString());
+                            } else {
+                                field.set(entity, id);
+                            }
+                        } catch (IllegalAccessException e) {
+                            throw new DatabaseException("SetIdFromDocument", entity.getClass().getSimpleName(), "MongoDB",
+                                    "Failed to set ID field from document", e);
                         }
                     }
                     break;
@@ -584,32 +1012,37 @@ public class MongoDBAdapter implements DatabaseAdapter {
             return value;
         }
 
-        if (targetType == String.class) {
-            return value.toString();
-        } else if (targetType == int.class || targetType == Integer.class) {
-            if (value instanceof Number) {
-                return ((Number) value).intValue();
+        try {
+            if (targetType == String.class) {
+                return value.toString();
+            } else if (targetType == int.class || targetType == Integer.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).intValue();
+                }
+                return Integer.valueOf(value.toString());
+            } else if (targetType == long.class || targetType == Long.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+                return Long.valueOf(value.toString());
+            } else if (targetType == double.class || targetType == Double.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).doubleValue();
+                }
+                return Double.valueOf(value.toString());
+            } else if (targetType == float.class || targetType == Float.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).floatValue();
+                }
+                return Float.valueOf(value.toString());
+            } else if (targetType == boolean.class || targetType == Boolean.class) {
+                return Boolean.valueOf(value.toString());
             }
-            return Integer.valueOf(value.toString());
-        } else if (targetType == long.class || targetType == Long.class) {
-            if (value instanceof Number) {
-                return ((Number) value).longValue();
-            }
-            return Long.valueOf(value.toString());
-        } else if (targetType == double.class || targetType == Double.class) {
-            if (value instanceof Number) {
-                return ((Number) value).doubleValue();
-            }
-            return Double.valueOf(value.toString());
-        } else if (targetType == float.class || targetType == Float.class) {
-            if (value instanceof Number) {
-                return ((Number) value).floatValue();
-            }
-            return Float.valueOf(value.toString());
-        } else if (targetType == boolean.class || targetType == Boolean.class) {
-            return Boolean.valueOf(value.toString());
-        }
 
-        return value;
+            return value;
+        } catch (Exception e) {
+            throw new DatabaseException("Value Conversion", "Unknown", "MongoDB",
+                    String.format("Failed to convert value '%s' to type %s", value, targetType.getSimpleName()), e);
+        }
     }
 }

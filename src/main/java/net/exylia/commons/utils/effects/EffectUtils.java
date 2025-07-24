@@ -1,5 +1,6 @@
 package net.exylia.commons.utils.effects;
 
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -9,7 +10,7 @@ import java.util.List;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 public class EffectUtils {
-    public static void applyEffects(Player player, List<String> effects) {
+    public static void applyEffects(LivingEntity livingEntity, List<String> effects) {
         for (String effectString : effects) {
             try {
                 String[] parts = effectString.split("\\|");
@@ -20,7 +21,7 @@ public class EffectUtils {
 
                     if (type != null) {
                         PotionEffect effect = new PotionEffect(type, durationTicks, amplifier, false, false, false);
-                        player.addPotionEffect(effect);
+                        livingEntity.addPotionEffect(effect);
                     }
                 }
             } catch (Exception e) {

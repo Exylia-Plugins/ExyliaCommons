@@ -232,6 +232,70 @@ public class RegionManager {
                 .filter(filter)
                 .collect(Collectors.toList());
     }
+    /**
+     * Encuentra la región más cercana al jugador de una colección dada
+     * @param location La ubicación de referencia
+     * @param regions La colección de regiones a evaluar
+     * @return Optional con la región más cercana, o empty si la colección está vacía
+     */
+    public Optional<Region> findClosestRegion(Location location, Collection<Region> regions) {
+        if (regions == null || regions.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Region closestRegion = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (Region region : regions) {
+            double distance = calculateDistanceToRegion(location, region);
+
+            if (distance < minDistance) {
+                minDistance = distance;
+                closestRegion = region;
+            }
+        }
+
+        return Optional.ofNullable(closestRegion);
+    }
+
+    /**
+     * Calcula la distancia mínima desde una ubicación hasta una región
+     * @param location La ubicación de referencia
+     * @param region La región a evaluar
+     * @return La distancia mínima a la región (0 si está dentro)
+     */
+    private double calculateDistanceToRegion(Location location, Region region) {
+        // Si el jugador está dentro de la región, la distancia es 0
+        if (region.contains(location)) {
+            return 0.0;
+        }
+
+        // Obtener los puntos mínimo y máximo de la región
+        Location minPoint = region.getMinimumPoint();
+        Location maxPoint = region.getMaximumPoint();
+
+        // Verificar que estén en el mismo mundo
+        if (!location.getWorld().equals(minPoint.getWorld())) {
+            return Double.MAX_VALUE; // Distancia infinita si están en mundos diferentes
+        }
+
+        // Calcular el punto más cercano en la región al jugador
+        double x = location.getX();
+        double y = location.getY();
+        double z = location.getZ();
+
+        // Clamp coordinates to region bounds
+        double closestX = Math.max(minPoint.getX(), Math.min(x, maxPoint.getX()));
+        double closestY = Math.max(minPoint.getY(), Math.min(y, maxPoint.getY()));
+        double closestZ = Math.max(minPoint.getZ(), Math.min(z, maxPoint.getZ()));
+
+        // Calcular distancia euclidiana
+        double dx = x - closestX;
+        double dy = y - closestY;
+        double dz = z - closestZ;
+
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
 
     // ===== GESTIÓN DE JUGADORES =====
 
