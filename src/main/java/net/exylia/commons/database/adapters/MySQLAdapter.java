@@ -993,8 +993,10 @@ public class MySQLAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // AUTO-SERIALIZATION with enhanced error handling
-                    if (value != null && column.autoSerialize()) {
+                    // Manejo especial para enums
+                    if (value != null && value.getClass().isEnum()) {
+                        value = ((Enum<?>) value).name(); // Convertir a string
+                    } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
                         } catch (SerializationException e) {
@@ -1053,8 +1055,13 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                     if (value != null) {
                         try {
-                            // AUTO-DESERIALIZATION with enhanced error handling
-                            if (column.autoSerialize()) {
+                            // Manejo especial para enums
+                            if (field.getType().isEnum() && value instanceof String) {
+                                @SuppressWarnings("unchecked")
+                                Class<Enum> enumClass = (Class<Enum>) field.getType();
+                                value = Enum.valueOf(enumClass, (String) value);
+                            }
+                            else if (column.autoSerialize()) {
                                 try {
                                     value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
                                 } catch (SerializationException e) {

@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
@@ -59,6 +60,18 @@ public class MessageUtils {
     public static void sendMessage(CommandSender sender, String message) {
         Component component = ColorUtils.parse(message);
         sendMessage(sender, component);
+    }
+
+    public static void sendMessage(UUID playerUUID, Component component) {
+        Player player = Bukkit.getPlayer(playerUUID);
+        if (player != null) {
+            sendMessage(player, component);
+        }
+    }
+
+    public static void sendMessage(UUID playerUUID, String message) {
+        Component component = ColorUtils.parse(message);
+        sendMessage(playerUUID, component);
     }
 
     /**

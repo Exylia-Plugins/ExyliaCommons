@@ -551,29 +551,9 @@ public class FlagManager {
         new BukkitRunnable() {
             @Override
             public void run() {
-                // Limpieza de cache más eficiente
                 optimizedCache.performMaintenance();
-
-                // Estadísticas cada 5 minutos
-                if (System.currentTimeMillis() % 300000 < 20000) { // Aproximadamente cada 5 min
-                    logCacheStats();
-                }
             }
         }.runTaskTimerAsynchronously(plugin, 100L, 100L); // Cada 5 segundos
-    }
-
-    private void logCacheStats() {
-        long hits = cacheHits.get();
-        long misses = cacheMisses.get();
-        long total = hits + misses;
-
-        if (total > 0) {
-            double hitRatio = (double) hits / total * 100;
-            DebugUtils.logInternalDebug(debug(), String.format(
-                    "FlagManager Cache Stats - Hits: %d, Misses: %d, Hit Ratio: %.2f%%, Validations: %d",
-                    hits, misses, hitRatio, validationCalls.get()
-            ));
-        }
     }
 
     /**
