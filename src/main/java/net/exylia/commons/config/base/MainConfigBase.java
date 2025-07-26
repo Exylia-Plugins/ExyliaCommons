@@ -15,11 +15,42 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "debug", defaultValue = "false")
     private boolean debug;
 
-    @ConfigValue(value = "time.format", defaultValue = "HUMAN_READABLE")
-    private String timeFormat;
+    // ===== CONFIGURACIONES DATE FORMATTER =====
 
-    @ConfigValue(value = "time.show_zero_values", defaultValue = "false")
-    private boolean showZeroValues;
+    @ConfigValue(value = "date-formatter.default-pattern", defaultValue = "dd/MM/yyyy HH:mm:ss")
+    private String dateFormatterDefaultPattern;
+
+    @ConfigValue(value = "date-formatter.date-pattern", defaultValue = "dd/MM/yyyy")
+    private String dateFormatterDatePattern;
+
+    @ConfigValue(value = "date-formatter.time-pattern", defaultValue = "HH:mm:ss")
+    private String dateFormatterTimePattern;
+
+    @ConfigValue(value = "date-formatter.language", defaultValue = "es")
+    private String dateFormatterLanguage;
+
+    @ConfigValue(value = "date-formatter.use-iso", defaultValue = "false")
+    private boolean dateFormatterUseIso;
+
+    // ===== CONFIGURACIONES TIME FORMATTER =====
+
+    @ConfigValue(value = "time-formatter.zero-text", defaultValue = "0s")
+    private String timeFormatterZeroText;
+
+    @ConfigValue(value = "time-formatter.show-milliseconds", defaultValue = "true")
+    private boolean timeFormatterShowMilliseconds;
+
+    @ConfigValue(value = "time-formatter.precision", defaultValue = "1")
+    private int timeFormatterPrecision;
+
+    @ConfigValue(value = "time-formatter.language", defaultValue = "es")
+    private String timeFormatterLanguage;
+
+    @ConfigValue(value = "time-formatter.compact-mode", defaultValue = "false")
+    private boolean timeFormatterCompactMode;
+
+    @ConfigValue(value = "time-formatter.auto-detect-seconds", defaultValue = "true")
+    private boolean timeFormatterAutoDetectSeconds;
 
     // ===== GETTERS ESTÁTICOS =====
 
@@ -29,16 +60,74 @@ public class MainConfigBase extends ConfigBase {
         return instance.debug;
     }
 
-    public static String timeFormat() {
+    // ===== DATE FORMATTER GETTERS =====
+
+    public static String dateFormatterDefaultPattern() {
         MainConfigBase instance = getActiveInstance();
-        if (instance == null) return null;
-        return instance.timeFormat;
+        if (instance == null) return "dd/MM/yyyy HH:mm:ss";
+        return instance.dateFormatterDefaultPattern;
     }
 
-    public static boolean timeShowZeroValues() {
+    public static String dateFormatterDatePattern() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "dd/MM/yyyy";
+        return instance.dateFormatterDatePattern;
+    }
+
+    public static String dateFormatterTimePattern() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "HH:mm:ss";
+        return instance.dateFormatterTimePattern;
+    }
+
+    public static String dateFormatterLanguage() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "es";
+        return instance.dateFormatterLanguage;
+    }
+
+    public static boolean dateFormatterUseIso() {
         MainConfigBase instance = getActiveInstance();
         if (instance == null) return false;
-        return instance.showZeroValues;
+        return instance.dateFormatterUseIso;
+    }
+
+    // ===== TIME FORMATTER GETTERS =====
+
+    public static String timeFormatterZeroText() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "0s";
+        return instance.timeFormatterZeroText;
+    }
+
+    public static boolean timeFormatterShowMilliseconds() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return true;
+        return instance.timeFormatterShowMilliseconds;
+    }
+
+    public static int timeFormatterPrecision() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return 1;
+        return instance.timeFormatterPrecision;
+    }
+
+    public static String timeFormatterLanguage() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "es";
+        return instance.timeFormatterLanguage;
+    }
+
+    public static boolean timeFormatterCompactMode() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return false;
+        return instance.timeFormatterCompactMode;
+    }
+
+    public static boolean timeFormatterAutoDetectSeconds() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return true;
+        return instance.timeFormatterAutoDetectSeconds;
     }
 
     // ===== MÉTODOS INTERNOS =====
@@ -47,19 +136,15 @@ public class MainConfigBase extends ConfigBase {
      * Obtiene la instancia activa de MainConfigBase o su extensión
      */
     private static MainConfigBase getActiveInstance() {
-        // Primero intentar obtener la extensión del plugin actual
         try {
-            // Si hay una extensión registrada, usarla
             for (Class<?> clazz : ConfigManager.getSystem().getConfigInstances().keySet()) {
                 if (MainConfigBase.class.isAssignableFrom(clazz) && !clazz.equals(MainConfigBase.class)) {
                     return (MainConfigBase) ConfigManager.getSystem().getConfigInstances().get(clazz);
                 }
             }
-        } catch (Exception e) {
-            // Si falla, usar la instancia base
+        } catch (Exception ignored) {
         }
 
-        // Fallback a la instancia base
         try {
             return ConfigManager.get(MainConfigBase.class);
         } catch (Exception e) {

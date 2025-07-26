@@ -83,7 +83,7 @@ public class MenuConfiguration {
         if (itemsSection != null) {
             loadItems(menu, itemsSection, player, rows, context);
         }
-
+        menu.enableSmartRefresh();
         return menu;
     }
 
@@ -202,6 +202,8 @@ public class MenuConfiguration {
                 executeCommands(commands, event.getPlayer(), context);
             });
         }
+
+        item.withContext(context);
 
         return item;
     }

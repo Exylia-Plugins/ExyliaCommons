@@ -1,257 +1,628 @@
 package net.exylia.commons.utils;
 
-import lombok.Getter;
 import net.exylia.commons.config.base.MainConfigBase;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-/**
- * Formateador de tiempo que acepta long, int o double y retorna diferentes formatos
- */
 public class TimeFormatter {
 
-    public enum Format {
-        HUMAN_READABLE,  // 4m 3s
-        DIGITAL,         // 04:03
-        APPROXIMATE      // 4 (aproximado)
+    // Instancia singleton estática
+    public static final TimeFormatter timeFormatter = new TimeFormatter();
+
+    // Constantes de tiempo en milisegundos
+    private static final long MILLISECOND = 1;
+    private static final long SECOND = 1000;
+    private static final long MINUTE = 60 * SECOND;
+    private static final long HOUR = 60 * MINUTE;
+    private static final long DAY = 24 * HOUR;
+    private static final long WEEK = 7 * DAY;
+    private static final long MONTH = 30 * DAY;
+    private static final long YEAR = 365 * DAY;
+
+    // Configuración dinámica (se carga desde MainConfigBase)
+    private static String zeroText;
+    private static boolean showMilliseconds;
+    private static boolean compactMode;
+    private static int precision;
+    private static String language;
+    private static boolean autoDetectSeconds;
+
+    // Constructor privado para singleton
+    private TimeFormatter() {
+        init();
     }
 
-    private Format defaultFormat = Format.HUMAN_READABLE;
-    private boolean showZeroValues = false;
-    private boolean showMilliseconds = false;
-    private String minValueText = null;
-    private double minThreshold = 0.0;
-
-    // Constructores
-    public TimeFormatter() {}
-
-    public TimeFormatter(Format defaultFormat) {
-        this.defaultFormat = defaultFormat;
-    }
-
-    @Getter
-    public static TimeFormatter timeFormatter;
-
+    /**
+     * Inicializa la configuración desde MainConfigBase
+     */
     public static void init() {
-        timeFormatter = new TimeFormatter().setDefaultFormat(TimeFormatter.Format.valueOf(MainConfigBase.timeFormat())).showZeroValues(MainConfigBase.timeShowZeroValues());
+        reload();
     }
 
+    /**
+     * Recarga la configuración desde MainConfigBase
+     */
     public static void reload() {
-        timeFormatter.setDefaultFormat(TimeFormatter.Format.valueOf(MainConfigBase.timeFormat())).showZeroValues(MainConfigBase.timeShowZeroValues());
-    }
-
-    // Métodos de configuración
-    public TimeFormatter setDefaultFormat(Format format) {
-        this.defaultFormat = format;
-        return this;
-    }
-
-    public TimeFormatter showZeroValues(boolean show) {
-        this.showZeroValues = show;
-        return this;
-    }
-
-    public TimeFormatter showMilliseconds(boolean show) {
-        this.showMilliseconds = show;
-        return this;
+        zeroText = MainConfigBase.timeFormatterZeroText();
+        showMilliseconds = MainConfigBase.timeFormatterShowMilliseconds();
+        compactMode = MainConfigBase.timeFormatterCompactMode();
+        precision = MainConfigBase.timeFormatterPrecision();
+        language = MainConfigBase.timeFormatterLanguage();
+        autoDetectSeconds = MainConfigBase.timeFormatterAutoDetectSeconds();
     }
 
     /**
-     * Establece el texto a mostrar cuando el tiempo es menor o igual al umbral mínimo
-     * @param text Texto a mostrar (ej: "AHORA", "Recién", "0s")
-     * @param threshold Umbral en segundos (por defecto 0.0)
-     * @return this para encadenamiento fluido
+     * Formateo automático inteligente
      */
-    public TimeFormatter whenMin(String text, double threshold) {
-        this.minValueText = text;
-        this.minThreshold = threshold;
-        return this;
+    public String format(Object input) {
+        long millis = parseInput(input);
+
+        // Manejar casos especiales
+        if (millis <= 0) {
+            return zeroText;
+        }
+
+        return formatDuration(millis);
     }
 
     /**
-     * Establece el texto a mostrar cuando el tiempo es 0
-     * @param text Texto a mostrar (ej: "AHORA", "Recién", "0s")
-     * @return this para encadenamiento fluido
+     * Formateo con texto personalizado para cero/negativo
      */
-    public TimeFormatter whenMin(String text) {
-        return whenMin(text, 0.0);
+    public String format(Object input, String zeroText) {
+        long millis = parseInput(input);
+
+        if (millis <= 0) {
+            return zeroText;
+        }
+
+        return formatDuration(millis);
     }
 
     /**
-     * Limpia la configuración de valor mínimo
-     * @return this para encadenamiento fluido
+     * Formateo en estilo reloj: HH:MM:SS o MM:SS
      */
-    public TimeFormatter clearMin() {
-        this.minValueText = null;
-        this.minThreshold = 0.0;
-        return this;
-    }
+    public String formatClock(Object input) {
+        long millis = parseInput(input);
 
-    // Métodos principales de formateo
-    public String format(long timeInSeconds) {
-        return format(timeInSeconds, defaultFormat);
-    }
-
-    public String format(int timeInSeconds) {
-        return format((long) timeInSeconds, defaultFormat);
-    }
-
-    public String format(double timeInSeconds) {
-        return format(timeInSeconds, defaultFormat);
-    }
-
-    public String format(long timeInSeconds, Format format) {
-        return format((double) timeInSeconds, format);
-    }
-
-    public String format(int timeInSeconds, Format format) {
-        return format((double) timeInSeconds, format);
-    }
-
-    public String format(double timeInSeconds, Format format) {
-        // Verificar si debe mostrar el texto de valor mínimo
-        if (minValueText != null && timeInSeconds <= minThreshold) {
-            return minValueText;
+        if (millis <= 0) {
+            return "00:00";
         }
 
-        return switch (format) {
-            case DIGITAL -> formatDigital(timeInSeconds);
-            case APPROXIMATE -> formatApproximate(timeInSeconds);
-            default -> formatHumanReadable(timeInSeconds);
-        };
+        return formatAsClockTime(millis);
     }
 
-    // Formateo legible por humanos: 4m 3s
-    private String formatHumanReadable(double totalSeconds) {
-        int hours = (int) (totalSeconds / 3600);
-        int minutes = (int) ((totalSeconds % 3600) / 60);
-        int seconds = (int) (totalSeconds % 60);
-        int milliseconds = (int) ((totalSeconds - Math.floor(totalSeconds)) * 1000);
+    /**
+     * Formateo en estilo reloj con formato personalizado
+     */
+    public String formatClock(Object input, ClockFormat format) {
+        long millis = parseInput(input);
 
-        StringBuilder result = new StringBuilder();
-
-        if (hours > 0 || showZeroValues) {
-            result.append(hours).append("h ");
+        if (millis <= 0) {
+            return format == ClockFormat.HH_MM_SS ? "00:00:00" : "00:00";
         }
 
-        if (minutes > 0 || (showZeroValues && hours > 0)) {
-            result.append(minutes).append("m ");
+        return formatAsClockTime(millis, format);
+    }
+
+    /**
+     * Formateo compacto (sin espacios)
+     */
+    public String formatCompact(Object input) {
+        TimeFormatter formatter = this.copy();
+        formatter.compactMode = true;
+
+        long millis = parseInput(input);
+        if (millis <= 0) {
+            return zeroText;
         }
 
-        if (seconds > 0 || result.isEmpty() || showZeroValues) {
-            if (hours == 0 && minutes == 0) {
-                double secondsWithDecimals = totalSeconds % 60;
-                DecimalFormat df = new DecimalFormat("#.#");
-                result.append(df.format(secondsWithDecimals)).append("s");
-            } else {
-                result.append(seconds).append("s");
+        return formatter.formatDuration(millis);
+    }
+
+    /**
+     * Formateo con precisión específica para milisegundos
+     */
+    public String formatWithPrecision(Object input, int decimalPlaces) {
+        TimeFormatter formatter = this.copy();
+        formatter.precision = decimalPlaces;
+
+        return formatter.format(input);
+    }
+
+    /**
+     * Formateo sin milisegundos
+     */
+    public String formatNoMillis(Object input) {
+        TimeFormatter formatter = this.copy();
+        formatter.showMilliseconds = false;
+
+        return formatter.format(input);
+    }
+
+    /**
+     * Formateo verbal en español
+     */
+    public String formatVerbal(Object input) {
+        long millis = parseInput(input);
+
+        if (millis <= 0) {
+            return "sin tiempo";
+        }
+
+        return formatVerbalDuration(millis);
+    }
+
+    /**
+     * Formateo para mayor unidad significativa
+     */
+    public String formatLargestUnit(Object input) {
+        long millis = parseInput(input);
+
+        if (millis <= 0) {
+            return zeroText;
+        }
+
+        return formatLargestSignificantUnit(millis);
+    }
+
+    /**
+     * Formateo aproximado (solo las dos unidades más grandes)
+     */
+    public String formatApproximate(Object input) {
+        long millis = parseInput(input);
+
+        if (millis <= 0) {
+            return zeroText;
+        }
+
+        return formatApproximateDuration(millis);
+    }
+
+    /**
+     * Convierte a unidad específica
+     */
+    public String formatAsUnit(Object input, TimeUnit unit) {
+        long millis = parseInput(input);
+
+        if (millis <= 0) {
+            return "0 " + getUnitName(unit);
+        }
+
+        return convertToUnit(millis, unit);
+    }
+
+    /**
+     * Obtiene componentes de tiempo por separado
+     */
+    public TimeComponents getComponents(Object input) {
+        long millis = parseInput(input);
+        return new TimeComponents(millis);
+    }
+
+    // ================= MÉTODOS INTERNOS =================
+
+    private long parseInput(Object input) {
+        if (input == null) {
+            return 0;
+        }
+
+        if (input instanceof Number) {
+            long value = ((Number) input).longValue();
+
+            // Auto-detectar si son segundos o milisegundos según configuración
+            if (autoDetectSeconds && value > 0 && value < 315360000) { // menos de 10 años en segundos
+                // Verificar si tiene sentido como segundos vs milisegundos
+                if (value < 86400) { // menos de 1 día en segundos, probablemente segundos
+                    return value * 1000;
+                }
+            }
+
+            return value; // asumir milisegundos por defecto
+        }
+
+        if (input instanceof String) {
+            return parseStringDuration((String) input);
+        }
+
+        return 0;
+    }
+
+    private long parseStringDuration(String duration) {
+        // Parsear strings como "1h 30m", "90s", etc.
+        duration = duration.toLowerCase().replaceAll("\\s+", "");
+        long totalMillis = 0;
+
+        // Patrones para extraer números y unidades
+        String[] patterns = {"(\\d+(?:\\.\\d+)?)y", "(\\d+(?:\\.\\d+)?)mo", "(\\d+(?:\\.\\d+)?)w",
+                "(\\d+(?:\\.\\d+)?)d", "(\\d+(?:\\.\\d+)?)h", "(\\d+(?:\\.\\d+)?)m(?!s)",
+                "(\\d+(?:\\.\\d+)?)s", "(\\d+(?:\\.\\d+)?)ms"};
+        long[] multipliers = {YEAR, MONTH, WEEK, DAY, HOUR, MINUTE, SECOND, MILLISECOND};
+
+        for (int i = 0; i < patterns.length; i++) {
+            java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(patterns[i]);
+            java.util.regex.Matcher matcher = pattern.matcher(duration);
+            if (matcher.find()) {
+                double value = Double.parseDouble(matcher.group(1));
+                totalMillis += (long) (value * multipliers[i]);
             }
         }
 
-
-        if (showMilliseconds && milliseconds > 0) {
-            result.append(" ").append(milliseconds).append("ms");
-        }
-
-        return result.toString().trim();
+        return totalMillis;
     }
 
-    // Formateo digital: 04:03
-    private String formatDigital(double totalSeconds) {
-        int hours = (int) (totalSeconds / 3600);
-        int minutes = (int) ((totalSeconds % 3600) / 60);
-        int seconds = (int) (totalSeconds % 60);
-        int milliseconds = (int) ((totalSeconds - Math.floor(totalSeconds)) * 1000);
+    private String formatDuration(long millis) {
+        List<String> parts = new ArrayList<>();
 
-        StringBuilder result = new StringBuilder();
-
-        if (hours > 0) {
-            result.append(String.format("%02d:", hours));
+        // Años
+        if (millis >= YEAR) {
+            long years = millis / YEAR;
+            parts.add(years + (compactMode ? "y" : "y"));
+            millis %= YEAR;
         }
 
-        result.append(String.format("%02d:%02d", minutes, seconds));
-
-        if (showMilliseconds) {
-            result.append(String.format(".%03d", milliseconds));
+        // Meses
+        if (millis >= MONTH) {
+            long months = millis / MONTH;
+            parts.add(months + (compactMode ? "mo" : "mo"));
+            millis %= MONTH;
         }
 
-        return result.toString();
+        // Semanas
+        if (millis >= WEEK) {
+            long weeks = millis / WEEK;
+            parts.add(weeks + (compactMode ? "w" : "w"));
+            millis %= WEEK;
+        }
+
+        // Días
+        if (millis >= DAY) {
+            long days = millis / DAY;
+            parts.add(days + (compactMode ? "d" : "d"));
+            millis %= DAY;
+        }
+
+        // Horas
+        if (millis >= HOUR) {
+            long hours = millis / HOUR;
+            parts.add(hours + (compactMode ? "h" : "h"));
+            millis %= HOUR;
+        }
+
+        // Minutos
+        if (millis >= MINUTE) {
+            long minutes = millis / MINUTE;
+            parts.add(minutes + (compactMode ? "m" : "m"));
+            millis %= MINUTE;
+        }
+
+        // Segundos (con milisegundos opcionales)
+        if (millis >= SECOND || parts.isEmpty()) {
+            if (showMilliseconds && millis % SECOND != 0) {
+                double seconds = millis / 1000.0;
+                DecimalFormat df = new DecimalFormat("0." + "0".repeat(precision));
+                String secondsStr = df.format(seconds);
+                parts.add(secondsStr + (compactMode ? "s" : "s"));
+            } else {
+                long seconds = (millis + 500) / SECOND; // redondear
+                if (seconds > 0 || parts.isEmpty()) {
+                    parts.add(seconds + (compactMode ? "s" : "s"));
+                }
+            }
+        } else if (showMilliseconds && millis > 0) {
+            // Solo milisegundos
+            parts.add(millis + (compactMode ? "ms" : "ms"));
+        }
+
+        return String.join(compactMode ? "" : " ", parts);
     }
 
-    // Formateo aproximado: 4 (aproximado)
-    private String formatApproximate(double totalSeconds) {
-        if (totalSeconds < 60) {
-            return Math.round(totalSeconds) + "s";
-        } else if (totalSeconds < 3600) {
-            return Math.round(totalSeconds / 60.0) + "m";
-        } else if (totalSeconds < 86400) {
-            DecimalFormat df = new DecimalFormat("#.#");
-            return df.format(totalSeconds / 3600.0) + "h";
+    private String formatAsClockTime(long millis) {
+        return formatAsClockTime(millis, ClockFormat.AUTO);
+    }
+
+    private String formatAsClockTime(long millis, ClockFormat format) {
+        long totalSeconds = millis / 1000;
+        long hours = totalSeconds / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+
+        switch (format) {
+            case HH_MM_SS:
+                return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+            case MM_SS:
+                return String.format("%02d:%02d", (hours * 60) + minutes, seconds);
+            case AUTO:
+            default:
+                if (hours > 0) {
+                    return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+                } else {
+                    return String.format("%02d:%02d", minutes, seconds);
+                }
+        }
+    }
+
+    private String formatVerbalDuration(long millis) {
+        List<String> parts = new ArrayList<>();
+        boolean isSpanish = "es".equalsIgnoreCase(language) || "spanish".equalsIgnoreCase(language);
+
+        if (millis >= YEAR) {
+            long years = millis / YEAR;
+            if (isSpanish) {
+                parts.add(years + " año" + (years != 1 ? "s" : ""));
+            } else {
+                parts.add(years + " year" + (years != 1 ? "s" : ""));
+            }
+            millis %= YEAR;
+        }
+
+        if (millis >= MONTH) {
+            long months = millis / MONTH;
+            if (isSpanish) {
+                parts.add(months + " mes" + (months != 1 ? "es" : ""));
+            } else {
+                parts.add(months + " month" + (months != 1 ? "s" : ""));
+            }
+            millis %= MONTH;
+        }
+
+        if (millis >= WEEK) {
+            long weeks = millis / WEEK;
+            if (isSpanish) {
+                parts.add(weeks + " semana" + (weeks != 1 ? "s" : ""));
+            } else {
+                parts.add(weeks + " week" + (weeks != 1 ? "s" : ""));
+            }
+            millis %= WEEK;
+        }
+
+        if (millis >= DAY) {
+            long days = millis / DAY;
+            if (isSpanish) {
+                parts.add(days + " día" + (days != 1 ? "s" : ""));
+            } else {
+                parts.add(days + " day" + (days != 1 ? "s" : ""));
+            }
+            millis %= DAY;
+        }
+
+        if (millis >= HOUR) {
+            long hours = millis / HOUR;
+            if (isSpanish) {
+                parts.add(hours + " hora" + (hours != 1 ? "s" : ""));
+            } else {
+                parts.add(hours + " hour" + (hours != 1 ? "s" : ""));
+            }
+            millis %= HOUR;
+        }
+
+        if (millis >= MINUTE) {
+            long minutes = millis / MINUTE;
+            if (isSpanish) {
+                parts.add(minutes + " minuto" + (minutes != 1 ? "s" : ""));
+            } else {
+                parts.add(minutes + " minute" + (minutes != 1 ? "s" : ""));
+            }
+            millis %= MINUTE;
+        }
+
+        if (millis >= SECOND || parts.isEmpty()) {
+            long seconds = (millis + 500) / SECOND;
+            if (seconds > 0 || parts.isEmpty()) {
+                if (isSpanish) {
+                    parts.add(seconds + " segundo" + (seconds != 1 ? "s" : ""));
+                } else {
+                    parts.add(seconds + " second" + (seconds != 1 ? "s" : ""));
+                }
+            }
+        }
+
+        if (parts.size() > 1) {
+            String last = parts.remove(parts.size() - 1);
+            String connector = isSpanish ? " y " : " and ";
+            return String.join(", ", parts) + connector + last;
+        }
+
+        return parts.isEmpty() ? (isSpanish ? "sin tiempo" : "no time") : parts.get(0);
+    }
+
+    private String formatLargestSignificantUnit(long millis) {
+        if (millis >= YEAR) {
+            double years = millis / (double) YEAR;
+            return String.format("%.1fy", years);
+        } else if (millis >= MONTH) {
+            double months = millis / (double) MONTH;
+            return String.format("%.1fmo", months);
+        } else if (millis >= WEEK) {
+            double weeks = millis / (double) WEEK;
+            return String.format("%.1fw", weeks);
+        } else if (millis >= DAY) {
+            double days = millis / (double) DAY;
+            return String.format("%.1fd", days);
+        } else if (millis >= HOUR) {
+            double hours = millis / (double) HOUR;
+            return String.format("%.1fh", hours);
+        } else if (millis >= MINUTE) {
+            double minutes = millis / (double) MINUTE;
+            return String.format("%.1fm", minutes);
+        } else if (millis >= SECOND) {
+            double seconds = millis / (double) SECOND;
+            return String.format("%.1fs", seconds);
         } else {
-            DecimalFormat df = new DecimalFormat("#.#");
-            return df.format(totalSeconds / 86400.0) + "d";
+            return millis + "ms";
         }
     }
 
-    // Métodos utilitarios estáticos
-    public static String quickFormat(long seconds) {
-        return new TimeFormatter().format(seconds);
+    private String formatApproximateDuration(long millis) {
+        List<String> parts = new ArrayList<>();
+
+        // Solo mostrar las dos unidades más significativas
+        if (millis >= YEAR) {
+            long years = millis / YEAR;
+            parts.add(years + "y");
+            millis %= YEAR;
+            if (millis >= MONTH) {
+                long months = millis / MONTH;
+                parts.add(months + "mo");
+            }
+        } else if (millis >= MONTH) {
+            long months = millis / MONTH;
+            parts.add(months + "mo");
+            millis %= MONTH;
+            if (millis >= DAY) {
+                long days = millis / DAY;
+                parts.add(days + "d");
+            }
+        } else if (millis >= DAY) {
+            long days = millis / DAY;
+            parts.add(days + "d");
+            millis %= DAY;
+            if (millis >= HOUR) {
+                long hours = millis / HOUR;
+                parts.add(hours + "h");
+            }
+        } else if (millis >= HOUR) {
+            long hours = millis / HOUR;
+            parts.add(hours + "h");
+            millis %= HOUR;
+            if (millis >= MINUTE) {
+                long minutes = millis / MINUTE;
+                parts.add(minutes + "m");
+            }
+        } else if (millis >= MINUTE) {
+            long minutes = millis / MINUTE;
+            parts.add(minutes + "m");
+            millis %= MINUTE;
+            if (millis >= SECOND) {
+                long seconds = millis / SECOND;
+                parts.add(seconds + "s");
+            }
+        } else {
+            long seconds = millis / SECOND;
+            parts.add(seconds + "s");
+        }
+
+        return String.join(" ", parts);
     }
 
-    public static String quickFormat(int seconds) {
-        return new TimeFormatter().format(seconds);
+    private String convertToUnit(long millis, TimeUnit unit) {
+        double value;
+        String unitName = getUnitName(unit);
+
+        switch (unit) {
+            case NANOSECONDS:
+                value = millis * 1_000_000.0;
+                break;
+            case MICROSECONDS:
+                value = millis * 1_000.0;
+                break;
+            case MILLISECONDS:
+                value = millis;
+                break;
+            case SECONDS:
+                value = millis / 1000.0;
+                break;
+            case MINUTES:
+                value = millis / (60.0 * 1000);
+                break;
+            case HOURS:
+                value = millis / (60.0 * 60 * 1000);
+                break;
+            case DAYS:
+                value = millis / (24.0 * 60 * 60 * 1000);
+                break;
+            default:
+                value = millis;
+                unitName = "ms";
+        }
+
+        if (value == (long) value) {
+            return String.format("%.0f %s", value, unitName);
+        } else {
+            return String.format("%.2f %s", value, unitName);
+        }
     }
 
-    public static String quickFormat(double seconds) {
-        return new TimeFormatter().format(seconds);
+    private String getUnitName(TimeUnit unit) {
+        switch (unit) {
+            case NANOSECONDS: return "ns";
+            case MICROSECONDS: return "μs";
+            case MILLISECONDS: return "ms";
+            case SECONDS: return "s";
+            case MINUTES: return "min";
+            case HOURS: return "h";
+            case DAYS: return "días";
+            default: return "unidad";
+        }
     }
 
-    public static String quickDigital(long seconds) {
-        return new TimeFormatter().format(seconds, Format.DIGITAL);
+    private TimeFormatter copy() {
+        TimeFormatter copy = new TimeFormatter();
+        copy.zeroText = this.zeroText;
+        copy.showMilliseconds = this.showMilliseconds;
+        copy.compactMode = this.compactMode;
+        copy.precision = this.precision;
+        return copy;
     }
 
-    public static String quickDigital(int seconds) {
-        return new TimeFormatter().format(seconds, Format.DIGITAL);
+    // ================= CLASES AUXILIARES =================
+
+    public enum ClockFormat {
+        AUTO,       // Automático: MM:SS o HH:MM:SS según corresponda
+        HH_MM_SS,   // Siempre HH:MM:SS
+        MM_SS       // Siempre MM:SS (suma horas a minutos)
     }
 
-    public static String quickDigital(double seconds) {
-        return new TimeFormatter().format(seconds, Format.DIGITAL);
+    public static class TimeComponents {
+        public final long years, months, weeks, days, hours, minutes, seconds, milliseconds;
+        public final long totalMilliseconds;
+
+        TimeComponents(long millis) {
+            this.totalMilliseconds = millis;
+
+            long remaining = millis;
+            this.years = remaining / YEAR;
+            remaining %= YEAR;
+
+            this.months = remaining / MONTH;
+            remaining %= MONTH;
+
+            this.weeks = remaining / WEEK;
+            remaining %= WEEK;
+
+            this.days = remaining / DAY;
+            remaining %= DAY;
+
+            this.hours = remaining / HOUR;
+            remaining %= HOUR;
+
+            this.minutes = remaining / MINUTE;
+            remaining %= MINUTE;
+
+            this.seconds = remaining / SECOND;
+            this.milliseconds = remaining % SECOND;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("TimeComponents{%dy %dmo %dw %dd %dh %dm %ds %dms}",
+                    years, months, weeks, days, hours, minutes, seconds, milliseconds);
+        }
     }
 
-    public static String quickApproximate(long seconds) {
-        return new TimeFormatter().format(seconds, Format.APPROXIMATE);
+    // ================= MÉTODOS ESTÁTICOS DE CONVENIENCIA =================
+
+    public static String formatMillis(long millis) {
+        return timeFormatter.format(millis);
     }
 
-    public static String quickApproximate(int seconds) {
-        return new TimeFormatter().format(seconds, Format.APPROXIMATE);
+    public static String formatSeconds(long seconds) {
+        return timeFormatter.format(seconds * 1000);
     }
 
-    public static String quickApproximate(double seconds) {
-        return new TimeFormatter().format(seconds, Format.APPROXIMATE);
-    }
-
-    // Métodos utilitarios estáticos con valor mínimo
-    public static String quickFormatWithMin(long seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds);
-    }
-
-    public static String quickFormatWithMin(int seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds);
-    }
-
-    public static String quickFormatWithMin(double seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds);
-    }
-
-    public static String quickDigitalWithMin(long seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
-    }
-
-    public static String quickDigitalWithMin(int seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
-    }
-
-    public static String quickDigitalWithMin(double seconds, String minText) {
-        return new TimeFormatter().whenMin(minText).format(seconds, Format.DIGITAL);
+    public static String formatMinutes(long minutes) {
+        return timeFormatter.format(minutes * 60 * 1000);
     }
 }

@@ -7,6 +7,8 @@ import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
+import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
@@ -61,12 +63,7 @@ public class MenuItemBuilder {
             item.withContext(context);
         }
 
-        boolean usePlaceholders = config.getBoolean("use_placeholders", false);
-        boolean hasContext = context != null && !context.isEmpty();
-
-        if ((usePlaceholders || hasContext) && player != null) {
-            item.process(player);
-        }
+        item.process(player);
 
         return item;
     }

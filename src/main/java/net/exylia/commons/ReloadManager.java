@@ -5,6 +5,7 @@ import net.exylia.commons.ReloadResult;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.redis.RedisIntegration;
+import net.exylia.commons.utils.DateFormatter;
 import net.exylia.commons.utils.TimeFormatter;
 import org.bukkit.Bukkit;
 
@@ -130,6 +131,7 @@ public class ReloadManager {
                 // Reload de TimeFormatter
                 long timeFormatterStart = System.currentTimeMillis();
                 TimeFormatter.reload();
+                DateFormatter.reload();
                 componentTimes.put("TimeFormatter", System.currentTimeMillis() - timeFormatterStart);
 
                 // Ejecutar hooks en hilo principal

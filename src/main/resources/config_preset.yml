@@ -1,9 +1,17 @@
 # Only for development purposes
 debug: false
 
-time:
-  # Actual formats:
-  # - HUMAN_READABLE (5m 3s)
-  # - DIGITAL (05:03)
-  format: "HUMAN_READABLE"
-  show_zero_values: false  # Show 0m 3s instead of 3s
+date-formatter:
+  default-pattern: "dd/MM/yyyy HH:mm:ss"
+  date-pattern: "dd/MM/yyyy"
+  time-pattern: "HH:mm:ss"
+  language: "en" # en, es
+  use-iso: false
+
+time-formatter:
+  zero-text: "{success}Now"
+  show-milliseconds: true
+  precision: 1
+  language: "en" # en, es
+  compact-mode: false
+  auto-detect-seconds: true

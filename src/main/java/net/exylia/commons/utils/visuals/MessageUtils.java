@@ -202,6 +202,112 @@ public class MessageUtils {
         return CompletableFuture.runAsync(() -> sendMessage(players, component));
     }
 
+    // ============== MÉTODOS DE EXCLUSIÓN PARA BROADCAST DE MENSAJES ==============
+
+    /**
+     * Envía un mensaje a todos los jugadores en línea excluyendo jugadores específicos
+     * @param excludePlayers Jugadores a excluir del envío
+     * @param message Mensaje con códigos de color (&)
+     */
+    public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
+        if (message.trim().isEmpty()) {
+            return;
+        }
+        Component component = ColorUtils.parse(message);
+        broadcastMessageExcluding(excludePlayers, component);
+    }
+
+    /**
+     * Envía un mensaje a todos los jugadores en línea excluyendo un jugador específico
+     * @param excludePlayer Jugador a excluir del envío
+     * @param message Mensaje con códigos de color (&)
+     */
+    public static void broadcastMessageExcluding(Player excludePlayer, String message) {
+        if (message.trim().isEmpty()) {
+            return;
+        }
+        Component component = ColorUtils.parse(message);
+        broadcastMessageExcluding(excludePlayer, component);
+    }
+
+    /**
+     * Envía un mensaje a todos los jugadores en línea excluyendo jugadores específicos (con Component)
+     * @param excludePlayers Jugadores a excluir del envío
+     * @param component Componente a enviar
+     */
+    public static void broadcastMessageExcluding(Collection<Player> excludePlayers, Component component) {
+        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
+        if (plainText.trim().isEmpty()) {
+            return;
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!excludePlayers.contains(player)) {
+                sendMessage(player, component);
+            }
+        }
+    }
+
+    /**
+     * Envía un mensaje a todos los jugadores en línea excluyendo un jugador específico (con Component)
+     * @param excludePlayer Jugador a excluir del envío
+     * @param component Componente a enviar
+     */
+    public static void broadcastMessageExcluding(Player excludePlayer, Component component) {
+        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
+        if (plainText.trim().isEmpty()) {
+            return;
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!player.equals(excludePlayer)) {
+                sendMessage(player, component);
+            }
+        }
+    }
+
+// ============== MÉTODOS ASÍNCRONOS DE EXCLUSIÓN PARA BROADCAST DE MENSAJES ==============
+
+    /**
+     * Envía un mensaje asíncronamente a todos los jugadores en línea excluyendo jugadores específicos
+     * @param excludePlayers Jugadores a excluir del envío
+     * @param message Mensaje con códigos de color (&)
+     * @return CompletableFuture que completa cuando el mensaje ha sido enviado
+     */
+    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Collection<Player> excludePlayers, String message) {
+        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayers, message));
+    }
+
+    /**
+     * Envía un mensaje asíncronamente a todos los jugadores en línea excluyendo un jugador específico
+     * @param excludePlayer Jugador a excluir del envío
+     * @param message Mensaje con códigos de color (&)
+     * @return CompletableFuture que completa cuando el mensaje ha sido enviado
+     */
+    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Player excludePlayer, String message) {
+        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayer, message));
+    }
+
+    /**
+     * Envía un mensaje asíncronamente a todos los jugadores en línea excluyendo jugadores específicos (con Component)
+     * @param excludePlayers Jugadores a excluir del envío
+     * @param component Componente a enviar
+     * @return CompletableFuture que completa cuando el mensaje ha sido enviado
+     */
+    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Collection<Player> excludePlayers, Component component) {
+        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayers, component));
+    }
+
+    /**
+     * Envía un mensaje asíncronamente a todos los jugadores en línea excluyendo un jugador específico (con Component)
+     * @param excludePlayer Jugador a excluir del envío
+     * @param component Componente a enviar
+     * @return CompletableFuture que completa cuando el mensaje ha sido enviado
+     */
+    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Player excludePlayer, Component component) {
+        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayer, component));
+    }
+
 
     // ============== MÉTODOS DE EXCLUSIÓN MEJORADOS PARA MENSAJES ==============
 

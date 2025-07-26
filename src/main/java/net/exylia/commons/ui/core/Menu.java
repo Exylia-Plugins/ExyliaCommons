@@ -1,4 +1,4 @@
-// ==================== CORE MENU SYSTEM ====================
+// ==================== CORE MENU SYSTEM - ENHANCED ====================
 
 package net.exylia.commons.ui.core;
 
@@ -24,6 +24,7 @@ import java.util.function.Consumer;
 /**
  * Base class for all menus in the UI system v2
  * Provides core functionality for menu creation, management, and interaction
+ * Now with intelligent auto-refresh after clicks
  */
 public class Menu {
 
@@ -65,8 +66,24 @@ public class Menu {
     protected long updateInterval = 20L;
     protected int updateTaskId = -1;
 
+    // ✅ AUTO-REFRESH CONFIGURATION
+    @Getter
+    protected boolean autoRefreshOnClick = true; // Default habilitado
+    @Getter
+    protected RefreshMode refreshMode = RefreshMode.SMART; // Modo por defecto
+
     // Inventory adapter
     protected static final InventoryAdapter inventoryAdapter = AdapterFactory.getInventoryAdapter();
+
+    /**
+     * Modos de refresh después de clicks
+     */
+    public enum RefreshMode {
+        DISABLED,    // Sin auto-refresh
+        FULL,        // Refresh completo del menú
+        SMART,       // Solo actualiza items que lo necesiten
+        SLOT_ONLY    // Solo actualiza el slot clickeado
+    }
 
     public Menu(String title, int rows) {
         this(UUID.randomUUID().toString(), title, rows);
@@ -83,6 +100,58 @@ public class Menu {
     public Menu(String title, int rows, ExyliaContext context) {
         this(title, rows);
         this.context = context != null ? context : ExyliaContext.create();
+    }
+
+    // ==================== AUTO-REFRESH CONFIGURATION ====================
+
+    /**
+     * Configura el auto-refresh después de clicks
+     * @param enabled Si debe refrescar automáticamente
+     * @return This menu for chaining
+     */
+    public Menu setAutoRefreshOnClick(boolean enabled) {
+        this.autoRefreshOnClick = enabled;
+        return this;
+    }
+
+    /**
+     * Configura el modo de refresh
+     * @param mode El modo de refresh
+     * @return This menu for chaining
+     */
+    public Menu setRefreshMode(RefreshMode mode) {
+        this.refreshMode = mode != null ? mode : RefreshMode.SMART;
+        return this;
+    }
+
+    /**
+     * Habilita auto-refresh inteligente (modo por defecto)
+     * @return This menu for chaining
+     */
+    public Menu enableSmartRefresh() {
+        this.autoRefreshOnClick = true;
+        this.refreshMode = RefreshMode.SMART;
+        return this;
+    }
+
+    /**
+     * Habilita auto-refresh completo
+     * @return This menu for chaining
+     */
+    public Menu enableFullRefresh() {
+        this.autoRefreshOnClick = true;
+        this.refreshMode = RefreshMode.FULL;
+        return this;
+    }
+
+    /**
+     * Deshabilita auto-refresh
+     * @return This menu for chaining
+     */
+    public Menu disableAutoRefresh() {
+        this.autoRefreshOnClick = false;
+        this.refreshMode = RefreshMode.DISABLED;
+        return this;
     }
 
     // ==================== CORE FUNCTIONALITY ====================
@@ -275,6 +344,117 @@ public class Menu {
         }
 
         return null;
+    }
+
+    // ==================== AUTO-REFRESH METHODS ====================
+
+    /**
+     * Ejecuta el refresh automático después de un click
+     * @param clickedSlot El slot que fue clickeado
+     */
+    protected void performAutoRefresh(int clickedSlot) {
+        if (!autoRefreshOnClick || !isOpen || viewer == null) {
+            return;
+        }
+
+        switch (refreshMode) {
+            case DISABLED -> {
+                // No hacer nada
+            }
+            case SLOT_ONLY -> refreshSlotOnly(clickedSlot);
+            case SMART -> performSmartRefresh(clickedSlot);
+            case FULL -> performFullRefresh();
+        }
+    }
+
+    /**
+     * Actualiza solo el slot clickeado
+     */
+    private void refreshSlotOnly(int slot) {
+        updateSlot(slot);
+    }
+
+    /**
+     * Actualiza inteligentemente solo los items que lo necesiten
+     */
+    private void performSmartRefresh(int clickedSlot) {
+        // Siempre actualizar el slot clickeado
+        updateSlot(clickedSlot);
+
+        // Buscar otros items que necesiten actualización
+        Set<Integer> slotsToUpdate = new HashSet<>();
+
+        for (Map.Entry<Integer, MenuItem> entry : items.entrySet()) {
+            int slot = entry.getKey();
+            MenuItem item = entry.getValue();
+
+            if (slot != clickedSlot && shouldItemBeRefreshed(item)) {
+                slotsToUpdate.add(slot);
+            }
+        }
+
+        // Actualizar slots identificados
+        for (int slot : slotsToUpdate) {
+            updateSlot(slot);
+        }
+
+        // Si hay muchos items para actualizar, mejor hacer refresh completo
+        if (slotsToUpdate.size() > size / 2) {
+            performFullRefresh();
+        }
+    }
+
+    /**
+     * Determina si un item necesita ser refrescado
+     */
+    private boolean shouldItemBeRefreshed(MenuItem item) {
+        if (item == null) return false;
+
+        // Items con actualización dinámica
+        if (item.needsDynamicUpdate()) {
+            return true;
+        }
+
+        // Items con lore dinámico
+        if (item.hasDynamicLore()) {
+            return true;
+        }
+
+        // Items con placeholders en nombre, lore o cantidad
+        if (hasPlaceholders(item.getRawName()) ||
+                hasPlaceholders(item.getRawAmount()) ||
+                hasPlaceholdersInLore(item.getRawLore())) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Verifica si un string contiene placeholders
+     */
+    private boolean hasPlaceholders(String text) {
+        return text != null && (text.contains("{") || text.contains("%"));
+    }
+
+    /**
+     * Verifica si el lore contiene placeholders
+     */
+    private boolean hasPlaceholdersInLore(List<String> lore) {
+        if (lore == null) return false;
+
+        return lore.stream().anyMatch(this::hasPlaceholders);
+    }
+
+    /**
+     * Realiza un refresh completo del menú
+     */
+    private void performFullRefresh() {
+        // Actualizar título si es necesario
+        processTitle();
+
+        // Repoblar inventario completo
+        populateInventory();
     }
 
     // ==================== CONFIGURATION ====================
@@ -490,5 +670,8 @@ public class Menu {
         if (item != null) {
             item.handleClick(event);
         }
+
+        // ✅ NUEVO: Auto-refresh después del click
+        performAutoRefresh(event.getSlot());
     }
 }

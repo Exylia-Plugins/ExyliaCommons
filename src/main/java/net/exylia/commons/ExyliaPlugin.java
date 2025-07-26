@@ -162,17 +162,13 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             // Convertir a array
             Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
 
-            if (finalConfigClasses.length > 0) {
-                configSystem.initialize(finalConfigClasses);
-                setupConfigurationListeners();
-                logInternalSuccess("Sistema de configuración inicializado con " + finalConfigClasses.length + " clases");
-            } else {
-                logInternalInfo("No se especificaron clases de configuración para " + getName());
-            }
+            configSystem.initialize(finalConfigClasses);
+            setupConfigurationListeners();
+            logInternalSuccess("Sistema de configuración inicializado con " + finalConfigClasses.length + " clases");
 
-            // FIX: Pasar el sistema ya inicializado a ConfigManager en lugar de crear uno nuevo
             ConfigManager.init(configSystem, finalConfigClasses);
             TimeFormatter.init();
+            DateFormatter.init();
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
             throw new RuntimeException(e);

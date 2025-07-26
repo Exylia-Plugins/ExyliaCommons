@@ -599,11 +599,7 @@ public class MenuItem {
         // Establecer contexto y procesar si es necesario
         if (context != null) {
             item.withContext(context);
-
-            boolean usePlaceholders = config.getBoolean("use_placeholders", false);
-            if (usePlaceholders && player != null) {
-                item.process(player);
-            }
+            item.process(player);
         }
 
         return item;

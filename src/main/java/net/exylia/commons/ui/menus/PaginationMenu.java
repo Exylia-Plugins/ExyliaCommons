@@ -2,6 +2,7 @@
 
 package net.exylia.commons.ui.menus;
 
+import lombok.Getter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.core.Menu;
@@ -21,6 +22,7 @@ public class PaginationMenu extends Menu {
 
     private final List<MenuItem> paginationItems = new ArrayList<>();
     private final int[] itemSlots;
+    @Getter
     private final int itemsPerPage;
 
     // Navigation
@@ -466,9 +468,5 @@ public class PaginationMenu extends Menu {
 
     public int[] getItemSlots() {
         return itemSlots.clone();
-    }
-
-    public int getItemsPerPage() {
-        return itemsPerPage;
     }
 }
