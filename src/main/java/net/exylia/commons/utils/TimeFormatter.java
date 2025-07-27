@@ -28,7 +28,6 @@ public class TimeFormatter {
     private static boolean compactMode;
     private static int precision;
     private static String language;
-    private static boolean autoDetectSeconds;
 
     // Constructor privado para singleton
     private TimeFormatter() {
@@ -51,14 +50,13 @@ public class TimeFormatter {
         compactMode = MainConfigBase.timeFormatterCompactMode();
         precision = MainConfigBase.timeFormatterPrecision();
         language = MainConfigBase.timeFormatterLanguage();
-        autoDetectSeconds = MainConfigBase.timeFormatterAutoDetectSeconds();
     }
 
     /**
-     * Formateo automático inteligente
+     * Formateo automático inteligente con detección de unidades
      */
     public String format(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         // Manejar casos especiales
         if (millis <= 0) {
@@ -72,7 +70,7 @@ public class TimeFormatter {
      * Formateo con texto personalizado para cero/negativo
      */
     public String format(Object input, String zeroText) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return zeroText;
@@ -85,7 +83,7 @@ public class TimeFormatter {
      * Formateo en estilo reloj: HH:MM:SS o MM:SS
      */
     public String formatClock(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return "00:00";
@@ -98,7 +96,7 @@ public class TimeFormatter {
      * Formateo en estilo reloj con formato personalizado
      */
     public String formatClock(Object input, ClockFormat format) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return format == ClockFormat.HH_MM_SS ? "00:00:00" : "00:00";
@@ -112,9 +110,9 @@ public class TimeFormatter {
      */
     public String formatCompact(Object input) {
         TimeFormatter formatter = this.copy();
-        formatter.compactMode = true;
+        compactMode = true;
 
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
         if (millis <= 0) {
             return zeroText;
         }
@@ -127,7 +125,7 @@ public class TimeFormatter {
      */
     public String formatWithPrecision(Object input, int decimalPlaces) {
         TimeFormatter formatter = this.copy();
-        formatter.precision = decimalPlaces;
+        precision = decimalPlaces;
 
         return formatter.format(input);
     }
@@ -137,7 +135,7 @@ public class TimeFormatter {
      */
     public String formatNoMillis(Object input) {
         TimeFormatter formatter = this.copy();
-        formatter.showMilliseconds = false;
+        showMilliseconds = false;
 
         return formatter.format(input);
     }
@@ -146,7 +144,7 @@ public class TimeFormatter {
      * Formateo verbal en español
      */
     public String formatVerbal(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return "sin tiempo";
@@ -159,7 +157,7 @@ public class TimeFormatter {
      * Formateo para mayor unidad significativa
      */
     public String formatLargestUnit(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return zeroText;
@@ -172,7 +170,7 @@ public class TimeFormatter {
      * Formateo aproximado (solo las dos unidades más grandes)
      */
     public String formatApproximate(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return zeroText;
@@ -185,7 +183,7 @@ public class TimeFormatter {
      * Convierte a unidad específica
      */
     public String formatAsUnit(Object input, TimeUnit unit) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
             return "0 " + getUnitName(unit);
@@ -198,29 +196,93 @@ public class TimeFormatter {
      * Obtiene componentes de tiempo por separado
      */
     public TimeComponents getComponents(Object input) {
-        long millis = parseInput(input);
+        long millis = parseInputIntelligent(input);
         return new TimeComponents(millis);
     }
 
     // ================= MÉTODOS INTERNOS =================
 
+    /**
+     * Parseador inteligente que detecta automáticamente la unidad basándose en el valor
+     */
+    private long parseInputIntelligent(Object input) {
+        if (input == null) {
+            return 0;
+        }
+
+        if (input instanceof String) {
+            return parseStringDuration((String) input);
+        }
+
+        if (input instanceof Number) {
+            double value = ((Number) input).doubleValue();
+
+            // Si es exactamente 0, devolver 0
+            if (value == 0) {
+                return 0;
+            }
+
+            return detectTimeUnit(value);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Detecta automáticamente la unidad de tiempo basándose en el valor numérico
+     */
+    private long detectTimeUnit(double value) {
+        double absValue = Math.abs(value);
+
+        // Casos especiales para valores muy pequeños (probablemente decimales de segundos)
+        if (absValue < 1.0 && absValue > 0) {
+            // Es un decimal menor a 1, probablemente segundos decimales
+            return (long) (value * SECOND);
+        }
+
+        // Para valores enteros pequeños (1-120), asumir segundos
+        if (absValue <= 120 && value == Math.floor(value)) {
+            return (long) (value * SECOND);
+        }
+
+        // Para valores entre 121-7200, podrían ser segundos o minutos
+        if (absValue <= 7200) {
+            // Si es menor a 3600, probablemente segundos
+            if (absValue <= 3600) {
+                return (long) (value * SECOND);
+            }
+            // Entre 3600-7200, podría ser segundos (1-2 horas) o minutos (60-120 min)
+            // Asumimos segundos para mantener consistencia
+            return (long) (value * SECOND);
+        }
+
+        // Para valores grandes (típicos de System.currentTimeMillis() o timestamps)
+        // Si el valor es mayor a 86400000 (1 día en millis), probablemente ya son milisegundos
+        if (absValue > 86400000) {
+            return (long) value;
+        }
+
+        // Para valores medianos (7200-86400000), necesitamos más heurística
+        if (absValue <= 86400) {
+            // Hasta 86400 podría ser segundos (1 día = 86400 segundos)
+            return (long) (value * SECOND);
+        }
+
+        // Para valores entre 86400-86400000, es ambiguo, pero asumimos milisegundos
+        // ya que es más común trabajar con milisegundos en sistemas
+        return (long) value;
+    }
+
+    /**
+     * Método de parseado original para compatibilidad hacia atrás
+     */
     private long parseInput(Object input) {
         if (input == null) {
             return 0;
         }
 
         if (input instanceof Number) {
-            long value = ((Number) input).longValue();
-
-            // Auto-detectar si son segundos o milisegundos según configuración
-            if (autoDetectSeconds && value > 0 && value < 315360000) { // menos de 10 años en segundos
-                // Verificar si tiene sentido como segundos vs milisegundos
-                if (value < 86400) { // menos de 1 día en segundos, probablemente segundos
-                    return value * 1000;
-                }
-            }
-
-            return value; // asumir milisegundos por defecto
+            return ((Number) input).longValue();
         }
 
         if (input instanceof String) {
@@ -259,42 +321,42 @@ public class TimeFormatter {
         // Años
         if (millis >= YEAR) {
             long years = millis / YEAR;
-            parts.add(years + (compactMode ? "y" : "y"));
+            parts.add(years + ("y"));
             millis %= YEAR;
         }
 
         // Meses
         if (millis >= MONTH) {
             long months = millis / MONTH;
-            parts.add(months + (compactMode ? "mo" : "mo"));
+            parts.add(months + ("mo"));
             millis %= MONTH;
         }
 
         // Semanas
         if (millis >= WEEK) {
             long weeks = millis / WEEK;
-            parts.add(weeks + (compactMode ? "w" : "w"));
+            parts.add(weeks + ("w"));
             millis %= WEEK;
         }
 
         // Días
         if (millis >= DAY) {
             long days = millis / DAY;
-            parts.add(days + (compactMode ? "d" : "d"));
+            parts.add(days + ("d"));
             millis %= DAY;
         }
 
         // Horas
         if (millis >= HOUR) {
             long hours = millis / HOUR;
-            parts.add(hours + (compactMode ? "h" : "h"));
+            parts.add(hours + ("h"));
             millis %= HOUR;
         }
 
         // Minutos
         if (millis >= MINUTE) {
             long minutes = millis / MINUTE;
-            parts.add(minutes + (compactMode ? "m" : "m"));
+            parts.add(minutes + ("m"));
             millis %= MINUTE;
         }
 
@@ -304,16 +366,14 @@ public class TimeFormatter {
                 double seconds = millis / 1000.0;
                 DecimalFormat df = new DecimalFormat("0." + "0".repeat(precision));
                 String secondsStr = df.format(seconds);
-                parts.add(secondsStr + (compactMode ? "s" : "s"));
+                parts.add(secondsStr + ("s"));
             } else {
                 long seconds = (millis + 500) / SECOND; // redondear
-                if (seconds > 0 || parts.isEmpty()) {
-                    parts.add(seconds + (compactMode ? "s" : "s"));
-                }
+                parts.add(seconds + ("s"));
             }
         } else if (showMilliseconds && millis > 0) {
             // Solo milisegundos
-            parts.add(millis + (compactMode ? "ms" : "ms"));
+            parts.add(millis + ("ms"));
         }
 
         return String.join(compactMode ? "" : " ", parts);
@@ -410,12 +470,10 @@ public class TimeFormatter {
 
         if (millis >= SECOND || parts.isEmpty()) {
             long seconds = (millis + 500) / SECOND;
-            if (seconds > 0 || parts.isEmpty()) {
-                if (isSpanish) {
-                    parts.add(seconds + " segundo" + (seconds != 1 ? "s" : ""));
-                } else {
-                    parts.add(seconds + " second" + (seconds != 1 ? "s" : ""));
-                }
+            if (isSpanish) {
+                parts.add(seconds + " segundo" + (seconds != 1 ? "s" : ""));
+            } else {
+                parts.add(seconds + " second" + (seconds != 1 ? "s" : ""));
             }
         }
 
@@ -425,7 +483,7 @@ public class TimeFormatter {
             return String.join(", ", parts) + connector + last;
         }
 
-        return parts.isEmpty() ? (isSpanish ? "sin tiempo" : "no time") : parts.get(0);
+        return parts.get(0);
     }
 
     private String formatLargestSignificantUnit(long millis) {
@@ -546,24 +604,24 @@ public class TimeFormatter {
     }
 
     private String getUnitName(TimeUnit unit) {
-        switch (unit) {
-            case NANOSECONDS: return "ns";
-            case MICROSECONDS: return "μs";
-            case MILLISECONDS: return "ms";
-            case SECONDS: return "s";
-            case MINUTES: return "min";
-            case HOURS: return "h";
-            case DAYS: return "días";
-            default: return "unidad";
-        }
+        return switch (unit) {
+            case NANOSECONDS -> "ns";
+            case MICROSECONDS -> "μs";
+            case MILLISECONDS -> "ms";
+            case SECONDS -> "s";
+            case MINUTES -> "min";
+            case HOURS -> "h";
+            case DAYS -> "días";
+            default -> "unidad";
+        };
     }
 
     private TimeFormatter copy() {
         TimeFormatter copy = new TimeFormatter();
-        copy.zeroText = this.zeroText;
-        copy.showMilliseconds = this.showMilliseconds;
-        copy.compactMode = this.compactMode;
-        copy.precision = this.precision;
+        zeroText = zeroText;
+        showMilliseconds = showMilliseconds;
+        compactMode = compactMode;
+        precision = precision;
         return copy;
     }
 

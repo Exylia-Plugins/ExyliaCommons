@@ -328,14 +328,7 @@ public class DateFormatter {
      */
     private String calculateRelativeTime(LocalDateTime target, LocalDateTime reference) {
         long diffMillis = Duration.between(reference, target).toMillis();
-        boolean isFuture = target.isAfter(reference);
-
-        // Si la diferencia es 0 o muy pequeña
-        if (Math.abs(diffMillis) < 1000) {
-            return "now";
-        }
-
-        return TimeFormatter.timeFormatter.format(Math.abs(diffMillis));
+        return TimeFormatter.timeFormatter.format((int) Math.abs(diffMillis) / 1000);
     }
 
     // Métodos de conveniencia estáticos adicionales

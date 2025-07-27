@@ -26,9 +26,6 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "date-formatter.time-pattern", defaultValue = "HH:mm:ss")
     private String dateFormatterTimePattern;
 
-    @ConfigValue(value = "date-formatter.language", defaultValue = "es")
-    private String dateFormatterLanguage;
-
     @ConfigValue(value = "date-formatter.use-iso", defaultValue = "false")
     private boolean dateFormatterUseIso;
 
@@ -48,9 +45,6 @@ public class MainConfigBase extends ConfigBase {
 
     @ConfigValue(value = "time-formatter.compact-mode", defaultValue = "false")
     private boolean timeFormatterCompactMode;
-
-    @ConfigValue(value = "time-formatter.auto-detect-seconds", defaultValue = "true")
-    private boolean timeFormatterAutoDetectSeconds;
 
     // ===== GETTERS ESTÁTICOS =====
 
@@ -78,12 +72,6 @@ public class MainConfigBase extends ConfigBase {
         MainConfigBase instance = getActiveInstance();
         if (instance == null) return "HH:mm:ss";
         return instance.dateFormatterTimePattern;
-    }
-
-    public static String dateFormatterLanguage() {
-        MainConfigBase instance = getActiveInstance();
-        if (instance == null) return "es";
-        return instance.dateFormatterLanguage;
     }
 
     public static boolean dateFormatterUseIso() {
@@ -122,12 +110,6 @@ public class MainConfigBase extends ConfigBase {
         MainConfigBase instance = getActiveInstance();
         if (instance == null) return false;
         return instance.timeFormatterCompactMode;
-    }
-
-    public static boolean timeFormatterAutoDetectSeconds() {
-        MainConfigBase instance = getActiveInstance();
-        if (instance == null) return true;
-        return instance.timeFormatterAutoDetectSeconds;
     }
 
     // ===== MÉTODOS INTERNOS =====
