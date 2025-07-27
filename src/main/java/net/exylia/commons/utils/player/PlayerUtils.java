@@ -17,10 +17,10 @@ public class PlayerUtils {
     public static void resetPlayer(Player player) {
         player.getActivePotionEffects().forEach(effect ->
                 player.removePotionEffect(effect.getType()));
+        player.setMaxHealth(20);
         player.setHealth(20);
         player.setNoDamageTicks(20);
         player.setMaximumNoDamageTicks(20);
-        player.setMaxHealth(20);
         player.setFoodLevel(20);
         player.setSaturation(5.0f);
         player.setWalkSpeed(0.2F);

@@ -743,7 +743,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                     Object value = map.get(columnName);
 
-                    // NUEVA LÓGICA: Inicializar colecciones vacías automáticamente
                     if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
                             Object emptyCollection = CollectionUtils.createEmptyCollection(field);
@@ -759,8 +758,12 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                     if (value != null) {
                         try {
-                            // AUTO-DESERIALIZATION with enhanced error handling
-                            if (column.autoSerialize()) {
+                            if (field.getType().isEnum() && value instanceof String) {
+                                @SuppressWarnings("unchecked")
+                                Class<Enum> enumClass = (Class<Enum>) field.getType();
+                                value = Enum.valueOf(enumClass, (String) value);
+                            }
+                            else if (column.autoSerialize()) {
                                 try {
                                     value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
                                 } catch (SerializationException e) {
@@ -840,8 +843,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // AUTO-SERIALIZATION for MongoDB
-                    if (value != null && column.autoSerialize()) {
+                    if (value != null && value.getClass().isEnum()) {
+                        value = ((Enum<?>) value).name(); // Convertir a string
+                    } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
                         } catch (SerializationException e) {
@@ -902,8 +906,13 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     Object value = document.get(fieldName);
                     if (value != null) {
                         try {
-                            // AUTO-DESERIALIZATION for MongoDB
-                            if (column.autoSerialize()) {
+                            // Manejo especial para enums
+                            if (field.getType().isEnum() && value instanceof String) {
+                                @SuppressWarnings("unchecked")
+                                Class<Enum> enumClass = (Class<Enum>) field.getType();
+                                value = Enum.valueOf(enumClass, (String) value);
+                            }
+                            else if (column.autoSerialize()) {
                                 try {
                                     value = SerializationHelper.autoDeserializeValue(value, field, column.serializationType());
                                 } catch (SerializationException e) {
