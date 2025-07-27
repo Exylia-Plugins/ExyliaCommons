@@ -4,47 +4,28 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class InventoryUtils {
-    /**
-     * Simula manualmente la caída de items cuando un jugador muere
-     */
     public static void simulateItemDrops(Player player) {
         Location deathLocation = player.getLocation();
-        for (int i = 0; i < player.getInventory().getSize(); i++) {
-            ItemStack item = player.getInventory().getItem(i);
+        PlayerInventory inventory = player.getInventory();
+
+        ItemStack[] allContents = inventory.getContents();
+        for (ItemStack item : allContents) {
             if (item != null && item.getType() != Material.AIR) {
                 Location dropLocation = deathLocation.clone().add(
-                        (Math.random() - 0.5) * 2, // -1 a +1 en X
-                        0.5, // Altura fija
-                        (Math.random() - 0.5) * 2  // -1 a +1 en Z
+                        (Math.random() - 0.5) * 1,
+                        0.5,
+                        (Math.random() - 0.5) * 1
                 );
                 deathLocation.getWorld().dropItemNaturally(dropLocation, item);
             }
         }
 
-        ItemStack[] armor = player.getInventory().getArmorContents();
-        for (ItemStack armorPiece : armor) {
-            if (armorPiece != null && armorPiece.getType() != Material.AIR) {
-                Location dropLocation = deathLocation.clone().add(
-                        (Math.random() - 0.5) * 2,
-                        0.5,
-                        (Math.random() - 0.5) * 2
-                );
-                deathLocation.getWorld().dropItemNaturally(dropLocation, armorPiece);
-            }
-        }
-
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-        if (offHand.getType() != Material.AIR) {
-            Location dropLocation = deathLocation.clone().add(
-                    (Math.random() - 0.5) * 2,
-                    0.5,
-                    (Math.random() - 0.5) * 2
-            );
-
-            deathLocation.getWorld().dropItemNaturally(dropLocation, offHand);
-        }
         player.getInventory().clear();
     }
 }

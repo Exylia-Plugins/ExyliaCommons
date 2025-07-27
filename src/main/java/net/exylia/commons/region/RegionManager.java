@@ -389,8 +389,6 @@ public class RegionManager {
         return true; // Movimiento permitido
     }
 
-    // ELIMINADO: queuePlayerMovement - ya no usamos batching
-
     /**
      * Verifica si un jugador puede entrar a una región específica
      */

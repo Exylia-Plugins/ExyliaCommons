@@ -4,6 +4,7 @@ system:
   player_not_found: "%prefix% {error}The player {info}%player%{error} could not be found."
   player_only: "%prefix% {error}This action can only be executed by a player."
   no_permission: "%prefix% {error}You do not have permission to execute this action."
+  not_now: "%prefix% {error}You can't do that right now."
 
   commands:
     no_subcommands: "%prefix% {error}This command has no subcommands."
