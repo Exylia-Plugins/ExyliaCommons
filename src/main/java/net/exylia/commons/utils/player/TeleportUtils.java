@@ -7,7 +7,6 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 public class TeleportUtils {
-
     public static void teleportToGround(Player player) {
         Location loc = player.getLocation();
         World world = loc.getWorld();

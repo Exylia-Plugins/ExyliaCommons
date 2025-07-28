@@ -8,9 +8,14 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import java.util.Collection;
+import java.util.Random;
+
 public class LocationUtils {
 
     private static final String SEPARATOR = "|";
+    private static final Random RANDOM = new Random();
+    private static final int MAX_ATTEMPTS = 50;
 
     public static Location deserialize(String locationString) {
         if (locationString == null || locationString.trim().isEmpty()) {
@@ -116,22 +121,16 @@ public class LocationUtils {
 
     public static boolean isSafeLocation(Location loc) {
         World world = loc.getWorld();
-        int x = loc.getBlockX();
-        int y = loc.getBlockY();
-        int z = loc.getBlockZ();
+        if (world == null) return false;
 
-        Block feet = world.getBlockAt(x, y, z);
-        Block head = world.getBlockAt(x, y + 1, z);
-        Block ground = world.getBlockAt(x, y - 1, z);
+        Block feet = world.getBlockAt(loc);
+        Block head = world.getBlockAt(loc.clone().add(0, 1, 0));
+        Block ground = world.getBlockAt(loc.clone().add(0, -1, 0));
 
-        boolean feetSafe = feet.getType().isAir() || !feet.getType().isSolid();
-        boolean headSafe = head.getType().isAir() || !head.getType().isSolid();
-
-        boolean groundSafe = ground.getType().isSolid() &&
-                ground.getType() != Material.LAVA &&
-                !ground.getType().name().contains("PRESSURE_PLATE");
-
-        return feetSafe && headSafe && groundSafe;
+        return isAirOrPassable(feet) &&
+                isAirOrPassable(head) &&
+                ground.getType().isSolid() &&
+                !isDangerousBlock(ground);
     }
 
     public static void preventBoundaryCrossing(Player player, Location from, Location to) {
@@ -215,6 +214,33 @@ public class LocationUtils {
         return null;
     }
 
+    public static void randomTeleport(Location centerLocation, Collection<Player> players, int radius) {
+        if (centerLocation == null || centerLocation.getWorld() == null || players == null || players.isEmpty()) {
+            return;
+        }
+
+        for (Player player : players) {
+            if (player == null || !player.isOnline()) {
+                continue;
+            }
+
+            Location safeLoc = findSafeLocationInRadius(centerLocation, radius);
+            if (safeLoc != null) {
+                safeLoc.setPitch(player.getLocation().getPitch());
+                safeLoc.setYaw(player.getLocation().getYaw());
+                player.teleport(safeLoc);
+            }
+        }
+    }
+
+    public static Location getRandomSafeLocation(Location centerLocation, int radius) {
+        if (centerLocation == null || centerLocation.getWorld() == null) {
+            return null;
+        }
+
+        return findSafeLocationInRadius(centerLocation, radius);
+    }
+
     private static boolean hasTwoBlocksOfAir(Location location) {
         World world = location.getWorld();
         int x = location.getBlockX();
@@ -255,5 +281,60 @@ public class LocationUtils {
         }
 
         return clamped;
+    }
+
+    private static Location findSafeLocationInRadius(Location centerLocation, int radius) {
+        World world = centerLocation.getWorld();
+
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            double randomX = centerLocation.getX() + (RANDOM.nextDouble() * 2 - 1) * radius;
+            double randomZ = centerLocation.getZ() + (RANDOM.nextDouble() * 2 - 1) * radius;
+
+            Location safeLoc = findSafeLocationAtCoordinates(world, randomX, randomZ, centerLocation.getY());
+            if (safeLoc != null) {
+                return safeLoc;
+            }
+        }
+
+        return findSafeLocationAtCoordinates(world, centerLocation.getX(), centerLocation.getZ(), centerLocation.getY());
+    }
+
+    private static Location findSafeLocationAtCoordinates(World world, double x, double z, double startY) {
+        int blockY = (int) Math.floor(startY);
+
+        for (int y = blockY; y > Math.max(world.getMinHeight(), blockY - 50); y--) {
+            Location testLoc = new Location(world, x, y + 1.0, z);
+            if (isSafeLocation(testLoc)) {
+                return testLoc;
+            }
+        }
+
+        for (int y = blockY + 1; y < Math.min(world.getMaxHeight() - 2, blockY + 50); y++) {
+            Location testLoc = new Location(world, x, y + 1.0, z);
+            if (isSafeLocation(testLoc)) {
+                return testLoc;
+            }
+        }
+
+        return null;
+    }
+
+    private static boolean isAirOrPassable(Block block) {
+        Material type = block.getType();
+        return type == Material.AIR ||
+                type == Material.CAVE_AIR ||
+                type == Material.VOID_AIR ||
+                !type.isSolid();
+    }
+
+    private static boolean isDangerousBlock(Block block) {
+        Material type = block.getType();
+        return type == Material.LAVA ||
+                type == Material.FIRE ||
+                type == Material.SOUL_FIRE ||
+                type == Material.MAGMA_BLOCK ||
+                type == Material.CACTUS ||
+                type == Material.SWEET_BERRY_BUSH ||
+                type.name().contains("PRESSURE_PLATE");
     }
 }
