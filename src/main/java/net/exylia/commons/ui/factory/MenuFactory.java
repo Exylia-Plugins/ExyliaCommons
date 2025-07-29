@@ -81,7 +81,7 @@ public class MenuFactory {
      * @return The editable menu
      */
     public static EditableMenu editable(String title, int rows) {
-        return new EditableMenu(title, rows);
+        return new EditableMenu(title, rows, null);
     }
 
     /**

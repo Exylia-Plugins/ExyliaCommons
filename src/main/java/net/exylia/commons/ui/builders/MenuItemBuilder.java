@@ -173,7 +173,7 @@ public class MenuItemBuilder {
 
             // Procesar placeholders si hay contexto
             if (context != null) {
-                processed = PlaceholderSystemManager.getInstance().process(processed, player);
+                processed = PlaceholderSystemManager.getInstance().process(processed, player, context);
             }
 
             // Ejecutar comando según prefijo

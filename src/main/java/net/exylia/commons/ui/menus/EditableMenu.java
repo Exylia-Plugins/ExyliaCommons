@@ -3,6 +3,7 @@
 
 package net.exylia.commons.ui.menus;
 
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.items.MenuItem;
 import org.bukkit.inventory.ItemStack;
@@ -24,8 +25,8 @@ public class EditableMenu extends Menu {
     private BiConsumer<Integer, ItemStack> onItemRemoved;
     private Consumer<Map<Integer, ItemStack>> onItemsChanged;
 
-    public EditableMenu(String title, int rows) {
-        super(title, rows);
+    public EditableMenu(String title, int rows, ExyliaContext context) {
+        super(title, rows, context);
     }
 
     // ==================== EDITABLE SLOT MANAGEMENT ====================

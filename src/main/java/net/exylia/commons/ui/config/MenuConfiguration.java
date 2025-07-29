@@ -66,9 +66,8 @@ public class MenuConfiguration {
         int rows = config.getInt("rows", 3);
         String type = config.getString("type", "normal").toLowerCase();
 
-        Menu menu = createMenuByType(type, title, rows, config);
+        Menu menu = createMenuByType(type, title, rows, config, context);
 
-        // Configure dynamic updates
         if (config.getBoolean("dynamic_updates", false)) {
             long interval = config.getLong("update_interval", 20L);
             menu.enableDynamicUpdates(plugin, interval);
@@ -87,37 +86,38 @@ public class MenuConfiguration {
         return menu;
     }
 
-    private Menu createMenuByType(String type, String title, int rows, ConfigurationSection config) {
+    private Menu createMenuByType(String type, String title, int rows, ConfigurationSection config, ExyliaContext context) {
         return switch (type) {
             case "pagination" -> {
                 String slotsString = config.getString("item_slots", "10-16,19-25,28-34");
                 int[] slots = parseSlots(slotsString, rows);
-                PaginationMenu menu = new PaginationMenu(title, rows, slots);
+
+                PaginationMenu menu = new PaginationMenu(title, rows, slots, context);
 
                 ConfigurationSection globalFillerSection = config.getConfigurationSection("global_filler");
                 if (globalFillerSection != null) {
-                    menu.setGlobalFiller(buildMenuItem(globalFillerSection, null, null));
+                    menu.setGlobalFiller(buildMenuItem(globalFillerSection, null, context));
                 }
 
                 ConfigurationSection sectionFillerSection = config.getConfigurationSection("section_filler");
                 if (sectionFillerSection != null) {
-                    menu.setItemSlotFiller(buildMenuItem(sectionFillerSection, null, null));
+                    menu.setItemSlotFiller(buildMenuItem(sectionFillerSection, null, context));
                 }
 
                 ConfigurationSection prevButtonSection = config.getConfigurationSection("prev_button");
                 if (prevButtonSection != null) {
-                    menu.setPreviousButton(buildMenuItem(prevButtonSection, null, null), prevButtonSection.getInt("slot", 1));
+                    menu.setPreviousButton(buildMenuItem(prevButtonSection, null, context), prevButtonSection.getInt("slot", 1));
                 }
 
                 ConfigurationSection nextButtonSection = config.getConfigurationSection("next_button");
                 if (nextButtonSection != null) {
-                    menu.setNextButton(buildMenuItem(nextButtonSection, null, null), nextButtonSection.getInt("slot", 1));
+                    menu.setNextButton(buildMenuItem(nextButtonSection, null, context), nextButtonSection.getInt("slot", 1));
                 }
 
                 yield menu;
             }
-            case "editable" -> new EditableMenu(title, rows);
-            default -> new Menu(title, rows);
+            case "editable" -> new EditableMenu(title, rows, context);
+            default -> new Menu(title, rows, context);
         };
     }
 

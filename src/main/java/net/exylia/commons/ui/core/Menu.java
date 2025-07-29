@@ -592,7 +592,7 @@ public class Menu {
      */
     protected void processTitle() {
         if (rawTitle != null && context != null) {
-            String processed = PlaceholderSystemManager.getInstance().process(rawTitle, viewer);
+            String processed = context.processPlaceholders(rawTitle, viewer);
             this.title = ColorUtils.parse(processed);
         }
     }

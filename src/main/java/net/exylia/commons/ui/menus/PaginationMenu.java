@@ -8,6 +8,7 @@ import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -49,6 +50,25 @@ public class PaginationMenu extends Menu {
 
     public PaginationMenu(String title, int rows, String itemSlotsString) {
         super(title, rows);
+        int[] itemSlots = parseSlots(itemSlotsString, rows);
+        this.itemSlots = itemSlots.clone();
+        this.itemsPerPage = itemSlots.length;
+        this.titleTemplate = title;
+
+        initializeDefaultNavigation(rows);
+    }
+
+    public PaginationMenu(String title, int rows, int[] itemSlots, ExyliaContext context) {
+        super(title, rows, context);
+        this.itemSlots = itemSlots.clone();
+        this.itemsPerPage = itemSlots.length;
+        this.titleTemplate = title;
+
+        initializeDefaultNavigation(rows);
+    }
+
+    public PaginationMenu(String title, int rows, String itemSlotsString, ExyliaContext context) {
+        super(title, rows, context);
         int[] itemSlots = parseSlots(itemSlotsString, rows);
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
@@ -271,7 +291,7 @@ public class PaginationMenu extends Menu {
                     .replace("{total_items}", String.valueOf(paginationItems.size()));
 
             if (context != null) {
-                processed = PlaceholderSystemManager.getInstance().process(processed, viewer);
+                processed = context.processPlaceholders(processed, viewer);
             }
 
             this.title = net.exylia.commons.utils.ColorUtils.parse(processed);
