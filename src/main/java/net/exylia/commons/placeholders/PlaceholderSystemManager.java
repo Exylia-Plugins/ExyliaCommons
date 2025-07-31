@@ -43,7 +43,7 @@ public class PlaceholderSystemManager {
 
     // Configuración
     @Setter
-    private boolean debugMode = false;
+    private boolean debugMode = true;
 
     // Patrón para encontrar placeholders
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%]+)%");

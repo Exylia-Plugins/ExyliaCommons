@@ -82,7 +82,7 @@ public class RegionManager {
         // Inicializar sistemas auxiliares
         RegionRegenerationManager.initialize(plugin);
         AllowedBlocksManager.initialize(plugin);
-        TemporaryBlocksManager.initialize(plugin);
+        TemporaryBlocksManager.initialize(plugin, this);
         PlayerBlockTracker.initialize(plugin);
 
         // USAR LISTENER UNIFICADO CORREGIDO

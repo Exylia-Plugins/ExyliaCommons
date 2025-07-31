@@ -4,9 +4,7 @@ import lombok.Getter;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -23,6 +21,7 @@ public enum RegionFlag {
     TRACK_PLAYER_BLOCKS("track-player-blocks", "Rastrea bloques colocados por jugadores en esta región", false, FlagType.PROTECTION),
     ALLOWED_BLOCKS_ONLY("allowed-blocks-only", "Solo permite colocar bloques específicos de una lista", false, FlagType.PROTECTION),
     TEMPORARY_BLOCKS("temporary-blocks", "Los bloques colocados por jugadores desaparecen automáticamente", false, FlagType.SPECIAL),
+    RE_GIVE_BLOCKS("re-give-blocks", "Devuelve los bloques temporales al inventario del jugador cuando desaparecen", false, FlagType.SPECIAL),
 
     // Nueva flag para restricción regional
     REGION_MEMBERS_ONLY("region-members-only", "Solo jugadores dentro de la región pueden realizar acciones que afecten la región", false, FlagType.PROTECTION),
@@ -132,7 +131,7 @@ public enum RegionFlag {
                 this == CHEST_ACCESS || this == USE_DOORS || this == USE_BUTTONS ||
                 this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
                 this == REGION_MEMBERS_ONLY || this == ALLOWED_BLOCKS_ONLY ||
-                this == TEMPORARY_BLOCKS;
+                this == TEMPORARY_BLOCKS || this == RE_GIVE_BLOCKS;
     }
 
     /**
@@ -174,7 +173,7 @@ public enum RegionFlag {
                 this == FORCE_SURVIVAL || this == FORCE_CREATIVE ||
                 this == PLAYER_BUILD_ONLY || this == TRACK_PLAYER_BLOCKS ||
                 this == REGION_MEMBERS_ONLY || this == ALLOWED_BLOCKS_ONLY ||
-                this == TEMPORARY_BLOCKS;
+                this == TEMPORARY_BLOCKS || this == RE_GIVE_BLOCKS;
     }
 
     /**
@@ -201,14 +200,28 @@ public enum RegionFlag {
                     (other == FORCE_ADVENTURE || other == FORCE_SURVIVAL || other == FORCE_CREATIVE);
         }
 
+        if (this == RE_GIVE_BLOCKS && other == TEMPORARY_BLOCKS) {
+            return false;
+        }
+
         // Otras incompatibilidades específicas
         if (this == INVINCIBLE && other == PVP) return true;
         return this == PVP && other == INVINCIBLE;
     }
 
-    /**
-     * Tipos de flags para categorización
-     */
+    public boolean requiresFlag(RegionFlag other) {
+        // RE_GIVE_BLOCKS requiere TEMPORARY_BLOCKS para funcionar
+        if (this == RE_GIVE_BLOCKS && other == TEMPORARY_BLOCKS) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public boolean isTemporaryBlockRelated() {
+        return this == TEMPORARY_BLOCKS || this == RE_GIVE_BLOCKS;
+    }
+
     @Getter
     public enum FlagType {
         PROTECTION("Protección", "Flags que controlan la protección de bloques y entidades"),

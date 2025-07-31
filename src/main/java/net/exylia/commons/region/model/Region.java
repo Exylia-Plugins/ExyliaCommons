@@ -450,4 +450,65 @@ public class Region {
     public TemporaryBlocksManager.TemporaryBlock getTemporaryBlockAt(Location location) {
         return TemporaryBlocksManager.getInstance().getTemporaryBlock(location);
     }
+
+    // ===== MÉTODOS PARA RE_GIVE_BLOCKS =====
+
+    public void enableReGiveBlocks() {
+        if (!getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
+            throw new IllegalStateException("RE_GIVE_BLOCKS requiere que TEMPORARY_BLOCKS esté activo");
+        }
+
+        setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.ALLOW);
+    }
+
+    public void disableReGiveBlocks() {
+        setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.DEFAULT);
+    }
+
+    public boolean hasReGiveBlocks() {
+        return getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
+    }
+
+    public void enableTemporaryBlocksWithReGive() {
+        setFlag(RegionFlag.TEMPORARY_BLOCKS, RegionFlagType.ALLOW);
+        setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.ALLOW);
+    }
+
+    public void enableTemporaryBlocksWithReGive(int seconds) {
+        enableTemporaryBlocksWithReGive();
+        setTemporaryBlocksTime(seconds);
+    }
+
+    public boolean hasTemporaryBlocksWithReGive() {
+        return getFlagValue(RegionFlag.TEMPORARY_BLOCKS) && getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
+    }
+
+    public boolean validateTemporaryBlocksConfiguration() {
+        boolean temporaryActive = getFlagValue(RegionFlag.TEMPORARY_BLOCKS);
+        boolean reGiveActive = getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
+
+        // Si RE_GIVE_BLOCKS está activo, TEMPORARY_BLOCKS también debe estarlo
+        if (reGiveActive && !temporaryActive) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public String getTemporaryBlocksConfigSummary() {
+        boolean temporaryActive = getFlagValue(RegionFlag.TEMPORARY_BLOCKS);
+        boolean reGiveActive = getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
+        int time = getTemporaryBlocksTime();
+
+        if (!temporaryActive) {
+            return "Bloques temporales: DESACTIVADO";
+        }
+
+        String summary = "Bloques temporales: ACTIVADO (" + time + "s)";
+        if (reGiveActive) {
+            summary += " + Devolución al inventario";
+        }
+
+        return summary;
+    }
 }

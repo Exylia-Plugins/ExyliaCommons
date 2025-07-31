@@ -5,6 +5,7 @@ import net.exylia.commons.region.RegionManager;
 import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
 import net.exylia.commons.region.blocks.TemporaryBlocksManager;
+import net.exylia.commons.region.events.TemporaryBlockRemovedEvent;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
@@ -162,6 +163,35 @@ public class UnifiedRegionListener implements Listener {
         } else {
             executePostBreakEffects(player, region, location);
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onTemporaryBlockRemoved(TemporaryBlockRemovedEvent event) {
+        totalEvents++;
+
+        Location location = event.getLocation();
+        String regionId = event.getRegionId();
+
+        // Si tenemos un regionId válido, notificar al PlayerBlockTracker
+        if (regionId != null) {
+            // Verificar si el bloque estaba siendo rastreado
+            if (blockTracker.isPlayerPlacedBlock(regionId, location)) {
+                blockTracker.removePlayerBlock(regionId, location);
+
+                logInternalDebug(debug(), String.format(
+                        "Bloque temporal removido del tracker: %s en región %s (vivió %d segundos)",
+                        event.getMaterial().name(),
+                        regionId,
+                        event.getLifetimeSeconds()
+                ));
+            }
+        }
+
+        logInternalDebug(debug(), String.format(
+                "Procesado evento de remoción de bloque temporal: %s en %s",
+                event.getMaterial().name(),
+                location
+        ));
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
@@ -427,6 +457,13 @@ public class UnifiedRegionListener implements Listener {
             return ActionResult.deny("build-denied", "No puedes construir en esta región");
         }
 
+        if (region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS)) {
+            if (!region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
+                return ActionResult.deny("invalid-regive-config",
+                        "RE_GIVE_BLOCKS requiere que TEMPORARY_BLOCKS esté activo");
+            }
+        }
+
         if (region.getFlagValue(RegionFlag.ALLOWED_BLOCKS_ONLY)) {
             if (!allowedBlocksManager.isMaterialAllowed(region, material)) {
                 return ActionResult.deny("material-not-allowed",
@@ -538,7 +575,7 @@ public class UnifiedRegionListener implements Listener {
         }
 
         if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
-            temporaryBlocksManager.scheduleBlockRemoval(region, location, material);
+            temporaryBlocksManager.scheduleBlockRemoval(region, location, material, player.getUniqueId());
         }
     }
 

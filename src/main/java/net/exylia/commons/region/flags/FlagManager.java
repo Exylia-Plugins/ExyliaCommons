@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**
  * Gestor central OPTIMIZADO para la aplicación y validación de flags de región
@@ -261,9 +262,6 @@ public class FlagManager {
         }
     }
 
-    /**
-     * Verifica incompatibilidades con cache
-     */
     private boolean hasIncompatibleFlags(Region region, RegionFlag flag) {
         // Cache de incompatibilidades por región
         String incompatibleKey = region.getId() + ":" + flag.name();
@@ -273,8 +271,21 @@ public class FlagManager {
         }
 
         boolean hasIncompatible = region.getConfiguredFlags().keySet().stream()
-                .anyMatch(configuredFlag -> flag.isIncompatibleWith(configuredFlag) &&
-                        region.getFlagValue(configuredFlag));
+                .anyMatch(configuredFlag -> {
+                    // Verificar incompatibilidad tradicional
+                    if (flag.isIncompatibleWith(configuredFlag) && region.getFlagValue(configuredFlag)) {
+                        return true;
+                    }
+
+                    // NUEVO: Verificar dependencias
+                    if (flag == RegionFlag.RE_GIVE_BLOCKS &&
+                            configuredFlag == RegionFlag.TEMPORARY_BLOCKS &&
+                            !region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
+                        return true; // RE_GIVE_BLOCKS no puede estar activo sin TEMPORARY_BLOCKS
+                    }
+
+                    return false;
+                });
 
         optimizedCache.cacheIncompatibility(incompatibleKey, hasIncompatible);
         return hasIncompatible;
@@ -614,5 +625,29 @@ public class FlagManager {
                     getCacheHitRatio() * 100, validationCalls
             );
         }
+    }
+
+    private boolean validateFlagConfiguration(Region region, RegionFlag flag, boolean newValue) {
+        // Validar RE_GIVE_BLOCKS
+        if (flag == RegionFlag.RE_GIVE_BLOCKS && newValue) {
+            // RE_GIVE_BLOCKS requiere TEMPORARY_BLOCKS
+            if (!region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
+                return false;
+            }
+        }
+
+        // Validar TEMPORARY_BLOCKS
+        if (flag == RegionFlag.TEMPORARY_BLOCKS && !newValue) {
+            // Si se desactiva TEMPORARY_BLOCKS, también desactivar RE_GIVE_BLOCKS
+            if (region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS)) {
+                region.setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.DEFAULT);
+                logInternalDebug(debug(), String.format(
+                        "RE_GIVE_BLOCKS desactivado automáticamente en región %s al desactivar TEMPORARY_BLOCKS",
+                        region.getId()
+                ));
+            }
+        }
+
+        return true;
     }
 }
