@@ -11,11 +11,15 @@ import org.bukkit.util.Vector;
 import java.util.Collection;
 import java.util.Random;
 
-public class LocationUtils {
+public class  LocationUtils {
 
     private static final String SEPARATOR = "|";
     private static final Random RANDOM = new Random();
     private static final int MAX_ATTEMPTS = 50;
+
+    public static boolean isInSameWorld(Location loc1, Location loc2) {
+        return loc1.getWorld().equals(loc2.getWorld());
+    }
 
     public static Location deserialize(String locationString) {
         if (locationString == null || locationString.trim().isEmpty()) {

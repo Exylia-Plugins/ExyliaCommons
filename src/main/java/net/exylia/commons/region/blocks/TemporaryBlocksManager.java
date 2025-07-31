@@ -92,13 +92,6 @@ public class TemporaryBlocksManager {
         }.runTaskLater(plugin, removalSeconds * 20L); // convertir a ticks
 
         scheduledRemovals.put(locationKey, removalTask);
-
-        logInternalDebug(debug(), String.format(
-                "Bloque temporal programado para remoción: %s en %s (%d segundos) - Player: %s, ReGive: %b",
-                material.name(), locationKey, removalSeconds,
-                playerId != null ? playerId.toString() : "unknown",
-                tempBlock.isShouldReGiveBlock()
-        ));
     }
 
     public void cancelBlockRemoval(Location location) {
@@ -176,11 +169,6 @@ public class TemporaryBlocksManager {
             if (regionId != null) {
                 PlayerBlockTracker.getInstance().removePlayerBlock(regionId, location);
             }
-
-            logInternalDebug(debug(), String.format(
-                    "Bloque temporal removido automáticamente: %s - ReGive: %b",
-                    locationKey, temporaryBlock.isShouldReGiveBlock()
-            ));
 
         } catch (Exception e) {
             plugin.getLogger().warning("Error removiendo bloque temporal en " + locationKey + ": " + e.getMessage());

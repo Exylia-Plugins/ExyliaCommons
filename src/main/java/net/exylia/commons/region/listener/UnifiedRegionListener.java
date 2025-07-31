@@ -186,12 +186,6 @@ public class UnifiedRegionListener implements Listener {
                 ));
             }
         }
-
-        logInternalDebug(debug(), String.format(
-                "Procesado evento de remoción de bloque temporal: %s en %s",
-                event.getMaterial().name(),
-                location
-        ));
     }
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
