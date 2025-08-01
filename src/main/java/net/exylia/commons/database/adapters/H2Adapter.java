@@ -10,6 +10,7 @@ import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.DatabaseException;
 import net.exylia.commons.database.exceptions.SerializationException;
 import net.exylia.commons.database.serialization.CollectionUtils;
+import net.exylia.commons.database.serialization.EnumSafetyHandler;
 import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -980,10 +981,10 @@ public class H2Adapter implements DatabaseAdapter {
 
                     if (value != null) {
                         try {
+
                             if (field.getType().isEnum() && value instanceof String) {
-                                @SuppressWarnings("unchecked")
-                                Class<Enum> enumClass = (Class<Enum>) field.getType();
-                                value = Enum.valueOf(enumClass, (String) value);
+                                value = EnumSafetyHandler.handleEnumDeserialization(value, field,
+                                        entityClassName, columnName, errorHandler);
                             }
                             else if (column.autoSerialize()) {
                                 try {

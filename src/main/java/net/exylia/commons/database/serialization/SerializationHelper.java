@@ -6,13 +6,13 @@ import net.exylia.commons.database.exceptions.SerializationException;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.serialization.RegionSerializer;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Keyed;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.*;
 
 /**
@@ -25,7 +25,7 @@ public class SerializationHelper {
      * Now handles null collections by creating empty ones when appropriate
      */
     @SuppressWarnings("unchecked")
-    public static Object autoSerializeValue(Object value, Field field, SerializationType serType) {
+    public static Object autoSerializeValue(Object value, Field field, SerializationType serType) throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
         Class<?> type = field.getType();
         String entityClass = field.getDeclaringClass().getSimpleName();
         String fieldName = field.getName();
@@ -112,6 +112,48 @@ public class SerializationHelper {
             // Arrays
             else if (type.isArray()) {
                 return handleArraySerialization(value, actualType);
+            } else if (actualType == SerializationType.STRING && !type.isPrimitive() && type != String.class) {
+                try {
+                    String result;
+
+                    // Try Keyed interface first (Bukkit objects)
+                    if (value instanceof Keyed) {
+                        result = ((Keyed) value).getKey().toString();
+                    }
+                    // Try enum next
+                    else if (value.getClass().isEnum()) {
+                        result = ((Enum<?>) value).name();
+                    }
+                    // Try objects with a "name" method
+                    else if (hasMethod(value.getClass(), "name")) {
+                        Method nameMethod = value.getClass().getMethod("name");
+                        Object nameResult = nameMethod.invoke(value);
+                        result = nameResult != null ? nameResult.toString() : null;
+                    }
+                    // Try objects with a "getName" method
+                    else if (hasMethod(value.getClass(), "getName")) {
+                        Method getNameMethod = value.getClass().getMethod("getName");
+                        Object nameResult = getNameMethod.invoke(value);
+                        result = nameResult != null ? nameResult.toString() : null;
+                    }
+                    // Fallback to toString()
+                    else {
+                        result = value.toString();
+                    }
+
+                    if (result == null || result.trim().isEmpty()) {
+                        throw new RuntimeException("Generic object serialization returned null or empty result");
+                    }
+                    return result;
+
+                } catch (Exception e) {
+                    if (e instanceof SerializationException) {
+                        throw e;
+                    } else {
+                        throw new SerializationException("Serialize", entityClass, fieldName, "Generic", value,
+                                "Failed to serialize object as string", e);
+                    }
+                }
             }
 
             // Complex objects
@@ -145,7 +187,7 @@ public class SerializationHelper {
     /**
      * Automatically deserializes a value and ensures collections are never null
      */
-    public static Object autoDeserializeValue(Object serializedValue, Field field, SerializationType serType) {
+    public static Object autoDeserializeValue(Object serializedValue, Field field, SerializationType serType) throws InvocationTargetException, NoSuchMethodException, IllegalAccessException, InstantiationException {
         if (serializedValue == null) {
             // NEW: Return empty collection instead of null for collection types
             if (CollectionUtils.isCollectionType(field.getType())) {
@@ -241,6 +283,53 @@ public class SerializationHelper {
                     return CollectionUtils.createEmptyCollection(field);
                 }
                 return result;
+            }
+
+            else if (actualType == SerializationType.STRING && !type.isPrimitive() && type != String.class) {
+                try {
+                    // Try Keyed interface first
+                    if (Keyed.class.isAssignableFrom(type)) {
+                        return deserializeKeyedObject(type, stringValue, entityClass, fieldName);
+                    }
+                    // Try enum
+                    else if (type.isEnum()) {
+                        @SuppressWarnings("unchecked")
+                        Class<Enum> enumClass = (Class<Enum>) type;
+                        return Enum.valueOf(enumClass, stringValue);
+                    }
+                    // Try static valueOf method
+                    else if (hasMethod(type, "valueOf", String.class)) {
+                        Method valueOfMethod = type.getMethod("valueOf", String.class);
+                        if (java.lang.reflect.Modifier.isStatic(valueOfMethod.getModifiers())) {
+                            return valueOfMethod.invoke(null, stringValue);
+                        }
+                    }
+                    // Try static getByName method
+                    else if (hasMethod(type, "getByName", String.class)) {
+                        Method getByNameMethod = type.getMethod("getByName", String.class);
+                        if (java.lang.reflect.Modifier.isStatic(getByNameMethod.getModifiers())) {
+                            return getByNameMethod.invoke(null, stringValue);
+                        }
+                    }
+                    // Try constructor with String parameter
+                    else {
+                        try {
+                            return type.getConstructor(String.class).newInstance(stringValue);
+                        } catch (NoSuchMethodException e) {
+                            throw new RuntimeException("No suitable deserialization method found for type: " + type.getSimpleName());
+                        }
+                    }
+
+                    return null;
+
+                } catch (Exception e) {
+                    if (e instanceof SerializationException) {
+                        throw e;
+                    } else {
+                        throw new SerializationException("Deserialize", entityClass, fieldName, "Generic", stringValue,
+                                "Failed to deserialize object from string", e);
+                    }
+                }
             }
 
             // Complex objects
@@ -648,5 +737,48 @@ public class SerializationHelper {
         }
 
         return sb.toString();
+    }
+
+    private static boolean hasMethod(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
+        try {
+            clazz.getMethod(methodName, parameterTypes);
+            return true;
+        } catch (NoSuchMethodException e) {
+            return false;
+        }
+    }
+
+    private static Object deserializeKeyedObject(Class<?> type, String keyString, String entityClass, String fieldName) {
+        try {
+            NamespacedKey key = NamespacedKey.fromString(keyString);
+            if (key == null) {
+                throw new RuntimeException("Invalid NamespacedKey format: " + keyString);
+            }
+
+            // Try to find matching static field
+            java.lang.reflect.Field[] fields = type.getDeclaredFields();
+            for (java.lang.reflect.Field field : fields) {
+                if (field.getType() == type &&
+                        java.lang.reflect.Modifier.isStatic(field.getModifiers()) &&
+                        java.lang.reflect.Modifier.isPublic(field.getModifiers())) {
+
+                    try {
+                        Object constant = field.get(null);
+                        if (constant instanceof Keyed &&
+                                ((Keyed) constant).getKey().equals(key)) {
+                            return constant;
+                        }
+                    } catch (Exception e) {
+                        // Continue searching
+                    }
+                }
+            }
+
+            throw new RuntimeException("Keyed object not found for key: " + keyString);
+
+        } catch (Exception e) {
+            throw new SerializationException("Deserialize", entityClass, fieldName, "Keyed", keyString,
+                    "Failed to deserialize Keyed object", e);
+        }
     }
 }

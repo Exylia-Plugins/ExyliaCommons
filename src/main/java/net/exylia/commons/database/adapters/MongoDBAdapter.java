@@ -14,6 +14,7 @@ import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.DatabaseException;
 import net.exylia.commons.database.exceptions.SerializationException;
 import net.exylia.commons.database.serialization.CollectionUtils;
+import net.exylia.commons.database.serialization.EnumSafetyHandler;
 import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bson.Document;
 import org.bson.types.ObjectId;
@@ -908,9 +909,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         try {
                             // Manejo especial para enums
                             if (field.getType().isEnum() && value instanceof String) {
-                                @SuppressWarnings("unchecked")
-                                Class<Enum> enumClass = (Class<Enum>) field.getType();
-                                value = Enum.valueOf(enumClass, (String) value);
+                                value = EnumSafetyHandler.handleEnumDeserialization(value, field,
+                                        entityClassName, fieldName, errorHandler);
                             }
                             else if (column.autoSerialize()) {
                                 try {

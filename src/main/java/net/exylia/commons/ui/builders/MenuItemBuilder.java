@@ -101,7 +101,7 @@ public class MenuItemBuilder {
         }
 
         // Ocultar atributos
-        if (config.getBoolean("hide_attributes", false)) {
+        if (config.getBoolean("hide_attributes", true)) {
             item.hideAllAttributes();
         }
 

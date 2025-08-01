@@ -466,7 +466,7 @@ public class PaginationMenu extends Menu {
     /**
      * Refreshes the current page
      */
-    private void refreshCurrentPage() {
+    public void refreshCurrentPage() {
         if (viewer != null && isOpen()) {
             refreshForPlayer(viewer);
         }
