@@ -15,7 +15,6 @@ repositories {
     maven { url 'https://oss.sonatype.org/content/groups/public/' }
     maven { url 'https://repo.extendedclip.com/content/repositories/placeholderapi/' }
     maven { url "https://maven.enginehub.org/repo/" }
-    maven { url "https://repo.dmulloy2.net/repository/public/" }
     maven {
         name = "minecraft-libraries"
         url = uri("https://libraries.minecraft.net")
@@ -42,7 +41,6 @@ dependencies {
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.8.4'
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.8.4'
     compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.7'
-    compileOnly 'com.comphenix.protocol:ProtocolLib:5.0.0'
     implementation 'com.github.lalyos:jfiglet:0.0.9'
 }
 
@@ -53,18 +51,67 @@ java {
 
 publishing {
     publications {
-        mavenJava(MavenPublication) {
+        maven(MavenPublication) {
             from components.java
+
+            groupId = 'net.exylia'
+            artifactId = 'ExyliaCommons'
+            version = '1.0.0'
+
+            pom {
+                name = 'ExyliaCommons'
+                description = 'Common utilities for Exylia plugins'
+                url = 'https://github.com/Exylia-Plugins/ExyliaCommons'
+
+                licenses {
+                    license {
+                        name = 'MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = 'DiGround-s'
+                        name = 'DiGround-s'
+                    }
+                }
+
+                scm {
+                    connection = 'scm:git:git://github.com/Exylia-Plugins/ExyliaCommons.git'
+                    developerConnection = 'scm:git:ssh://github.com:Exylia-Plugins/ExyliaCommons.git'
+                    url = 'https://github.com/Exylia-Plugins/ExyliaCommons'
+                }
+            }
         }
     }
+
     repositories {
-        mavenLocal()
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/Exylia-Plugins/ExyliaCommons")
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME") ?: "DiGround-s"
+                password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
+            }
+        }
     }
+}
+
+// Agregar task para sources
+java {
+    withSourcesJar()
 }
 
 shadowJar {
     archiveClassifier.set('')
-    // Ya no incluimos Adventure aquí
+    // Solo incluye las dependencias implementation
+    configurations = [project.configurations.runtimeClasspath]
+}
+
+// Asegurarse de que el shadowJar se ejecute antes de publicar
+tasks.named('publishMavenPublicationToGitHubPackagesRepository') {
+    dependsOn shadowJar
 }
 
 build {
