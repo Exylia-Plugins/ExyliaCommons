@@ -51,47 +51,19 @@ java {
 
 publishing {
     publications {
-        maven(MavenPublication) {
+        mavenJava(MavenPublication) {
             from components.java
-
             groupId = 'net.exylia'
-            artifactId = 'ExyliaCommons'
+            artifactId = 'exyliacommons'
             version = '1.0.0'
-
-            pom {
-                name = 'ExyliaCommons'
-                description = 'Common utilities for Exylia plugins'
-                url = 'https://github.com/Exylia-Plugins/ExyliaCommons'
-
-                licenses {
-                    license {
-                        name = 'MIT License'
-                        url = 'https://opensource.org/licenses/MIT'
-                    }
-                }
-
-                developers {
-                    developer {
-                        id = 'DiGround-s'
-                        name = 'DiGround-s'
-                    }
-                }
-
-                scm {
-                    connection = 'scm:git:git://github.com/Exylia-Plugins/ExyliaCommons.git'
-                    developerConnection = 'scm:git:ssh://github.com:Exylia-Plugins/ExyliaCommons.git'
-                    url = 'https://github.com/Exylia-Plugins/ExyliaCommons'
-                }
-            }
         }
     }
-
     repositories {
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/Exylia-Plugins/ExyliaCommons")
             credentials {
-                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME") ?: "DiGround-s"
+                username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
                 password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
             }
         }
@@ -107,11 +79,6 @@ shadowJar {
     archiveClassifier.set('')
     // Solo incluye las dependencias implementation
     configurations = [project.configurations.runtimeClasspath]
-}
-
-// Asegurarse de que el shadowJar se ejecute antes de publicar
-tasks.named('publishMavenPublicationToGitHubPackagesRepository') {
-    dependsOn shadowJar
 }
 
 build {
