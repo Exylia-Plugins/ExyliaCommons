@@ -70,9 +70,7 @@ public class ItemEffectsHandler {
         try {
             Location fireworkLocation = location.clone().add(0, 1, 0);
 
-            if (config.isLaunchFireworkOnUse()) {
-                FireworkUtils.launchRandomFirework(fireworkLocation);
-            } else if (config.getFireworkOnUse() != null && !config.getFireworkOnUse().trim().isEmpty()) {
+            if (config.getFireworkOnUse() != null && !config.getFireworkOnUse().trim().isEmpty()) {
                 FireworkUtils.launchFirework(fireworkLocation, config.getFireworkOnUse());
             }
         } catch (Exception e) {

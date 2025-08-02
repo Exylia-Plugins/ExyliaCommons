@@ -1,89 +1,63 @@
 package net.exylia.commons.item;
 
+import lombok.Getter;
 import net.exylia.commons.actions.ActionSource;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
- * Información sobre un clic en un ítem interactivo
+ * Clase para manejar información de clics en items
+ * ACTUALIZADO: Soporte para datos adicionales en el contexto
  */
-public record ItemClickInfo(Player player, ClickType clickType, int slot, ItemStack itemStack, ActionSource source) {
+@Getter
+public class ItemClickInfo {
 
-    /**
-     * Obtiene el jugador que hizo clic
-     * @return Jugador
-     */
-    @Override
-    public Player player() {
-        return player;
+    private final Player player;
+    private final ClickType clickType;
+    private final int slot;
+    private final ItemStack itemStack;
+    private final ActionSource source;
+    private final Map<String, Object> data;
+
+    public ItemClickInfo(Player player, ClickType clickType, int slot, ItemStack itemStack, ActionSource source) {
+        this.player = player;
+        this.clickType = clickType;
+        this.slot = slot;
+        this.itemStack = itemStack;
+        this.source = source;
+        this.data = new HashMap<>();
     }
 
     /**
-     * Obtiene el tipo de clic
-     * @return Tipo de clic
+     * Añade un dato al contexto de la interacción
      */
-    @Override
-    public ClickType clickType() {
-        return clickType;
+    public ItemClickInfo withData(String key, Object value) {
+        this.data.put(key, value);
+        return this;
     }
 
     /**
-     * Obtiene la posición del ítem
-     * @return Posición
+     * Obtiene un dato del contexto
      */
-    @Override
-    public int slot() {
-        return slot;
+    public Object getData(String key) {
+        return data.get(key);
     }
 
     /**
-     * Obtiene el ItemStack que fue clickeado
-     * @return ItemStack
+     * Verifica si existe un dato en el contexto
      */
-    @Override
-    public ItemStack itemStack() {
-        return itemStack;
+    public boolean hasData(String key) {
+        return data.containsKey(key);
     }
 
     /**
-     * Obtiene la fuente de la acción
-     * @return Fuente de la acción
+     * Obtiene todos los datos del contexto
      */
-    @Override
-    public ActionSource source() {
-        return source;
-    }
-
-    /**
-     * Comprueba si el clic fue con botón izquierdo
-     * @return true si fue con botón izquierdo
-     */
-    public boolean isLeftClick() {
-        return clickType == ClickType.LEFT || clickType == ClickType.SHIFT_LEFT;
-    }
-
-    /**
-     * Comprueba si el clic fue con botón derecho
-     * @return true si fue con botón derecho
-     */
-    public boolean isRightClick() {
-        return clickType == ClickType.RIGHT || clickType == ClickType.SHIFT_RIGHT;
-    }
-
-    /**
-     * Comprueba si el clic fue con shift
-     * @return true si fue con shift
-     */
-    public boolean isShiftClick() {
-        return clickType == ClickType.SHIFT_LEFT || clickType == ClickType.SHIFT_RIGHT;
-    }
-
-    /**
-     * Comprueba si el clic fue con la rueda del ratón
-     * @return true si fue con la rueda
-     */
-    public boolean isMiddleClick() {
-        return clickType == ClickType.MIDDLE;
+    public Map<String, Object> getData() {
+        return new HashMap<>(data);
     }
 }

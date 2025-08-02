@@ -9,5 +9,6 @@ public enum ActionSource {
     ITEM_USE,
     COMMAND,
     NPC,
-    CUSTOM
+    CUSTOM,
+    INVENTORY_CLICK
 }

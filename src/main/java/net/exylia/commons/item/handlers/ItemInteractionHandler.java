@@ -4,6 +4,7 @@ import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
+import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.Bukkit;
@@ -17,6 +18,7 @@ import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
 /**
  * Manejador principal de interacciones con items
+ * ACTUALIZADO: Soporte para nuevos triggers
  */
 public class ItemInteractionHandler {
 
@@ -32,26 +34,26 @@ public class ItemInteractionHandler {
     public void processItemInteractionWithHand(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
                                                ItemClickInfo clickInfo, EquipmentSlot hand) {
 
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
         // Validaciones previas
         if (!preValidateItemUsage(player, interactiveItem)) {
             return;
         }
 
-        // PRIMERO: Ejecutar efectos visuales y sonoros
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
-
-        // Ejecutar acciones del item
-        boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
-
-        // Procesar consumo de usos y cooldown
-        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
-            processItemConsumption(player, itemStack, interactiveItem, hand);
+        // Manejar según el tipo de trigger
+        if (config.getTriggerType() == TriggerType.IMMEDIATE) {
+            // Comportamiento actual: ejecutar efectos y acciones inmediatamente
+            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+            boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+            if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+                processItemConsumption(player, itemStack, interactiveItem, hand);
+            }
+            if (interactiveItem.shouldConsumeOnUse()) {
+                ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+            }
         }
-
-        // Consumir item completo si está configurado
-        if (interactiveItem.shouldConsumeOnUse()) {
-            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-        }
+        // Otros triggers (como AFTER_CONSUME) se manejan en otros eventos
     }
 
     /**
@@ -60,44 +62,135 @@ public class ItemInteractionHandler {
     public void processItemInteractionFromInventory(Player player, InventoryClickEvent event,
                                                     InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
 
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
         // Validaciones previas
         if (!preValidateItemUsage(player, interactiveItem)) {
             return;
         }
 
-        // PRIMERO: Ejecutar efectos visuales y sonoros
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
+        // Manejar según el tipo de trigger
+        if (config.getTriggerType() == TriggerType.IMMEDIATE) {
+            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+            boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+            if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+                processItemConsumptionFromInventory(event, interactiveItem);
+            }
+            if (interactiveItem.shouldConsumeOnUse()) {
+                ItemInventoryHandler.removeOrReduceItemFromInventory(event);
+            }
+        }
+        // Otros triggers se manejan en otros eventos
+    }
 
-        // Ejecutar acciones del item
-        boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+    /**
+     * NUEVO: Procesa consumo de item (para AFTER_CONSUME)
+     */
+    public void processItemConsumptionEvent(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
+                                            ItemClickInfo clickInfo, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Procesar consumo de usos y cooldown
-        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
-            processItemConsumptionFromInventory(event, interactiveItem);
+        if (config.getTriggerType() != TriggerType.AFTER_CONSUME) {
+            return;
         }
 
-        // Consumir item completo si está configurado (después de procesar usos)
+        if (!preValidateItemUsage(player, interactiveItem)) {
+            return;
+        }
+
+        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            processItemConsumption(player, itemStack, interactiveItem, hand);
+        }
         if (interactiveItem.shouldConsumeOnUse()) {
-            ItemInventoryHandler.removeOrReduceItemFromInventory(event);
+            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
         }
     }
 
     /**
-     * Validaciones previas antes de usar un item
-     * @param player Jugador
-     * @param interactiveItem Item a validar
-     * @return true si pasa todas las validaciones
+     * NUEVO: Procesa golpe a jugador (para ON_HIT_PLAYER)
      */
+    public void processHitPlayer(Player player, Player hitPlayer, ItemStack itemStack,
+                                 InteractiveItem interactiveItem, ItemClickInfo clickInfo, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
+        if (config.getTriggerType() != TriggerType.ON_HIT_PLAYER) {
+            return;
+        }
+
+        if (!preValidateItemUsage(player, interactiveItem)) {
+            return;
+        }
+
+        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
+        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            processItemConsumption(player, itemStack, interactiveItem, hand);
+        }
+        if (interactiveItem.shouldConsumeOnUse()) {
+            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+        }
+    }
+
+    /**
+     * NUEVO: Procesa lanzamiento de proyectil (para ON_PROJECTILE_LAUNCH)
+     */
+    public void processProjectileLaunch(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
+                                        ItemClickInfo clickInfo, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
+        if (config.getTriggerType() != TriggerType.ON_PROJECTILE_LAUNCH) {
+            return;
+        }
+
+        if (!preValidateItemUsage(player, interactiveItem)) {
+            return;
+        }
+
+        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            processItemConsumption(player, itemStack, interactiveItem, hand);
+        }
+        if (interactiveItem.shouldConsumeOnUse()) {
+            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+        }
+    }
+
+    /**
+     * NUEVO: Procesa impacto de proyectil (para ON_PROJECTILE_HIT)
+     */
+    public void processProjectileHit(Player player, Player hitPlayer, ItemStack itemStack,
+                                     InteractiveItem interactiveItem, ItemClickInfo clickInfo, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
+        if (config.getTriggerType() != TriggerType.ON_PROJECTILE_HIT) {
+            return;
+        }
+
+        if (!preValidateItemUsage(player, interactiveItem)) {
+            return;
+        }
+
+        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
+        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+            processItemConsumption(player, itemStack, interactiveItem, hand);
+        }
+        if (interactiveItem.shouldConsumeOnUse()) {
+            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+        }
+    }
+
     private boolean preValidateItemUsage(Player player, InteractiveItem interactiveItem) {
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Verificar región
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
             handleRegionDeniedMessage(player);
             return false;
         }
 
-        // Verificar cooldown
         if (config.hasCooldown()) {
             if (!canPlayerUseItem(player, interactiveItem.getId())) {
                 double remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
@@ -106,7 +199,6 @@ public class ItemInteractionHandler {
             }
         }
 
-        // Verificar usos restantes
         if (!interactiveItem.hasUsesRemaining()) {
             MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.no_uses_remaining"));
             return false;
@@ -115,27 +207,17 @@ public class ItemInteractionHandler {
         return true;
     }
 
-    /**
-     * Ejecuta las acciones del item
-     * @param player Jugador
-     * @param interactiveItem Item
-     * @param clickInfo Información del clic
-     * @return true si se ejecutó alguna acción
-     */
     private boolean executeItemActions(Player player, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
         boolean actionExecuted = false;
 
-        // Ejecutar acción principal
         if (interactiveItem.hasAction()) {
             actionExecuted = interactiveItem.executeAction(clickInfo);
         }
 
-        // Ejecutar comandos si no se ejecutó acción o no son excluyentes
         if (!actionExecuted && !interactiveItem.getCommands().isEmpty()) {
             Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
         }
 
-        // Ejecutar callback personalizado
         if (interactiveItem.getClickHandler() != null) {
             interactiveItem.getClickHandler().accept(clickInfo);
         }
@@ -143,64 +225,70 @@ public class ItemInteractionHandler {
         return actionExecuted;
     }
 
-    /**
-     * Determina si se debe consumir un uso del item
-     */
+    private boolean executeItemActionsWithHitPlayer(Player player, Player hitPlayer, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
+        boolean actionExecuted = false;
+
+        if (interactiveItem.hasAction()) {
+            clickInfo.withData("hitPlayer", hitPlayer); // Añadir jugador golpeado al contexto
+            actionExecuted = interactiveItem.executeAction(clickInfo);
+        }
+
+        if (!actionExecuted && !interactiveItem.getCommands().isEmpty()) {
+            Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
+        }
+
+        if (interactiveItem.getClickHandler() != null) {
+            interactiveItem.getClickHandler().accept(clickInfo);
+        }
+
+        return actionExecuted;
+    }
+
     private boolean shouldConsumeUse(InteractiveItem interactiveItem, boolean actionExecuted) {
         return actionExecuted || !interactiveItem.getCommands().isEmpty() ||
                 interactiveItem.getClickHandler() != null;
     }
 
-    /**
-     * Procesa el consumo del item desde mano
-     */
     private void processItemConsumption(Player player, ItemStack itemStack,
                                         InteractiveItem interactiveItem, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
+        if (config.hasCooldown()) {
+            double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
+            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+        }
 
-        // Establecer cooldown específico de región
-        setCooldownForRegion(player, interactiveItem);
-
-        // Consumir un uso del ítem
         boolean hasUsesLeft = interactiveItem.consumeUse();
 
         if (!hasUsesLeft) {
-            // Sin usos restantes - eliminar/reducir el ítem de la mano
             ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
             MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
             return;
         }
 
-        // Solo actualizar si quedan usos
         ItemInventoryHandler.updateItemByEquipmentSlot(player, itemStack, interactiveItem, hand);
         interactiveItem.updatePlaceholders(player, hand);
     }
 
-    /**
-     * Procesa el consumo del item desde inventario
-     */
     private void processItemConsumptionFromInventory(InventoryClickEvent event, InteractiveItem interactiveItem) {
         Player player = (Player) event.getWhoClicked();
 
-        // Establecer cooldown específico de región
-        setCooldownForRegion(player, interactiveItem);
+        ItemConfiguration config = interactiveItem.getConfiguration();
+        if (config.hasCooldown()) {
+            double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
+            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+        }
 
-        // Consumir un uso del ítem
         boolean hasUsesLeft = interactiveItem.consumeUse();
 
         if (!hasUsesLeft) {
-            // Sin usos restantes - eliminar/reducir el ítem INMEDIATAMENTE
             ItemInventoryHandler.removeOrReduceItemFromInventory(event);
             MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
             return;
         }
 
-        // Solo actualizar si quedan usos
         ItemInventoryHandler.updateItemInInventory(event, interactiveItem);
     }
 
-    /**
-     * Establece cooldown considerando la región del jugador
-     */
     private void setCooldownForRegion(Player player, InteractiveItem interactiveItem) {
         ItemConfiguration config = interactiveItem.getConfiguration();
         if (config.hasCooldown()) {
@@ -209,11 +297,6 @@ public class ItemInteractionHandler {
         }
     }
 
-    // ===== MÉTODOS DE COOLDOWN DELEGADOS =====
-
-    /**
-     * Verifica si un jugador puede usar un ítem (considerando cooldown)
-     */
     public static boolean canPlayerUseItem(Player player, String itemId) {
         if (!CooldownManager.isInitialized()) {
             return true;
@@ -221,18 +304,12 @@ public class ItemInteractionHandler {
         return !CooldownManager.getInstance().hasCooldown(player, itemId);
     }
 
-    /**
-     * Establece un cooldown para un jugador e ítem específico
-     */
     public static void setCooldown(Player player, String itemId, double seconds) {
         if (CooldownManager.isInitialized()) {
             CooldownManager.getInstance().setCooldown(player, itemId, seconds);
         }
     }
 
-    /**
-     * Obtiene el tiempo restante de cooldown
-     */
     public static double getRemainingCooldown(Player player, String itemId) {
         if (!CooldownManager.isInitialized()) {
             return 0.0;
@@ -240,20 +317,12 @@ public class ItemInteractionHandler {
         return CooldownManager.getInstance().getRemainingCooldown(player, itemId);
     }
 
-    /**
-     * Remueve el cooldown de un jugador para un ítem
-     */
     public static void removeCooldown(Player player, String itemId) {
         if (CooldownManager.isInitialized()) {
             CooldownManager.getInstance().removeCooldown(player, itemId);
         }
     }
 
-    // ===== MÉTODOS DE MENSAJES =====
-
-    /**
-     * Maneja el mensaje de cooldown con formato de double
-     */
     private void handleCooldownMessage(Player player, double remainingSeconds) {
         String formattedTime = timeFormatter.format(remainingSeconds);
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.in_cooldown",
@@ -261,9 +330,6 @@ public class ItemInteractionHandler {
                 "%cooldown_seconds%", String.valueOf(remainingSeconds)));
     }
 
-    /**
-     * Maneja el mensaje de región denegada
-     */
     private void handleRegionDeniedMessage(Player player) {
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.region_denied"));
     }

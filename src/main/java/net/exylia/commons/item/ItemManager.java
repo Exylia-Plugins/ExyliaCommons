@@ -3,6 +3,7 @@ package net.exylia.commons.item;
 import lombok.Getter;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.item.config.ItemConfiguration;
+import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.item.handlers.ItemInteractionHandler;
 import net.exylia.commons.item.handlers.ItemInventoryHandler;
@@ -15,6 +16,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -22,11 +24,14 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -36,13 +41,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
 
 /**
  * Manager principal del sistema de items - MODULARIZADO
- * MEJORADO: Sistema completo de restricciones para items de lobby/user
+ * MEJORADO: Soporte para nuevos eventos de trigger
  */
 public class ItemManager implements Listener {
 
@@ -53,13 +58,9 @@ public class ItemManager implements Listener {
     private static NamespacedKey itemIdKey;
     private static boolean initialized = false;
 
-    // Control de doble clic
     private static final Map<UUID, Long> lastClickTime = new ConcurrentHashMap<>();
     private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
 
-    /**
-     * Inicializa el sistema de ítems modularizado
-     */
     public static void initialize(JavaPlugin javaPlugin) {
         if (initialized) return;
 
@@ -68,24 +69,16 @@ public class ItemManager implements Listener {
         interactionHandler = new ItemInteractionHandler(plugin);
         itemIdKey = new NamespacedKey(plugin, "interactive_item_id");
 
-        // Registrar eventos
         Bukkit.getPluginManager().registerEvents(new ItemManager(), plugin);
-
-        // Inicializar sistema de cooldowns
         CooldownManager.initialize(plugin);
-
-        // Iniciar tareas de limpieza
         startClickTimeCleanupTask();
 
         initialized = true;
 
-        // Log del estado de WorldGuard
         if (WorldGuardUtils.isWorldGuardAvailable()) {
             DebugUtils.logInternalInfo("WorldGuard detectado - Soporte de regiones habilitado");
         }
     }
-
-    // ===== MÉTODOS DELEGADOS AL REGISTRY =====
 
     public static void registerItemConfiguration(String id, ItemConfiguration config) {
         ensureInitialized();
@@ -128,8 +121,6 @@ public class ItemManager implements Listener {
         return registry.getAllConfigurations();
     }
 
-    // ===== MÉTODOS DE CREACIÓN DE ÍTEMS =====
-
     @Nullable
     public static InteractiveItem createItem(String id) {
         ensureInitialized();
@@ -163,8 +154,6 @@ public class ItemManager implements Listener {
         InteractiveItem item = createItem(id, player);
         return item != null ? prepareItem(item) : null;
     }
-
-    // ===== MÉTODOS DE GESTIÓN DE ÍTEMS =====
 
     public static ItemStack prepareItem(InteractiveItem item) {
         ItemStack itemStack = item.getItemStack().clone();
@@ -201,8 +190,6 @@ public class ItemManager implements Listener {
         return getItemFromStack(itemStack) != null;
     }
 
-    // ===== MÉTODOS DELEGADOS A HANDLERS =====
-
     public static boolean canPlayerUseItemInCurrentRegion(Player player, ItemConfiguration config) {
         ensureInitialized();
         return ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config);
@@ -233,8 +220,6 @@ public class ItemManager implements Listener {
         ItemInteractionHandler.removeCooldown(player, itemId);
     }
 
-    // ===== EVENTOS PRINCIPALES =====
-
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
@@ -245,17 +230,15 @@ public class ItemManager implements Listener {
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem == null) return;
 
-        // Prevención de doble clic
         if (!canPlayerClick(player.getUniqueId())) {
             return;
         }
 
-        // Cancelar evento si está configurado
-        if (interactiveItem.shouldCancelEvent()) {
+        if (interactiveItem.shouldCancelEvent() &&
+                interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
             event.setCancelled(true);
         }
 
-        // Crear ItemClickInfo y procesar con la mano correcta
         ItemClickInfo clickInfo = createItemClickInfo(event, player, itemStack);
         interactionHandler.processItemInteractionWithHand(player, itemStack, interactiveItem, clickInfo, event.getHand());
     }
@@ -270,13 +253,11 @@ public class ItemManager implements Listener {
         InteractiveItem interactiveItem = getItemFromStack(clickedItem);
         if (interactiveItem == null) return;
 
-        // En modo creativo, NUNCA activar items desde inventario
         if (player.getGameMode() == GameMode.CREATIVE &&
                 event.getClickedInventory() == player.getInventory()) {
             return;
         }
 
-        // Verificar si es un clic de movimiento ANTES de verificar cooldown
         if (ItemInventoryHandler.isMovementClick(event, interactiveItem.getConfiguration())) {
             return;
         }
@@ -285,8 +266,8 @@ public class ItemManager implements Listener {
             return;
         }
 
-        // Cancelar evento si está configurado (solo para clics de uso)
-        if (interactiveItem.shouldCancelEvent()) {
+        if (interactiveItem.shouldCancelEvent() &&
+                interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
             event.setCancelled(true);
         }
 
@@ -294,11 +275,159 @@ public class ItemManager implements Listener {
         interactionHandler.processItemInteractionFromInventory(player, event, interactiveItem, clickInfo);
     }
 
-    // ===== NUEVOS EVENTOS PARA RESTRICCIONES MEJORADAS =====
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
+        Player player = event.getPlayer();
+        ItemStack itemStack = event.getItem();
 
-    /**
-     * NUEVO: Maneja restricciones de arrastre más específicas
-     */
+        InteractiveItem interactiveItem = getItemFromStack(itemStack);
+        if (interactiveItem == null) return;
+
+        if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
+            return;
+        }
+
+        event.setCancelled(true); // Siempre cancelar para manejar usos manualmente
+
+        if (!canPlayerClick(player.getUniqueId())) {
+            return;
+        }
+
+        EquipmentSlot hand = player.getInventory().getItemInMainHand().equals(itemStack) ?
+                EquipmentSlot.HAND : EquipmentSlot.OFF_HAND;
+
+        ItemClickInfo clickInfo = new ItemClickInfo(player,
+                org.bukkit.event.inventory.ClickType.RIGHT,
+                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                itemStack,
+                ActionSource.ITEM_USE);
+
+        interactionHandler.processItemConsumptionEvent(player, itemStack, interactiveItem, clickInfo, hand);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
+        if (!(event.getEntity() instanceof Player hitPlayer)) return;
+
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        InteractiveItem interactiveItem = null;
+        EquipmentSlot hand = null;
+
+        if (isInteractiveItem(mainHand)) {
+            interactiveItem = getItemFromStack(mainHand);
+            hand = EquipmentSlot.HAND;
+        } else if (isInteractiveItem(offHand)) {
+            interactiveItem = getItemFromStack(offHand);
+            hand = EquipmentSlot.OFF_HAND;
+        }
+
+        if (interactiveItem == null) return;
+
+        if (!canPlayerClick(player.getUniqueId())) {
+            return;
+        }
+
+        ItemClickInfo clickInfo = new ItemClickInfo(player,
+                org.bukkit.event.inventory.ClickType.LEFT,
+                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                hand == EquipmentSlot.HAND ? mainHand : offHand,
+                ActionSource.ITEM_CLICK);
+
+        clickInfo.withData("hitPlayer", hitPlayer); // Añadir hitPlayer al contexto
+
+        interactionHandler.processHitPlayer(player, hitPlayer, hand == EquipmentSlot.HAND ? mainHand : offHand,
+                interactiveItem, clickInfo, hand);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        Projectile projectile = event.getEntity();
+        if (!(projectile.getShooter() instanceof Player player)) return;
+
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        InteractiveItem interactiveItem = null;
+        EquipmentSlot hand = null;
+
+        if (isInteractiveItem(mainHand)) {
+            interactiveItem = getItemFromStack(mainHand);
+            hand = EquipmentSlot.HAND;
+        } else if (isInteractiveItem(offHand)) {
+            interactiveItem = getItemFromStack(offHand);
+            hand = EquipmentSlot.OFF_HAND;
+        }
+
+        if (interactiveItem == null) return;
+
+        if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.ON_PROJECTILE_LAUNCH) {
+            event.setCancelled(true); // Cancelar lanzamiento si no es el trigger correcto
+            return;
+        }
+
+        if (!canPlayerClick(player.getUniqueId())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        ItemClickInfo clickInfo = new ItemClickInfo(player,
+                org.bukkit.event.inventory.ClickType.RIGHT,
+                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                hand == EquipmentSlot.HAND ? mainHand : offHand,
+                ActionSource.ITEM_USE);
+
+        interactionHandler.processProjectileLaunch(player, hand == EquipmentSlot.HAND ? mainHand : offHand,
+                interactiveItem, clickInfo, hand);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onProjectileHit(ProjectileHitEvent event) {
+        Projectile projectile = event.getEntity();
+        if (!(projectile.getShooter() instanceof Player player)) return;
+
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        InteractiveItem interactiveItem = null;
+        EquipmentSlot hand = null;
+
+        if (isInteractiveItem(mainHand)) {
+            interactiveItem = getItemFromStack(mainHand);
+            hand = EquipmentSlot.HAND;
+        } else if (isInteractiveItem(offHand)) {
+            interactiveItem = getItemFromStack(offHand);
+            hand = EquipmentSlot.OFF_HAND;
+        }
+
+        if (interactiveItem == null) return;
+
+        if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.ON_PROJECTILE_HIT) {
+            return;
+        }
+
+        if (!canPlayerClick(player.getUniqueId())) {
+            return;
+        }
+
+        Player hitPlayer = event.getHitEntity() instanceof Player ? (Player) event.getHitEntity() : null;
+
+        ItemClickInfo clickInfo = new ItemClickInfo(player,
+                org.bukkit.event.inventory.ClickType.RIGHT,
+                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                hand == EquipmentSlot.HAND ? mainHand : offHand,
+                ActionSource.ITEM_USE);
+
+        if (hitPlayer != null) {
+            clickInfo.withData("hitPlayer", hitPlayer); // Añadir hitPlayer al contexto
+        }
+
+        interactionHandler.processProjectileHit(player, hitPlayer, hand == EquipmentSlot.HAND ? mainHand : offHand,
+                interactiveItem, clickInfo, hand);
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -309,18 +438,15 @@ public class ItemManager implements Listener {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // En modo creativo, permitir arrastre siempre
         if (player.getGameMode() == GameMode.CREATIVE) {
             return;
         }
 
-        // Verificar si el item permite movimiento por arrastre
         if (!config.isAllowMovement()) {
             event.setCancelled(true);
             return;
         }
 
-        // Si está arrastrando desde/hacia el inventario del jugador, aplicar restricciones
         boolean involvesPlayerInventory = event.getRawSlots().stream()
                 .anyMatch(slot -> slot >= event.getView().getTopInventory().getSize());
 
@@ -329,9 +455,6 @@ public class ItemManager implements Listener {
         }
     }
 
-    /**
-     * NUEVO: Previene soltar items interactivos si no está permitido
-     */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
@@ -342,33 +465,25 @@ public class ItemManager implements Listener {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // En modo creativo, permitir siempre
         if (player.getGameMode() == GameMode.CREATIVE) {
             return;
         }
 
-        // Verificar si el item permite ser soltado
         if (!config.isAllowDrop()) {
             event.setCancelled(true);
         }
     }
 
-    /**
-     * NUEVO: Previene intercambio entre manos si no está permitido
-     */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
         ItemStack mainHand = event.getMainHandItem();
         ItemStack offHand = event.getOffHandItem();
 
-        // Verificar item en mano principal
         if (mainHand != null) {
             InteractiveItem mainInteractiveItem = getItemFromStack(mainHand);
             if (mainInteractiveItem != null) {
                 ItemConfiguration config = mainInteractiveItem.getConfiguration();
-
-                // En modo creativo, permitir siempre
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
                     event.setCancelled(true);
                     return;
@@ -376,13 +491,10 @@ public class ItemManager implements Listener {
             }
         }
 
-        // Verificar item en mano secundaria
         if (offHand != null) {
             InteractiveItem offInteractiveItem = getItemFromStack(offHand);
             if (offInteractiveItem != null) {
                 ItemConfiguration config = offInteractiveItem.getConfiguration();
-
-                // En modo creativo, permitir siempre
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
                     event.setCancelled(true);
                 }
@@ -390,154 +502,58 @@ public class ItemManager implements Listener {
         }
     }
 
-    // ===== EVENTOS EXISTENTES MEJORADOS =====
-
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockPlace(BlockPlaceEvent event) {
-        Player player = event.getPlayer();
-
-        ItemStack itemInHand = event.getItemInHand();
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-
-        boolean itemInHandInteractive = isInteractiveItem(itemInHand);
-        boolean mainHandInteractive = isInteractiveItem(mainHand);
-        boolean offHandInteractive = isInteractiveItem(offHand);
-
-        if (itemInHandInteractive || mainHandInteractive || offHandInteractive) {
+        ItemStack itemStack = event.getItemInHand();
+        InteractiveItem interactiveItem = getItemFromStack(itemStack);
+        if (interactiveItem != null) {
             event.setCancelled(true);
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onProjectileLaunch(ProjectileLaunchEvent event) {
-        Projectile projectile = event.getEntity();
-
-        if (!(projectile.getShooter() instanceof Player player)) return;
-
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-
-        boolean mainHandInteractive = isInteractiveItem(mainHand);
-        boolean offHandInteractive = isInteractiveItem(offHand);
-
-        if (mainHandInteractive || offHandInteractive) {
-            event.setCancelled(true);
-        }
-    }
-
-    // ===== MÉTODOS AUXILIARES PARA EVENTOS =====
-
-    @NotNull
     private static ItemClickInfo createItemClickInfo(PlayerInteractEvent event, Player player, ItemStack itemStack) {
-        ActionSource source = (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
-                ? ActionSource.ITEM_CLICK : ActionSource.ITEM_USE;
+        Action action = event.getAction();
+        org.bukkit.event.inventory.ClickType clickType;
 
-        org.bukkit.event.inventory.ClickType clickType =
-                (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK)
-                        ? org.bukkit.event.inventory.ClickType.LEFT
-                        : org.bukkit.event.inventory.ClickType.RIGHT;
+        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+            clickType = org.bukkit.event.inventory.ClickType.LEFT;
+        } else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+            clickType = org.bukkit.event.inventory.ClickType.RIGHT;
+        } else {
+            clickType = org.bukkit.event.inventory.ClickType.UNKNOWN;
+        }
 
-        // Detectar en qué mano está el item correctamente
-        int slot = event.getHand() == EquipmentSlot.OFF_HAND ? 40 : player.getInventory().getHeldItemSlot();
+        int slot = event.getHand() == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40;
 
-        return new ItemClickInfo(player, clickType, slot, itemStack, source);
+        return new ItemClickInfo(player, clickType, slot, itemStack, ActionSource.ITEM_CLICK);
     }
 
-    @NotNull
-    private static ItemClickInfo createInventoryClickInfo(InventoryClickEvent event, Player player, ItemStack clickedItem) {
-        return new ItemClickInfo(player, event.getClick(), event.getSlot(), clickedItem, ActionSource.ITEM_CLICK);
-    }
-
-    // ===== CONTROL DE DOBLE CLIC =====
-
-    private static void startClickTimeCleanupTask() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, ItemManager::cleanupOldClickTimes, 1200L, 1200L);
-    }
-
-    private static void cleanupOldClickTimes() {
-        long currentTime = System.currentTimeMillis();
-        lastClickTime.entrySet().removeIf(entry -> currentTime - entry.getValue() > 60000);
+    private static ItemClickInfo createInventoryClickInfo(InventoryClickEvent event, Player player, ItemStack itemStack) {
+        return new ItemClickInfo(player, event.getClick(), event.getSlot(), itemStack, ActionSource.INVENTORY_CLICK);
     }
 
     private static boolean canPlayerClick(UUID playerId) {
         long currentTime = System.currentTimeMillis();
-        Long lastClick = lastClickTime.get(playerId);
+        Long lastTime = lastClickTime.get(playerId);
 
-        if (lastClick == null || currentTime - lastClick > DOUBLE_CLICK_PREVENTION_MS) {
-            lastClickTime.put(playerId, currentTime);
-            return true;
+        if (lastTime != null && (currentTime - lastTime) < DOUBLE_CLICK_PREVENTION_MS) {
+            return false;
         }
-        return false;
+
+        lastClickTime.put(playerId, currentTime);
+        return true;
     }
 
-    // ===== UTILIDADES =====
+    private static void startClickTimeCleanupTask() {
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            long currentTime = System.currentTimeMillis();
+            lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);
+        }, 20L * 60, 20L * 60);
+    }
 
     private static void ensureInitialized() {
         if (!initialized) {
-            throw new IllegalStateException("ItemManager not initialized. Call initialize() first.");
+            throw new IllegalStateException("ItemManager has not been initialized. Call ItemManager.initialize(plugin) first.");
         }
-    }
-
-    /**
-     * NUEVO: Obtiene información detallada sobre las restricciones de un item
-     */
-    public static String getItemRestrictionInfo(ItemStack itemStack) {
-        InteractiveItem item = getItemFromStack(itemStack);
-        if (item == null) {
-            return "No es un item interactivo";
-        }
-
-        ItemConfiguration config = item.getConfiguration();
-        StringBuilder info = new StringBuilder();
-
-        info.append("=== RESTRICCIONES DEL ITEM ===\n");
-        info.append("ID: ").append(item.getId()).append("\n");
-        info.append("Permitir movimiento: ").append(config.isAllowMovement()).append("\n");
-        info.append("Permitir shift+click: ").append(config.isAllowShiftClick()).append("\n");
-        info.append("Permitir soltar: ").append(config.isAllowDrop()).append("\n");
-        info.append("Permitir intercambio: ").append(config.isAllowSwapToOffhand()).append("\n");
-        info.append("Permitir teclas numéricas: ").append(config.isAllowNumberKeys()).append("\n");
-
-        return info.toString();
-    }
-
-    public static String getSystemStats() {
-        ensureInitialized();
-
-        if (registry instanceof ItemRegistryImpl registryImpl) {
-            return registryImpl.getStats();
-        }
-
-        return "Registry stats not available";
-    }
-
-    public static void clearClickTimes() {
-        lastClickTime.clear();
-    }
-
-    public static void shutdown() {
-        if (!initialized) return;
-
-        clearClickTimes();
-        registry.clear();
-
-        // Shutdown cooldown system
-        CooldownManager.shutdown();
-
-        initialized = false;
-        DebugUtils.logInternalInfo("ItemManager modularizado desactivado");
-    }
-
-    // ===== GETTERS PARA ACCESO DIRECTO =====
-
-    public static ItemRegistry getRegistry() {
-        ensureInitialized();
-        return registry;
-    }
-
-    public static ItemInteractionHandler getInteractionHandler() {
-        ensureInitialized();
-        return interactionHandler;
     }
 }

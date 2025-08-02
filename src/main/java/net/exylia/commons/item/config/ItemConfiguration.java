@@ -1,6 +1,7 @@
 package net.exylia.commons.item.config;
 
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 
 import java.util.ArrayList;
@@ -11,7 +12,7 @@ import java.util.stream.Collectors;
 
 /**
  * Configuración de un item interactivo almacenada en memoria
- * ACTUALIZADO: Nuevo sistema de regiones con soporte para mundos específicos y prioridades
+ * ACTUALIZADO: Nuevo sistema de regiones y soporte para TriggerType
  */
 @Getter
 public class ItemConfiguration {
@@ -42,7 +43,6 @@ public class ItemConfiguration {
     private final String soundOnUse;
     private final String particlesOnUse;
     private final String fireworkOnUse;
-    private final boolean launchFireworkOnUse;
 
     // Configuración de acciones
     private final Map<String, Object> actionConfig;
@@ -57,32 +57,15 @@ public class ItemConfiguration {
     // Placeholders
     private final boolean usePlaceholders;
 
-    // ===== NUEVO SISTEMA DE REGIONES =====
-
-    /**
-     * Tipo de filtro de regiones: WHITELIST, BLACKLIST o NONE
-     */
+    // Sistema de regiones
     private final RegionFilterType regionType;
-
-    /**
-     * Tipo de verificador: CONTAINS o PRIORITY
-     */
     private final RegionCheckerType regionChecker;
-
-    /**
-     * Lista de entradas de región con soporte para mundos específicos
-     */
     private final List<RegionEntry> regionEntries;
-
-    /**
-     * Lista legacy de nombres de regiones (para compatibilidad)
-     */
     private final List<String> regionList;
-
-    /**
-     * Cooldowns específicos por región
-     */
     private final Map<String, Double> regionCooldowns;
+
+    // NUEVO: Tipo de trigger
+    private final TriggerType triggerType;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
         this.material = builder.material;
@@ -103,7 +86,6 @@ public class ItemConfiguration {
         this.soundOnUse = builder.soundOnUse;
         this.particlesOnUse = builder.particlesOnUse;
         this.fireworkOnUse = builder.fireworkOnUse;
-        this.launchFireworkOnUse = builder.launchFireworkOnUse;
 
         this.actionConfig = new HashMap<>(builder.actionConfig);
         this.usePlaceholders = builder.usePlaceholders;
@@ -114,34 +96,22 @@ public class ItemConfiguration {
         this.allowSwapToOffhand = builder.allowSwapToOffhand;
         this.allowNumberKeys = builder.allowNumberKeys;
 
-        // NUEVO: Sistema de regiones actualizado
         this.regionType = builder.regionType;
         this.regionChecker = builder.regionChecker;
         this.regionEntries = new ArrayList<>(builder.regionEntries);
-        this.regionList = new ArrayList<>(builder.regionList); // Mantener para compatibilidad
+        this.regionList = new ArrayList<>(builder.regionList);
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
+
+        this.triggerType = builder.triggerType;
     }
 
-    // ===== MÉTODOS NUEVOS PARA EL SISTEMA DE REGIONES =====
-
-    /**
-     * Verifica si el item tiene configuración de regiones
-     * @return true si tiene regiones configuradas
-     */
     public boolean hasRegionConfiguration() {
         return regionType != RegionFilterType.NONE && !regionEntries.isEmpty();
     }
 
-    /**
-     * Verifica si el item puede ser usado
-     * @param playerRegions Lista de regiones donde está el jugador
-     * @param playerWorld Mundo donde está el jugador
-     * @param highestPriorityRegion Región de mayor prioridad (opcional, puede ser null)
-     * @return true si puede ser usado
-     */
     public boolean canUseWithChecker(List<String> playerRegions, World playerWorld, String highestPriorityRegion) {
         if (!hasRegionConfiguration()) {
-            return true; // Sin configuración = permitir en todas las regiones
+            return true;
         }
 
         return switch (regionChecker) {
@@ -150,31 +120,23 @@ public class ItemConfiguration {
         };
     }
 
-    /**
-     * Verificación por prioridad - solo verifica la región de mayor prioridad
-     */
     private boolean canUseWithPriorityCheck(String highestPriorityRegion, World playerWorld) {
         if (highestPriorityRegion == null) {
-            // No está en ninguna región
-            return regionType == RegionFilterType.BLACKLIST; // En blacklist se permite fuera de regiones
+            return regionType == RegionFilterType.BLACKLIST;
         }
 
         boolean isInConfiguredRegion = regionEntries.stream()
                 .anyMatch(entry -> entry.matches(highestPriorityRegion, playerWorld));
 
         return switch (regionType) {
-            case WHITELIST -> isInConfiguredRegion; // Solo permitir si está en la lista
-            case BLACKLIST -> !isInConfiguredRegion; // Permitir si NO está en la lista
+            case WHITELIST -> isInConfiguredRegion;
+            case BLACKLIST -> !isInConfiguredRegion;
             case NONE -> true;
         };
     }
 
-    /**
-     * Verificación por contenido - verifica todas las regiones del jugador
-     */
     private boolean canUseWithContainsCheck(List<String> playerRegions, World playerWorld) {
         if (playerRegions.isEmpty()) {
-            // No está en ninguna región
             return regionType == RegionFilterType.BLACKLIST;
         }
 
@@ -183,28 +145,16 @@ public class ItemConfiguration {
                         .anyMatch(entry -> entry.matches(regionName, playerWorld)));
 
         return switch (regionType) {
-            case WHITELIST -> hasMatchingRegion; // Solo permitir si tiene al menos una región válida
-            case BLACKLIST -> !hasMatchingRegion; // Permitir si NO tiene ninguna región prohibida
+            case WHITELIST -> hasMatchingRegion;
+            case BLACKLIST -> !hasMatchingRegion;
             case NONE -> true;
         };
     }
 
-    // ===== MÉTODOS DE COOLDOWN POR REGIÓN =====
-
-    /**
-     * Obtiene el cooldown específico para una región
-     * @param regionName Nombre de la región
-     * @return Cooldown en segundos, o el cooldown por defecto si no está configurado
-     */
     public double getCooldownForRegion(String regionName) {
         return regionCooldowns.getOrDefault(regionName, cooldownSeconds);
     }
 
-    /**
-     * Obtiene el cooldown más alto entre todas las regiones dadas
-     * @param regionNames Lista de nombres de regiones
-     * @return Cooldown más alto en segundos
-     */
     public double getHighestCooldownForRegions(List<String> regionNames) {
         if (regionNames.isEmpty()) {
             return cooldownSeconds;
@@ -216,51 +166,29 @@ public class ItemConfiguration {
                 .orElse(cooldownSeconds);
     }
 
-    /**
-     * Verifica si hay cooldowns específicos configurados para regiones
-     * @return true si hay cooldowns por región
-     */
     public boolean hasRegionCooldowns() {
         return !regionCooldowns.isEmpty();
     }
 
-    // ===== MÉTODOS DE CONVENIENCIA PARA EFECTOS =====
-
-    /**
-     * Verifica si el item tiene sonido configurado
-     */
     public boolean hasSound() {
         return soundOnUse != null && !soundOnUse.trim().isEmpty();
     }
 
-    /**
-     * Verifica si el item tiene partículas configuradas
-     */
     public boolean hasParticles() {
         return particlesOnUse != null && !particlesOnUse.trim().isEmpty();
     }
 
-    /**
-     * Verifica si el item tiene fuegos artificiales configurados
-     */
     public boolean hasFirework() {
-        return (fireworkOnUse != null && !fireworkOnUse.trim().isEmpty()) || launchFireworkOnUse;
+        return (fireworkOnUse != null && !fireworkOnUse.trim().isEmpty());
     }
 
-    /**
-     * Verifica si el item tiene algún efecto visual/sonoro
-     */
     public boolean hasEffects() {
         return hasSound() || hasParticles() || hasFirework();
     }
 
-    // ===== MÉTODOS DE CONVENIENCIA PARA COOLDOWN =====
-
     public boolean hasCooldown() {
         return cooldownSeconds > 0.0;
     }
-
-    // ===== MÉTODOS DE CONVENIENCIA PARA ACTION-CONFIG =====
 
     @SuppressWarnings("unchecked")
     public <T> T getActionConfigValue(String key, T defaultValue) {
@@ -387,36 +315,20 @@ public class ItemConfiguration {
         return defaultValue;
     }
 
-    // ===== GETTERS ADICIONALES PARA EL NUEVO SISTEMA =====
-
-    /**
-     * Obtiene la lista de nombres de regiones (legacy) para compatibilidad
-     * @return Lista de nombres de regiones
-     */
     public List<String> getRegionNames() {
         return regionEntries.stream()
                 .map(RegionEntry::getRegionName)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Obtiene las entradas de región con información de mundo
-     * @return Lista de RegionEntry
-     */
     public List<RegionEntry> getRegionEntries() {
         return new ArrayList<>(regionEntries);
     }
-
-    // ===== BUILDER =====
 
     public static Builder builder() {
         return new Builder();
     }
 
-    /**
-     * Clase Builder separada en su propio archivo
-     * @see ItemConfigurationBuilder
-     */
     public static class Builder extends ItemConfigurationBuilder {
     }
 
@@ -438,6 +350,7 @@ public class ItemConfiguration {
                 ", regionChecker=" + regionChecker +
                 ", regionEntries=" + regionEntries.size() + " region entries" +
                 ", regionCooldowns=" + regionCooldowns.size() + " region cooldowns" +
+                ", triggerType=" + triggerType +
                 '}';
     }
 }

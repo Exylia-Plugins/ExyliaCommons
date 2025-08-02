@@ -35,43 +35,31 @@ import static net.exylia.commons.utils.skull.SkullUtils.*;
 
 /**
  * InteractiveItem actualizado para el sistema modularizado
- * ACTUALIZADO: Integración con placeholders usando CooldownUtils con double
+ * ACTUALIZADO: Soporte para TriggerType
  */
 public class InteractiveItem {
 
-    // NBT Keys para persistencia
     private static final String NBT_ITEM_ID = "interactive_item_id";
     private static final String NBT_CURRENT_USES = "current_uses";
     private static final String NBT_UNIQUE_ID = "unique_id";
-    private static final String NBT_CREATION_TIME = "creation_time";
 
-    // Componentes del sistema
     private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
     private final ItemStack itemStack;
 
-    // Configuración desde memoria
     private String configId;
     private ItemConfiguration config;
 
-    // Contextos para placeholders
     private Player placeholderPlayer;
 
-    // Handler temporal (no persistente)
     @Getter
     private Consumer<ItemClickInfo> clickHandler;
 
-    // ==================== CONSTRUCTORES ====================
-
-    /**
-     * Constructor para crear desde configuración
-     */
     public InteractiveItem(String configId, ItemConfiguration config) {
         this.configId = configId;
         this.config = config;
         this.itemStack = createItemFromConfig(config);
         setItemId(configId);
-        setCreationTime(System.currentTimeMillis());
         initializeUses();
 
         if (config.getAmount() > 1) {
@@ -79,16 +67,12 @@ public class InteractiveItem {
         }
     }
 
-    /**
-     * Constructor para crear desde config con jugador para placeholders
-     */
     public InteractiveItem(String configId, ItemConfiguration config, Player player) {
         this.configId = configId;
         this.config = config;
         this.placeholderPlayer = player;
         this.itemStack = createItemFromConfig(config, player);
         setItemId(configId);
-        setCreationTime(System.currentTimeMillis());
         initializeUses();
 
         if (config.getAmount() > 1) {
@@ -96,18 +80,12 @@ public class InteractiveItem {
         }
     }
 
-    /**
-     * Constructor para reconstruir desde ItemStack existente
-     */
     private InteractiveItem(ItemStack itemStack, String configId, ItemConfiguration config) {
         this.itemStack = itemStack.clone();
         this.configId = configId;
         this.config = config;
     }
 
-    /**
-     * Crea un InteractiveItem desde un ItemStack existente
-     */
     public static InteractiveItem fromItemStack(ItemStack itemStack) {
         String itemId = getItemIdFromStack(itemStack);
         if (itemId == null) return null;
@@ -121,52 +99,33 @@ public class InteractiveItem {
         return new InteractiveItem(itemStack, itemId, config);
     }
 
-    // ==================== GESTIÓN DE CONTEXTOS CON EXYLIACONTEXT ====================
-
     @Getter
     private ExyliaContext context = ExyliaContext.create();
 
-    /**
-     * Establece el contexto completo
-     */
     public InteractiveItem withContext(ExyliaContext context) {
         this.context = context != null ? context : ExyliaContext.create();
         return this;
     }
 
-    /**
-     * Añade un objeto al contexto
-     */
     public InteractiveItem addToContext(Object object) {
         this.context.add(object);
         return this;
     }
 
-    /**
-     * Añade múltiples objetos al contexto
-     */
     public InteractiveItem addToContext(Object... objects) {
         this.context.addAll(objects);
         return this;
     }
 
-    /**
-     * Añade datos con clave al contexto
-     */
     public InteractiveItem addToContext(String key, Object value) {
         this.context.put(key, value);
         return this;
     }
 
-    /**
-     * Limpia el contexto
-     */
     public InteractiveItem clearContext() {
         this.context = ExyliaContext.create();
         return this;
     }
-
-    // ==================== CONFIGURACIÓN TEMPORAL ====================
 
     public InteractiveItem setClickHandler(Consumer<ItemClickInfo> clickHandler) {
         this.clickHandler = clickHandler;
@@ -177,8 +136,6 @@ public class InteractiveItem {
         this.placeholderPlayer = player;
         return this;
     }
-
-    // ==================== GETTERS DE CONFIGURACIÓN ====================
 
     public String getId() { return configId; }
     public String getRawName() { return config.getName(); }
@@ -193,8 +150,6 @@ public class InteractiveItem {
     public int getMaxUses() { return config.getMaxUses(); }
     public boolean isStackable() { return config.isStackable(); }
     public double getCooldownSeconds() { return config.getCooldownSeconds(); }
-
-    // ==================== GESTIÓN DE USOS ====================
 
     public int getCurrentUses() {
         return ItemNBTUtils.getNBTInt(itemStack, getPlugin(), NBT_CURRENT_USES, getMaxUses());
@@ -226,15 +181,9 @@ public class InteractiveItem {
         return false;
     }
 
-    // ==================== PROCESAMIENTO CON PLACEHOLDERS MODULARIZADO ====================
-
-    /**
-     * Actualiza placeholders usando el sistema unificado y las utilidades modularizadas
-     */
     public void updatePlaceholders(Player player, EquipmentSlot hand) {
         if (!usesPlaceholders()) return;
 
-        // Recargar configuración si es necesario
         ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
         if (freshConfig != null) {
             this.config = freshConfig;
@@ -244,43 +193,30 @@ public class InteractiveItem {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return;
 
-        // Preparar contexto completo añadiendo este item
         ExyliaContext fullContext = context.copy().add(this);
 
-        // Actualizar nombre
         String rawName = getRawName();
         if (rawName != null) {
             String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
-
-            // Usar utilidades modularizadas para procesar placeholders de item
             processedName = ItemPlaceholderUtils.processAllItemPlaceholders(processedName, this, targetPlayer);
-
             adapter.setDisplayName(meta, ColorUtils.parse(processedName));
         }
 
-        // Actualizar lore
         List<String> rawLore = getRawLore();
         if (!rawLore.isEmpty()) {
             List<Component> loreComponents = new ArrayList<>();
             for (String line : rawLore) {
                 String processedLine = fullContext.processPlaceholders(line, targetPlayer);
-
-                // Usar utilidades modularizadas para procesar placeholders de item
                 processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, targetPlayer);
-
                 loreComponents.add(ColorUtils.parse(processedLine));
             }
-
             adapter.setLore(meta, loreComponents);
         }
 
-        // Aplicar los metadatos actualizados al ItemStack
         itemStack.setItemMeta(meta);
 
-        // IMPORTANTE: Reemplazar el item en la mano del jugador
         if (hand != null) {
             PlayerInventory inventory = player.getInventory();
-
             if (hand == EquipmentSlot.HAND) {
                 inventory.setItemInMainHand(itemStack);
             } else if (hand == EquipmentSlot.OFF_HAND) {
@@ -289,8 +225,6 @@ public class InteractiveItem {
         }
     }
 
-    // ==================== ACCIONES Y COMANDOS ====================
-
     public boolean hasAction() {
         String action = getAction();
         return action != null && !action.trim().isEmpty();
@@ -298,16 +232,19 @@ public class InteractiveItem {
 
     public boolean executeAction(ItemClickInfo clickInfo) {
         if (hasAction()) {
-            // Preparar contexto para la acción
             ExyliaContext actionContext = context.copy().add(this);
-
-            ActionContext context = new ActionContext(clickInfo.player(), clickInfo.source())
-                    .withData("clickType", clickInfo.clickType())
-                    .withData("slot", clickInfo.slot())
+            ActionContext context = new ActionContext(clickInfo.getPlayer(), clickInfo.getSource())
+                    .withData("clickType", clickInfo.getClickType())
+                    .withData("slot", clickInfo.getSlot())
                     .withData("item", this)
-                    .withData("itemStack", clickInfo.itemStack())
+                    .withData("itemStack", clickInfo.getItemStack())
                     .withData("itemConfiguration", this.getConfiguration())
                     .withData("contexts", actionContext.getAllObjects());
+
+            // NUEVO: Añadir hitPlayer si está presente en clickInfo
+            if (clickInfo.getData().containsKey("hitPlayer")) {
+                context.withData("hitPlayer", clickInfo.getData("hitPlayer"));
+            }
 
             return GlobalActionManager.executeAction(getAction(), context);
         }
@@ -315,7 +252,6 @@ public class InteractiveItem {
     }
 
     public void executeCommands(Player player) {
-        // Preparar contexto para comandos añadiendo este item
         ExyliaContext commandContext = context.copy().add(this);
         if (placeholderPlayer != null) commandContext.add(placeholderPlayer);
 
@@ -325,11 +261,6 @@ public class InteractiveItem {
                 .execute(getCommands());
     }
 
-    // ==================== CREACIÓN Y CONFIGURACIÓN ====================
-
-    /**
-     * Inicializa los usos del item
-     */
     private void initializeUses() {
         int maxUses = getMaxUses();
         if (maxUses > 0) {
@@ -339,20 +270,13 @@ public class InteractiveItem {
         }
     }
 
-    /**
-     * Crea ItemStack desde configuración
-     */
     private ItemStack createItemFromConfig(ItemConfiguration config) {
         return createItemFromConfig(config, null);
     }
 
-    /**
-     * Crea ItemStack desde configuración con jugador
-     */
     private ItemStack createItemFromConfig(ItemConfiguration config, Player player) {
         String materialString = config.getMaterial();
 
-        // Procesar placeholders en material si hay jugador
         if (player != null && containsPlaceholders(materialString)) {
             ExyliaContext fullContext = context.copy().add(this);
             materialString = fullContext.processPlaceholders(materialString, player);
@@ -360,23 +284,18 @@ public class InteractiveItem {
 
         ItemStack item = createItemFromString(materialString);
 
-        // Aplicar propiedades básicas
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            // Nombre
             if (config.getName() != null) {
                 String name = config.getName();
                 if (player != null && config.isUsePlaceholders()) {
                     ExyliaContext fullContext = context.copy().add(this);
                     name = fullContext.processPlaceholders(name, player);
-
-                    // Usar utilidades modularizadas
                     name = ItemPlaceholderUtils.processAllItemPlaceholders(name, this, player);
                 }
                 adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
 
-            // Lore
             if (!config.getLore().isEmpty()) {
                 List<Component> loreComponents = new ArrayList<>();
                 for (String line : config.getLore()) {
@@ -384,8 +303,6 @@ public class InteractiveItem {
                     if (player != null && config.isUsePlaceholders()) {
                         ExyliaContext fullContext = context.copy().add(this);
                         processedLine = fullContext.processPlaceholders(line, player);
-
-                        // Usar utilidades modularizadas
                         processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, player);
                     }
                     loreComponents.add(ColorUtils.parse(processedLine));
@@ -396,7 +313,6 @@ public class InteractiveItem {
             item.setItemMeta(meta);
         }
 
-        // Aplicar propiedades adicionales...
         if (config.isGlowing()) {
             setGlowing(item, true);
         }
@@ -411,8 +327,6 @@ public class InteractiveItem {
 
         return item;
     }
-
-    // ==================== MÉTODOS AUXILIARES ====================
 
     private boolean containsPlaceholders(String text) {
         return text != null && text.contains("%");
@@ -448,8 +362,6 @@ public class InteractiveItem {
         }
     }
 
-    // ==================== MÉTODOS NBT USANDO UTILIDADES MODULARIZADAS ====================
-
     private static String getItemIdFromStack(ItemStack itemStack) {
         if (itemStack == null || !itemStack.hasItemMeta()) return null;
 
@@ -463,16 +375,6 @@ public class InteractiveItem {
     private void setItemId(String id) {
         ItemNBTUtils.setNBTString(itemStack, getPlugin(), NBT_ITEM_ID, id);
     }
-
-    private void setCreationTime(long time) {
-        ItemNBTUtils.setNBTLong(itemStack, getPlugin(), NBT_CREATION_TIME, time);
-    }
-
-    public long getCreationTime() {
-        return ItemNBTUtils.getNBTLong(itemStack, getPlugin(), NBT_CREATION_TIME, 0L);
-    }
-
-    // ==================== UTILIDADES VISUALES ====================
 
     public InteractiveItem setAmount(int amount) {
         itemStack.setAmount(Math.max(1, Math.min(64, amount)));
@@ -520,8 +422,6 @@ public class InteractiveItem {
     private void makeUnique(ItemStack item) {
         ItemNBTUtils.setNBTString(item, getPlugin(), NBT_UNIQUE_ID, UUID.randomUUID().toString());
     }
-
-    // ==================== GETTERS FINALES ====================
 
     public ItemStack getItemStack() {
         return itemStack.clone();

@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * Builder para ItemConfiguration (separado para mejor modularización)
- * ACTUALIZADO: Nuevo sistema de regiones con soporte para mundos específicos
+ * ACTUALIZADO: Soporte para TriggerType
  */
 public class ItemConfigurationBuilder {
 
@@ -25,7 +25,7 @@ public class ItemConfigurationBuilder {
     protected boolean consumeOnUse = false;
     protected boolean cancelEvent = true;
     protected boolean stackable = true;
-    protected int maxUses = -1;
+    protected int maxUses = 1;
     protected double cooldownSeconds = 0.0;
     protected boolean allowMovement = true;
     protected boolean allowShiftClick = true;
@@ -37,19 +37,19 @@ public class ItemConfigurationBuilder {
     protected String soundOnUse = null;
     protected String particlesOnUse = null;
     protected String fireworkOnUse = null;
-    protected boolean launchFireworkOnUse = false;
 
     protected Map<String, Object> actionConfig = new HashMap<>();
     protected boolean usePlaceholders = false;
 
-    // ===== NUEVO SISTEMA DE REGIONES =====
+    // Sistema de regiones
     protected RegionFilterType regionType = RegionFilterType.NONE;
     protected RegionCheckerType regionChecker = RegionCheckerType.CONTAINS;
     protected List<RegionEntry> regionEntries = new ArrayList<>();
-    protected List<String> regionList = new ArrayList<>(); // Mantener para compatibilidad
+    protected List<String> regionList = new ArrayList<>();
     protected Map<String, Double> regionCooldowns = new HashMap<>();
 
-    // ===== BUILDERS ORIGINALES =====
+    // NUEVO: TriggerType
+    protected TriggerType triggerType = TriggerType.IMMEDIATE;
 
     public ItemConfigurationBuilder material(String material) {
         this.material = material;
@@ -126,13 +126,11 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    // ACTUALIZADO: Acepta double para cooldown
     public ItemConfigurationBuilder cooldownSeconds(double seconds) {
         this.cooldownSeconds = seconds;
         return this;
     }
 
-    // Mantener compatibilidad con int
     public ItemConfigurationBuilder cooldownSeconds(int seconds) {
         this.cooldownSeconds = (double) seconds;
         return this;
@@ -168,11 +166,6 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    public ItemConfigurationBuilder launchFireworkOnUse(boolean launch) {
-        this.launchFireworkOnUse = launch;
-        return this;
-    }
-
     public ItemConfigurationBuilder allowMovement(boolean allow) {
         this.allowMovement = allow;
         return this;
@@ -202,6 +195,7 @@ public class ItemConfigurationBuilder {
         return allowMovement(false)
                 .allowShiftClick(false)
                 .allowDrop(false)
+                .maxUses(-1)
                 .allowSwapToOffhand(false)
                 .allowNumberKeys(false);
     }
@@ -214,7 +208,15 @@ public class ItemConfigurationBuilder {
                 .allowNumberKeys(true);
     }
 
-    // ===== NUEVO SISTEMA DE REGIONES =====
+    public ItemConfigurationBuilder triggerType(TriggerType triggerType) {
+        this.triggerType = triggerType != null ? triggerType : TriggerType.IMMEDIATE;
+        return this;
+    }
+
+    public ItemConfigurationBuilder triggerType(String triggerType) {
+        this.triggerType = TriggerType.fromString(triggerType);
+        return this;
+    }
 
     public ItemConfigurationBuilder regionType(RegionFilterType type) {
         this.regionType = type != null ? type : RegionFilterType.NONE;
@@ -238,7 +240,6 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder regionEntries(List<RegionEntry> entries) {
         this.regionEntries = new ArrayList<>(entries);
-        // Actualizar también la lista legacy para compatibilidad
         this.regionList = entries.stream()
                 .map(RegionEntry::getRegionName)
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -255,7 +256,6 @@ public class ItemConfigurationBuilder {
                 this.regionEntries.add(entry);
                 this.regionList.add(entry.getRegionName());
             } catch (IllegalArgumentException e) {
-                // Log warning pero continuar con las demás entradas
                 DebugUtils.logInternalError("Warning: Invalid region entry '" + entryString + "': " + e.getMessage());
             }
         }
@@ -282,11 +282,8 @@ public class ItemConfigurationBuilder {
         }
     }
 
-    // ===== MÉTODOS DE COMPATIBILIDAD LEGACY =====
-
     public ItemConfigurationBuilder regionList(List<String> regions) {
         this.regionList = new ArrayList<>(regions);
-        // Convertir a RegionEntry para compatibilidad hacia adelante
         this.regionEntries = regions.stream()
                 .map(RegionEntry::forAnyWorld)
                 .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -304,8 +301,6 @@ public class ItemConfigurationBuilder {
         }
         return this;
     }
-
-    // ===== MÉTODOS DE CONVENIENCIA =====
 
     public ItemConfigurationBuilder regionCooldowns(Map<String, Double> cooldowns) {
         this.regionCooldowns = new HashMap<>(cooldowns);
@@ -344,10 +339,7 @@ public class ItemConfigurationBuilder {
                 .regionList(regions);
     }
 
-    // ===== CARGA DESDE CONFIGURACIÓN =====
-
     public ItemConfigurationBuilder loadFromConfig(ConfigurationSection config) {
-        // Cargar configuración original
         if (config.contains("material")) {
             material(config.getString("material"));
         }
@@ -408,7 +400,6 @@ public class ItemConfigurationBuilder {
             maxUses(config.getInt("max-uses"));
         }
 
-        // ACTUALIZADO: Cooldown con soporte para double
         if (config.contains("cooldown")) {
             Object cooldownValue = config.get("cooldown");
             if (cooldownValue instanceof Number) {
@@ -422,7 +413,6 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        // Efectos
         if (config.contains("sound-on-use")) {
             soundOnUse(config.getString("sound-on-use"));
         }
@@ -433,10 +423,6 @@ public class ItemConfigurationBuilder {
 
         if (config.contains("firework-on-use")) {
             fireworkOnUse(config.getString("firework-on-use"));
-        }
-
-        if (config.contains("launch-firework")) {
-            launchFireworkOnUse(config.getBoolean("launch-firework"));
         }
 
         if (config.contains("allow-movement")) {
@@ -459,25 +445,19 @@ public class ItemConfigurationBuilder {
             allowNumberKeys(config.getBoolean("allow-number-keys"));
         }
 
-        // ===== NUEVO SISTEMA DE CONFIGURACIONES PARA REGIONES =====
-
-        // Tipo de región
         if (config.contains("region.type")) {
             regionType(config.getString("region.type"));
         }
 
-        // NUEVO: Tipo de verificador
         if (config.contains("region.checker")) {
             regionChecker(config.getString("region.checker"));
         }
 
-        // Lista de regiones con soporte para el nuevo formato
         if (config.contains("region.list")) {
             if (config.isList("region.list")) {
                 List<String> regionStrings = config.getStringList("region.list");
                 regionEntriesFromStrings(regionStrings);
             } else {
-                // Si es un string, dividir por comas
                 String regionString = config.getString("region.list");
                 if (regionString != null && !regionString.trim().isEmpty()) {
                     String[] regions = regionString.split(",");
@@ -493,7 +473,6 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        // ACTUALIZADO: Cooldowns por región con soporte para double
         if (config.contains("region.cooldowns")) {
             ConfigurationSection cooldownSection = config.getConfigurationSection("region.cooldowns");
             if (cooldownSection != null) {
@@ -514,7 +493,11 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        // Auto-detectar placeholders
+        // NUEVO: Cargar triggerType desde la configuración
+        if (config.contains("trigger-type")) {
+            triggerType(config.getString("trigger-type"));
+        }
+
         boolean autoDetectPlaceholders = false;
         String nameText = config.getString("name", "");
         List<String> loreList = config.getStringList("lore");
@@ -558,8 +541,6 @@ public class ItemConfigurationBuilder {
     public ItemConfiguration build() {
         return new ItemConfiguration(this);
     }
-
-    // ===== PARA CREAR DESDE CONFIG =====
 
     public static ItemConfigurationBuilder fromConfig(ConfigurationSection config) {
         return new ItemConfigurationBuilder().loadFromConfig(config);
