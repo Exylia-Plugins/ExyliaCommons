@@ -1,5 +1,6 @@
 package net.exylia.commons;
 
+import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
@@ -7,7 +8,6 @@ import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.license.LicenseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
@@ -17,22 +17,18 @@ import net.exylia.commons.utils.visuals.BossbarUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
-/**
- * Clase base renovada y limpia para todos los plugins Exylia
- *
- * Versión optimizada que elimina métodos de mensajes del core para mantener
- * una arquitectura más limpia y modular. Los mensajes se manejan ahora
- * a través de MessageManager estático en cada plugin.
- */
 public abstract class ExyliaPlugin extends JavaPlugin {
 
     // ===== STATIC FIELDS =====
@@ -43,42 +39,63 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     // ===== INSTANCE FIELDS =====
     private BukkitAudiences adventure;
-    private LicenseManager licenseManager;
     private ConfigurationSystem configSystem;
     private ReloadManager reloadManager;
     private final boolean requiresLicense;
+    SunLicenseAPI api;
 
     // ===== CONSTRUCTOR =====
-    protected ExyliaPlugin(boolean requiresLicense) {
+    protected ExyliaPlugin(boolean requiresLicense, String pluginName) throws IOException {
         this.requiresLicense = requiresLicense;
+
+        if (requiresLicense) {
+            File licenseFile = new File(getDataFolder(), "license.txt");
+
+            if (!licenseFile.exists()) {
+                licenseFile.getParentFile().mkdirs();
+                Files.write(licenseFile.toPath(), "YOUR-LICENSE-KEY-HERE".getBytes());
+                throw new IOException("License file created at: " + licenseFile.getAbsolutePath() + " - Please add your license key and restart.");
+            }
+            String licenseKey = Files.lines(licenseFile.toPath())
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty() && !line.startsWith("#") && !line.equals("YOUR-LICENSE-KEY-HERE"))
+                    .findFirst()
+                    .orElse(null);
+
+            if (licenseKey == null) {
+                throw new IOException("No valid license key found in: " + licenseFile.getAbsolutePath());
+            }
+
+            this.api = SunLicenseAPI.getLicense(licenseKey, getProductID(), getDescription().getVersion(), "https://licenses.exylia.net/");
+        }
     }
+
+    protected abstract int getProductID();
 
     // ===== BUKKIT LIFECYCLE =====
     @Override
     public final void onEnable() {
-        this.adventure = BukkitAudiences.create(this);
-        this.reloadManager = new ReloadManager(this);
-        registeredPlugins.add(this);
+        try {
+            if (requiresLicense) {
+                api.validate();
+            }
+            DebugUtils.logInternalSuccess("License validated successfully!");
+            this.adventure = BukkitAudiences.create(this);
+            this.reloadManager = new ReloadManager(this);
+            registeredPlugins.add(this);
 
-        if (!initialized) {
-            initializeExylia();
-            instance = this;
-            initialized = true;
+            if (!initialized) {
+                initializeExylia();
+                instance = this;
+                initialized = true;
+            }
+            initializeConfigurationSystem();
+            Bukkit.getScheduler().runTask(this, this::enablePlugin);
+        } catch (IOException e) {
+            DebugUtils.logInternalError("License validation failed: " + e.getMessage());
+            DebugUtils.logInternalError("You need support? Join our Discord: https://discord.exylia.net/");
+            getServer().getPluginManager().disablePlugin(this);
         }
-
-        // Inicializar el sistema de configuración
-        initializeConfigurationSystem();
-
-        licenseManager = new LicenseManager(this, requiresLicense);
-        licenseManager.initializeAndVerify()
-                .thenRun(() -> Bukkit.getScheduler().runTask(this, this::enablePlugin))
-                .exceptionally(throwable -> {
-                    Bukkit.getScheduler().runTask(this, () -> {
-                        logInternalError("License verification failed: " + throwable.getMessage());
-                        getServer().getPluginManager().disablePlugin(this);
-                    });
-                    return null;
-                });
     }
 
     @Override
@@ -164,7 +181,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
             configSystem.initialize(finalConfigClasses);
             setupConfigurationListeners();
-            logInternalSuccess("Sistema de configuración inicializado con " + finalConfigClasses.length + " clases");
 
             ConfigManager.init(configSystem, finalConfigClasses);
             TimeFormatter.init();
@@ -327,17 +343,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     final void callAllConfigurationsReloadHook() {
         onAllConfigurationsReload();
-    }
-
-    // ===== LICENSE METHODS =====
-    protected final boolean shouldOperate() {
-        return licenseManager != null && licenseManager.isVerified();
-    }
-
-    protected final void requireLicense(String feature) {
-        if (licenseManager == null || !licenseManager.isVerified()) {
-            throw new SecurityException("La función '" + feature + "' requiere una licencia válida");
-        }
     }
 
     // ===== ADVENTURE API =====
