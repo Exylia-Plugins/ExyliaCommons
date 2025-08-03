@@ -38,6 +38,8 @@ public class PlaceholderSystemManager {
     private final Map<String, ContextPlaceholder> contextPlaceholders = new ConcurrentHashMap<>();
     private final Map<String, PlayerPlaceholder> playerPlaceholders = new ConcurrentHashMap<>();
 
+    private final Set<String> nonCacheablePlaceholders = ConcurrentHashMap.newKeySet();
+
     // Cache para mejorar rendimiento
     private final PlaceholderCache cache = new PlaceholderCache();
 
@@ -308,6 +310,70 @@ public class PlaceholderSystemManager {
         });
     }
 
+    /**
+     * Registra un placeholder global con control de caché
+     */
+    public void registerGlobal(String name, GlobalPlaceholder placeholder, boolean cacheable) {
+        registerGlobal(name, placeholder);
+        if (!cacheable) {
+            nonCacheablePlaceholders.add(name.toLowerCase());
+        }
+    }
+
+    /**
+     * Registra un placeholder de contexto con control de caché
+     */
+    public void registerContext(String name, ContextPlaceholder placeholder, boolean cacheable) {
+        registerContext(name, placeholder);
+        if (!cacheable) {
+            nonCacheablePlaceholders.add(name.toLowerCase());
+        }
+    }
+
+    /**
+     * Registra un placeholder de jugador con control de caché
+     */
+    public void registerPlayer(String name, PlayerPlaceholder placeholder, boolean cacheable) {
+        registerPlayer(name, placeholder);
+        if (!cacheable) {
+            nonCacheablePlaceholders.add(name.toLowerCase());
+        }
+    }
+
+    /**
+     * Registra un placeholder que busca automáticamente en contextos por tipo (SIN caché)
+     */
+    public <T> void registerContextByType(String name, Class<T> contextType, Function<T, Object> resolver, boolean cacheable) {
+        registerContextByType(name, contextType, resolver);
+        if (!cacheable) {
+            nonCacheablePlaceholders.add(name.toLowerCase());
+        }
+    }
+
+    /**
+     * Registra un placeholder que busca automáticamente en contextos por tipo con jugador (SIN caché)
+     */
+    public <T> void registerContextByType(String name, Class<T> contextType, BiFunction<T, Player, Object> resolver, boolean cacheable) {
+        registerContextByType(name, contextType, resolver);
+        if (!cacheable) {
+            nonCacheablePlaceholders.add(name.toLowerCase());
+        }
+    }
+
+    /**
+     * Verifica si el texto contiene placeholders que no deben cachearse
+     */
+    private boolean containsNonCacheablePlaceholders(String text) {
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String placeholderName = matcher.group(1).toLowerCase();
+            if (nonCacheablePlaceholders.contains(placeholderName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ==================== UTILIDADES DE BÚSQUEDA EN CONTEXTOS ====================
 
     /**
@@ -406,7 +472,7 @@ public class PlaceholderSystemManager {
     private static class PlaceholderCache {
         private final Map<String, String> cache = new ConcurrentHashMap<>();
         private final Map<String, Long> timestamps = new ConcurrentHashMap<>();
-        private static final long TTL = 30000; // 30 segundos
+        private static final long TTL = 1000; // 30 segundos
 
         public String get(String key) {
             Long timestamp = timestamps.get(key);
@@ -456,7 +522,9 @@ public class PlaceholderSystemManager {
      */
     private String generateCacheKey(String text, Player player, List<Object> contexts) {
         // Solo cachear si no hay contextos dinámicos
-        if (!contexts.isEmpty() || containsPlayerSpecificPlaceholders(text)) {
+        if (!contexts.isEmpty() ||
+                containsPlayerSpecificPlaceholders(text) ||
+                containsNonCacheablePlaceholders(text)) {  // ← Agregar esta línea
             return null;
         }
 

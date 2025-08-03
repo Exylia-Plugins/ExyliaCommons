@@ -2,6 +2,7 @@ package net.exylia.commons.scoreboard.internal;
 
 import net.exylia.commons.config.components.ScoreboardConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.scoreboard.config.ScoreboardSettings;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -14,16 +15,23 @@ import java.util.Map;
 import java.util.ArrayList;
 
 /**
- * Renderizador optimizado de scoreboards
+ * Renderizador optimizado de scoreboards con configuración avanzada
  * Maneja la creación y actualización eficiente de scoreboards de Bukkit
+ * Ahora incluye soporte para configuración de teams y comportamientos específicos
  */
 public class ScoreboardRenderer {
 
     private static final ScoreboardManager BUKKIT_SCOREBOARD_MANAGER = Bukkit.getScoreboardManager();
     private static final String OBJECTIVE_NAME = "exylia_sb";
 
+    private final ScoreboardSettings settings;
+
     // Cache para equipos reutilizables
     private final Map<String, String> entryCache = new HashMap<>();
+
+    public ScoreboardRenderer(ScoreboardSettings settings) {
+        this.settings = settings;
+    }
 
     /**
      * Crea un nuevo scoreboard para un jugador
@@ -39,7 +47,54 @@ public class ScoreboardRenderer {
         Objective objective = bukkit.registerNewObjective(OBJECTIVE_NAME, "dummy", titleComponent);
         objective.setDisplaySlot(DisplaySlot.SIDEBAR);
 
-        return new RenderedScoreboard(bukkit, objective, new HashMap<>());
+        // Aplicar configuración de teams si está habilitada
+        Team mainTeam = null;
+        if (settings.hasCustomTeamSettings()) {
+            mainTeam = setupMainTeam(bukkit, player);
+        }
+
+        return new RenderedScoreboard(bukkit, objective, new HashMap<>(), mainTeam);
+    }
+
+    /**
+     * Configura el team principal con la configuración especificada
+     */
+    private Team setupMainTeam(Scoreboard scoreboard, Player player) {
+        if (!settings.isCreateMainTeam()) {
+            return null;
+        }
+
+        Team mainTeam = scoreboard.getTeam(settings.getMainTeamName());
+        if (mainTeam == null) {
+            mainTeam = scoreboard.registerNewTeam(settings.getMainTeamName());
+        }
+
+        // Aplicar configuraciones del team usando las APIs correctas
+        mainTeam.setOption(Team.Option.COLLISION_RULE, settings.getCollisionRule());
+        mainTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, settings.getNametagVisibility());
+        mainTeam.setOption(Team.Option.DEATH_MESSAGE_VISIBILITY, settings.getDeathMessageVisibility());
+
+        // Configuraciones que usan métodos específicos
+        mainTeam.setCanSeeFriendlyInvisibles(settings.isCanSeeFriendlyInvisibles());
+        mainTeam.setAllowFriendlyFire(settings.isAllowFriendlyFire());
+
+        // Configurar colores y texto
+        mainTeam.setColor(settings.getMainTeamColor());
+
+        if (!settings.getMainTeamPrefix().isEmpty()) {
+            Component prefixComponent = ColorUtils.parse(settings.getMainTeamPrefix());
+            mainTeam.prefix(prefixComponent);
+        }
+
+        if (!settings.getMainTeamSuffix().isEmpty()) {
+            Component suffixComponent = ColorUtils.parse(settings.getMainTeamSuffix());
+            mainTeam.suffix(suffixComponent);
+        }
+
+        // Añadir el jugador al team
+        mainTeam.addEntry(player.getName());
+
+        return mainTeam;
     }
 
     /**
@@ -52,6 +107,11 @@ public class ScoreboardRenderer {
         String processedTitle = context.processPlaceholders(config.getTitle(), player);
         Component titleComponent = ColorUtils.parse(processedTitle);
         rendered.objective.displayName(titleComponent);
+
+        // Actualizar configuración del team principal si existe
+        if (rendered.mainTeam != null) {
+            updateMainTeam(rendered.mainTeam, player, context);
+        }
 
         // Actualizar líneas
         List<String> lines = config.getLines();
@@ -71,6 +131,37 @@ public class ScoreboardRenderer {
 
         // Limpiar líneas no utilizadas
         cleanupUnusedLines(rendered, lines.size());
+
+        // Limpiar teams vacíos si está habilitado
+        if (settings.isAutoCleanupEmptyTeams()) {
+            cleanupEmptyTeams(rendered);
+        }
+    }
+
+    /**
+     * Actualiza el team principal con información dinámica
+     */
+    private void updateMainTeam(Team mainTeam, Player player, ExyliaContext context) {
+        // Procesar prefijo y sufijo con placeholders si es necesario
+        String prefix = settings.getMainTeamPrefix();
+        String suffix = settings.getMainTeamSuffix();
+
+        if (!prefix.isEmpty() && prefix.contains("%")) {
+            String processedPrefix = context.processPlaceholders(prefix, player);
+            Component prefixComponent = ColorUtils.parse(processedPrefix);
+            mainTeam.prefix(prefixComponent);
+        }
+
+        if (!suffix.isEmpty() && suffix.contains("%")) {
+            String processedSuffix = context.processPlaceholders(suffix, player);
+            Component suffixComponent = ColorUtils.parse(processedSuffix);
+            mainTeam.suffix(suffixComponent);
+        }
+
+        // Asegurar que el jugador esté en el team
+        if (!mainTeam.hasEntry(player.getName())) {
+            mainTeam.addEntry(player.getName());
+        }
     }
 
     /**
@@ -82,6 +173,12 @@ public class ScoreboardRenderer {
 
         if (team == null) {
             team = rendered.scoreboard.registerNewTeam(teamName);
+
+            // Aplicar configuraciones básicas a teams de líneas si es necesario
+            if (settings.hasCustomTeamSettings()) {
+                team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+                team.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+            }
         }
 
         // Aplicar contenido con colores
@@ -101,13 +198,10 @@ public class ScoreboardRenderer {
 
     /**
      * Limpia líneas no utilizadas
-     * CORREGIDO: No usar removeIf en colección inmutable
      */
     private void cleanupUnusedLines(RenderedScoreboard rendered, int activeLines) {
-        // Crear una lista de equipos a eliminar para evitar ConcurrentModificationException
         List<Team> teamsToRemove = new ArrayList<>();
 
-        // Iterar sobre los equipos y encontrar los que deben eliminarse
         for (Team team : rendered.scoreboard.getTeams()) {
             String teamName = team.getName();
             if (teamName.startsWith("line_")) {
@@ -117,24 +211,43 @@ public class ScoreboardRenderer {
                         teamsToRemove.add(team);
                     }
                 } catch (NumberFormatException ignored) {
-                    // Si no se puede parsear el número, también eliminar por seguridad
                     teamsToRemove.add(team);
                 }
             }
         }
 
-        // Eliminar los equipos identificados
         for (Team team : teamsToRemove) {
             try {
-                // Limpiar scores de todas las entradas del equipo
                 for (String entry : team.getEntries()) {
                     rendered.scoreboard.resetScores(entry);
                 }
-                // Desregistrar el equipo
                 team.unregister();
             } catch (Exception e) {
-                // Log del error pero continuar con el siguiente
                 System.err.println("Error eliminando equipo " + team.getName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Limpia teams vacíos automáticamente
+     */
+    private void cleanupEmptyTeams(RenderedScoreboard rendered) {
+        List<Team> teamsToRemove = new ArrayList<>();
+
+        for (Team team : rendered.scoreboard.getTeams()) {
+            // No limpiar el team principal ni los teams de líneas
+            if (!team.getName().equals(settings.getMainTeamName()) &&
+                    !team.getName().startsWith("line_") &&
+                    team.getEntries().isEmpty()) {
+                teamsToRemove.add(team);
+            }
+        }
+
+        for (Team team : teamsToRemove) {
+            try {
+                team.unregister();
+            } catch (Exception ignored) {
+                // Ignorar errores de limpieza
             }
         }
     }
@@ -150,17 +263,20 @@ public class ScoreboardRenderer {
     }
 
     /**
-     * Container para un scoreboard renderizado
+     * Container para un scoreboard renderizado con team principal
      */
     public static class RenderedScoreboard {
         public final Scoreboard scoreboard;
         public final Objective objective;
         public final Map<Integer, String> lastContent;
+        public final Team mainTeam; // Nuevo: team principal
 
-        public RenderedScoreboard(Scoreboard scoreboard, Objective objective, Map<Integer, String> lastContent) {
+        public RenderedScoreboard(Scoreboard scoreboard, Objective objective,
+                                  Map<Integer, String> lastContent, Team mainTeam) {
             this.scoreboard = scoreboard;
             this.objective = objective;
             this.lastContent = lastContent;
+            this.mainTeam = mainTeam;
         }
 
         public void cleanup() {
