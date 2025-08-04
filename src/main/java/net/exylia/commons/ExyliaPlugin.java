@@ -2,12 +2,14 @@ package net.exylia.commons;
 
 import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
+import lombok.Setter;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.database.DatabaseManager;
+import net.exylia.commons.license.SunLicenseUtil;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.*;
@@ -43,65 +45,35 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     private ConfigurationSystem configSystem;
     private ReloadManager reloadManager;
     private final boolean requiresLicense;
-    SunLicenseAPI api;
+    @Getter
+    @Setter
+    private SunLicenseAPI api;
 
     // ===== CONSTRUCTOR =====
-    protected ExyliaPlugin(boolean requiresLicense) throws IOException {
+    protected ExyliaPlugin(boolean requiresLicense) {
         this.requiresLicense = requiresLicense;
 
         if (requiresLicense) {
-            File licenseFile = new File(getDataFolder(), "license.yml");
+            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
 
-            if (!licenseFile.exists()) {
-                licenseFile.getParentFile().mkdirs();
-
-                try (FileWriter writer = new FileWriter(licenseFile)) {
-                    writer.write("# =================================================\n");
-                    writer.write("# LICENSE CONFIGURATION - " + getName().toUpperCase() + "\n");
-                    writer.write("# =================================================\n");
-                    writer.write("#\n");
-                    writer.write("# This plugin requires a valid license.\n");
-                    writer.write("# Join our Discord server for more information.\n");
-                    writer.write("# https://discord.exylia.net/\n");
-                    writer.write("#\n");
-                    writer.write("# key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
-                    writer.write("# =================================================\n");
-                    writer.write("\n");
-                    writer.write("key: YOUR-LICENSE-KEY-HERE\n");
-                }
-
-                throw new IOException("License file created at: " + licenseFile.getAbsolutePath() + " - Please add your license key and restart.");
+            if (!licenseManager.initializeLicense()) {
+                // Disable the plugin if license initialization fails
+                getServer().getPluginManager().disablePlugin(this);
             }
-
-            String licenseKey = null;
-            List<String> lines = Files.readAllLines(licenseFile.toPath());
-
-            for (String line : lines) {
-                line = line.trim();
-                if (line.startsWith("key:")) {
-                    String keyValue = line.substring(4).trim();
-                    if (!keyValue.isEmpty() && !keyValue.equals("YOUR-LICENSE-KEY-HERE")) {
-                        licenseKey = keyValue;
-                        break;
-                    }
-                }
-            }
-
-            if (licenseKey == null) {
-                throw new IOException("No valid license key found in: " + licenseFile.getAbsolutePath());
-            }
-
-            this.api = SunLicenseAPI.getLicense(licenseKey, getProductID(), getDescription().getVersion(), "https://licenses.exylia.net/");
         }
     }
 
-    protected abstract int getProductID();
+    public abstract int getProductID();
 
     // ===== BUKKIT LIFECYCLE =====
     @Override
     public final void onEnable() {
         try {
             if (requiresLicense) {
+                if (api == null) {
+                    getServer().getPluginManager().disablePlugin(this);
+                    return;
+                }
                 api.validate();
             }
             DebugUtils.logInternalSuccess("License validated successfully!");
@@ -116,7 +88,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             }
             initializeConfigurationSystem();
             Bukkit.getScheduler().runTask(this, this::enablePlugin);
-        } catch (IOException e) {
+        } catch (Exception e) {
             DebugUtils.logInternalError("License validation failed: " + e.getMessage());
             DebugUtils.logInternalError("You need support? Join our Discord: https://discord.exylia.net/");
             getServer().getPluginManager().disablePlugin(this);
