@@ -21,6 +21,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,18 +50,42 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         this.requiresLicense = requiresLicense;
 
         if (requiresLicense) {
-            File licenseFile = new File(getDataFolder(), "license.txt");
+            File licenseFile = new File(getDataFolder(), "license.yml");
 
             if (!licenseFile.exists()) {
                 licenseFile.getParentFile().mkdirs();
-                Files.write(licenseFile.toPath(), "YOUR-LICENSE-KEY-HERE".getBytes());
+
+                try (FileWriter writer = new FileWriter(licenseFile)) {
+                    writer.write("# =================================================\n");
+                    writer.write("# LICENSE CONFIGURATION - " + getName().toUpperCase() + "\n");
+                    writer.write("# =================================================\n");
+                    writer.write("#\n");
+                    writer.write("# This plugin requires a valid license.\n");
+                    writer.write("# Join our Discord server for more information.\n");
+                    writer.write("# https://discord.exylia.net/\n");
+                    writer.write("#\n");
+                    writer.write("# key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
+                    writer.write("# =================================================\n");
+                    writer.write("\n");
+                    writer.write("key: YOUR-LICENSE-KEY-HERE\n");
+                }
+
                 throw new IOException("License file created at: " + licenseFile.getAbsolutePath() + " - Please add your license key and restart.");
             }
-            String licenseKey = Files.lines(licenseFile.toPath())
-                    .map(String::trim)
-                    .filter(line -> !line.isEmpty() && !line.startsWith("#") && !line.equals("YOUR-LICENSE-KEY-HERE"))
-                    .findFirst()
-                    .orElse(null);
+
+            String licenseKey = null;
+            List<String> lines = Files.readAllLines(licenseFile.toPath());
+
+            for (String line : lines) {
+                line = line.trim();
+                if (line.startsWith("key:")) {
+                    String keyValue = line.substring(4).trim();
+                    if (!keyValue.isEmpty() && !keyValue.equals("YOUR-LICENSE-KEY-HERE")) {
+                        licenseKey = keyValue;
+                        break;
+                    }
+                }
+            }
 
             if (licenseKey == null) {
                 throw new IOException("No valid license key found in: " + licenseFile.getAbsolutePath());
