@@ -2,8 +2,12 @@ package net.exylia.commons.item.cooldown;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import net.exylia.commons.item.InteractiveItem;
+import net.exylia.commons.item.ItemManager;
+import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -124,6 +128,13 @@ public class CooldownManager {
 
         // Disparar evento de cooldown establecido
         triggerCooldownEvent(CooldownEventType.SET, playerId, itemId, cooldownSeconds);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player != null) {
+                player.setCooldown(getMaterialFromItemId(itemId, player), (int) cooldownSeconds * 20);
+            }
+        }, 1);
     }
 
     /**
@@ -471,5 +482,36 @@ public class CooldownManager {
 
         initialized = false;
         logInternalDebug(debug(), "CooldownManager shutdown");
+    }
+
+    private Material getMaterialFromItemId(String itemId, Player player) {
+        ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
+        if (config == null) {
+            return Material.STONE;
+        }
+
+        String materialString = config.getMaterial();
+
+        // Si tiene placeholders y tenemos un jugador, procesarlos
+        if (player != null && materialString.contains("%")) {
+            // Crear item temporal para procesar placeholders
+            InteractiveItem tempItem = ItemManager.createItem(itemId, player);
+            if (tempItem != null) {
+                return tempItem.getItemStack().getType();
+            }
+        }
+
+        // Procesar sin placeholders
+        if (materialString.startsWith("headbase-") ||
+                materialString.startsWith("headurl-") ||
+                materialString.startsWith("playerhead-")) {
+            return Material.PLAYER_HEAD;
+        }
+
+        try {
+            return Material.valueOf(materialString.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return Material.STONE;
+        }
     }
 }

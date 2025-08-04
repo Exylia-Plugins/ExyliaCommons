@@ -234,6 +234,17 @@ public class ItemManager implements Listener {
             return;
         }
 
+        ItemConfiguration config = interactiveItem.getConfiguration();
+        if (config.getTriggerType() == TriggerType.AFTER_CONSUME) {
+            if (config.hasCooldown() && !canPlayerUseItem(player, interactiveItem.getId())) {
+                event.setCancelled(true);
+                double remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
+                interactionHandler.handleCooldownMessage(player, remainingSeconds);
+                return;
+            }
+            return;
+        }
+
         if (interactiveItem.shouldCancelEvent() &&
                 interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
             event.setCancelled(true);

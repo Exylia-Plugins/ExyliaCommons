@@ -6,6 +6,7 @@ import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -16,10 +17,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
-/**
- * Manejador principal de interacciones con items
- * ACTUALIZADO: Soporte para nuevos triggers
- */
 public class ItemInteractionHandler {
 
     private final JavaPlugin plugin;
@@ -28,9 +25,6 @@ public class ItemInteractionHandler {
         this.plugin = plugin;
     }
 
-    /**
-     * Procesa interacción con información de la mano usada
-     */
     public void processItemInteractionWithHand(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
                                                ItemClickInfo clickInfo, EquipmentSlot hand) {
 
@@ -43,17 +37,13 @@ public class ItemInteractionHandler {
 
         // Manejar según el tipo de trigger
         if (config.getTriggerType() == TriggerType.IMMEDIATE) {
-            // Comportamiento actual: ejecutar efectos y acciones inmediatamente
             ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
             boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+
             if (shouldConsumeUse(interactiveItem, actionExecuted)) {
                 processItemConsumption(player, itemStack, interactiveItem, hand);
             }
-            if (interactiveItem.shouldConsumeOnUse()) {
-                ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-            }
         }
-        // Otros triggers (como AFTER_CONSUME) se manejan en otros eventos
     }
 
     /**
@@ -76,16 +66,9 @@ public class ItemInteractionHandler {
             if (shouldConsumeUse(interactiveItem, actionExecuted)) {
                 processItemConsumptionFromInventory(event, interactiveItem);
             }
-            if (interactiveItem.shouldConsumeOnUse()) {
-                ItemInventoryHandler.removeOrReduceItemFromInventory(event);
-            }
         }
-        // Otros triggers se manejan en otros eventos
     }
 
-    /**
-     * NUEVO: Procesa consumo de item (para AFTER_CONSUME)
-     */
     public void processItemConsumptionEvent(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
                                             ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
@@ -100,17 +83,50 @@ public class ItemInteractionHandler {
 
         ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
         boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
-        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
+
+        boolean shouldConsume = shouldConsumeUse(interactiveItem, actionExecuted);
+        if (shouldConsume) {
             processItemConsumption(player, itemStack, interactiveItem, hand);
-        }
-        if (interactiveItem.shouldConsumeOnUse()) {
-            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+        } else {
+            if (interactiveItem.shouldConsumeOnUse()) {
+                ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+            }
         }
     }
 
-    /**
-     * NUEVO: Procesa golpe a jugador (para ON_HIT_PLAYER)
-     */
+    private void processItemConsumption(Player player, ItemStack itemStack,
+                                        InteractiveItem interactiveItem, EquipmentSlot hand) {
+        ItemConfiguration config = interactiveItem.getConfiguration();
+
+        if (config.hasCooldown()) {
+            double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
+            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+        }
+
+        boolean hasUsesLeft = interactiveItem.consumeUse();
+
+        boolean shouldRemoveItem = false;
+        String removalReason = null;
+
+        if (!hasUsesLeft) {
+            shouldRemoveItem = true;
+            removalReason = "no_uses";
+        } else if (interactiveItem.shouldConsumeOnUse()) {
+            shouldRemoveItem = true;
+            removalReason = "consume_on_use";
+        }
+
+        if (shouldRemoveItem) {
+            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+            if ("no_uses".equals(removalReason)) {
+                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+            }
+        } else {
+            ItemInventoryHandler.updateItemByEquipmentSlot(player, itemStack, interactiveItem, hand);
+            interactiveItem.updatePlaceholders(player, hand);
+        }
+    }
+
     public void processHitPlayer(Player player, Player hitPlayer, ItemStack itemStack,
                                  InteractiveItem interactiveItem, ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
@@ -133,9 +149,6 @@ public class ItemInteractionHandler {
         }
     }
 
-    /**
-     * NUEVO: Procesa lanzamiento de proyectil (para ON_PROJECTILE_LAUNCH)
-     */
     public void processProjectileLaunch(Player player, ItemStack itemStack, InteractiveItem interactiveItem,
                                         ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
@@ -158,9 +171,6 @@ public class ItemInteractionHandler {
         }
     }
 
-    /**
-     * NUEVO: Procesa impacto de proyectil (para ON_PROJECTILE_HIT)
-     */
     public void processProjectileHit(Player player, Player hitPlayer, ItemStack itemStack,
                                      InteractiveItem interactiveItem, ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
@@ -249,26 +259,6 @@ public class ItemInteractionHandler {
                 interactiveItem.getClickHandler() != null;
     }
 
-    private void processItemConsumption(Player player, ItemStack itemStack,
-                                        InteractiveItem interactiveItem, EquipmentSlot hand) {
-        ItemConfiguration config = interactiveItem.getConfiguration();
-        if (config.hasCooldown()) {
-            double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
-            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
-        }
-
-        boolean hasUsesLeft = interactiveItem.consumeUse();
-
-        if (!hasUsesLeft) {
-            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
-            return;
-        }
-
-        ItemInventoryHandler.updateItemByEquipmentSlot(player, itemStack, interactiveItem, hand);
-        interactiveItem.updatePlaceholders(player, hand);
-    }
-
     private void processItemConsumptionFromInventory(InventoryClickEvent event, InteractiveItem interactiveItem) {
         Player player = (Player) event.getWhoClicked();
 
@@ -280,13 +270,26 @@ public class ItemInteractionHandler {
 
         boolean hasUsesLeft = interactiveItem.consumeUse();
 
+        boolean shouldRemoveItem = false;
+        String removalReason = null;
+
         if (!hasUsesLeft) {
-            ItemInventoryHandler.removeOrReduceItemFromInventory(event);
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
-            return;
+            shouldRemoveItem = true;
+            removalReason = "no_uses";
+        } else if (interactiveItem.shouldConsumeOnUse()) {
+            shouldRemoveItem = true;
+            removalReason = "consume_on_use";
         }
 
-        ItemInventoryHandler.updateItemInInventory(event, interactiveItem);
+        if (shouldRemoveItem) {
+            ItemInventoryHandler.removeOrReduceItemFromInventory(event);
+
+            if ("no_uses".equals(removalReason)) {
+                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+            }
+        } else {
+            ItemInventoryHandler.updateItemInInventory(event, interactiveItem);
+        }
     }
 
     private void setCooldownForRegion(Player player, InteractiveItem interactiveItem) {
@@ -323,7 +326,7 @@ public class ItemInteractionHandler {
         }
     }
 
-    private void handleCooldownMessage(Player player, double remainingSeconds) {
+    public void handleCooldownMessage(Player player, double remainingSeconds) {
         String formattedTime = timeFormatter.format(remainingSeconds);
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.in_cooldown",
                 "%cooldown_formatted%", formattedTime,

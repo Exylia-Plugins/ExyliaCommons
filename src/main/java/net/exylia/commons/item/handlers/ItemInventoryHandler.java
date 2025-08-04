@@ -4,26 +4,35 @@ import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * Manejador de operaciones de inventario para items interactivos
- * MEJORADO: Validaciones más completas para restricciones
- */
 public class ItemInventoryHandler {
 
-    /**
-     * Actualiza item en la mano específica usando EquipmentSlot
-     */
     public static void updateItemByEquipmentSlot(Player player, ItemStack itemStack,
                                                  InteractiveItem interactiveItem, EquipmentSlot hand) {
         if (interactiveItem.hasLimitedUses()) {
             if (itemStack.getAmount() > 1 && interactiveItem.isStackable()) {
-                itemStack.setAmount(itemStack.getAmount() - 1);
+
+                ItemStack currentHandItem = (hand == EquipmentSlot.HAND) ?
+                        player.getInventory().getItemInMainHand() :
+                        player.getInventory().getItemInOffHand();
+
+
+                if (currentHandItem.getAmount() > 1) {
+                    int newAmount = currentHandItem.getAmount() - 1;
+                    currentHandItem.setAmount(newAmount);
+
+                    switch (hand) {
+                        case HAND -> player.getInventory().setItemInMainHand(currentHandItem);
+                        case OFF_HAND -> player.getInventory().setItemInOffHand(currentHandItem);
+                    }
+                }
+
                 ItemStack updatedStack = interactiveItem.getItemStack();
                 updatedStack.setAmount(1);
                 player.getInventory().addItem(updatedStack);
@@ -31,33 +40,47 @@ public class ItemInventoryHandler {
                 ItemStack updatedStack = interactiveItem.getItemStack();
                 updatedStack.setAmount(itemStack.getAmount());
 
-                // Usar métodos específicos para cada mano
                 switch (hand) {
-                    case HAND -> player.getInventory().setItemInMainHand(updatedStack);
-                    case OFF_HAND -> player.getInventory().setItemInOffHand(updatedStack);
+                    case HAND -> {
+                        player.getInventory().setItemInMainHand(updatedStack);
+                    }
+                    case OFF_HAND -> {
+                        player.getInventory().setItemInOffHand(updatedStack);
+                    }
                 }
             }
         }
     }
 
-    /**
-     * Remueve item de la mano específica usando EquipmentSlot
-     */
+    // Fix para ItemInventoryHandler.removeOrReduceItemByEquipmentSlot
     public static void removeOrReduceItemByEquipmentSlot(Player player, ItemStack itemStack, EquipmentSlot hand) {
-        if (itemStack.getAmount() > 1) {
-            itemStack.setAmount(itemStack.getAmount() - 1);
+        ItemStack actualItem = hand == EquipmentSlot.HAND ?
+                player.getInventory().getItemInMainHand() :
+                player.getInventory().getItemInOffHand();
+
+        if (actualItem.getType().isAir()) {
+            return;
+        }
+        if (actualItem.getAmount() > 1) {
+            actualItem.setAmount(actualItem.getAmount() - 1);
+            if (hand == EquipmentSlot.HAND) {
+                player.getInventory().setItemInMainHand(actualItem);
+            } else {
+                player.getInventory().setItemInOffHand(actualItem);
+            }
+
         } else {
-            // Usar métodos específicos para cada mano
-            switch (hand) {
-                case HAND -> player.getInventory().setItemInMainHand(null);
-                case OFF_HAND -> player.getInventory().setItemInOffHand(null);
+            if (hand == EquipmentSlot.HAND) {
+                player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+            } else {
+                player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
             }
         }
+
+        player.updateInventory();
     }
 
-    /**
-     * Remueve o reduce item desde inventario
-     */
+
     public static void removeOrReduceItemFromInventory(InventoryClickEvent event) {
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return;
@@ -70,9 +93,6 @@ public class ItemInventoryHandler {
         }
     }
 
-    /**
-     * Actualiza item en inventario
-     */
     public static void updateItemInInventory(InventoryClickEvent event, InteractiveItem interactiveItem) {
         if (interactiveItem.hasLimitedUses()) {
             ItemStack currentItem = event.getCurrentItem();
@@ -95,10 +115,6 @@ public class ItemInventoryHandler {
         }
     }
 
-    /**
-     * MEJORADO: Verifica si un clic en inventario es para mover el item o para usarlo
-     * Ahora con validaciones más específicas y logging
-     */
     public static boolean isMovementClick(InventoryClickEvent event, ItemConfiguration config) {
         Player player = (Player) event.getWhoClicked();
         ClickType click = event.getClick();
@@ -127,10 +143,6 @@ public class ItemInventoryHandler {
         };
     }
 
-    /**
-     * MEJORADO: Determina si un LEFT/RIGHT click es para recoger/colocar items
-     * Ahora con más validaciones específicas
-     */
     private static boolean isPickupOrPlaceClick(InventoryClickEvent event, ItemConfiguration config) {
         ItemStack cursor = event.getCursor();
         ItemStack clicked = event.getCurrentItem();
@@ -165,9 +177,6 @@ public class ItemInventoryHandler {
         return allowed;
     }
 
-    /**
-     * NUEVO: Verifica si un item específico puede ser movido según sus restricciones
-     */
     public static boolean canItemBeMoved(ItemStack itemStack, ClickType clickType, Player player) {
         if (itemStack == null || itemStack.getType().isAir()) {
             return true;
@@ -201,9 +210,6 @@ public class ItemInventoryHandler {
         };
     }
 
-    /**
-     * NUEVO: Obtiene información detallada sobre por qué un movimiento fue denegado
-     */
     public static String getMovementDenialReason(ItemStack itemStack, ClickType clickType, Player player) {
         if (itemStack == null || itemStack.getType().isAir()) {
             return "No hay item";
@@ -243,9 +249,6 @@ public class ItemInventoryHandler {
         };
     }
 
-    /**
-     * NUEVO: Valida si una operación de arrastre está permitida
-     */
     public static boolean isDragOperationAllowed(ItemStack draggedItem, Player player,
                                                  java.util.Set<Integer> affectedSlots) {
         if (draggedItem == null || draggedItem.getType().isAir()) {
