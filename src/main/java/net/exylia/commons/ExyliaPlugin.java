@@ -45,7 +45,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     SunLicenseAPI api;
 
     // ===== CONSTRUCTOR =====
-    protected ExyliaPlugin(boolean requiresLicense, String pluginName) throws IOException {
+    protected ExyliaPlugin(boolean requiresLicense) throws IOException {
         this.requiresLicense = requiresLicense;
 
         if (requiresLicense) {
