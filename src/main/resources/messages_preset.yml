@@ -5,6 +5,9 @@ system:
   player_only: "%prefix% {error}This action can only be executed by a player."
   no_permission: "%prefix% {error}You do not have permission to execute this action."
   not_now: "%prefix% {error}You can't do that right now."
+  specify_player: "%prefix% {error}You must specify a player when executing from console."
+  invalid_range: "%prefix% {error}The quantity {info}%quantity%{error} must be between 1 and 64."
+  invalid_number: "%prefix% {error}The quantity {info}%quantity%{error} is not a valid number."
 
   commands:
     no_subcommands: "%prefix% {error}This command has no subcommands."
@@ -17,6 +20,10 @@ system:
         &f
         {warning}<> &8&l•&r {warning_light}Required &8| {info}[] &8&l•&r {info_light}Optional
         &f
+    reload:
+      starting: "%prefix% {info}ℹ Reloading..."
+      success: "%prefix% {success}✓ Plugin reloaded successfully in {info}%time%ms{success}."
+      error: "%prefix% {error}✘ Reload error: %error%"
 
   items:
     no_uses_remaining: "%prefix% {error}The item has no uses remaining."

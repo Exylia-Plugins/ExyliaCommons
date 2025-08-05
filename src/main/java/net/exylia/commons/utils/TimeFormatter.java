@@ -317,6 +317,7 @@ public class TimeFormatter {
 
     private String formatDuration(long millis) {
         List<String> parts = new ArrayList<>();
+        boolean hasLargerUnits = millis >= MINUTE; // Verificar si hay unidades mayores a segundos
 
         // Años
         if (millis >= YEAR) {
@@ -360,9 +361,8 @@ public class TimeFormatter {
             millis %= MINUTE;
         }
 
-        // Segundos (con milisegundos opcionales)
         if (millis >= SECOND || parts.isEmpty()) {
-            if (showMilliseconds && millis % SECOND != 0) {
+            if (showMilliseconds && millis % SECOND != 0 && !hasLargerUnits) {
                 double seconds = millis / 1000.0;
                 DecimalFormat df = new DecimalFormat("0." + "0".repeat(precision));
                 String secondsStr = df.format(seconds);
@@ -371,13 +371,13 @@ public class TimeFormatter {
                 long seconds = (millis + 500) / SECOND; // redondear
                 parts.add(seconds + ("s"));
             }
-        } else if (showMilliseconds && millis > 0) {
-            // Solo milisegundos
+        } else if (showMilliseconds && millis > 0 && !hasLargerUnits) {
             parts.add(millis + ("ms"));
         }
 
         return String.join(compactMode ? "" : " ", parts);
     }
+
 
     private String formatAsClockTime(long millis) {
         return formatAsClockTime(millis, ClockFormat.AUTO);
@@ -503,8 +503,8 @@ public class TimeFormatter {
             double hours = millis / (double) HOUR;
             return String.format("%.1fh", hours);
         } else if (millis >= MINUTE) {
-            double minutes = millis / (double) MINUTE;
-            return String.format("%.1fm", minutes);
+            long minutes = millis / MINUTE;
+            return minutes + "m";
         } else if (millis >= SECOND) {
             double seconds = millis / (double) SECOND;
             return String.format("%.1fs", seconds);
