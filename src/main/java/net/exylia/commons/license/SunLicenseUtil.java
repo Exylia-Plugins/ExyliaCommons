@@ -3,32 +3,27 @@ package net.exylia.commons.license;
 import com.hapangama.SunLicenseAPI;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.Bukkit;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
 import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.logging.Logger;
 
 public class SunLicenseUtil {
 
     private final ExyliaPlugin plugin;
-    private final Logger logger;
 
     public SunLicenseUtil(ExyliaPlugin plugin) {
         this.plugin = plugin;
-        this.logger = plugin.getLogger();
     }
 
-    /**
-     * Initialize and validate the license for the plugin
-     * @return true if license is valid, false if plugin should be disabled
-     */
     public boolean initializeLicense() {
         try {
             validateLicense();
-            logger.info("License validated successfully!");
+            DebugUtils.logInternalSuccess("License validated successfully!");
             return true;
         } catch (Exception e) {
             logLicenseError(e.getMessage());
@@ -41,23 +36,24 @@ public class SunLicenseUtil {
 
         if (!licenseFile.exists()) {
             createLicenseFile(licenseFile);
-            throw new Exception("License file has been created at: " + licenseFile.getAbsolutePath() +
-                    "Please edit the file and add your valid license key, then restart the server.");
+            throw new Exception("License file has been created at: " + licenseFile.getPath() +
+                    " | Please edit the file and add your valid license key, then restart the server.");
         }
 
         String licenseKey = readLicenseKey(licenseFile);
 
         if (licenseKey == null) {
-            throw new Exception("Invalid or missing license key in: " + licenseFile.getAbsolutePath() +
-                    "Please add a valid license key and restart the server.");
+            throw new Exception("Invalid or missing license key in: " + licenseFile.getPath() +
+                    " | Please add a valid license key and restart the server.");
         }
 
         try {
             SunLicenseAPI api = SunLicenseAPI.getLicense(licenseKey, plugin.getProductID(), plugin.getDescription().getVersion(), "https://licenses.exylia.net/");
+            api.setIp(getPublicIP());
             plugin.setApi(api);
         } catch (Exception e) {
             throw new Exception("License validation failed: " + e.getMessage() +
-                    "Please check your license key or contact support.");
+                    " | Please check your license key or contact support.");
         }
     }
 
@@ -74,10 +70,13 @@ public class SunLicenseUtil {
                 writer.write("# Join our Discord server for more information.\n");
                 writer.write("# https://discord.exylia.net/\n");
                 writer.write("#\n");
-                writer.write("# key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
+                writer.write("# =================================================\n");
+                writer.write("# license:\n");
+                writer.write("#   key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
                 writer.write("# =================================================\n");
                 writer.write("\n");
-                writer.write("key: YOUR-LICENSE-KEY-HERE\n");
+                writer.write("license:\n");
+                writer.write("  key: \"\"\n");
             }
         } catch (IOException e) {
             throw new Exception("Failed to create license file: " + e.getMessage());
@@ -88,13 +87,24 @@ public class SunLicenseUtil {
         try {
             List<String> lines = Files.readAllLines(licenseFile.toPath());
 
+            boolean inLicenseSection = false;
             for (String line : lines) {
                 line = line.trim();
-                if (line.startsWith("key:")) {
+                if (line.equals("license:")) {
+                    inLicenseSection = true;
+                    continue;
+                }
+                if (inLicenseSection && line.startsWith("key:")) {
                     String keyValue = line.substring(4).trim();
+                    if (keyValue.startsWith("\"") && keyValue.endsWith("\"")) {
+                        keyValue = keyValue.substring(1, keyValue.length() - 1);
+                    }
                     if (!keyValue.isEmpty() && !keyValue.equals("YOUR-LICENSE-KEY-HERE")) {
                         return keyValue;
                     }
+                }
+                if (inLicenseSection && line.endsWith(":") && !line.startsWith("key:")) {
+                    inLicenseSection = false;
                 }
             }
             return null;
@@ -113,5 +123,16 @@ public class SunLicenseUtil {
         DebugUtils.logInternalError("Plugin has been disabled.");
         DebugUtils.logInternalError("Join our Discord for support: https://discord.exylia.net/");
         DebugUtils.logInternalError("========================================");
+    }
+
+    public String getPublicIP() {
+        try {
+            URL url = new URL("https://api.ipify.org");
+            BufferedReader in = new BufferedReader(new InputStreamReader(url.openStream()));
+            return in.readLine();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Unknown";
+        }
     }
 }

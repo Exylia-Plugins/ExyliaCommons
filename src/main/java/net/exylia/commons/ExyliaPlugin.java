@@ -3,6 +3,7 @@ package net.exylia.commons;
 import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.command.CommandManager;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
@@ -57,7 +58,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             SunLicenseUtil licenseManager = new SunLicenseUtil(this);
 
             if (!licenseManager.initializeLicense()) {
-                // Disable the plugin if license initialization fails
                 getServer().getPluginManager().disablePlugin(this);
             }
         }
