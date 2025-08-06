@@ -339,6 +339,41 @@ public class ItemConfigurationBuilder {
                 .regionList(regions);
     }
 
+    public ItemConfigurationBuilder radius(double radius) {
+        return actionConfigValue("radius", radius);
+    }
+
+    public ItemConfigurationBuilder affectSelf(boolean affectSelf) {
+        return actionConfigValue("affect-self", affectSelf);
+    }
+
+    public ItemConfigurationBuilder onlyPlayers(boolean onlyPlayers) {
+        return actionConfigValue("only-players", onlyPlayers);
+    }
+
+    public ItemConfigurationBuilder requireLineOfSight(boolean requireLineOfSight) {
+        return actionConfigValue("require-line-of-sight", requireLineOfSight);
+    }
+
+    public ItemConfigurationBuilder maxTargets(int maxTargets) {
+        return actionConfigValue("max-targets", maxTargets);
+    }
+
+    public ItemConfigurationBuilder radiusConfig(double radius, boolean affectSelf, boolean onlyPlayers) {
+        return radius(radius)
+                .affectSelf(affectSelf)
+                .onlyPlayers(onlyPlayers);
+    }
+
+    public ItemConfigurationBuilder radiusConfig(double radius, boolean affectSelf, boolean onlyPlayers,
+                                                 boolean requireLineOfSight, int maxTargets) {
+        return radius(radius)
+                .affectSelf(affectSelf)
+                .onlyPlayers(onlyPlayers)
+                .requireLineOfSight(requireLineOfSight)
+                .maxTargets(maxTargets);
+    }
+
     public ItemConfigurationBuilder loadFromConfig(ConfigurationSection config) {
         if (config.contains("material")) {
             material(config.getString("material"));
@@ -512,13 +547,42 @@ public class ItemConfigurationBuilder {
         if (config.contains("action-config")) {
             if (config.isConfigurationSection("action-config")) {
                 Map<String, Object> actionConfigMap = new HashMap<>();
-                var actionConfigSection = config.getConfigurationSection("action-config");
+                ConfigurationSection actionConfigSection = config.getConfigurationSection("action-config");
                 if (actionConfigSection != null) {
                     for (String key : actionConfigSection.getKeys(false)) {
                         actionConfigMap.put(key, actionConfigSection.get(key));
                     }
-                }
                 actionConfig(actionConfigMap);
+
+                if (actionConfigSection.contains("radius")) {
+                    Object radiusValue = actionConfigSection.get("radius");
+                    if (radiusValue instanceof Number) {
+                        radius(((Number) radiusValue).doubleValue());
+                    } else if (radiusValue instanceof String) {
+                        try {
+                            radius(Double.parseDouble((String) radiusValue));
+                        } catch (NumberFormatException e) {
+                            // Ignore invalid radius values
+                        }
+                    }
+                }
+
+                if (actionConfigSection.contains("affect-self")) {
+                    affectSelf(actionConfigSection.getBoolean("affect-self"));
+                }
+
+                if (actionConfigSection.contains("only-players")) {
+                    onlyPlayers(actionConfigSection.getBoolean("only-players"));
+                }
+
+                if (actionConfigSection.contains("require-line-of-sight")) {
+                    requireLineOfSight(actionConfigSection.getBoolean("require-line-of-sight"));
+                }
+
+                if (actionConfigSection.contains("max-targets")) {
+                    maxTargets(actionConfigSection.getInt("max-targets"));
+                }
+                }
             }
         }
 
@@ -530,7 +594,6 @@ public class ItemConfigurationBuilder {
                 userItem();
             }
         }
-
         return this;
     }
 

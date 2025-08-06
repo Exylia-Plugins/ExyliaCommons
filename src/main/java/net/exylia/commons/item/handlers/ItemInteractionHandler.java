@@ -36,7 +36,9 @@ public class ItemInteractionHandler {
         }
 
         // Manejar según el tipo de trigger
-        if (config.getTriggerType() == TriggerType.IMMEDIATE) {
+        TriggerType triggerType = config.getTriggerType();
+
+        if (triggerType == TriggerType.IMMEDIATE || triggerType == TriggerType.RADIUS) {
             ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
             boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
 
@@ -59,8 +61,8 @@ public class ItemInteractionHandler {
             return;
         }
 
-        // Manejar según el tipo de trigger
-        if (config.getTriggerType() == TriggerType.IMMEDIATE) {
+        TriggerType triggerType = config.getTriggerType();
+        if (triggerType == TriggerType.IMMEDIATE || triggerType == TriggerType.RADIUS) {
             ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
             boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
             if (shouldConsumeUse(interactiveItem, actionExecuted)) {
