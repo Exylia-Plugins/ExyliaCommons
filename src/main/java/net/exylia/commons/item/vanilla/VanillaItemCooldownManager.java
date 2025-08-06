@@ -40,6 +40,10 @@ public class VanillaItemCooldownManager implements Listener {
     private final Map<UUID, Long> lastClickTime = new ConcurrentHashMap<>();
     private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
 
+    // Control de consumo múltiple - tracking de jugadores que acaban de consumir
+    private final Map<UUID, Set<Material>> recentlyConsumed = new ConcurrentHashMap<>();
+    private static final long CONSUME_PROTECTION_MS = 1000; // 1 segundo de protección
+
     private VanillaItemCooldownManager() {}
 
     /**
@@ -54,11 +58,8 @@ public class VanillaItemCooldownManager implements Listener {
         // Registrar eventos
         Bukkit.getPluginManager().registerEvents(instance, plugin);
 
-        // Inicializar configuraciones por defecto
-        instance.loadDefaultConfigurations();
-
-        // Tarea de limpieza de clicks
-        instance.startClickTimeCleanupTask();
+        // Tarea de limpieza de clicks y consumos
+        instance.startCleanupTask();
 
         initialized = true;
         DebugUtils.logInternalInfo("VanillaItemCooldownManager initialized");
@@ -159,6 +160,33 @@ public class VanillaItemCooldownManager implements Listener {
     }
 
     /**
+     * Verifica si un jugador acaba de consumir este item (protección anti-spam)
+     */
+    private boolean hasRecentlyConsumed(Player player, Material material) {
+        Set<Material> playerConsumed = recentlyConsumed.get(player.getUniqueId());
+        return playerConsumed != null && playerConsumed.contains(material);
+    }
+
+    /**
+     * Marca un item como recientemente consumido
+     */
+    private void markAsRecentlyConsumed(Player player, Material material) {
+        recentlyConsumed.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
+                .add(material);
+
+        // Remover después del tiempo de protección
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Set<Material> playerConsumed = recentlyConsumed.get(player.getUniqueId());
+            if (playerConsumed != null) {
+                playerConsumed.remove(material);
+                if (playerConsumed.isEmpty()) {
+                    recentlyConsumed.remove(player.getUniqueId());
+                }
+            }
+        }, CONSUME_PROTECTION_MS / 50); // Convertir ms a ticks
+    }
+
+    /**
      * Establece un cooldown para un jugador
      */
     public void setCooldown(Player player, Material material) {
@@ -169,7 +197,9 @@ public class VanillaItemCooldownManager implements Listener {
         CooldownManager.getInstance().setCooldown(player, itemId, config.getCooldownSeconds());
 
         // Establecer cooldown visual en Bukkit
-        player.setCooldown(material, (int) (config.getCooldownSeconds() * 20));
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            player.setCooldown(material, (int) (config.getCooldownSeconds() * 20));
+            },1L);
     }
 
     /**
@@ -224,10 +254,27 @@ public class VanillaItemCooldownManager implements Listener {
             // Establecer cooldown inmediatamente
             setCooldown(player, material);
         }
-        // Para otros tipos, solo verificar cooldown para mostrar mensaje
+        // Para items consumibles, verificar cooldown Y protección anti-spam
         else if (triggerType == VanillaTriggerType.AFTER_CONSUME ||
-                triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
-                (triggerType == VanillaTriggerType.AUTO_DETECT && (isConsumeTrigger(material) || isProjectileTrigger(material)))) {
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isConsumeTrigger(material))) {
+
+            // Verificar cooldown normal
+            if (!canPlayerUseItem(player, material)) {
+                event.setCancelled(true);
+                handleCooldownMessage(player, material);
+                return;
+            }
+
+            // Verificar protección anti-spam para evitar doble consumo
+            if (hasRecentlyConsumed(player, material)) {
+                event.setCancelled(true);
+                // No mostrar mensaje adicional, ya fue consumido recientemente
+                return;
+            }
+        }
+        // Para proyectiles, solo verificar cooldown para mostrar mensaje
+        else if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
 
             if (!canPlayerUseItem(player, material)) {
                 event.setCancelled(true);
@@ -237,7 +284,7 @@ public class VanillaItemCooldownManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOWEST) // Cambiar a LOWEST para verificar ANTES del consumo
     public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
@@ -248,16 +295,27 @@ public class VanillaItemCooldownManager implements Listener {
 
         VanillaTriggerType triggerType = config.getTriggerType();
 
-        // Aplicar cooldown después de consumir
+        // Verificar si este item tiene cooldown de tipo AFTER_CONSUME
         if (triggerType == VanillaTriggerType.AFTER_CONSUME ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isConsumeTrigger(material))) {
 
-            // Programar el cooldown para después del consume
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    setCooldown(player, material);
-                }
-            }, 1L);
+            // Verificar cooldown antes de permitir el consumo
+            if (!canPlayerUseItem(player, material)) {
+                event.setCancelled(true);
+                handleCooldownMessage(player, material);
+                return;
+            }
+
+            // Verificar protección anti-spam
+            if (hasRecentlyConsumed(player, material)) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // Si el consumo es permitido, marcar como recientemente consumido
+            // y aplicar el cooldown inmediatamente
+            markAsRecentlyConsumed(player, material);
+            setCooldown(player, material);
         }
     }
 
@@ -384,12 +442,20 @@ public class VanillaItemCooldownManager implements Listener {
     }
 
     /**
-     * Tarea de limpieza de clicks
+     * Tarea de limpieza de clicks y consumos
      */
-    private void startClickTimeCleanupTask() {
+    private void startCleanupTask() {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             long currentTime = System.currentTimeMillis();
+
+            // Limpiar clicks antiguos
             lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);
+
+            // Limpiar jugadores offline de recentlyConsumed
+            recentlyConsumed.entrySet().removeIf(entry -> {
+                Player player = Bukkit.getPlayer(entry.getKey());
+                return player == null || !player.isOnline();
+            });
         }, 20L * 60, 20L * 60);
     }
 
@@ -411,26 +477,6 @@ public class VanillaItemCooldownManager implements Listener {
      */
     private String getItemDisplayName(Material material) {
         return material.name().toLowerCase().replace("_", " ");
-    }
-
-    /**
-     * Carga configuraciones por defecto para items comunes
-     */
-    private void loadDefaultConfigurations() {
-        // Estos son ejemplos, puedes personalizar o remover según necesites
-
-        // Comida con cooldown
-        registerCooldown(Material.GOLDEN_APPLE, 30.0, VanillaTriggerType.AFTER_CONSUME);
-        registerCooldown(Material.ENCHANTED_GOLDEN_APPLE, 300.0, VanillaTriggerType.AFTER_CONSUME);
-
-        // Proyectiles
-        registerCooldown(Material.ENDER_PEARL, 15.0, VanillaTriggerType.AFTER_PROJECTILE);
-        registerCooldown(Material.BOW, 1.0, VanillaTriggerType.AFTER_PROJECTILE);
-        registerCooldown(Material.CROSSBOW, 2.0, VanillaTriggerType.AFTER_PROJECTILE);
-
-        // Otros items útiles
-        registerCooldown(Material.SHIELD, 1.0, VanillaTriggerType.INTERACT);
-        registerCooldown(Material.TOTEM_OF_UNDYING, 60.0, VanillaTriggerType.INTERACT);
     }
 
     // ===== MÉTODOS PÚBLICOS PARA CONFIGURACIÓN =====
