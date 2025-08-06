@@ -1,0 +1,464 @@
+package net.exylia.commons.item.vanilla;
+
+import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.utils.visuals.MessageUtils;
+import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
+import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityShootBowEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * Registrador de cooldowns para items vanilla
+ * Soporte para diferentes triggers según el tipo de item
+ */
+public class VanillaItemCooldownManager implements Listener {
+
+    private static VanillaItemCooldownManager instance;
+    private static JavaPlugin plugin;
+    private static boolean initialized = false;
+
+    // Configuraciones de cooldown por material
+    private final Map<Material, VanillaItemConfig> itemConfigs = new ConcurrentHashMap<>();
+
+    // Control de doble clic
+    private final Map<UUID, Long> lastClickTime = new ConcurrentHashMap<>();
+    private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
+
+    private VanillaItemCooldownManager() {}
+
+    /**
+     * Inicializa el sistema de cooldowns para items vanilla
+     */
+    public static void initialize(JavaPlugin javaPlugin) {
+        if (initialized) return;
+
+        plugin = javaPlugin;
+        instance = new VanillaItemCooldownManager();
+
+        // Registrar eventos
+        Bukkit.getPluginManager().registerEvents(instance, plugin);
+
+        // Inicializar configuraciones por defecto
+        instance.loadDefaultConfigurations();
+
+        // Tarea de limpieza de clicks
+        instance.startClickTimeCleanupTask();
+
+        initialized = true;
+        DebugUtils.logInternalInfo("VanillaItemCooldownManager initialized");
+    }
+
+    public static VanillaItemCooldownManager getInstance() {
+        if (!initialized) {
+            throw new IllegalStateException("VanillaItemCooldownManager not initialized. Call initialize() first.");
+        }
+        return instance;
+    }
+
+    // ===== MÉTODOS DE CONFIGURACIÓN =====
+
+    /**
+     * Registra un cooldown para un material específico
+     */
+    public void registerCooldown(Material material, double cooldownSeconds) {
+        registerCooldown(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT);
+    }
+
+    /**
+     * Registra un cooldown con tipo de trigger específico
+     */
+    public void registerCooldown(Material material, double cooldownSeconds, VanillaTriggerType triggerType) {
+        if (material == null) {
+            throw new IllegalArgumentException("Material cannot be null");
+        }
+
+        VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType);
+        itemConfigs.put(material, config);
+
+        DebugUtils.logInternalDebug(true, "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")");
+    }
+
+    /**
+     * Registra cooldowns para múltiples materiales
+     */
+    public void registerCooldowns(Map<Material, Double> cooldowns) {
+        cooldowns.forEach(this::registerCooldown);
+    }
+
+    /**
+     * Registra cooldowns para múltiples materiales con el mismo valor
+     */
+    public void registerCooldowns(List<Material> materials, double cooldownSeconds) {
+        materials.forEach(material -> registerCooldown(material, cooldownSeconds));
+    }
+
+    /**
+     * Registra cooldowns para múltiples materiales con trigger específico
+     */
+    public void registerCooldowns(List<Material> materials, double cooldownSeconds, VanillaTriggerType triggerType) {
+        materials.forEach(material -> registerCooldown(material, cooldownSeconds, triggerType));
+    }
+
+    /**
+     * Remueve el cooldown de un material
+     */
+    public void unregisterCooldown(Material material) {
+        itemConfigs.remove(material);
+        DebugUtils.logInternalDebug(true, "Unregistered vanilla cooldown: " + material);
+    }
+
+    /**
+     * Limpia todas las configuraciones
+     */
+    public void clearAllCooldowns() {
+        itemConfigs.clear();
+        DebugUtils.logInternalInfo("Cleared all vanilla item cooldowns");
+    }
+
+    /**
+     * Verifica si un material tiene cooldown configurado
+     */
+    public boolean hasCooldownConfig(Material material) {
+        return itemConfigs.containsKey(material);
+    }
+
+    /**
+     * Obtiene la configuración de cooldown de un material
+     */
+    public VanillaItemConfig getCooldownConfig(Material material) {
+        return itemConfigs.get(material);
+    }
+
+    // ===== MÉTODOS DE COOLDOWN =====
+
+    /**
+     * Verifica si un jugador puede usar un item
+     */
+    public boolean canPlayerUseItem(Player player, Material material) {
+        if (!hasCooldownConfig(material)) return true;
+        if (player.getGameMode() == GameMode.CREATIVE) return true;
+
+        String itemId = getItemId(material);
+        return !CooldownManager.getInstance().hasCooldown(player, itemId);
+    }
+
+    /**
+     * Establece un cooldown para un jugador
+     */
+    public void setCooldown(Player player, Material material) {
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        String itemId = getItemId(material);
+        CooldownManager.getInstance().setCooldown(player, itemId, config.getCooldownSeconds());
+
+        // Establecer cooldown visual en Bukkit
+        player.setCooldown(material, (int) (config.getCooldownSeconds() * 20));
+    }
+
+    /**
+     * Obtiene el cooldown restante de un jugador
+     */
+    public double getRemainingCooldown(Player player, Material material) {
+        if (!hasCooldownConfig(material)) return 0.0;
+
+        String itemId = getItemId(material);
+        return CooldownManager.getInstance().getRemainingCooldown(player, itemId);
+    }
+
+    /**
+     * Remueve el cooldown de un jugador
+     */
+    public void removeCooldown(Player player, Material material) {
+        String itemId = getItemId(material);
+        CooldownManager.getInstance().removeCooldown(player, itemId);
+        player.setCooldown(material, 0);
+    }
+
+    // ===== EVENT HANDLERS =====
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+
+        if (item == null || item.getType().isAir()) return;
+
+        Material material = item.getType();
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        // Control de doble clic
+        if (!canPlayerClick(player.getUniqueId())) {
+            return;
+        }
+
+        VanillaTriggerType triggerType = config.getTriggerType();
+
+        // Para items que se activan en INTERACT, verificar cooldown aquí
+        if (triggerType == VanillaTriggerType.INTERACT ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isInteractTrigger(material))) {
+
+            if (!canPlayerUseItem(player, material)) {
+                event.setCancelled(true);
+                handleCooldownMessage(player, material);
+                return;
+            }
+
+            // Establecer cooldown inmediatamente
+            setCooldown(player, material);
+        }
+        // Para otros tipos, solo verificar cooldown para mostrar mensaje
+        else if (triggerType == VanillaTriggerType.AFTER_CONSUME ||
+                triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && (isConsumeTrigger(material) || isProjectileTrigger(material)))) {
+
+            if (!canPlayerUseItem(player, material)) {
+                event.setCancelled(true);
+                handleCooldownMessage(player, material);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        Material material = item.getType();
+
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        VanillaTriggerType triggerType = config.getTriggerType();
+
+        // Aplicar cooldown después de consumir
+        if (triggerType == VanillaTriggerType.AFTER_CONSUME ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isConsumeTrigger(material))) {
+
+            // Programar el cooldown para después del consume
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                if (player.isOnline()) {
+                    setCooldown(player, material);
+                }
+            }, 1L);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        Projectile projectile = event.getEntity();
+        if (!(projectile.getShooter() instanceof Player player)) return;
+
+        // Detectar el item que lanzó el proyectil
+        Material material = getProjectileSourceMaterial(player, projectile);
+        if (material == null) return;
+
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        VanillaTriggerType triggerType = config.getTriggerType();
+
+        // Aplicar cooldown después de lanzar proyectil
+        if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
+
+            setCooldown(player, material);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityShootBow(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        ItemStack bow = event.getBow();
+        if (bow == null) return;
+
+        Material material = bow.getType();
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        VanillaTriggerType triggerType = config.getTriggerType();
+
+        // Aplicar cooldown después de disparar arco/ballesta
+        if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
+
+            setCooldown(player, material);
+        }
+    }
+
+    // ===== MÉTODOS AUXILIARES =====
+
+    /**
+     * Detecta automáticamente el tipo de trigger basado en el material
+     */
+    private boolean isInteractTrigger(Material material) {
+        return material == Material.SHIELD ||
+                material == Material.FIREWORK_ROCKET ||
+                material.name().contains("POTION") ||
+                material.name().contains("BUCKET");
+    }
+
+    private boolean isConsumeTrigger(Material material) {
+        return material.isEdible() ||
+                material == Material.POTION ||
+                material == Material.MILK_BUCKET;
+    }
+
+    private boolean isProjectileTrigger(Material material) {
+        return material == Material.ENDER_PEARL ||
+                material == Material.SNOWBALL ||
+                material == Material.EGG ||
+                material == Material.BOW ||
+                material == Material.CROSSBOW ||
+                material == Material.TRIDENT;
+    }
+
+    /**
+     * Detecta el material que causó el lanzamiento del proyectil
+     */
+    private Material getProjectileSourceMaterial(Player player, Projectile projectile) {
+        switch (projectile.getType()) {
+            case ENDER_PEARL:
+                return Material.ENDER_PEARL;
+            case SNOWBALL:
+                return Material.SNOWBALL;
+            case EGG:
+                return Material.EGG;
+            case TRIDENT:
+                return Material.TRIDENT;
+            case ARROW:
+            case SPECTRAL_ARROW:
+                // Verificar si tiene arco o ballesta en mano
+                ItemStack mainHand = player.getInventory().getItemInMainHand();
+                ItemStack offHand = player.getInventory().getItemInOffHand();
+
+                if (mainHand.getType() == Material.BOW || mainHand.getType() == Material.CROSSBOW) {
+                    return mainHand.getType();
+                }
+                if (offHand.getType() == Material.BOW || offHand.getType() == Material.CROSSBOW) {
+                    return offHand.getType();
+                }
+                break;
+        }
+        return null;
+    }
+
+    /**
+     * Genera un ID único para el item vanilla
+     */
+    private String getItemId(Material material) {
+        return "vanilla_" + material.name().toLowerCase();
+    }
+
+    /**
+     * Control de doble clic
+     */
+    private boolean canPlayerClick(UUID playerId) {
+        long currentTime = System.currentTimeMillis();
+        Long lastTime = lastClickTime.get(playerId);
+
+        if (lastTime != null && (currentTime - lastTime) < DOUBLE_CLICK_PREVENTION_MS) {
+            return false;
+        }
+
+        lastClickTime.put(playerId, currentTime);
+        return true;
+    }
+
+    /**
+     * Tarea de limpieza de clicks
+     */
+    private void startClickTimeCleanupTask() {
+        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+            long currentTime = System.currentTimeMillis();
+            lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);
+        }, 20L * 60, 20L * 60);
+    }
+
+    /**
+     * Maneja el mensaje de cooldown
+     */
+    private void handleCooldownMessage(Player player, Material material) {
+        double remainingSeconds = getRemainingCooldown(player, material);
+        String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
+
+        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_cooldown",
+                "%item%", getItemDisplayName(material),
+                "%cooldown_formatted%", formattedTime,
+                "%cooldown_seconds%", String.valueOf(remainingSeconds)));
+    }
+
+    /**
+     * Obtiene el nombre display del material
+     */
+    private String getItemDisplayName(Material material) {
+        return material.name().toLowerCase().replace("_", " ");
+    }
+
+    /**
+     * Carga configuraciones por defecto para items comunes
+     */
+    private void loadDefaultConfigurations() {
+        // Estos son ejemplos, puedes personalizar o remover según necesites
+
+        // Comida con cooldown
+        registerCooldown(Material.GOLDEN_APPLE, 30.0, VanillaTriggerType.AFTER_CONSUME);
+        registerCooldown(Material.ENCHANTED_GOLDEN_APPLE, 300.0, VanillaTriggerType.AFTER_CONSUME);
+
+        // Proyectiles
+        registerCooldown(Material.ENDER_PEARL, 15.0, VanillaTriggerType.AFTER_PROJECTILE);
+        registerCooldown(Material.BOW, 1.0, VanillaTriggerType.AFTER_PROJECTILE);
+        registerCooldown(Material.CROSSBOW, 2.0, VanillaTriggerType.AFTER_PROJECTILE);
+
+        // Otros items útiles
+        registerCooldown(Material.SHIELD, 1.0, VanillaTriggerType.INTERACT);
+        registerCooldown(Material.TOTEM_OF_UNDYING, 60.0, VanillaTriggerType.INTERACT);
+    }
+
+    // ===== MÉTODOS PÚBLICOS PARA CONFIGURACIÓN =====
+
+    /**
+     * Obtiene todas las configuraciones registradas
+     */
+    public Map<Material, VanillaItemConfig> getAllConfigs() {
+        return new HashMap<>(itemConfigs);
+    }
+
+    /**
+     * Obtiene estadísticas del sistema
+     */
+    public String getStats() {
+        long interactCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.INTERACT ? 1 : 0)
+                .sum();
+
+        long consumeCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.AFTER_CONSUME ? 1 : 0)
+                .sum();
+
+        long projectileCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.AFTER_PROJECTILE ? 1 : 0)
+                .sum();
+
+        return String.format("Vanilla Item Cooldowns - Total: %d, Interact: %d, Consume: %d, Projectile: %d",
+                itemConfigs.size(), interactCount, consumeCount, projectileCount);
+    }
+}
