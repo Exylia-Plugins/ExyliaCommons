@@ -430,66 +430,27 @@ public class UnifiedRegionListener implements Listener {
             return;
         }
 
-        // Buscar jugador responsable de la formación
-        Player responsiblePlayer = findResponsiblePlayerForBlockFormation(location, event.getNewState().getType());
 
-        if (responsiblePlayer != null) {
             logInternalDebug(debug(), String.format(
-                    "Bloque formado por acción de jugador: %s causó la formación de %s en %s",
-                    responsiblePlayer.getName(),
+                    "Bloque formado cerca de jugador: %s causó posible formación de %s en %s",
+                    "N/A",
                     event.getNewState().getType().name(),
                     location
             ));
 
-            // Registrar el bloque formado como del jugador
-            blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType());
+            // Registrar el bloque formado
+            blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType(),
+                    null, "N/A");
 
             // Si la región tiene bloques temporales, programar remoción
             if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
                 temporaryBlocksManager.scheduleBlockRemoval(
-                        region, location, event.getNewState().getType(), responsiblePlayer.getUniqueId()
+                        region, location, event.getNewState().getType(), null
                 );
             }
-        }
     }
 
-    /**
-     * Maneja el crecimiento de bloques causado por jugadores (como árboles)
-     */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockGrow(BlockGrowEvent event) {
-        totalEvents++;
 
-        Location location = event.getBlock().getLocation();
-        List<Region> regions = regionManager.getRegionsAt(location);
-
-        if (regions.isEmpty()) {
-            return;
-        }
-
-        Region region = regions.get(0);
-
-        // Solo procesar si la región tiene tracking activo
-        if (!region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-            return;
-        }
-
-        // Solo registrar ciertos tipos de crecimiento causado por jugadores
-        if (isPlayerCausedGrowth(event.getNewState().getType())) {
-            Player responsiblePlayer = findResponsiblePlayerForGrowth(location);
-
-            if (responsiblePlayer != null) {
-                blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType());
-
-                logInternalDebug(debug(), String.format(
-                        "Crecimiento causado por jugador: %s causó el crecimiento de %s en %s",
-                        responsiblePlayer.getName(),
-                        event.getNewState().getType().name(),
-                        location
-                ));
-            }
-        }
-    }
 
     /**
      * Maneja la propagación de bloques (como fuego)
@@ -512,15 +473,16 @@ public class UnifiedRegionListener implements Listener {
             return;
         }
 
-        // Verificar si el bloque fuente fue colocado por un jugador
+        // OPTIMIZADO: Solo verificar si el bloque fuente fue colocado por jugador
         Location sourceLocation = event.getSource().getLocation();
 
+        // CACHE CHECK RÁPIDO: Solo verificar si ya sabemos que es de jugador
         if (blockTracker.isPlayerPlacedBlock(region.getId(), sourceLocation)) {
-            // El bloque fuente fue colocado por un jugador, registrar la propagación
+            // SIMPLIFICADO: Registrar propagación sin buscar jugador específico
             blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType());
 
             logInternalDebug(debug(), String.format(
-                    "Propagación de bloque de jugador: %s se propagó de %s a %s",
+                    "Propagación registrada: %s se propagó de %s a %s",
                     event.getNewState().getType().name(),
                     sourceLocation,
                     location
@@ -528,114 +490,12 @@ public class UnifiedRegionListener implements Listener {
 
             // Si la región tiene bloques temporales, programar remoción
             if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
-                // Buscar el jugador original que colocó el bloque fuente
-                Player originalPlayer = findPlayerWhoPlacedBlock(region.getId(), sourceLocation);
-                if (originalPlayer != null) {
-                    temporaryBlocksManager.scheduleBlockRemoval(
-                            region, location, event.getNewState().getType(), originalPlayer.getUniqueId()
-                    );
-                }
+                // Sin jugador específico, usar tiempo estándar
+                temporaryBlocksManager.scheduleBlockRemoval(
+                        region, location, event.getNewState().getType(), null
+                );
             }
         }
-    }
-
-
-    /**
-     * Encuentra el jugador responsable de la formación de un bloque
-     */
-    private Player findResponsiblePlayerForBlockFormation(Location formationLocation, Material formedMaterial) {
-        int searchRadius = 5;
-
-        for (int x = -searchRadius; x <= searchRadius; x++) {
-            for (int y = -searchRadius; y <= searchRadius; y++) {
-                for (int z = -searchRadius; z <= searchRadius; z++) {
-                    Location checkLocation = formationLocation.clone().add(x, y, z);
-                    Material blockType = checkLocation.getBlock().getType();
-
-                    // Verificar si es agua o lava
-                    if (blockType == Material.WATER || blockType == Material.LAVA) {
-                        // Buscar en todas las regiones que contengan esta ubicación
-                        List<Region> regions = regionManager.getRegionsAt(checkLocation);
-
-                        for (Region region : regions) {
-                            if (region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
-                                if (blockTracker.isPlayerPlacedBlock(region.getId(), checkLocation)) {
-                                    // Encontramos agua/lava colocada por jugador, buscar qué jugador
-                                    return findPlayerWhoPlacedBlock(region.getId(), checkLocation);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Método alternativo: buscar jugadores cercanos
-        return findNearestPlayerInRadius(formationLocation, 10.0);
-    }
-
-    /**
-     * Encuentra el jugador responsable del crecimiento
-     */
-    private Player findResponsiblePlayerForGrowth(Location growthLocation) {
-        // Para crecimiento, buscar jugadores que hayan colocado bone meal recientemente
-        // o que estén cerca y hayan interactuado recientemente
-
-        return findNearestPlayerInRadius(growthLocation, 8.0);
-    }
-
-    /**
-     * Encuentra el jugador más cercano en un radio específico
-     */
-    private Player findNearestPlayerInRadius(Location location, double radius) {
-        Player nearestPlayer = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        for (Player player : location.getWorld().getPlayers()) {
-            double distance = player.getLocation().distance(location);
-
-            if (distance <= radius && distance < nearestDistance) {
-                nearestDistance = distance;
-                nearestPlayer = player;
-            }
-        }
-
-        return nearestPlayer;
-    }
-
-    /**
-     * Encuentra qué jugador colocó un bloque específico
-     * Esto requiere una extensión del PlayerBlockTracker
-     */
-    private Player findPlayerWhoPlacedBlock(String regionId, Location location) {
-        UUID playerId = blockTracker.getPlayerWhoPlacedBlock(regionId, location);
-
-        if (playerId != null) {
-            Player player = Bukkit.getPlayer(playerId);
-            if (player != null && player.isOnline()) {
-                return player;
-            }
-        }
-
-        // Fallback: buscar por proximidad
-        return findNearestPlayerInRadius(location, 5.0);
-    }
-
-    /**
-     * Verifica si un tipo de crecimiento fue causado por jugadores
-     */
-    private boolean isPlayerCausedGrowth(Material material) {
-        return material == Material.WHEAT ||
-                material == Material.CARROTS ||
-                material == Material.POTATOES ||
-                material == Material.BEETROOTS ||
-                material == Material.PUMPKIN ||
-                material == Material.MELON ||
-                material.name().contains("SAPLING") ||
-                material.name().contains("STEM") ||
-                material == Material.SUGAR_CANE ||
-                material == Material.CACTUS ||
-                material == Material.BAMBOO;
     }
 
     // ===== EVENTOS DE LIMPIEZA =====

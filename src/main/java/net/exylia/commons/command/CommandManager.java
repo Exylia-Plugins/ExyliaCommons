@@ -53,8 +53,6 @@ public class CommandManager {
                 aliasMap.put(alias.toLowerCase(), cmdName);
             }
 
-            logInternalInfo("Comando /" + command.getName() + " registrado exitosamente");
-
             // Verificar registro después de algunos ticks
             scheduleVerification(command);
 
@@ -238,12 +236,9 @@ public class CommandManager {
 
         long duration = System.currentTimeMillis() - startTime;
 
-        CommandRegistrationSummary summary = new CommandRegistrationSummary(
+        return new CommandRegistrationSummary(
                 successful, failed, duration
         );
-
-        logInternalInfo("Registro de comandos completado: " + summary);
-        return summary;
     }
 
     /**

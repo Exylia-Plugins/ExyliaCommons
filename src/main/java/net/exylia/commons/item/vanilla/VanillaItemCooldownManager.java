@@ -226,6 +226,7 @@ public class VanillaItemCooldownManager implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
+        if (player.getGameMode() == GameMode.CREATIVE) return;
         ItemStack item = event.getItem();
 
         if (item == null || item.getType().isAir()) return;
@@ -287,6 +288,7 @@ public class VanillaItemCooldownManager implements Listener {
     @EventHandler(priority = EventPriority.LOWEST) // Cambiar a LOWEST para verificar ANTES del consumo
     public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
         Player player = event.getPlayer();
+        if (player.getGameMode() == GameMode.CREATIVE) return;
         ItemStack item = event.getItem();
         Material material = item.getType();
 
@@ -323,6 +325,7 @@ public class VanillaItemCooldownManager implements Listener {
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
         Projectile projectile = event.getEntity();
         if (!(projectile.getShooter() instanceof Player player)) return;
+        if (player.getGameMode() == GameMode.CREATIVE) return;
 
         // Detectar el item que lanzó el proyectil
         Material material = getProjectileSourceMaterial(player, projectile);
@@ -344,6 +347,7 @@ public class VanillaItemCooldownManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onEntityShootBow(EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
+        if (player.getGameMode() == GameMode.CREATIVE) return;
 
         ItemStack bow = event.getBow();
         if (bow == null) return;

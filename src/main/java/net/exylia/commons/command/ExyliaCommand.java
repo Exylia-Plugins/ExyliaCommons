@@ -97,7 +97,7 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
             registeredCommands.put(lowerName, this);
             isRegistered = true;
 
-            logInternalInfo("Comando " + name + " registrado exitosamente");
+            logInternalInfo("Command " + name + " registered successfully");
             return true;
 
         } catch (Exception e) {
