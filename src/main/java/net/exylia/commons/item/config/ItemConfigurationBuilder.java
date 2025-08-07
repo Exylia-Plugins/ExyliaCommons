@@ -10,6 +10,7 @@ import java.util.Map;
 /**
  * Builder para ItemConfiguration (separado para mejor modularización)
  * ACTUALIZADO: Soporte para TriggerType
+ * NUEVO: Soporte para force-id
  */
 public class ItemConfigurationBuilder {
 
@@ -48,8 +49,11 @@ public class ItemConfigurationBuilder {
     protected List<String> regionList = new ArrayList<>();
     protected Map<String, Double> regionCooldowns = new HashMap<>();
 
-    // NUEVO: TriggerType
+    // TriggerType
     protected TriggerType triggerType = TriggerType.IMMEDIATE;
+
+    // NUEVO: Force ID
+    protected String forceId = null;
 
     public ItemConfigurationBuilder material(String material) {
         this.material = material;
@@ -215,6 +219,14 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder triggerType(String triggerType) {
         this.triggerType = TriggerType.fromString(triggerType);
+        return this;
+    }
+
+    /**
+     * NUEVO: Establece el force-id para sobrescribir items vanilla
+     */
+    public ItemConfigurationBuilder forceId(String forceId) {
+        this.forceId = forceId;
         return this;
     }
 
@@ -528,9 +540,14 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        // NUEVO: Cargar triggerType desde la configuración
+        // Cargar triggerType desde la configuración
         if (config.contains("trigger-type")) {
             triggerType(config.getString("trigger-type"));
+        }
+
+        // NUEVO: Cargar force-id desde la configuración
+        if (config.contains("force-id")) {
+            forceId(config.getString("force-id"));
         }
 
         boolean autoDetectPlaceholders = false;
@@ -552,36 +569,36 @@ public class ItemConfigurationBuilder {
                     for (String key : actionConfigSection.getKeys(false)) {
                         actionConfigMap.put(key, actionConfigSection.get(key));
                     }
-                actionConfig(actionConfigMap);
+                    actionConfig(actionConfigMap);
 
-                if (actionConfigSection.contains("radius")) {
-                    Object radiusValue = actionConfigSection.get("radius");
-                    if (radiusValue instanceof Number) {
-                        radius(((Number) radiusValue).doubleValue());
-                    } else if (radiusValue instanceof String) {
-                        try {
-                            radius(Double.parseDouble((String) radiusValue));
-                        } catch (NumberFormatException e) {
-                            // Ignore invalid radius values
+                    if (actionConfigSection.contains("radius")) {
+                        Object radiusValue = actionConfigSection.get("radius");
+                        if (radiusValue instanceof Number) {
+                            radius(((Number) radiusValue).doubleValue());
+                        } else if (radiusValue instanceof String) {
+                            try {
+                                radius(Double.parseDouble((String) radiusValue));
+                            } catch (NumberFormatException e) {
+                                // Ignore invalid radius values
+                            }
                         }
                     }
-                }
 
-                if (actionConfigSection.contains("affect-self")) {
-                    affectSelf(actionConfigSection.getBoolean("affect-self"));
-                }
+                    if (actionConfigSection.contains("affect-self")) {
+                        affectSelf(actionConfigSection.getBoolean("affect-self"));
+                    }
 
-                if (actionConfigSection.contains("only-players")) {
-                    onlyPlayers(actionConfigSection.getBoolean("only-players"));
-                }
+                    if (actionConfigSection.contains("only-players")) {
+                        onlyPlayers(actionConfigSection.getBoolean("only-players"));
+                    }
 
-                if (actionConfigSection.contains("require-line-of-sight")) {
-                    requireLineOfSight(actionConfigSection.getBoolean("require-line-of-sight"));
-                }
+                    if (actionConfigSection.contains("require-line-of-sight")) {
+                        requireLineOfSight(actionConfigSection.getBoolean("require-line-of-sight"));
+                    }
 
-                if (actionConfigSection.contains("max-targets")) {
-                    maxTargets(actionConfigSection.getInt("max-targets"));
-                }
+                    if (actionConfigSection.contains("max-targets")) {
+                        maxTargets(actionConfigSection.getInt("max-targets"));
+                    }
                 }
             }
         }

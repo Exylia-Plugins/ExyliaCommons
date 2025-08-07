@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 /**
  * Builder para crear InteractiveItem desde ConfigurationSection
  * Actualizado para el sistema modularizado
+ * NUEVO: Soporte para force-id
  */
 public class InteractiveItemBuilder {
 
@@ -276,5 +277,108 @@ public class InteractiveItemBuilder {
         return new InteractiveItemBuilder(config)
                 .withPlaceholderPlayer(player)
                 .buildAsItemStackAndRegister(itemId);
+    }
+
+    // ===== MÉTODOS NUEVOS PARA FORCE-ID =====
+
+    /**
+     * NUEVO: Construye un item con force-id para sobrescribir cooldowns vanilla
+     * @param config ConfigurationSection con la configuración
+     * @param forceId ID forzado para cooldowns
+     * @return InteractiveItem con force-id configurado
+     */
+    public static InteractiveItem buildWithForceId(ConfigurationSection config, String forceId) {
+        // Crear una copia de la configuración y añadir el force-id
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .forceId(forceId)
+                .build();
+
+        String itemId = config.getString("id", "temp_item_" + System.currentTimeMillis());
+
+        // Registrar temporalmente
+        ItemManager.registerItemConfiguration(itemId, itemConfig);
+
+        return ItemManager.createItem(itemId);
+    }
+
+    /**
+     * NUEVO: Construye un item con force-id y jugador para placeholders
+     * @param config ConfigurationSection con la configuración
+     * @param forceId ID forzado para cooldowns
+     * @param player Jugador para placeholders
+     * @return InteractiveItem con force-id configurado
+     */
+    public static InteractiveItem buildWithForceId(ConfigurationSection config, String forceId, Player player) {
+        // Crear una copia de la configuración y añadir el force-id
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .forceId(forceId)
+                .build();
+
+        String itemId = config.getString("id", "temp_item_" + System.currentTimeMillis());
+
+        // Registrar temporalmente
+        ItemManager.registerItemConfiguration(itemId, itemConfig);
+
+        return ItemManager.createItem(itemId, player);
+    }
+
+    /**
+     * NUEVO: Construye ItemStack con force-id
+     * @param config ConfigurationSection con la configuración
+     * @param forceId ID forzado para cooldowns
+     * @return ItemStack listo para usar
+     */
+    public static ItemStack buildAsItemStackWithForceId(ConfigurationSection config, String forceId) {
+        InteractiveItem item = buildWithForceId(config, forceId);
+        return ItemManager.prepareItem(item);
+    }
+
+    /**
+     * NUEVO: Construye ItemStack con force-id y jugador para placeholders
+     * @param config ConfigurationSection con la configuración
+     * @param forceId ID forzado para cooldowns
+     * @param player Jugador para placeholders
+     * @return ItemStack listo para usar
+     */
+    public static ItemStack buildAsItemStackWithForceId(ConfigurationSection config, String forceId, Player player) {
+        InteractiveItem item = buildWithForceId(config, forceId, player);
+        return ItemManager.prepareItem(item);
+    }
+
+    /**
+     * NUEVO: Registra permanentemente un item con force-id
+     * @param config ConfigurationSection con la configuración
+     * @param itemId ID permanente para registrar
+     * @param forceId ID forzado para cooldowns
+     * @return InteractiveItem registrado
+     */
+    public static InteractiveItem buildAndRegisterWithForceId(ConfigurationSection config, String itemId, String forceId) {
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .forceId(forceId)
+                .build();
+
+        ItemManager.registerItemConfiguration(itemId, itemConfig);
+        return ItemManager.createItem(itemId);
+    }
+
+    /**
+     * NUEVO: Registra permanentemente un item con force-id y jugador para placeholders
+     * @param config ConfigurationSection con la configuración
+     * @param itemId ID permanente para registrar
+     * @param forceId ID forzado para cooldowns
+     * @param player Jugador para placeholders
+     * @return InteractiveItem registrado
+     */
+    public static InteractiveItem buildAndRegisterWithForceId(ConfigurationSection config, String itemId, String forceId, Player player) {
+        ItemConfiguration itemConfig = ItemConfiguration.builder()
+                .loadFromConfig(config)
+                .forceId(forceId)
+                .build();
+
+        ItemManager.registerItemConfiguration(itemId, itemConfig);
+        return ItemManager.createItem(itemId, player);
     }
 }

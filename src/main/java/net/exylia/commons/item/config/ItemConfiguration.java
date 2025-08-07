@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 /**
  * Configuración de un item interactivo almacenada en memoria
  * ACTUALIZADO: Nuevo sistema de regiones y soporte para TriggerType
+ * NUEVO: Soporte para force-id
  */
 @Getter
 public class ItemConfiguration {
@@ -64,8 +65,11 @@ public class ItemConfiguration {
     private final List<String> regionList;
     private final Map<String, Double> regionCooldowns;
 
-    // NUEVO: Tipo de trigger
+    // Tipo de trigger
     private final TriggerType triggerType;
+
+    // NUEVO: Force ID para sobrescribir items vanilla
+    private final String forceId;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
         this.material = builder.material;
@@ -103,6 +107,21 @@ public class ItemConfiguration {
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
 
         this.triggerType = builder.triggerType;
+        this.forceId = builder.forceId; // NUEVO
+    }
+
+    /**
+     * NUEVO: Verifica si este item tiene un force-id configurado
+     */
+    public boolean hasForceId() {
+        return forceId != null && !forceId.trim().isEmpty();
+    }
+
+    /**
+     * NUEVO: Obtiene el ID efectivo del item (force-id si existe, sino el ID original)
+     */
+    public String getEffectiveId(String originalId) {
+        return hasForceId() ? forceId : originalId;
     }
 
     public boolean hasRegionConfiguration() {
@@ -351,6 +370,7 @@ public class ItemConfiguration {
                 ", regionEntries=" + regionEntries.size() + " region entries" +
                 ", regionCooldowns=" + regionCooldowns.size() + " region cooldowns" +
                 ", triggerType=" + triggerType +
+                ", forceId='" + forceId + '\'' +
                 '}';
     }
 }

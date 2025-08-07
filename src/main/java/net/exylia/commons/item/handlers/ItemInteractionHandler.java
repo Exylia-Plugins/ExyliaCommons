@@ -6,9 +6,12 @@ import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.item.vanilla.VanillaItemCooldownManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -30,12 +33,10 @@ public class ItemInteractionHandler {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Validaciones previas
         if (!preValidateItemUsage(player, interactiveItem)) {
             return;
         }
 
-        // Manejar según el tipo de trigger
         TriggerType triggerType = config.getTriggerType();
 
         if (triggerType == TriggerType.IMMEDIATE || triggerType == TriggerType.RADIUS) {
@@ -48,9 +49,6 @@ public class ItemInteractionHandler {
         }
     }
 
-    /**
-     * Procesa interacción desde inventario
-     */
     public void processItemInteractionFromInventory(Player player, InventoryClickEvent event,
                                                     InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
 
@@ -102,7 +100,11 @@ public class ItemInteractionHandler {
 
         if (config.hasCooldown()) {
             double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
-            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+            String effectiveId = interactiveItem.getEffectiveId();
+            setCooldown(player, effectiveId, cooldownSeconds);
+            if (interactiveItem.hasForceId()) {
+                overrideVanillaCooldown(player, itemStack, interactiveItem, cooldownSeconds);
+            }
         }
 
         boolean hasUsesLeft = interactiveItem.consumeUse();
@@ -155,7 +157,8 @@ public class ItemInteractionHandler {
                                         ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        if (config.getTriggerType() != TriggerType.ON_PROJECTILE_LAUNCH) {
+        if (config.getTriggerType() != TriggerType.ON_PROJECTILE_LAUNCH &&
+                config.getTriggerType() != TriggerType.ON_PROJECTILE_HIT) {
             return;
         }
 
@@ -163,14 +166,51 @@ public class ItemInteractionHandler {
             return;
         }
 
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
-        boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
-        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
-            processItemConsumption(player, itemStack, interactiveItem, hand);
+        DebugUtils.logInternalDebug(true, "Processing projectile launch for " + player.getName());
+
+        if (config.getTriggerType() == TriggerType.ON_PROJECTILE_LAUNCH) {
+            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+            boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
         }
-        if (interactiveItem.shouldConsumeOnUse()) {
-            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
+
+        if (config.hasCooldown()) {
+            double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
+            String effectiveId = interactiveItem.getEffectiveId();
+            setCooldown(player, effectiveId, cooldownSeconds);
+
+            if (interactiveItem.hasForceId()) {
+                overrideVanillaCooldown(player, itemStack, interactiveItem, cooldownSeconds);
+            }
         }
+
+        boolean hasUsesLeft = interactiveItem.consumeUse();
+
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (hasUsesLeft) {
+                ItemStack updatedItem = interactiveItem.getItemStack();
+                updatedItem.setAmount(1);
+
+                interactiveItem.setPlaceholderPlayer(player);
+                interactiveItem.updatePlaceholders(player, null);
+
+                updatedItem = interactiveItem.getItemStack();
+                updatedItem.setAmount(1);
+
+                if (hand == EquipmentSlot.HAND) {
+                    player.getInventory().setItemInMainHand(updatedItem);
+                } else if (hand == EquipmentSlot.OFF_HAND) {
+                    player.getInventory().setItemInOffHand(updatedItem);
+                }
+
+                DebugUtils.logInternalDebug(true,
+                        "Returned updated item to inventory for " + player.getName() +
+                                " with " + interactiveItem.getCurrentUses() + " uses remaining");
+            } else {
+                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+                DebugUtils.logInternalDebug(true,
+                        "Item completely consumed for " + player.getName() + " - not returning to inventory");
+            }
+        });
     }
 
     public void processProjectileHit(Player player, Player hitPlayer, ItemStack itemStack,
@@ -181,18 +221,26 @@ public class ItemInteractionHandler {
             return;
         }
 
-        if (!preValidateItemUsage(player, interactiveItem)) {
+        if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
+            handleRegionDeniedMessage(player);
             return;
         }
 
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
-        boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
-        if (shouldConsumeUse(interactiveItem, actionExecuted)) {
-            processItemConsumption(player, itemStack, interactiveItem, hand);
+        DebugUtils.logInternalDebug(true, "Processing projectile hit for " + player.getName() +
+                (hitPlayer != null ? " hitting " + hitPlayer.getName() : " hitting block/entity"));
+
+        Location hitLocation = hitPlayer != null ? hitPlayer.getLocation() : player.getLocation();
+        ItemEffectsHandler.executeEffects(player, hitLocation, config);
+
+        boolean actionExecuted;
+        if (hitPlayer != null) {
+            actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
+        } else {
+            actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
         }
-        if (interactiveItem.shouldConsumeOnUse()) {
-            ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-        }
+
+        DebugUtils.logInternalDebug(true,
+                "Projectile hit action executed: " + actionExecuted + " for " + player.getName());
     }
 
     private boolean preValidateItemUsage(Player player, InteractiveItem interactiveItem) {
@@ -204,8 +252,9 @@ public class ItemInteractionHandler {
         }
 
         if (config.hasCooldown()) {
-            if (!canPlayerUseItem(player, interactiveItem.getId())) {
-                double remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
+            String effectiveId = interactiveItem.getEffectiveId();
+            if (!canPlayerUseItem(player, effectiveId)) {
+                double remainingSeconds = getRemainingCooldown(player, effectiveId);
                 handleCooldownMessage(player, remainingSeconds);
                 return false;
             }
@@ -217,6 +266,26 @@ public class ItemInteractionHandler {
         }
 
         return true;
+    }
+
+    private void overrideVanillaCooldown(Player player, ItemStack itemStack,
+                                         InteractiveItem interactiveItem, double cooldownSeconds) {
+        try {
+            if (VanillaItemCooldownManager.getInstance() != null) {
+                Material material = itemStack.getType();
+                String forceId = interactiveItem.getForceId();
+                if (VanillaItemCooldownManager.getInstance().hasCooldownConfig(material)) {
+                    VanillaItemCooldownManager.getInstance().setCooldown(player, material);
+                    setCooldown(player, forceId, cooldownSeconds);
+                    DebugUtils.logInternalDebug(true,
+                            "Force-ID override: Material " + material + " -> " + forceId +
+                                    " with cooldown " + cooldownSeconds + "s for player " + player.getName());
+                }
+            }
+        } catch (Exception e) {
+            // Si VanillaItemCooldownManager no está disponible o hay error, continuar normalmente
+            DebugUtils.logInternalDebug(true, "VanillaItemCooldownManager not available for force-id override");
+        }
     }
 
     private boolean executeItemActions(Player player, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
@@ -267,7 +336,11 @@ public class ItemInteractionHandler {
         ItemConfiguration config = interactiveItem.getConfiguration();
         if (config.hasCooldown()) {
             double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
-            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+            String effectiveId = interactiveItem.getEffectiveId();
+            setCooldown(player, effectiveId, cooldownSeconds);
+            if (interactiveItem.hasForceId()) {
+                overrideVanillaCooldown(player, event.getCurrentItem(), interactiveItem, cooldownSeconds);
+            }
         }
 
         boolean hasUsesLeft = interactiveItem.consumeUse();
@@ -298,7 +371,8 @@ public class ItemInteractionHandler {
         ItemConfiguration config = interactiveItem.getConfiguration();
         if (config.hasCooldown()) {
             double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
-            setCooldown(player, interactiveItem.getId(), cooldownSeconds);
+            String effectiveId = interactiveItem.getEffectiveId();
+            setCooldown(player, effectiveId, cooldownSeconds);
         }
     }
 
@@ -335,7 +409,7 @@ public class ItemInteractionHandler {
                 "%cooldown_seconds%", String.valueOf(remainingSeconds)));
     }
 
-    private void handleRegionDeniedMessage(Player player) {
+    public void handleRegionDeniedMessage(Player player) {
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.region_denied"));
     }
 }

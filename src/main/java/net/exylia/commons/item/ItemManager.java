@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manager principal del sistema de items - MODULARIZADO
- * MEJORADO: Soporte para nuevos eventos de trigger
+ * CORREGIDO: Problemas con items lanzables
  */
 public class ItemManager implements Listener {
 
@@ -80,6 +80,7 @@ public class ItemManager implements Listener {
         }
     }
 
+    // ... métodos de registro sin cambios ...
     public static void registerItemConfiguration(String id, ItemConfiguration config) {
         ensureInitialized();
         registry.registerItemConfiguration(id, config);
@@ -230,23 +231,29 @@ public class ItemManager implements Listener {
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem == null) return;
 
+        ItemConfiguration config = interactiveItem.getConfiguration();
+        TriggerType triggerType = config.getTriggerType();
+
+        if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
+            return;
+        }
+
         if (!canPlayerClick(player.getUniqueId())) {
             return;
         }
 
-        ItemConfiguration config = interactiveItem.getConfiguration();
-        if (config.getTriggerType() == TriggerType.AFTER_CONSUME) {
-            if (config.hasCooldown() && !canPlayerUseItem(player, interactiveItem.getId())) {
+        if (triggerType == TriggerType.AFTER_CONSUME) {
+            String effectiveId = interactiveItem.getEffectiveId();
+            if (config.hasCooldown() && !canPlayerUseItem(player, effectiveId)) {
                 event.setCancelled(true);
-                double remainingSeconds = getRemainingCooldown(player, interactiveItem.getId());
+                double remainingSeconds = getRemainingCooldown(player, effectiveId);
                 interactionHandler.handleCooldownMessage(player, remainingSeconds);
                 return;
             }
             return;
         }
 
-        if (interactiveItem.shouldCancelEvent() &&
-                interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
+        if (interactiveItem.shouldCancelEvent()) {
             event.setCancelled(true);
         }
 
@@ -365,78 +372,160 @@ public class ItemManager implements Listener {
         EquipmentSlot hand = null;
 
         if (isInteractiveItem(mainHand)) {
-            interactiveItem = getItemFromStack(mainHand);
-            hand = EquipmentSlot.HAND;
-        } else if (isInteractiveItem(offHand)) {
-            interactiveItem = getItemFromStack(offHand);
-            hand = EquipmentSlot.OFF_HAND;
+            InteractiveItem mainItem = getItemFromStack(mainHand);
+            if (mainItem != null && (mainItem.getConfiguration().getTriggerType() == TriggerType.ON_PROJECTILE_LAUNCH ||
+                    mainItem.getConfiguration().getTriggerType() == TriggerType.ON_PROJECTILE_HIT)) {
+                interactiveItem = mainItem;
+                hand = EquipmentSlot.HAND;
+            }
+        }
+
+        if (interactiveItem == null && isInteractiveItem(offHand)) {
+            InteractiveItem offItem = getItemFromStack(offHand);
+            if (offItem != null && (offItem.getConfiguration().getTriggerType() == TriggerType.ON_PROJECTILE_LAUNCH ||
+                    offItem.getConfiguration().getTriggerType() == TriggerType.ON_PROJECTILE_HIT)) {
+                interactiveItem = offItem;
+                hand = EquipmentSlot.OFF_HAND;
+            }
         }
 
         if (interactiveItem == null) return;
 
-        if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.ON_PROJECTILE_LAUNCH) {
-            event.setCancelled(true); // Cancelar lanzamiento si no es el trigger correcto
+        ItemConfiguration config = interactiveItem.getConfiguration();
+        if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
+            event.setCancelled(true);
+            interactionHandler.handleRegionDeniedMessage(player);
             return;
         }
 
-        if (!canPlayerClick(player.getUniqueId())) {
+        String effectiveId = interactiveItem.getEffectiveId();
+        if (config.hasCooldown() && !canPlayerUseItem(player, effectiveId)) {
+            event.setCancelled(true);
+            double remainingSeconds = getRemainingCooldown(player, effectiveId);
+            interactionHandler.handleCooldownMessage(player, remainingSeconds);
+            return;
+        }
+
+        if (!interactiveItem.hasUsesRemaining()) {
             event.setCancelled(true);
             return;
         }
 
-        ItemClickInfo clickInfo = new ItemClickInfo(player,
-                org.bukkit.event.inventory.ClickType.RIGHT,
-                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
-                hand == EquipmentSlot.HAND ? mainHand : offHand,
-                ActionSource.ITEM_USE);
+        TriggerType triggerType = config.getTriggerType();
 
-        interactionHandler.processProjectileLaunch(player, hand == EquipmentSlot.HAND ? mainHand : offHand,
-                interactiveItem, clickInfo, hand);
+        if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
+            ItemClickInfo clickInfo = new ItemClickInfo(player,
+                    org.bukkit.event.inventory.ClickType.RIGHT,
+                    hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                    hand == EquipmentSlot.HAND ? mainHand : offHand,
+                    ActionSource.ITEM_USE);
+
+            interactionHandler.processProjectileLaunch(player, hand == EquipmentSlot.HAND ? mainHand : offHand,
+                    interactiveItem, clickInfo, hand);
+
+            if (triggerType == TriggerType.ON_PROJECTILE_HIT) {
+                projectile.setMetadata("interactive_item_id", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.getId()));
+                projectile.setMetadata("interactive_item_effective_id", new org.bukkit.metadata.FixedMetadataValue(plugin, effectiveId));
+                projectile.setMetadata("interactive_item_hand", new org.bukkit.metadata.FixedMetadataValue(plugin, hand.name()));
+                projectile.setMetadata("interactive_item_shooter", new org.bukkit.metadata.FixedMetadataValue(plugin, player.getUniqueId().toString()));
+                ItemStack itemClone = hand == EquipmentSlot.HAND ? mainHand.clone() : offHand.clone();
+                projectile.setMetadata("interactive_item_stack", new org.bukkit.metadata.FixedMetadataValue(plugin, itemClone));
+                projectile.setMetadata("interactive_item_object", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.clone()));
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onProjectileHit(ProjectileHitEvent event) {
         Projectile projectile = event.getEntity();
-        if (!(projectile.getShooter() instanceof Player player)) return;
+        if (!projectile.hasMetadata("interactive_item_id")) return;
+        String itemId = projectile.getMetadata("interactive_item_id").get(0).asString();
+        String effectiveId = projectile.getMetadata("interactive_item_effective_id").get(0).asString();
+        String handName = projectile.getMetadata("interactive_item_hand").get(0).asString();
+        String shooterUUID = projectile.getMetadata("interactive_item_shooter").get(0).asString();
+        ItemStack originalItemStack = null;
+        InteractiveItem originalInteractiveItem = null;
 
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-
-        InteractiveItem interactiveItem = null;
-        EquipmentSlot hand = null;
-
-        if (isInteractiveItem(mainHand)) {
-            interactiveItem = getItemFromStack(mainHand);
-            hand = EquipmentSlot.HAND;
-        } else if (isInteractiveItem(offHand)) {
-            interactiveItem = getItemFromStack(offHand);
-            hand = EquipmentSlot.OFF_HAND;
+        if (projectile.hasMetadata("interactive_item_stack")) {
+            originalItemStack = (ItemStack) projectile.getMetadata("interactive_item_stack").get(0).value();
         }
 
-        if (interactiveItem == null) return;
+        if (projectile.hasMetadata("interactive_item_object")) {
+            originalInteractiveItem = (InteractiveItem) projectile.getMetadata("interactive_item_object").get(0).value();
+        }
+
+        Player shooter;
+        try {
+            shooter = Bukkit.getPlayer(java.util.UUID.fromString(shooterUUID));
+        } catch (Exception e) {
+            return;
+        }
+
+        if (shooter == null || !shooter.isOnline()) return;
+        InteractiveItem interactiveItem = originalInteractiveItem;
+        if (interactiveItem == null) {
+            EquipmentSlot hand = EquipmentSlot.valueOf(handName);
+            ItemStack itemStack = hand == EquipmentSlot.HAND ?
+                    shooter.getInventory().getItemInMainHand() :
+                    shooter.getInventory().getItemInOffHand();
+
+            interactiveItem = getItemFromStack(itemStack);
+            if (interactiveItem == null || !interactiveItem.getId().equals(itemId)) {
+                // El item cambió desde el lanzamiento, intentar buscar en inventario
+                interactiveItem = findInteractiveItemInInventory(shooter, itemId);
+                if (interactiveItem == null) {
+                    // FALLBACK: Crear un item temporal con la configuración
+                    ItemConfiguration config = getItemConfiguration(itemId);
+                    if (config != null) {
+                        interactiveItem = new InteractiveItem(itemId, config, shooter);
+                        // Si tenemos el itemStack original, usar sus datos NBT
+                        if (originalItemStack != null) {
+                            InteractiveItem tempFromStack = InteractiveItem.fromItemStack(originalItemStack);
+                            if (tempFromStack != null) {
+                                interactiveItem = tempFromStack;
+                            }
+                        }
+                    } else {
+                        return;
+                    }
+                }
+            }
+        }
 
         if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.ON_PROJECTILE_HIT) {
             return;
         }
 
-        if (!canPlayerClick(player.getUniqueId())) {
-            return;
-        }
-
         Player hitPlayer = event.getHitEntity() instanceof Player ? (Player) event.getHitEntity() : null;
+        ItemStack itemStackForClick = originalItemStack != null ? originalItemStack :
+                (EquipmentSlot.valueOf(handName) == EquipmentSlot.HAND ?
+                        shooter.getInventory().getItemInMainHand() :
+                        shooter.getInventory().getItemInOffHand());
 
-        ItemClickInfo clickInfo = new ItemClickInfo(player,
+        ItemClickInfo clickInfo = new ItemClickInfo(shooter,
                 org.bukkit.event.inventory.ClickType.RIGHT,
-                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
-                hand == EquipmentSlot.HAND ? mainHand : offHand,
+                EquipmentSlot.valueOf(handName) == EquipmentSlot.HAND ? shooter.getInventory().getHeldItemSlot() : 40,
+                itemStackForClick,
                 ActionSource.ITEM_USE);
 
         if (hitPlayer != null) {
-            clickInfo.withData("hitPlayer", hitPlayer); // Añadir hitPlayer al contexto
+            clickInfo.withData("hitPlayer", hitPlayer);
         }
+        clickInfo.withData("effectiveId", effectiveId);
+        interactionHandler.processProjectileHit(shooter, hitPlayer, itemStackForClick,
+                interactiveItem, clickInfo, EquipmentSlot.valueOf(handName));
+    }
 
-        interactionHandler.processProjectileHit(player, hitPlayer, hand == EquipmentSlot.HAND ? mainHand : offHand,
-                interactiveItem, clickInfo, hand);
+    private InteractiveItem findInteractiveItemInInventory(Player player, String itemId) {
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (item != null) {
+                InteractiveItem interactiveItem = getItemFromStack(item);
+                if (interactiveItem != null && interactiveItem.getId().equals(itemId)) {
+                    return interactiveItem;
+                }
+            }
+        }
+        return null;
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
