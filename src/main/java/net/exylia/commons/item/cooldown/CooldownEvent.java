@@ -3,15 +3,15 @@ package net.exylia.commons.item.cooldown;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.HandlerList;
 
 import java.util.UUID;
 
-/**
- * Evento que se dispara cuando ocurren cambios en los cooldowns
- * Actualizado para usar double en lugar de int
- */
 @Getter
-public class CooldownEvent {
+public class CooldownEvent extends Event {
+
+    private static final HandlerList HANDLERS = new HandlerList();
 
     private final CooldownEventType type;
     private final UUID playerId;
@@ -20,18 +20,29 @@ public class CooldownEvent {
     private final long timestamp;
 
     public CooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
+        super(true); // async = true para mejor performance
         this.type = type;
         this.playerId = playerId;
         this.itemId = itemId;
         this.seconds = seconds;
         this.timestamp = System.currentTimeMillis();
     }
+
     public Player getPlayer() {
         return Bukkit.getPlayer(playerId);
     }
 
     public boolean isPlayerOnline() {
         return getPlayer() != null;
+    }
+
+    @Override
+    public HandlerList getHandlers() {
+        return HANDLERS;
+    }
+
+    public static HandlerList getHandlerList() {
+        return HANDLERS;
     }
 
     @Override

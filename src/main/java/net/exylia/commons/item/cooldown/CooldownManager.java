@@ -6,6 +6,7 @@ import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.TimeFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -126,7 +127,6 @@ public class CooldownManager {
         playerCooldowns.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
                 .put(itemId.toLowerCase(), expirationTime);
 
-        // Disparar evento de cooldown establecido
         triggerCooldownEvent(CooldownEventType.SET, playerId, itemId, cooldownSeconds);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -217,17 +217,17 @@ public class CooldownManager {
      * @param player Jugador
      * @return Map con item ID -> segundos restantes (double)
      */
-    public Map<String, Double> getPlayerCooldowns(Player player) {
+    public Map<String, String> getPlayerCooldowns(Player player) {
         return getPlayerCooldowns(player.getUniqueId());
     }
 
     /**
      * Obtiene todos los cooldowns activos de un jugador
      * @param playerId UUID del jugador
-     * @return Map con item ID -> segundos restantes (double)
+     * @return Map con item ID -> tiempo formateado
      */
-    public Map<String, Double> getPlayerCooldowns(UUID playerId) {
-        Map<String, Double> result = new ConcurrentHashMap<>();
+    public Map<String, String> getPlayerCooldowns(UUID playerId) {
+        Map<String, String> result = new ConcurrentHashMap<>();
         Map<String, Long> playerData = playerCooldowns.get(playerId);
 
         if (playerData != null) {
@@ -238,7 +238,7 @@ public class CooldownManager {
                     triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, entry.getKey(), 0.0);
                     return true; // Remover expirado
                 }
-                result.put(entry.getKey(), remainingMs / 1000.0);
+                result.put(entry.getKey(), TimeFormatter.timeFormatter.format((long) remainingMs));
                 return false; // Mantener activo
             });
         }
@@ -316,13 +316,16 @@ public class CooldownManager {
     }
 
     private void triggerCooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
+        CooldownEvent event = new CooldownEvent(type, playerId, itemId, seconds);
         if (itemId != null) {
             Consumer<CooldownEvent> callback = cooldownCallbacks.get(itemId.toLowerCase());
             if (callback != null) {
-                CooldownEvent event = new CooldownEvent(type, playerId, itemId, seconds);
                 Bukkit.getScheduler().runTask(plugin, () -> callback.accept(event));
             }
         }
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Bukkit.getPluginManager().callEvent(event);
+        });
     }
 
     // ===== PERSISTENCIA =====

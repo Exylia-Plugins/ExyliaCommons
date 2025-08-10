@@ -11,6 +11,7 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -30,20 +31,20 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.skull.SkullUtils.*;
 
 /**
  * InteractiveItem actualizado para el sistema modularizado
  * ACTUALIZADO: Soporte para TriggerType
- * NUEVO: Soporte para force-id
+ * CORREGIDO: Sistema force-id ahora usa el mismo NBT que el ID normal
  */
 public class InteractiveItem {
 
     private static final String NBT_ITEM_ID = "interactive_item_id";
     private static final String NBT_CURRENT_USES = "current_uses";
     private static final String NBT_UNIQUE_ID = "unique_id";
-    private static final String NBT_FORCE_ID = "force_id"; // NUEVO: NBT para force-id
 
     private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
@@ -61,13 +62,11 @@ public class InteractiveItem {
         this.configId = configId;
         this.config = config;
         this.itemStack = createItemFromConfig(config);
-        setItemId(configId);
-        initializeUses();
 
-        // NUEVO: Establecer force-id si está configurado
-        if (config.hasForceId()) {
-            setForceId(config.getForceId());
-        }
+        String effectiveId = config.hasForceId() ? config.getForceId() : configId;
+        setItemId(effectiveId);
+
+        initializeUses();
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -79,13 +78,11 @@ public class InteractiveItem {
         this.config = config;
         this.placeholderPlayer = player;
         this.itemStack = createItemFromConfig(config, player);
-        setItemId(configId);
-        initializeUses();
 
-        // NUEVO: Establecer force-id si está configurado
-        if (config.hasForceId()) {
-            setForceId(config.getForceId());
-        }
+        String effectiveId = config.hasForceId() ? config.getForceId() : configId;
+        setItemId(effectiveId);
+
+        initializeUses();
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -102,13 +99,42 @@ public class InteractiveItem {
         String itemId = getItemIdFromStack(itemStack);
         if (itemId == null) return null;
 
-        ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
+        ItemConfiguration config = findConfigurationForItemId(itemId);
         if (config == null) {
             logInternalWarn("No se encontró configuración para item ID: " + itemId);
             return null;
         }
 
-        return new InteractiveItem(itemStack, itemId, config);
+        String originalConfigId = findOriginalConfigId(itemId, config);
+        return new InteractiveItem(itemStack, originalConfigId, config);
+    }
+
+    private static ItemConfiguration findConfigurationForItemId(String itemId) {
+        ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
+        if (config != null) {
+            return config;
+        }
+
+        for (var entry : ItemManager.getAllConfigurations().entrySet()) {
+            ItemConfiguration itemConfig = entry.getValue();
+            if (itemConfig.hasForceId() && itemConfig.getForceId().equals(itemId)) {
+                return itemConfig;
+            }
+        }
+
+        return null;
+    }
+
+    private static String findOriginalConfigId(String itemId, ItemConfiguration config) {
+        if (config.hasForceId() && config.getForceId().equals(itemId)) {
+            for (var entry : ItemManager.getAllConfigurations().entrySet()) {
+                if (entry.getValue() == config) {
+                    return entry.getKey();
+                }
+            }
+        }
+
+        return itemId;
     }
 
     @Getter
@@ -149,25 +175,28 @@ public class InteractiveItem {
         return this;
     }
 
-    public String getId() { return configId; }
+    public String getId() {
+        return configId;
+    }
 
     public String getEffectiveId() {
-        String forceId = getForceId();
-        return forceId != null ? forceId : configId;
+        if (config.hasForceId()) {
+            String forceId = config.getForceId();
+            DebugUtils.logInternalDebug(debug(), "Using force-id: " + forceId + " for item: " + configId);
+            return forceId;
+        }
+
+        String nbtId = getItemIdFromStack(itemStack);
+        DebugUtils.logInternalDebug(debug(), "Using NBT ID: " + nbtId + " for item: " + configId);
+        return nbtId != null ? nbtId : configId;
     }
 
     public String getForceId() {
-        return ItemNBTUtils.getNBTString(itemStack, getPlugin(), NBT_FORCE_ID);
-    }
-
-    private void setForceId(String forceId) {
-        if (forceId != null && !forceId.trim().isEmpty()) {
-            ItemNBTUtils.setNBTString(itemStack, getPlugin(), NBT_FORCE_ID, forceId);
-        }
+        return config.hasForceId() ? config.getForceId() : null;
     }
 
     public boolean hasForceId() {
-        return getForceId() != null;
+        return config.hasForceId();
     }
 
     public String getRawName() { return config.getName(); }

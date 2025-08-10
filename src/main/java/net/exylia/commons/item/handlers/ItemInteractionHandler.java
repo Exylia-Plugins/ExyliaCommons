@@ -18,6 +18,7 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
 public class ItemInteractionHandler {
@@ -40,9 +41,10 @@ public class ItemInteractionHandler {
         TriggerType triggerType = config.getTriggerType();
 
         if (triggerType == TriggerType.IMMEDIATE || triggerType == TriggerType.RADIUS) {
-            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
             boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
-
+            if (actionExecuted || !interactiveItem.hasAction()) {
+                ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+            }
             if (shouldConsumeUse(interactiveItem, actionExecuted)) {
                 processItemConsumption(player, itemStack, interactiveItem, hand);
             }
@@ -54,15 +56,16 @@ public class ItemInteractionHandler {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Validaciones previas
         if (!preValidateItemUsage(player, interactiveItem)) {
             return;
         }
 
         TriggerType triggerType = config.getTriggerType();
         if (triggerType == TriggerType.IMMEDIATE || triggerType == TriggerType.RADIUS) {
-            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
             boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
+            if (actionExecuted || !interactiveItem.hasAction()) {
+                ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+            }
             if (shouldConsumeUse(interactiveItem, actionExecuted)) {
                 processItemConsumptionFromInventory(event, interactiveItem);
             }
@@ -81,9 +84,10 @@ public class ItemInteractionHandler {
             return;
         }
 
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
         boolean actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
-
+        if (actionExecuted || !interactiveItem.hasAction()) {
+            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        }
         boolean shouldConsume = shouldConsumeUse(interactiveItem, actionExecuted);
         if (shouldConsume) {
             processItemConsumption(player, itemStack, interactiveItem, hand);
@@ -102,9 +106,6 @@ public class ItemInteractionHandler {
             double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
             String effectiveId = interactiveItem.getEffectiveId();
             setCooldown(player, effectiveId, cooldownSeconds);
-            if (interactiveItem.hasForceId()) {
-                overrideVanillaCooldown(player, itemStack, interactiveItem, cooldownSeconds);
-            }
         }
 
         boolean hasUsesLeft = interactiveItem.consumeUse();
@@ -143,8 +144,12 @@ public class ItemInteractionHandler {
             return;
         }
 
-        ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
         boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
+
+        if (actionExecuted || !interactiveItem.hasAction()) {
+            ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
+        }
+
         if (shouldConsumeUse(interactiveItem, actionExecuted)) {
             processItemConsumption(player, itemStack, interactiveItem, hand);
         }
@@ -166,7 +171,7 @@ public class ItemInteractionHandler {
             return;
         }
 
-        DebugUtils.logInternalDebug(true, "Processing projectile launch for " + player.getName());
+        DebugUtils.logInternalDebug(debug(), "Processing projectile launch for " + player.getName());
 
         if (config.getTriggerType() == TriggerType.ON_PROJECTILE_LAUNCH) {
             ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
@@ -179,7 +184,16 @@ public class ItemInteractionHandler {
             setCooldown(player, effectiveId, cooldownSeconds);
 
             if (interactiveItem.hasForceId()) {
-                overrideVanillaCooldown(player, itemStack, interactiveItem, cooldownSeconds);
+                Material material = itemStack.getType();
+
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    player.setCooldown(material, (int) (cooldownSeconds * 20));
+                }, 1);
+
+                DebugUtils.logInternalDebug(debug(),
+                        "Force-ID immediate override: Material " + material + " -> " + effectiveId +
+                                " with cooldown " + cooldownSeconds + "s for player " + player.getName() +
+                                " (vanilla cooldown prevented)");
             }
         }
 
@@ -202,12 +216,12 @@ public class ItemInteractionHandler {
                     player.getInventory().setItemInOffHand(updatedItem);
                 }
 
-                DebugUtils.logInternalDebug(true,
+                DebugUtils.logInternalDebug(debug(),
                         "Returned updated item to inventory for " + player.getName() +
                                 " with " + interactiveItem.getCurrentUses() + " uses remaining");
             } else {
                 MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
-                DebugUtils.logInternalDebug(true,
+                DebugUtils.logInternalDebug(debug(),
                         "Item completely consumed for " + player.getName() + " - not returning to inventory");
             }
         });
@@ -226,11 +240,10 @@ public class ItemInteractionHandler {
             return;
         }
 
-        DebugUtils.logInternalDebug(true, "Processing projectile hit for " + player.getName() +
+        DebugUtils.logInternalDebug(debug(), "Processing projectile hit for " + player.getName() +
                 (hitPlayer != null ? " hitting " + hitPlayer.getName() : " hitting block/entity"));
 
         Location hitLocation = hitPlayer != null ? hitPlayer.getLocation() : player.getLocation();
-        ItemEffectsHandler.executeEffects(player, hitLocation, config);
 
         boolean actionExecuted;
         if (hitPlayer != null) {
@@ -239,7 +252,11 @@ public class ItemInteractionHandler {
             actionExecuted = executeItemActions(player, interactiveItem, clickInfo);
         }
 
-        DebugUtils.logInternalDebug(true,
+        if (actionExecuted || !interactiveItem.hasAction()) {
+            ItemEffectsHandler.executeEffects(player, hitLocation, config);
+        }
+
+        DebugUtils.logInternalDebug(debug(),
                 "Projectile hit action executed: " + actionExecuted + " for " + player.getName());
     }
 
@@ -268,26 +285,6 @@ public class ItemInteractionHandler {
         return true;
     }
 
-    private void overrideVanillaCooldown(Player player, ItemStack itemStack,
-                                         InteractiveItem interactiveItem, double cooldownSeconds) {
-        try {
-            if (VanillaItemCooldownManager.getInstance() != null) {
-                Material material = itemStack.getType();
-                String forceId = interactiveItem.getForceId();
-                if (VanillaItemCooldownManager.getInstance().hasCooldownConfig(material)) {
-                    VanillaItemCooldownManager.getInstance().setCooldown(player, material);
-                    setCooldown(player, forceId, cooldownSeconds);
-                    DebugUtils.logInternalDebug(true,
-                            "Force-ID override: Material " + material + " -> " + forceId +
-                                    " with cooldown " + cooldownSeconds + "s for player " + player.getName());
-                }
-            }
-        } catch (Exception e) {
-            // Si VanillaItemCooldownManager no está disponible o hay error, continuar normalmente
-            DebugUtils.logInternalDebug(true, "VanillaItemCooldownManager not available for force-id override");
-        }
-    }
-
     private boolean executeItemActions(Player player, InteractiveItem interactiveItem, ItemClickInfo clickInfo) {
         boolean actionExecuted = false;
 
@@ -310,7 +307,7 @@ public class ItemInteractionHandler {
         boolean actionExecuted = false;
 
         if (interactiveItem.hasAction()) {
-            clickInfo.withData("hitPlayer", hitPlayer); // Añadir jugador golpeado al contexto
+            clickInfo.withData("hitPlayer", hitPlayer);
             actionExecuted = interactiveItem.executeAction(clickInfo);
         }
 
@@ -338,9 +335,6 @@ public class ItemInteractionHandler {
             double cooldownSeconds = ItemRegionHandler.getCooldownForPlayerRegion(player, config);
             String effectiveId = interactiveItem.getEffectiveId();
             setCooldown(player, effectiveId, cooldownSeconds);
-            if (interactiveItem.hasForceId()) {
-                overrideVanillaCooldown(player, event.getCurrentItem(), interactiveItem, cooldownSeconds);
-            }
         }
 
         boolean hasUsesLeft = interactiveItem.consumeUse();

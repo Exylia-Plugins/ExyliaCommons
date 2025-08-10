@@ -33,12 +33,9 @@ public class EffectUtils {
     public static void removeEffects(LivingEntity livingEntity, List<String> effects) {
         for (String effectString : effects) {
             try {
-                String[] parts = effectString.split("\\|");
-                if (parts.length >= 3) {
-                    PotionEffectType type = PotionEffectType.getByName(parts[0]);
-                    if (type != null) {
-                        livingEntity.removePotionEffect(type);
-                    }
+                PotionEffectType type = PotionEffectType.getByName(effectString);
+                if (type != null) {
+                    livingEntity.removePotionEffect(type);
                 }
             } catch (Exception e) {
                 logInternalWarn("Error al remover efecto a jugador: " + e.getMessage());
@@ -48,14 +45,33 @@ public class EffectUtils {
 
     public static List<PotionEffect> getEffects(List<String> effects) {
         if (effects == null) return null;
+
         return effects.stream().map(e -> {
             String[] parts = e.split("\\|");
-            if (parts.length < 3) return null;
-            PotionEffectType type = PotionEffectType.getByName(parts[0]);
-            if (type == null) return null;
-            int amplifier = Integer.parseInt(parts[1]);
-            int durationTicks = Integer.parseInt(parts[2]);
+            if (parts.length < 1 || parts[0].trim().isEmpty()) {
+                return null;
+            }
+            PotionEffectType type = PotionEffectType.getByName(parts[0].trim().toUpperCase());
+            if (type == null) {
+                return null;
+            }
+            int amplifier = 0;
+            int durationTicks = 600;
+            if (parts.length >= 2) {
+                try {
+                    amplifier = Integer.parseInt(parts[1].trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            if (parts.length >= 3) {
+                try {
+                    durationTicks = Integer.parseInt(parts[2].trim());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
             return new PotionEffect(type, durationTicks, amplifier, false, false, false);
+
         }).filter(Objects::nonNull).toList();
     }
 }

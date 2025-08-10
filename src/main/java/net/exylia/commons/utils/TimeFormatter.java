@@ -214,15 +214,17 @@ public class TimeFormatter {
             return parseStringDuration((String) input);
         }
 
-        if (input instanceof Number) {
-            double value = ((Number) input).doubleValue();
+        if (input instanceof Long) { // LONG siempre milisegundos
+            return (Long) input;
+        }
 
-            // Si es exactamente 0, devolver 0
-            if (value == 0) {
-                return 0;
-            }
+        if (input instanceof Integer) { // INTEGER siempre enteros
+            return ((Integer) input).longValue() * SECOND;
+        }
 
-            return detectTimeUnit(value);
+        if (input instanceof Double || input instanceof Float) { // FLOAT/DOUBLE siempre decimales
+            double seconds = ((Number) input).doubleValue();
+            return (long) (seconds * SECOND);
         }
 
         return 0;

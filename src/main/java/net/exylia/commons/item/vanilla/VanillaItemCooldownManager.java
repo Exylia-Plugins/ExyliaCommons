@@ -1,6 +1,7 @@
 package net.exylia.commons.item.vanilla;
 
 import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.TimeFormatter;
@@ -22,6 +23,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 
 /**
  * Registrador de cooldowns para items vanilla
@@ -92,7 +95,7 @@ public class VanillaItemCooldownManager implements Listener {
         VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType);
         itemConfigs.put(material, config);
 
-        DebugUtils.logInternalDebug(true, "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")");
+        DebugUtils.logInternalDebug(debug(), "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")");
     }
 
     /**
@@ -121,7 +124,7 @@ public class VanillaItemCooldownManager implements Listener {
      */
     public void unregisterCooldown(Material material) {
         itemConfigs.remove(material);
-        DebugUtils.logInternalDebug(true, "Unregistered vanilla cooldown: " + material);
+        DebugUtils.logInternalDebug(debug(), "Unregistered vanilla cooldown: " + material);
     }
 
     /**
@@ -231,6 +234,13 @@ public class VanillaItemCooldownManager implements Listener {
 
         if (item == null || item.getType().isAir()) return;
 
+        // NUEVO: Verificar si es un item interactivo con force-id
+        if (isInteractiveItemWithForceId(item)) {
+            // Si es un item interactivo con force-id, no aplicar cooldown vanilla
+            // El sistema de InteractiveItem se encargará del cooldown
+            return;
+        }
+
         Material material = item.getType();
         VanillaItemConfig config = getCooldownConfig(material);
         if (config == null) return;
@@ -242,7 +252,7 @@ public class VanillaItemCooldownManager implements Listener {
 
         VanillaTriggerType triggerType = config.getTriggerType();
 
-        // Para items que se activan en INTERACT, verificar cooldown aquí
+        // Resto del código sin cambios...
         if (triggerType == VanillaTriggerType.INTERACT ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isInteractTrigger(material))) {
 
@@ -252,28 +262,22 @@ public class VanillaItemCooldownManager implements Listener {
                 return;
             }
 
-            // Establecer cooldown inmediatamente
             setCooldown(player, material);
         }
-        // Para items consumibles, verificar cooldown Y protección anti-spam
         else if (triggerType == VanillaTriggerType.AFTER_CONSUME ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isConsumeTrigger(material))) {
 
-            // Verificar cooldown normal
             if (!canPlayerUseItem(player, material)) {
                 event.setCancelled(true);
                 handleCooldownMessage(player, material);
                 return;
             }
 
-            // Verificar protección anti-spam para evitar doble consumo
             if (hasRecentlyConsumed(player, material)) {
                 event.setCancelled(true);
-                // No mostrar mensaje adicional, ya fue consumido recientemente
                 return;
             }
         }
-        // Para proyectiles, solo verificar cooldown para mostrar mensaje
         else if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
 
@@ -283,6 +287,69 @@ public class VanillaItemCooldownManager implements Listener {
                 return;
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        Projectile projectile = event.getEntity();
+        if (!(projectile.getShooter() instanceof Player player)) return;
+        if (player.getGameMode() == GameMode.CREATIVE) return;
+
+        // Detectar el item que lanzó el proyectil
+        Material material = getProjectileSourceMaterial(player, projectile);
+        if (material == null) return;
+
+        // NUEVO: Verificar si el item en mano es un InteractiveItem con force-id
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+
+        if ((mainHand.getType() == material && isInteractiveItemWithForceId(mainHand)) ||
+                (offHand.getType() == material && isInteractiveItemWithForceId(offHand))) {
+            // Si es un item interactivo con force-id, no aplicar cooldown vanilla
+            // El sistema de InteractiveItem ya se encargó del cooldown
+            return;
+        }
+
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        VanillaTriggerType triggerType = config.getTriggerType();
+
+        // Aplicar cooldown después de lanzar proyectil
+        if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
+
+            setCooldown(player, material);
+        }
+    }
+
+    private boolean isInteractiveItemWithForceId(ItemStack itemStack) {
+        if (itemStack == null || itemStack.getType().isAir()) return false;
+
+        try {
+            // Verificar si es un item interactivo
+            Object interactiveItem = ItemManager.getItemFromStack(itemStack);
+            if (interactiveItem == null) return false;
+
+            // Usar reflexión para verificar si tiene force-id
+            java.lang.reflect.Method hasForceIdMethod = interactiveItem.getClass().getMethod("hasForceId");
+            boolean hasForceId = (Boolean) hasForceIdMethod.invoke(interactiveItem);
+
+            if (hasForceId) {
+                java.lang.reflect.Method getForceIdMethod = interactiveItem.getClass().getMethod("getForceId");
+                String forceId = (String) getForceIdMethod.invoke(interactiveItem);
+
+                // Verificar si el force-id corresponde a un vanilla item que nosotros manejamos
+                String expectedVanillaId = "vanilla_" + itemStack.getType().name().toLowerCase();
+                return expectedVanillaId.equals(forceId);
+            }
+
+        } catch (Exception e) {
+            // Si hay error en reflexión, asumir que no es InteractiveItem
+            return false;
+        }
+
+        return false;
     }
 
     @EventHandler(priority = EventPriority.LOWEST) // Cambiar a LOWEST para verificar ANTES del consumo
@@ -317,29 +384,6 @@ public class VanillaItemCooldownManager implements Listener {
             // Si el consumo es permitido, marcar como recientemente consumido
             // y aplicar el cooldown inmediatamente
             markAsRecentlyConsumed(player, material);
-            setCooldown(player, material);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onProjectileLaunch(ProjectileLaunchEvent event) {
-        Projectile projectile = event.getEntity();
-        if (!(projectile.getShooter() instanceof Player player)) return;
-        if (player.getGameMode() == GameMode.CREATIVE) return;
-
-        // Detectar el item que lanzó el proyectil
-        Material material = getProjectileSourceMaterial(player, projectile);
-        if (material == null) return;
-
-        VanillaItemConfig config = getCooldownConfig(material);
-        if (config == null) return;
-
-        VanillaTriggerType triggerType = config.getTriggerType();
-
-        // Aplicar cooldown después de lanzar proyectil
-        if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
-                (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
-
             setCooldown(player, material);
         }
     }

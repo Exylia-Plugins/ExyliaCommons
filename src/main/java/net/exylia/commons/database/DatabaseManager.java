@@ -94,14 +94,20 @@ public class DatabaseManager {
 
             FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
 
-            // Default configuration with H2
             config.set("database.type", "H2");
+
+            // YAML
+            config.set("database.yaml.directory", "data");
+            config.set("database.yaml.auto-save", true);
+            config.set("database.yaml.backup-on-shutdown", true);
+
+            // H2
             config.set("database.h2.file", "database/h2");
             config.set("database.h2.username", "sa");
             config.set("database.h2.password", "");
             config.set("database.h2.pool-size", 5);
 
-            // Optimized MySQL/MariaDB configuration
+            // MySQL/MariaDB
             config.set("database.mysql.host", "localhost");
             config.set("database.mysql.port", 3306);
             config.set("database.mysql.database", "minecraft");
@@ -114,7 +120,7 @@ public class DatabaseManager {
             config.set("database.mysql.idle-timeout", 600000);
             config.set("database.mysql.max-lifetime", 1800000);
 
-            // MongoDB configuration
+            // MongoDB
             config.set("database.mongodb.host", "localhost");
             config.set("database.mongodb.port", 27017);
             config.set("database.mongodb.database", "minecraft");
@@ -123,13 +129,13 @@ public class DatabaseManager {
             config.set("database.mongodb.auth-database", "admin");
             config.set("database.mongodb.connection-pool-size", 10);
 
-            // General configuration
+            // general
             config.set("database.auto-migrate", true);
             config.set("database.debug", false);
             config.set("database.enable-metrics", false);
 
             config.save(configFile);
-            logInternalInfo("Default database configuration created");
+            logInternalInfo("Default database configuration created with YAML support");
 
         } catch (IOException e) {
             throw new DatabaseException("Configuration Creation", "DatabaseManager", "System",
@@ -138,11 +144,16 @@ public class DatabaseManager {
     }
 
     private void connectToDatabase() {
-        String type = databaseConfig.getString("database.type", "H2").toUpperCase();
+        String type = databaseConfig.getString("database.type", "YAML").toUpperCase();
         String connectionInfo = null;
 
         try {
             switch (type) {
+                case "YAML":
+                    String directory = databaseConfig.getString("database.yaml.directory", "data");
+                    connectionInfo = "YAML directory: " + directory;
+                    adapter = new YAMLAdapter(databaseConfig, plugin, errorHandler);
+                    break;
                 case "H2":
                     String fileName = databaseConfig.getString("database.h2.file", "database/h2");
                     connectionInfo = "H2 file: " + fileName;
@@ -174,8 +185,30 @@ public class DatabaseManager {
         } catch (Exception e) {
             String errorMsg = String.format("Failed to connect to %s database (%s)", type, connectionInfo);
 
-            if (!type.equals("H2")) {
-                errorHandler.logWarning("Connection", type, "Primary database connection failed, attempting H2 fallback");
+            // Fallback strategy: YAML -> H2 -> fail
+            if (!type.equals("YAML") && !type.equals("H2")) {
+                errorHandler.logWarning("Connection", type, "Primary database connection failed, attempting YAML fallback");
+
+                try {
+                    adapter = new YAMLAdapter(databaseConfig, plugin, errorHandler);
+                    adapter.connect();
+                    errorHandler.logRecovery("Connection", "YAML", "Successfully fell back to YAML database");
+
+                } catch (Exception yamlError) {
+                    errorHandler.logWarning("Connection", "YAML", "YAML fallback failed, attempting H2 fallback");
+
+                    try {
+                        adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
+                        adapter.connect();
+                        errorHandler.logRecovery("Connection", "H2", "Successfully fell back to H2 database");
+
+                    } catch (Exception fallbackError) {
+                        throw new ConnectionException("H2", "fallback",
+                                "Primary database, YAML fallback, and H2 fallback all failed", fallbackError);
+                    }
+                }
+            } else if (type.equals("YAML")) {
+                errorHandler.logWarning("Connection", "YAML", "YAML connection failed, attempting H2 fallback");
 
                 try {
                     adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
@@ -184,7 +217,7 @@ public class DatabaseManager {
 
                 } catch (Exception fallbackError) {
                     throw new ConnectionException("H2", "fallback",
-                            "Both primary database and H2 fallback failed", fallbackError);
+                            "Both YAML and H2 fallback failed", fallbackError);
                 }
             } else {
                 throw new ConnectionException(type, connectionInfo, errorMsg, e);
