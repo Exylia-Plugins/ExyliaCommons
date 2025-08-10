@@ -10,10 +10,12 @@ import net.exylia.commons.item.handlers.ItemInventoryHandler;
 import net.exylia.commons.item.handlers.ItemRegionHandler;
 import net.exylia.commons.item.registry.ItemRegistry;
 import net.exylia.commons.item.registry.ItemRegistryImpl;
+import net.exylia.commons.item.vanilla.VanillaItemCooldownManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
@@ -868,5 +870,81 @@ public class ItemManager implements Listener {
         if (!initialized) {
             throw new IllegalStateException("ItemManager has not been initialized. Call ItemManager.initialize(plugin) first.");
         }
+    }
+
+    // ===== MÉTODOS PARA DISPLAY NAME UNIFICADO =====
+
+    public static String getEffectiveDisplayName(String itemId) {
+        ensureInitialized();
+
+        // Verificar si es un item interactivo
+        ItemConfiguration interactiveConfig = getItemConfiguration(itemId);
+        if (interactiveConfig != null) {
+            if (interactiveConfig.hasDisplayName()) {
+                return interactiveConfig.getDisplayName();
+            } else if (interactiveConfig.getName() != null) {
+                return interactiveConfig.getName();
+            }
+        }
+
+        // Verificar si es un item vanilla con el formato "vanilla_material"
+        if (itemId.startsWith("vanilla_")) {
+            String materialName = itemId.substring(8).toUpperCase();
+            try {
+                Material material = Material.valueOf(materialName);
+                VanillaItemCooldownManager vanillaManager = VanillaItemCooldownManager.getInstance();
+                return vanillaManager.getEffectiveDisplayName(material);
+            } catch (IllegalArgumentException e) {
+                // Material no válido
+            }
+        }
+
+        return null;
+    }
+
+    public static String getEffectiveDisplayName(String itemId, String fallback) {
+        String displayName = getEffectiveDisplayName(itemId);
+        return displayName != null ? displayName : fallback;
+    }
+
+    public static boolean hasCustomDisplayName(String itemId) {
+        ensureInitialized();
+
+        // Verificar item interactivo
+        ItemConfiguration interactiveConfig = getItemConfiguration(itemId);
+        if (interactiveConfig != null) {
+            return interactiveConfig.hasDisplayName();
+        }
+
+        // Verificar item vanilla
+        if (itemId.startsWith("vanilla_")) {
+            String materialName = itemId.substring(8).toUpperCase();
+            try {
+                Material material = Material.valueOf(materialName);
+                VanillaItemCooldownManager vanillaManager = VanillaItemCooldownManager.getInstance();
+                return vanillaManager.hasCustomDisplayName(material);
+            } catch (IllegalArgumentException e) {
+                // Material no válido
+            }
+        }
+
+        return false;
+    }
+
+    public static Material getMaterialFromVanillaId(String itemId) {
+        if (!itemId.startsWith("vanilla_")) {
+            return null;
+        }
+
+        String materialName = itemId.substring(8).toUpperCase();
+        try {
+            return Material.valueOf(materialName);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    public static boolean isVanillaItem(String itemId) {
+        return itemId.startsWith("vanilla_") && getMaterialFromVanillaId(itemId) != null;
     }
 }

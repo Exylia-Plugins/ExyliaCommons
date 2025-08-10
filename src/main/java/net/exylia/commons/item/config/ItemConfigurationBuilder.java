@@ -10,12 +10,13 @@ import java.util.Map;
 /**
  * Builder para ItemConfiguration (separado para mejor modularización)
  * ACTUALIZADO: Soporte para TriggerType
- * NUEVO: Soporte para force-id
+ * NUEVO: Soporte para force-id y display-name
  */
 public class ItemConfigurationBuilder {
 
     protected String material = "STONE";
     protected String name = null;
+    protected String displayName = null; // NUEVO: display-name para otros usos
     protected List<String> lore = new ArrayList<>();
     protected int amount = 1;
     protected boolean glowing = false;
@@ -62,6 +63,14 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder name(String name) {
         this.name = name;
+        return this;
+    }
+
+    /**
+     * NUEVO: Establece el display-name para otros usos
+     */
+    public ItemConfigurationBuilder displayName(String displayName) {
+        this.displayName = displayName;
         return this;
     }
 
@@ -395,6 +404,11 @@ public class ItemConfigurationBuilder {
             name(config.getString("name"));
         }
 
+        // NUEVO: Cargar display-name desde la configuración
+        if (config.contains("display-name")) {
+            displayName(config.getString("display-name"));
+        }
+
         if (config.contains("lore")) {
             if (config.isList("lore")) {
                 lore(config.getStringList("lore"));
@@ -552,9 +566,11 @@ public class ItemConfigurationBuilder {
 
         boolean autoDetectPlaceholders = false;
         String nameText = config.getString("name", "");
+        String displayNameText = config.getString("display-name", ""); // NUEVO: incluir display-name en detección
         List<String> loreList = config.getStringList("lore");
 
         if (containsPlaceholders(nameText) ||
+                containsPlaceholders(displayNameText) || // NUEVO: verificar placeholders en display-name
                 loreList.stream().anyMatch(this::containsPlaceholders)) {
             autoDetectPlaceholders = true;
         }

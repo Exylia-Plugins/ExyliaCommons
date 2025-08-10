@@ -29,6 +29,7 @@ import static net.exylia.commons.config.base.MainConfigBase.debug;
 /**
  * Registrador de cooldowns para items vanilla
  * Soporte para diferentes triggers según el tipo de item
+ * ACTUALIZADO: Soporte para display-name
  */
 public class VanillaItemCooldownManager implements Listener {
 
@@ -88,14 +89,29 @@ public class VanillaItemCooldownManager implements Listener {
      * Registra un cooldown con tipo de trigger específico
      */
     public void registerCooldown(Material material, double cooldownSeconds, VanillaTriggerType triggerType) {
+        registerCooldown(material, cooldownSeconds, triggerType, null);
+    }
+
+    /**
+     * NUEVO: Registra un cooldown con display name personalizado
+     */
+    public void registerCooldown(Material material, double cooldownSeconds, String displayName) {
+        registerCooldown(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
+    }
+
+    /**
+     * NUEVO: Registra un cooldown con tipo de trigger y display name
+     */
+    public void registerCooldown(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName) {
         if (material == null) {
             throw new IllegalArgumentException("Material cannot be null");
         }
 
-        VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType);
+        VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType, displayName);
         itemConfigs.put(material, config);
 
-        DebugUtils.logInternalDebug(debug(), "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")");
+        DebugUtils.logInternalDebug(debug(), "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")" +
+                (displayName != null ? " with display name: '" + displayName + "'" : ""));
     }
 
     /**
@@ -117,6 +133,13 @@ public class VanillaItemCooldownManager implements Listener {
      */
     public void registerCooldowns(List<Material> materials, double cooldownSeconds, VanillaTriggerType triggerType) {
         materials.forEach(material -> registerCooldown(material, cooldownSeconds, triggerType));
+    }
+
+    /**
+     * NUEVO: Registra cooldowns para múltiples materiales con display name
+     */
+    public void registerCooldowns(List<Material> materials, double cooldownSeconds, VanillaTriggerType triggerType, String displayName) {
+        materials.forEach(material -> registerCooldown(material, cooldownSeconds, triggerType, displayName));
     }
 
     /**
@@ -202,7 +225,7 @@ public class VanillaItemCooldownManager implements Listener {
         // Establecer cooldown visual en Bukkit
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             player.setCooldown(material, (int) (config.getCooldownSeconds() * 20));
-            },1L);
+        },1L);
     }
 
     /**
@@ -509,19 +532,23 @@ public class VanillaItemCooldownManager implements Listener {
 
     /**
      * Maneja el mensaje de cooldown
+     * ACTUALIZADO: Usa display name efectivo
      */
     private void handleCooldownMessage(Player player, Material material) {
         double remainingSeconds = getRemainingCooldown(player, material);
         String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
 
+        VanillaItemConfig config = getCooldownConfig(material);
+        String itemDisplayName = config != null ? config.getEffectiveDisplayName() : getItemDisplayName(material);
+
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_cooldown",
-                "%item%", getItemDisplayName(material),
+                "%item%", itemDisplayName,
                 "%cooldown_formatted%", formattedTime,
                 "%cooldown_seconds%", String.valueOf(remainingSeconds)));
     }
 
     /**
-     * Obtiene el nombre display del material
+     * Obtiene el nombre display del material (fallback)
      */
     private String getItemDisplayName(Material material) {
         return material.name().toLowerCase().replace("_", " ");
@@ -534,6 +561,22 @@ public class VanillaItemCooldownManager implements Listener {
      */
     public Map<Material, VanillaItemConfig> getAllConfigs() {
         return new HashMap<>(itemConfigs);
+    }
+
+    /**
+     * NUEVO: Obtiene el display name efectivo de un material
+     */
+    public String getEffectiveDisplayName(Material material) {
+        VanillaItemConfig config = getCooldownConfig(material);
+        return config != null ? config.getEffectiveDisplayName() : getItemDisplayName(material);
+    }
+
+    /**
+     * NUEVO: Verifica si un material tiene display name personalizado
+     */
+    public boolean hasCustomDisplayName(Material material) {
+        VanillaItemConfig config = getCooldownConfig(material);
+        return config != null && config.hasDisplayName();
     }
 
     /**
@@ -552,7 +595,11 @@ public class VanillaItemCooldownManager implements Listener {
                 .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.AFTER_PROJECTILE ? 1 : 0)
                 .sum();
 
-        return String.format("Vanilla Item Cooldowns - Total: %d, Interact: %d, Consume: %d, Projectile: %d",
-                itemConfigs.size(), interactCount, consumeCount, projectileCount);
+        long customDisplayCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.hasDisplayName() ? 1 : 0)
+                .sum();
+
+        return String.format("Vanilla Item Cooldowns - Total: %d, Interact: %d, Consume: %d, Projectile: %d, Custom Display Names: %d",
+                itemConfigs.size(), interactCount, consumeCount, projectileCount, customDisplayCount);
     }
 }

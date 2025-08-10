@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 /**
  * Configuración de un item interactivo almacenada en memoria
  * ACTUALIZADO: Nuevo sistema de regiones y soporte para TriggerType
- * NUEVO: Soporte para force-id
+ * NUEVO: Soporte para force-id y display-name
  */
 @Getter
 public class ItemConfiguration {
@@ -21,6 +21,7 @@ public class ItemConfiguration {
     // Propiedades visuales
     private final String material;
     private final String name;
+    private final String displayName;
     private final List<String> lore;
     private final int amount;
     private final boolean glowing;
@@ -67,13 +68,12 @@ public class ItemConfiguration {
 
     // Tipo de trigger
     private final TriggerType triggerType;
-
-    // NUEVO: Force ID para sobrescribir items vanilla
     private final String forceId;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
         this.material = builder.material;
         this.name = builder.name;
+        this.displayName = builder.displayName;
         this.lore = new ArrayList<>(builder.lore);
         this.amount = builder.amount;
         this.glowing = builder.glowing;
@@ -107,19 +107,17 @@ public class ItemConfiguration {
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
 
         this.triggerType = builder.triggerType;
-        this.forceId = builder.forceId; // NUEVO
+        this.forceId = builder.forceId;
     }
 
-    /**
-     * NUEVO: Verifica si este item tiene un force-id configurado
-     */
+    public boolean hasDisplayName() {
+        return displayName != null && !displayName.trim().isEmpty();
+    }
+
     public boolean hasForceId() {
         return forceId != null && !forceId.trim().isEmpty();
     }
 
-    /**
-     * NUEVO: Obtiene el ID efectivo del item (force-id si existe, sino el ID original)
-     */
     public String getEffectiveId(String originalId) {
         return hasForceId() ? forceId : originalId;
     }
@@ -356,6 +354,7 @@ public class ItemConfiguration {
         return "ItemConfiguration{" +
                 "material='" + material + '\'' +
                 ", name='" + name + '\'' +
+                ", displayName='" + displayName + '\'' +
                 ", commands=" + commands.size() +
                 ", action='" + action + '\'' +
                 ", maxUses=" + maxUses +

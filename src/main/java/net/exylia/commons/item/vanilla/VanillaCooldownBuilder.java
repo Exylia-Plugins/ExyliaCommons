@@ -7,6 +7,7 @@ import java.util.*;
 
 /**
  * Builder para configurar cooldowns de items vanilla de forma fácil
+ * ACTUALIZADO: Soporte para display-name
  */
 public class VanillaCooldownBuilder {
 
@@ -35,6 +36,22 @@ public class VanillaCooldownBuilder {
     }
 
     /**
+     * NUEVO: Configura un item con display name personalizado
+     */
+    public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, String displayName) {
+        manager.registerCooldown(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
+        return this;
+    }
+
+    /**
+     * NUEVO: Configura un item con trigger y display name
+     */
+    public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, VanillaTriggerType trigger, String displayName) {
+        manager.registerCooldown(material, cooldownSeconds, trigger, displayName);
+        return this;
+    }
+
+    /**
      * Configura múltiples items con el mismo cooldown
      */
     public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds) {
@@ -51,6 +68,22 @@ public class VanillaCooldownBuilder {
     }
 
     /**
+     * NUEVO: Configura múltiples items con cooldown y display name
+     */
+    public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds, String displayName) {
+        manager.registerCooldowns(materials, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
+        return this;
+    }
+
+    /**
+     * NUEVO: Configura múltiples items con cooldown, trigger y display name
+     */
+    public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds, VanillaTriggerType trigger, String displayName) {
+        manager.registerCooldowns(materials, cooldownSeconds, trigger, displayName);
+        return this;
+    }
+
+    /**
      * Configura desde un Map
      */
     public VanillaCooldownBuilder fromMap(Map<Material, Double> cooldowns) {
@@ -58,76 +91,11 @@ public class VanillaCooldownBuilder {
         return this;
     }
 
-    // ===== MÉTODOS DE CONVENIENCIA POR CATEGORÍA =====
-
-    /**
-     * Configura comida con cooldowns
-     */
-    public VanillaCooldownBuilder foodItems() {
-        return addItems(Arrays.asList(
-                Material.GOLDEN_APPLE,
-                Material.ENCHANTED_GOLDEN_APPLE,
-                Material.GOLDEN_CARROT,
-                Material.CHORUS_FRUIT
-        ), 30.0, VanillaTriggerType.AFTER_CONSUME);
-    }
-
-    /**
-     * Configura proyectiles con cooldowns
-     */
-    public VanillaCooldownBuilder projectileItems() {
-        return this
-                .addItem(Material.ENDER_PEARL, 15.0, VanillaTriggerType.AFTER_PROJECTILE)
-                .addItem(Material.SNOWBALL, 1.0, VanillaTriggerType.AFTER_PROJECTILE)
-                .addItem(Material.EGG, 1.0, VanillaTriggerType.AFTER_PROJECTILE)
-                .addItem(Material.TRIDENT, 5.0, VanillaTriggerType.AFTER_PROJECTILE);
-    }
-
-    /**
-     * Configura arcos y ballestas
-     */
-    public VanillaCooldownBuilder rangedWeaponItems() {
-        return this
-                .addItem(Material.BOW, 1.0, VanillaTriggerType.AFTER_PROJECTILE)
-                .addItem(Material.CROSSBOW, 2.0, VanillaTriggerType.AFTER_PROJECTILE);
-    }
-
-    /**
-     * Configura pociones
-     */
-    public VanillaCooldownBuilder potionItems() {
-        return this
-                .addItem(Material.POTION, 5.0, VanillaTriggerType.AFTER_CONSUME)
-                .addItem(Material.SPLASH_POTION, 3.0, VanillaTriggerType.INTERACT)
-                .addItem(Material.LINGERING_POTION, 5.0, VanillaTriggerType.INTERACT)
-                .addItem(Material.MILK_BUCKET, 10.0, VanillaTriggerType.AFTER_CONSUME);
-    }
-
-    /**
-     * Configura items de utilidad
-     */
-    public VanillaCooldownBuilder utilityItems() {
-        return this
-                .addItem(Material.SHIELD, 1.0, VanillaTriggerType.INTERACT)
-                .addItem(Material.TOTEM_OF_UNDYING, 60.0, VanillaTriggerType.INTERACT)
-                .addItem(Material.FIREWORK_ROCKET, 2.0, VanillaTriggerType.INTERACT);
-    }
-
-    /**
-     * Aplica todas las configuraciones por defecto
-     */
-    public VanillaCooldownBuilder applyDefaultConfig() {
-        return foodItems()
-                .projectileItems()
-                .rangedWeaponItems()
-                .potionItems()
-                .utilityItems();
-    }
-
     // ===== CONFIGURACIÓN DESDE ARCHIVO =====
 
     /**
      * Carga configuraciones desde ConfigurationSection
+     * ACTUALIZADO: Soporte para display-name
      */
     public VanillaCooldownBuilder fromConfig(ConfigurationSection config) {
         if (config == null) return this;
@@ -141,10 +109,11 @@ public class VanillaCooldownBuilder {
                     ConfigurationSection itemConfig = config.getConfigurationSection(materialName);
                     double cooldown = itemConfig.getDouble("cooldown", 0.0);
                     String triggerString = itemConfig.getString("trigger", "auto-detect");
+                    String displayName = itemConfig.getString("display-name"); // NUEVO
                     VanillaTriggerType trigger = VanillaTriggerType.fromString(triggerString);
 
                     if (cooldown > 0) {
-                        addItem(material, cooldown, trigger);
+                        addItem(material, cooldown, trigger, displayName);
                     }
                 } else {
                     // Formato simple: material: cooldown
@@ -169,6 +138,14 @@ public class VanillaCooldownBuilder {
     public VanillaCooldownBuilder itemsByType(ItemType type, double cooldownSeconds) {
         List<Material> materials = getItemsByType(type);
         return addItems(materials, cooldownSeconds);
+    }
+
+    /**
+     * NUEVO: Configura todos los items de un tipo con display name
+     */
+    public VanillaCooldownBuilder itemsByType(ItemType type, double cooldownSeconds, String displayName) {
+        List<Material> materials = getItemsByType(type);
+        return addItems(materials, cooldownSeconds, displayName);
     }
 
     /**
@@ -304,10 +281,17 @@ public class VanillaCooldownBuilder {
     }
 
     /**
-     * Aplica configuración por defecto
+     * NUEVO: Configura rápidamente un item con display name
      */
-    public static VanillaCooldownBuilder applyDefaults() {
-        return new VanillaCooldownBuilder().applyDefaultConfig();
+    public static VanillaCooldownBuilder quickSetup(Material material, double cooldown, String displayName) {
+        return new VanillaCooldownBuilder().addItem(material, cooldown, displayName);
+    }
+
+    /**
+     * NUEVO: Configura rápidamente un item con trigger y display name
+     */
+    public static VanillaCooldownBuilder quickSetup(Material material, double cooldown, VanillaTriggerType trigger, String displayName) {
+        return new VanillaCooldownBuilder().addItem(material, cooldown, trigger, displayName);
     }
 
     /**

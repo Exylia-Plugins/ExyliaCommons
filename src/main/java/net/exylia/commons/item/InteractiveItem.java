@@ -35,11 +35,6 @@ import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.skull.SkullUtils.*;
 
-/**
- * InteractiveItem actualizado para el sistema modularizado
- * ACTUALIZADO: Soporte para TriggerType
- * CORREGIDO: Sistema force-id ahora usa el mismo NBT que el ID normal
- */
 public class InteractiveItem {
 
     private static final String NBT_ITEM_ID = "interactive_item_id";
@@ -200,6 +195,7 @@ public class InteractiveItem {
     }
 
     public String getRawName() { return config.getName(); }
+    public String getRawDisplayName() { return config.getDisplayName(); }
     public List<String> getRawLore() { return config.getLore(); }
     public String getRawMaterialString() { return config.getMaterial(); }
     public boolean usesPlaceholders() { return config.isUsePlaceholders(); }
@@ -211,6 +207,10 @@ public class InteractiveItem {
     public int getMaxUses() { return config.getMaxUses(); }
     public boolean isStackable() { return config.isStackable(); }
     public double getCooldownSeconds() { return config.getCooldownSeconds(); }
+
+    public boolean hasDisplayName() {
+        return config.hasDisplayName();
+    }
 
     public int getCurrentUses() {
         return ItemNBTUtils.getNBTInt(itemStack, getPlugin(), NBT_CURRENT_USES, getMaxUses());
