@@ -478,7 +478,6 @@ public class ItemManager implements Listener {
         }
 
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No suitable interactive items found for projectile launch by player: " + player.getName());
             return;
         }
 
@@ -548,7 +547,6 @@ public class ItemManager implements Listener {
     public void onProjectileHit(ProjectileHitEvent event) {
         Projectile projectile = event.getEntity();
         if (!projectile.hasMetadata("interactive_item_id")) {
-            DebugUtils.logInternalDebug(debug(), "ProjectileHit event has no interactive item metadata, ignoring");
             return;
         }
 

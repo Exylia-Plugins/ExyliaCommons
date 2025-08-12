@@ -4,6 +4,9 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import dev.rollczi.liteskullapi.LiteSkullAPI;
+import dev.rollczi.liteskullapi.LiteSkullFactory;
+import dev.rollczi.liteskullapi.SkullAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -11,6 +14,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -23,19 +27,20 @@ public class SkullManager {
     private static JavaPlugin plugin;
     private static boolean isInitialized = false;
 
-    // Version detection
+    // Version detection (for texture skulls only)
     private static final String BUKKIT_VERSION = Bukkit.getVersion();
     private static final boolean IS_PAPER = checkPaperSupport();
     private static final boolean IS_MODERN_VERSION = isModernVersion();
 
-    // Cache system
+    // LiteSkullAPI instance (only for player skulls)
+    private SkullAPI skullAPI;
+
+    // Cache system for texture skulls only (LiteSkullAPI handles player skulls)
     private final ConcurrentHashMap<String, CachedSkull> textureCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, CachedSkull> playerCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CompletableFuture<ItemStack>> pendingRequests = new ConcurrentHashMap<>();
 
     // Configuration
     private static final int MAX_CACHE_SIZE = 1000;
-    private static final long PLAYER_CACHE_DURATION = TimeUnit.HOURS.toMillis(1);
     private static final long TEXTURE_CACHE_DURATION = TimeUnit.HOURS.toMillis(24);
     private static final long CLEANUP_INTERVAL = TimeUnit.MINUTES.toMillis(30);
 
@@ -49,6 +54,19 @@ public class SkullManager {
 
         plugin = pluginInstance;
         instance = new SkullManager();
+
+        // Initialize LiteSkullAPI for player skulls
+        try {
+            instance.skullAPI = LiteSkullFactory.builder()
+                    .cacheExpireAfterWrite(Duration.ofMinutes(45L))
+                    .bukkitScheduler(pluginInstance) // Use Bukkit scheduler for sync operations
+                    .build();
+            plugin.getLogger().info("LiteSkullAPI initialized successfully for player skulls");
+        } catch (Exception e) {
+            plugin.getLogger().warning("Failed to initialize LiteSkullAPI, falling back to basic player skulls: " + e.getMessage());
+            instance.skullAPI = null;
+        }
+
         instance.startCleanupTask();
         isInitialized = true;
     }
@@ -103,47 +121,37 @@ public class SkullManager {
     }
 
     /**
-     * Create a player skull asynchronously
+     * Create a player skull asynchronously using LiteSkullAPI
      */
     public CompletableFuture<ItemStack> createPlayerSkullAsync(String playerName) {
         if (playerName == null || playerName.isEmpty()) {
             return CompletableFuture.completedFuture(new ItemStack(Material.PLAYER_HEAD));
         }
 
-        String cacheKey = playerName.toLowerCase();
+        // Use LiteSkullAPI if available
+        if (skullAPI != null) {
+            String cacheKey = playerName.toLowerCase();
 
-        // Check cache first
-        CachedSkull cached = playerCache.get(cacheKey);
-        if (cached != null && !cached.isExpired()) {
-            return CompletableFuture.completedFuture(cached.getSkull().clone());
-        }
-
-        // Check if there's already a pending request
-        CompletableFuture<ItemStack> pending = pendingRequests.get(cacheKey);
-        if (pending != null && !pending.isDone()) {
-            return pending;
-        }
-
-        // Create new async request
-        CompletableFuture<ItemStack> future = CompletableFuture.supplyAsync(() -> {
-            ItemStack skull = createPlayerSkullInternal(playerName);
-
-            // Cache the result
-            if (playerCache.size() < MAX_CACHE_SIZE) {
-                playerCache.put(cacheKey, new CachedSkull(skull.clone(), PLAYER_CACHE_DURATION));
+            // Check if there's already a pending request
+            CompletableFuture<ItemStack> pending = pendingRequests.get(cacheKey);
+            if (pending != null && !pending.isDone()) {
+                return pending;
             }
 
-            return skull;
-        });
+            // Use LiteSkullAPI to get the skull asynchronously
+            CompletableFuture<ItemStack> future = skullAPI.getSkull(playerName);
+            pendingRequests.put(cacheKey, future);
 
-        pendingRequests.put(cacheKey, future);
+            // Clean up when done
+            future.whenComplete((result, throwable) -> {
+                pendingRequests.remove(cacheKey);
+            });
 
-        // Clean up when done
-        future.whenComplete((result, throwable) -> {
-            pendingRequests.remove(cacheKey);
-        });
-
-        return future;
+            return future;
+        } else {
+            // Fallback to basic implementation
+            return CompletableFuture.supplyAsync(() -> createPlayerSkullInternal(playerName));
+        }
     }
 
     /**
@@ -154,16 +162,10 @@ public class SkullManager {
             return new ItemStack(Material.PLAYER_HEAD);
         }
 
-        String cacheKey = playerName.toLowerCase();
-
-        // Check cache first
-        CachedSkull cached = playerCache.get(cacheKey);
-        if (cached != null && !cached.isExpired()) {
-            return cached.getSkull().clone();
+        // Start async loading for future use if LiteSkullAPI is available
+        if (skullAPI != null) {
+            createPlayerSkullAsync(playerName);
         }
-
-        // Start async loading for future use
-        createPlayerSkullAsync(playerName);
 
         // Return basic skull immediately
         return createBasicPlayerSkull(playerName);
@@ -250,7 +252,7 @@ public class SkullManager {
 
         try {
             // Create a simple offline player
-            UUID uuid = UUID.nameUUIDFromBytes(playerName.getBytes());
+            UUID uuid = UUID.nameUUIDFromBytes(("OfflinePlayer:" + playerName).getBytes());
             OfflinePlayer player = Bukkit.getOfflinePlayer(uuid);
             meta.setOwningPlayer(player);
             skull.setItemMeta(meta);
@@ -355,21 +357,14 @@ public class SkullManager {
         if (plugin == null) return;
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-            // Clean expired entries
+            // Clean expired entries (only texture cache, LiteSkullAPI handles player cache)
             textureCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
-            playerCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
 
             // Clean up if cache is too large
             if (textureCache.size() > MAX_CACHE_SIZE) {
                 textureCache.entrySet().stream()
                         .limit(textureCache.size() - MAX_CACHE_SIZE)
                         .forEach(entry -> textureCache.remove(entry.getKey()));
-            }
-
-            if (playerCache.size() > MAX_CACHE_SIZE) {
-                playerCache.entrySet().stream()
-                        .limit(playerCache.size() - MAX_CACHE_SIZE)
-                        .forEach(entry -> playerCache.remove(entry.getKey()));
             }
         }, CLEANUP_INTERVAL / 50, CLEANUP_INTERVAL / 50); // Convert to ticks
     }
@@ -378,8 +373,8 @@ public class SkullManager {
      * Get cache statistics
      */
     public String getCacheStats() {
-        return String.format("Cache Stats: Textures=%d, Players=%d, Pending=%d",
-                textureCache.size(), playerCache.size(), pendingRequests.size());
+        return String.format("Cache Stats: Textures=%d, Pending=%d (Player cache managed by LiteSkullAPI)",
+                textureCache.size(), pendingRequests.size());
     }
 
     /**
@@ -387,15 +382,17 @@ public class SkullManager {
      */
     public void clearCache() {
         textureCache.clear();
-        playerCache.clear();
         pendingRequests.clear();
+        // Note: LiteSkullAPI manages its own player cache
     }
 
     /**
      * Clear only player cache
      */
     public void clearPlayerCache() {
-        playerCache.clear();
+        // Note: LiteSkullAPI manages its own player cache
+        // We only clear pending requests
+        pendingRequests.clear();
     }
 
     /**
@@ -403,6 +400,38 @@ public class SkullManager {
      */
     public void clearTextureCache() {
         textureCache.clear();
+    }
+
+    /**
+     * Get the underlying LiteSkullAPI instance for advanced usage
+     * @return SkullAPI instance or null if not available
+     */
+    public SkullAPI getSkullAPI() {
+        return skullAPI;
+    }
+
+    /**
+     * Accept a player skull synchronously using LiteSkullAPI (if available)
+     */
+    public void acceptSyncPlayerSkull(String playerName, java.util.function.Consumer<ItemStack> consumer) {
+        if (skullAPI != null) {
+            skullAPI.acceptSyncSkull(playerName, consumer);
+        } else {
+            // Fallback to async creation
+            createPlayerSkullAsync(playerName).thenAccept(consumer);
+        }
+    }
+
+    /**
+     * Accept a player skull asynchronously using LiteSkullAPI (if available)
+     */
+    public void acceptAsyncPlayerSkull(String playerName, java.util.function.Consumer<ItemStack> consumer) {
+        if (skullAPI != null) {
+            skullAPI.acceptAsyncSkull(playerName, consumer);
+        } else {
+            // Fallback to async creation
+            createPlayerSkullAsync(playerName).thenAccept(consumer);
+        }
     }
 
     /**

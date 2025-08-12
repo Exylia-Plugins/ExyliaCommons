@@ -3,6 +3,7 @@ package net.exylia.commons.scoreboard.internal;
 import lombok.Getter;
 import net.exylia.commons.config.components.ScoreboardConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.scoreboard.fastBoard.FastBoard;
 import net.exylia.commons.scoreboard.internal.ScoreboardRenderer.RenderedScoreboard;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -12,9 +13,8 @@ import java.util.Set;
 import java.util.HashSet;
 
 /**
- * Instancia de scoreboard para un jugador específico
- * Maneja el estado interno y la lógica de actualización
- * Ahora incluye gestión avanzada de teams
+ * Instancia de scoreboard para un jugador específico usando FastBoard con Adventure Components
+ * Mantiene la misma API pero usa FastBoard internamente
  */
 public class PlayerScoreboardInstance {
 
@@ -40,12 +40,12 @@ public class PlayerScoreboardInstance {
         this.plugin = plugin;
         this.player = player;
         this.config = config;
-        this.context = context.copy(); // Copia defensiva
+        this.context = context.copy();
         this.renderer = renderer;
     }
 
     /**
-     * Muestra el scoreboard al jugador
+     * Muestra el scoreboard al jugador usando FastBoard
      */
     public void show() {
         if (visible || !player.isOnline()) return;
@@ -53,16 +53,20 @@ public class PlayerScoreboardInstance {
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             if (visible || !player.isOnline()) return;
 
-            rendered = renderer.createScoreboard(player, config, context);
-            player.setScoreboard(rendered.scoreboard);
-            visible = true;
+            try {
+                rendered = renderer.createScoreboard(player, config, context);
+                visible = true;
 
-            // Añadir el jugador al team principal automáticamente
-            if (rendered.mainTeam != null) {
-                teamMembers.add(player.getName());
+                // Añadir el jugador al team principal automáticamente
+                if (rendered.mainTeam != null) {
+                    teamMembers.add(player.getName());
+                }
+
+                update();
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error mostrando scoreboard para " + player.getName() + ": " + e.getMessage());
+                visible = false;
             }
-
-            update();
         });
     }
 
@@ -74,15 +78,14 @@ public class PlayerScoreboardInstance {
 
         visible = false;
 
-        if (player.isOnline()) {
-            // Restaurar scoreboard principal
-            player.setScoreboard(plugin.getServer().getScoreboardManager().getMainScoreboard());
-        }
-
-        // Limpiar recursos
-        if (rendered != null) {
-            rendered.cleanup();
-            rendered = null;
+        try {
+            // Limpiar recursos
+            if (rendered != null) {
+                rendered.cleanup();
+                rendered = null;
+            }
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error ocultando scoreboard de " + player.getName() + ": " + e.getMessage());
         }
 
         // Limpiar miembros del team
@@ -90,7 +93,7 @@ public class PlayerScoreboardInstance {
     }
 
     /**
-     * Actualiza el contenido del scoreboard
+     * Actualiza el contenido del scoreboard usando FastBoard
      */
     public void update() {
         if (!visible || !player.isOnline() || rendered == null) {
@@ -232,12 +235,13 @@ public class PlayerScoreboardInstance {
         }
 
         try {
-            Team existingTeam = rendered.scoreboard.getTeam(teamName);
+            org.bukkit.scoreboard.Scoreboard scoreboard = rendered.getScoreboard();
+            Team existingTeam = scoreboard.getTeam(teamName);
             if (existingTeam != null) {
                 return existingTeam;
             }
 
-            return rendered.scoreboard.registerNewTeam(teamName);
+            return scoreboard.registerNewTeam(teamName);
         } catch (Exception e) {
             plugin.getLogger().warning("Error creando team personalizado '" + teamName +
                     "' para " + player.getName() + ": " + e.getMessage());
@@ -249,7 +253,15 @@ public class PlayerScoreboardInstance {
      * Obtiene un team por nombre
      */
     public Team getTeam(String teamName) {
-        return (visible && rendered != null) ? rendered.scoreboard.getTeam(teamName) : null;
+        if (!visible || rendered == null) {
+            return null;
+        }
+
+        try {
+            return rendered.getScoreboard().getTeam(teamName);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /**
@@ -261,8 +273,9 @@ public class PlayerScoreboardInstance {
         }
 
         try {
-            Team team = rendered.scoreboard.getTeam(teamName);
-            if (team != null && !team.equals(rendered.mainTeam) && !teamName.startsWith("line_")) {
+            org.bukkit.scoreboard.Scoreboard scoreboard = rendered.getScoreboard();
+            Team team = scoreboard.getTeam(teamName);
+            if (team != null && !team.equals(rendered.mainTeam)) {
                 team.unregister();
                 return true;
             }
@@ -285,5 +298,9 @@ public class PlayerScoreboardInstance {
 
     public int getMainTeamSize() {
         return teamMembers.size();
+    }
+
+    public FastBoard getFastBoard() {
+        return (visible && rendered != null) ? rendered.fastBoard : null;
     }
 }

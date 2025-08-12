@@ -1,18 +1,17 @@
 package net.exylia.commons.utils.skull;
 
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
-
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Utility class for easy skull creation - wrapper around SkullManager
+ * Uses LiteSkullAPI only for player skulls, original implementation for textures
  */
 public class SkullUtils {
 
     /**
-     * Create a skull from base64 texture data
+     * Create a skull from base64 texture data (uses original implementation)
      * @param base64 The base64 encoded texture data
      * @return ItemStack with the skull
      */
@@ -21,7 +20,7 @@ public class SkullUtils {
     }
 
     /**
-     * Create a skull from a texture URL
+     * Create a skull from a texture URL (uses original implementation)
      * @param url The texture URL (can be full URL or just the texture hash)
      * @return ItemStack with the skull
      */
@@ -30,7 +29,8 @@ public class SkullUtils {
     }
 
     /**
-     * Create a player skull synchronously (returns basic skull immediately)
+     * Create a player skull synchronously (uses LiteSkullAPI if available)
+     * Returns basic skull immediately, actual textured skull cached by LiteSkullAPI
      * @param playerName The player name
      * @return ItemStack with the skull
      */
@@ -39,12 +39,31 @@ public class SkullUtils {
     }
 
     /**
-     * Create a player skull asynchronously
+     * Create a player skull asynchronously (uses LiteSkullAPI if available)
      * @param playerName The player name
      * @return CompletableFuture with the skull
      */
     public static CompletableFuture<ItemStack> createPlayerSkullAsync(String playerName) {
         return SkullManager.getInstance().createPlayerSkullAsync(playerName);
+    }
+
+    /**
+     * Accept a player skull synchronously using LiteSkullAPI (if available)
+     * Runs in server sync task when skull is ready
+     * @param playerName The player name
+     * @param consumer Consumer to handle the skull when ready
+     */
+    public static void acceptSyncPlayerSkull(String playerName, java.util.function.Consumer<ItemStack> consumer) {
+        SkullManager.getInstance().acceptSyncPlayerSkull(playerName, consumer);
+    }
+
+    /**
+     * Accept a player skull asynchronously using LiteSkullAPI (if available)
+     * @param playerName The player name
+     * @param consumer Consumer to handle the skull when ready
+     */
+    public static void acceptAsyncPlayerSkull(String playerName, java.util.function.Consumer<ItemStack> consumer) {
+        SkullManager.getInstance().acceptAsyncPlayerSkull(playerName, consumer);
     }
 
     /**
@@ -59,7 +78,7 @@ public class SkullUtils {
     }
 
     /**
-     * Preload player skulls for better performance
+     * Preload player skulls for better performance (uses LiteSkullAPI if available)
      * @param playerNames Array of player names to preload
      */
     public static void preloadPlayerSkulls(String... playerNames) {
@@ -82,7 +101,7 @@ public class SkullUtils {
     }
 
     /**
-     * Clear only player cache
+     * Clear only player cache (managed by LiteSkullAPI)
      */
     public static void clearPlayerCache() {
         SkullManager.getInstance().clearPlayerCache();
@@ -95,7 +114,7 @@ public class SkullUtils {
         SkullManager.getInstance().clearTextureCache();
     }
 
-    // Common skull textures for quick access
+    // Common skull textures for quick access (uses original implementation)
     public static class CommonSkulls {
 
         // Arrow skulls
