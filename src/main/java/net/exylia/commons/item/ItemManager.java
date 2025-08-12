@@ -287,23 +287,16 @@ public class ItemManager implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
-            DebugUtils.logInternalDebug(debug(), "InventoryClick event not triggered by player, ignoring");
             return;
         }
-
-        DebugUtils.logInternalDebug(debug(), "InventoryClick event triggered for player: " + player.getName());
 
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null) {
-            DebugUtils.logInternalDebug(debug(), "Clicked item is null, returning from InventoryClick");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing clicked item: " + clickedItem.getType() + " for player: " + player.getName());
-
         InteractiveItem interactiveItem = getItemFromStack(clickedItem);
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No interactive item found for clicked stack, returning from InventoryClick");
             return;
         }
 
@@ -349,7 +342,6 @@ public class ItemManager implements Listener {
 
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No interactive item found for consumed stack, returning from PlayerItemConsume");
             return;
         }
 
@@ -704,7 +696,6 @@ public class ItemManager implements Listener {
         ItemStack draggedItem = event.getOldCursor();
         InteractiveItem interactiveItem = getItemFromStack(draggedItem);
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No interactive item found for dragged stack, returning from InventoryDrag");
             return;
         }
 
@@ -746,7 +737,6 @@ public class ItemManager implements Listener {
 
         InteractiveItem interactiveItem = getItemFromStack(droppedItem);
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No interactive item found for dropped stack, returning from PlayerDropItem");
             return;
         }
 

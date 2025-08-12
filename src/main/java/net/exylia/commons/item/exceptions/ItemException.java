@@ -1,8 +1,5 @@
 package net.exylia.commons.item.exceptions;
 
-/**
- * Excepción base para errores relacionados con items
- */
 public class ItemException extends RuntimeException {
 
     public ItemException(String message) {
