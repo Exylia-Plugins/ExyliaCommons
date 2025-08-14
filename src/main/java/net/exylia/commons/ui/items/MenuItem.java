@@ -47,6 +47,7 @@ public class MenuItem {
     private String rawAmount;
 
     // Contexto modernizado
+    @Getter
     private ExyliaContext context = ExyliaContext.create();
 
     // Comportamiento
@@ -232,13 +233,6 @@ public class MenuItem {
     public MenuItem mergeContext(ExyliaContext otherContext) {
         this.context.merge(otherContext);
         return this;
-    }
-
-    /**
-     * Obtiene el contexto actual
-     */
-    public ExyliaContext getContext() {
-        return context;
     }
 
     /**

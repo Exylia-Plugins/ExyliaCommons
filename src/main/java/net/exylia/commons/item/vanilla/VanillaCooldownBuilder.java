@@ -1,5 +1,6 @@
 package net.exylia.commons.item.vanilla;
 
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -123,7 +124,7 @@ public class VanillaCooldownBuilder {
                     }
                 }
             } catch (IllegalArgumentException e) {
-                System.err.println("Invalid material in vanilla cooldown config: " + materialName);
+                DebugUtils.logError("Invalid material in vanilla cooldown config: " + materialName);
             }
         }
 

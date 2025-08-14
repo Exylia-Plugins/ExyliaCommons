@@ -10,6 +10,7 @@ import net.exylia.commons.region.model.RegionFlagType;
 import net.exylia.commons.region.model.RegionPriority;
 import net.exylia.commons.selection.model.Selection;
 import net.exylia.commons.database.serialization.SerializationUtils;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Location;
 
 import java.util.*;
@@ -129,8 +130,8 @@ public class RegionSerializer {
             return result;
         } catch (Exception e) {
             // Log detallado para debugging
-            System.err.println("Error serializing Region: " + region.getId() + " - " + e.getMessage());
-            System.err.println("Region metadata: " + region.getMetadata());
+            DebugUtils.logError("Error serializing Region: " + region.getId() + " - " + e.getMessage());
+            DebugUtils.logError("Region metadata: " + region.getMetadata());
             e.printStackTrace();
             throw new RuntimeException("Error serializando Region: " + e.getMessage(), e);
         }
@@ -147,7 +148,7 @@ public class RegionSerializer {
             RegionData data = GSON.fromJson(json, RegionData.class);
             return createRegionFromData(data);
         } catch (Exception e) {
-            System.err.println("Error deserializing Region JSON: " + json.substring(0, Math.min(100, json.length())) + "...");
+            DebugUtils.logError("Error deserializing Region JSON: " + json.substring(0, Math.min(100, json.length())) + "...");
             throw new RuntimeException("Error deserializando Region: " + e.getMessage(), e);
         }
     }
@@ -209,7 +210,7 @@ public class RegionSerializer {
                     flags.put(flag, type);
                 } catch (IllegalArgumentException e) {
                     // Ignorar flags inválidas (backward compatibility)
-                    System.err.println("Ignoring invalid flag during deserialization: " + entry.getKey() + "=" + entry.getValue());
+                    DebugUtils.logError("Ignoring invalid flag during deserialization: " + entry.getKey() + "=" + entry.getValue());
                 }
             }
             region.setFlags(flags);
@@ -222,7 +223,7 @@ public class RegionSerializer {
                 try {
                     ownerUUIDs.add(UUID.fromString(uuidString));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("Ignoring invalid owner UUID during deserialization: " + uuidString);
+                    DebugUtils.logError("Ignoring invalid owner UUID during deserialization: " + uuidString);
                 }
             }
             region.setOwners(ownerUUIDs);
@@ -235,7 +236,7 @@ public class RegionSerializer {
                 try {
                     memberUUIDs.add(UUID.fromString(uuidString));
                 } catch (IllegalArgumentException e) {
-                    System.err.println("Ignoring invalid member UUID during deserialization: " + uuidString);
+                    DebugUtils.logError("Ignoring invalid member UUID during deserialization: " + uuidString);
                 }
             }
             region.setMembers(memberUUIDs);

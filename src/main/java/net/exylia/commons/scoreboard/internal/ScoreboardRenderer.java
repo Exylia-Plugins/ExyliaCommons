@@ -5,6 +5,7 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.scoreboard.config.ScoreboardSettings;
 import net.exylia.commons.scoreboard.fastBoard.FastBoard;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.DebugUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
@@ -86,7 +87,7 @@ public class ScoreboardRenderer {
 
             return mainTeam;
         } catch (Exception e) {
-            System.err.println("Error configurando team principal: " + e.getMessage());
+            DebugUtils.logError("Error configurando team principal: " + e.getMessage());
             return null;
         }
     }
@@ -171,7 +172,7 @@ public class ScoreboardRenderer {
                 mainTeam.addEntry(player.getName());
             }
         } catch (Exception e) {
-            System.err.println("Error actualizando team principal: " + e.getMessage());
+            DebugUtils.logError("Error actualizando team principal: " + e.getMessage());
         }
     }
 
@@ -195,7 +196,7 @@ public class ScoreboardRenderer {
                         }
                     });
         } catch (Exception e) {
-            System.err.println("Error limpiando teams vacíos: " + e.getMessage());
+            DebugUtils.logError("Error limpiando teams vacíos: " + e.getMessage());
         }
     }
 
@@ -228,7 +229,7 @@ public class ScoreboardRenderer {
                     }
                 }
             } catch (Exception e) {
-                System.err.println("Error limpiando scoreboard: " + e.getMessage());
+                DebugUtils.logError("Error limpiando scoreboard: " + e.getMessage());
             }
         }
 
