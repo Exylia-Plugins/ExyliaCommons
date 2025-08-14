@@ -110,46 +110,6 @@ public abstract class ItemBuilder<T extends ItemBuilder<T>> {
         return self();
     }
 
-    public T potionEffect(PotionEffectType effectType, int amplifier, int duration) {
-        item.addPotionEffect(effectType, amplifier, duration);
-        return self();
-    }
-
-    public T potionEffect(String effectType, int amplifier, int duration) {
-        item.addPotionEffect(effectType, amplifier, duration);
-        return self();
-    }
-
-    public T potionEffect(String effectType, String amplifier, String duration) {
-        item.addPotionEffect(effectType, amplifier, duration);
-        return self();
-    }
-
-    public T clearPotionEffects() {
-        item.clearPotionEffects();
-        return self();
-    }
-
-    public T potionColor(Color color) {
-        item.setPotionColor(color);
-        return self();
-    }
-
-    public T potionColor(String colorString) {
-        item.setPotionColor(colorString);
-        return self();
-    }
-
-    public T potionColor(int r, int g, int b) {
-        item.setPotionColor(Color.fromRGB(r, g, b));
-        return self();
-    }
-
-    public T basePotionType(String potionType) {
-        item.setBasePotionType(potionType);
-        return self();
-    }
-
     public MenuItem build() {
         return item;
     }

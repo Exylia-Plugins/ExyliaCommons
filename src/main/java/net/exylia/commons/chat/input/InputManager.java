@@ -1,6 +1,7 @@
 package net.exylia.commons.chat.input;
 
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.visuals.MessageUtils;
@@ -65,7 +66,7 @@ public final class InputManager implements Listener {
         handler.onStart(player);
 
         TitleUtils.sendCountdownTitle(player, "input_timeout",
-                new TitleConfig("{primary}Enter your input in chat.", "{info}%time%s remaining", true),
+                new TitleConfig(MessagesBase.getRaw("system.input.title.title"), MessagesBase.getRaw("system.input.title.subtitle"), true),
                 30,
                 ExyliaContext.create()
         );

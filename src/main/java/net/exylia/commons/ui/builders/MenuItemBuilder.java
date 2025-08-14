@@ -4,6 +4,7 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
+import net.exylia.commons.ui.items.PotionConfig;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
@@ -124,30 +125,44 @@ public class MenuItemBuilder {
     }
 
     private static void configurePotionEffects(MenuItem item, ConfigurationSection config) {
-        if (config.contains("potion_effects")) {
-            List<?> effectsList = config.getList("potion_effects");
-            if (effectsList != null) {
-                for (Object effectObj : effectsList) {
-                    if (effectObj instanceof Map<?, ?> effectMap) {
-                        String type = String.valueOf(effectMap.get("type"));
-                        Object amplifier = effectMap.get("amplifier");
-                        Object duration = effectMap.get("duration");
-
-                        String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
-                        String durationStr = duration != null ? String.valueOf(duration) : "600";
-
-                        item.addPotionEffect(type, amplifierStr, durationStr);
-                    }
-                }
+        if (config.contains("potion")) {
+            ConfigurationSection potionSection = config.getConfigurationSection("potion");
+            if (potionSection != null) {
+                PotionConfig potionConfig = PotionConfig.fromConfig(potionSection);
+                item.setPotionConfig(potionConfig);
             }
         }
 
-        if (config.contains("base_potion_type")) {
-            item.setBasePotionType(config.getString("base_potion_type"));
-        }
+        else if (config.contains("potion_effects") || config.contains("base_potion_type") || config.contains("potion_color")) {
+            PotionConfig potionConfig = new PotionConfig();
 
-        if (config.contains("potion_color")) {
-            item.setPotionColor(config.getString("potion_color"));
+            if (config.contains("base_potion_type")) {
+                potionConfig.setBasePotionType(config.getString("base_potion_type"));
+            }
+
+            if (config.contains("potion_color")) {
+                potionConfig.setPotionColor(config.getString("potion_color"));
+            }
+
+            if (config.contains("potion_effects")) {
+                List<?> effectsList = config.getList("potion_effects");
+                if (effectsList != null) {
+                    for (Object effectObj : effectsList) {
+                        if (effectObj instanceof Map<?, ?> effectMap) {
+                            String type = String.valueOf(effectMap.get("type"));
+                            Object amplifier = effectMap.get("amplifier");
+                            Object duration = effectMap.get("duration");
+
+                            String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
+                            String durationStr = duration != null ? String.valueOf(duration) : "600";
+
+                            potionConfig.addCustomEffect(type, amplifierStr, durationStr);
+                        }
+                    }
+                }
+            }
+
+            item.setPotionConfig(potionConfig);
         }
     }
 
@@ -291,39 +306,92 @@ public class MenuItemBuilder {
             return this;
         }
 
-        public FluentMenuItemBuilder potionEffect(PotionEffectType effectType, int amplifier, int duration) {
-            item.addPotionEffect(effectType, amplifier, duration);
-            return this;
-        }
-
-        public FluentMenuItemBuilder potionEffect(String effectType, int amplifier, int duration) {
-            item.addPotionEffect(effectType, amplifier, duration);
-            return this;
-        }
-
-        public FluentMenuItemBuilder potionEffect(String effectType, String amplifier, String duration) {
-            item.addPotionEffect(effectType, amplifier, duration);
-            return this;
-        }
-
-        public FluentMenuItemBuilder potionColor(Color color) {
-            item.setPotionColor(color);
-            return this;
-        }
-
-        public FluentMenuItemBuilder potionColor(String colorString) {
-            item.setPotionColor(colorString);
-            return this;
-        }
-
-        public FluentMenuItemBuilder potionColor(int r, int g, int b) {
-            item.setPotionColor(Color.fromRGB(r, g, b));
+        public FluentMenuItemBuilder potion(PotionConfig potionConfig) {
+            item.setPotionConfig(potionConfig);
             return this;
         }
 
         public FluentMenuItemBuilder basePotionType(String potionType) {
-            item.setBasePotionType(potionType);
+            return basePotionType(potionType, false, false);
+        }
+
+        public FluentMenuItemBuilder basePotionType(String potionType, boolean upgraded, boolean extended) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.setBasePotionType(potionType)
+                    .setPotionUpgraded(upgraded)
+                    .setPotionExtended(extended);
             return this;
+        }
+
+        public FluentMenuItemBuilder potionUpgraded(boolean upgraded) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.setPotionUpgraded(upgraded);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionExtended(boolean extended) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.setPotionExtended(extended);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionEffect(PotionEffectType effectType, int amplifier, int duration) {
+            return potionEffect(effectType.getName(), amplifier, duration);
+        }
+
+        public FluentMenuItemBuilder potionEffect(String effectType, int amplifier, int duration) {
+            return potionEffect(effectType, String.valueOf(amplifier), String.valueOf(duration));
+        }
+
+        public FluentMenuItemBuilder potionEffect(String effectType, String amplifier, String duration) {
+            return potionEffect(effectType, amplifier, duration, false, true, true);
+        }
+
+        public FluentMenuItemBuilder potionEffect(String effectType, String amplifier, String duration,
+                                                  boolean ambient, boolean particles, boolean icon) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.addCustomEffect(effectType, amplifier, duration, ambient, particles, icon);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(Color color) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.setPotionColor(color);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(String colorString) {
+            PotionConfig config = item.getPotionConfig();
+            if (config == null) {
+                config = new PotionConfig();
+                item.setPotionConfig(config);
+            }
+            config.setPotionColor(colorString);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(int r, int g, int b) {
+            return potionColor(Color.fromRGB(r, g, b));
         }
 
         public FluentMenuItemBuilder click(java.util.function.Consumer<MenuClickEvent> handler) {

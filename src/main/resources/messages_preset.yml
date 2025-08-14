@@ -9,6 +9,11 @@ system:
   invalid_range: "%prefix% {error}The quantity {info}%quantity%{error} must be between 1 and 64."
   invalid_number: "%prefix% {error}The quantity {info}%quantity%{error} is not a valid number."
 
+  input:
+    title:
+      title: "{primary}Enter your input in chat."
+      subtitle: "{info}%time%s remaining"
+
   commands:
     no_subcommands: "%prefix% {error}This command has no subcommands."
     usage: "%prefix% {primary}Usage: {info}%usage%{primary}"

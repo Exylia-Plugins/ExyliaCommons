@@ -20,8 +20,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionData;
 import org.bukkit.potion.PotionEffect;
-import org.bukkit.potion.PotionEffectType;
-import org.bukkit.potion.PotionType;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -55,9 +53,9 @@ public class MenuItem {
     private Consumer<MenuClickEvent> clickHandler;
 
     private final Map<String, Integer> rawEnchantments = new HashMap<>();
-    private final List<PotionEffectData> rawPotionEffects = new ArrayList<>();
-    private String rawPotionColor;
-    private String rawBasePotionType;
+
+    // Nueva configuración de pociones
+    private PotionConfig potionConfig;
 
     public MenuItem(Material material) {
         this(material.name());
@@ -74,45 +72,6 @@ public class MenuItem {
         this.itemStack = itemStack.clone();
         this.rawMaterial = itemStack.getType().name();
     }
-
-    public static class PotionEffectData {
-        public final String type;
-        public final String amplifier;
-        public final String duration;
-
-        public PotionEffectData(String type, String amplifier, String duration) {
-            this.type = type;
-            this.amplifier = amplifier;
-            this.duration = duration;
-        }
-    }
-
-    private PotionType getPotionTypeByName(String name) {
-        try {
-            return PotionType.valueOf(name.toUpperCase());
-        } catch (Exception e) {
-            return switch (name.toLowerCase()) {
-                case "speed", "swiftness" -> PotionType.SPEED;
-                case "slowness", "slow" -> PotionType.SLOWNESS;
-                case "strength" -> PotionType.STRENGTH;
-                case "instant_health", "healing", "heal" -> PotionType.INSTANT_HEAL;
-                case "instant_damage", "harming", "harm" -> PotionType.INSTANT_DAMAGE;
-                case "jump_boost", "jump" -> PotionType.JUMP;
-                case "regeneration", "regen" -> PotionType.REGEN;
-                case "fire_resistance", "fire_resist" -> PotionType.FIRE_RESISTANCE;
-                case "water_breathing" -> PotionType.WATER_BREATHING;
-                case "invisibility", "invis" -> PotionType.INVISIBILITY;
-                case "night_vision" -> PotionType.NIGHT_VISION;
-                case "weakness", "weak" -> PotionType.WEAKNESS;
-                case "poison" -> PotionType.POISON;
-                case "luck" -> PotionType.LUCK;
-                case "turtle_master" -> PotionType.TURTLE_MASTER;
-                case "slow_falling" -> PotionType.SLOW_FALLING;
-                default -> null;
-            };
-        }
-    }
-
 
     public MenuItem setName(String name) {
         this.rawName = name;
@@ -204,35 +163,15 @@ public class MenuItem {
         return this;
     }
 
-    public MenuItem addPotionEffect(PotionEffectType effectType, int amplifier, int duration) {
-        return addPotionEffect(effectType.getName(), String.valueOf(amplifier), String.valueOf(duration));
-    }
-
-    public MenuItem addPotionEffect(String effectType, String amplifier, String duration) {
-        rawPotionEffects.add(new PotionEffectData(effectType, amplifier, duration));
+    public MenuItem setPotionConfig(PotionConfig config) {
+        this.potionConfig = config;
         return this;
     }
 
-    public MenuItem addPotionEffect(String effectType, int amplifier, int duration) {
-        return addPotionEffect(effectType, String.valueOf(amplifier), String.valueOf(duration));
-    }
-
-    public MenuItem clearPotionEffects() {
-        rawPotionEffects.clear();
-        return this;
-    }
-
-    public MenuItem setPotionColor(Color color) {
-        return setPotionColor(String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue()));
-    }
-
-    public MenuItem setPotionColor(String colorString) {
-        this.rawPotionColor = colorString;
-        return this;
-    }
-
-    public MenuItem setBasePotionType(String potionType) {
-        this.rawBasePotionType = potionType;
+    public MenuItem configurePotionFromConfig(org.bukkit.configuration.ConfigurationSection config) {
+        if (config != null) {
+            this.potionConfig = PotionConfig.fromConfig(config);
+        }
         return this;
     }
 
@@ -357,7 +296,7 @@ public class MenuItem {
         }
 
         processEnchantments(player);
-        processPotionEffects(player);
+        processPotionConfig(player);
     }
 
     public void process() {
@@ -402,93 +341,28 @@ public class MenuItem {
         itemStack.setItemMeta(meta);
     }
 
-    private void processPotionEffects(Player player) {
-        if (rawPotionEffects.isEmpty() && rawPotionColor == null) return;
+    private void processPotionConfig(Player player) {
+        if (potionConfig == null || !potionConfig.hasConfiguration()) return;
 
         ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
+        if (!(meta instanceof PotionMeta potionMeta)) return;
 
-        // Manejar pociones normales y splash
-        if (meta instanceof PotionMeta potionMeta) {
-            processPotionMeta(potionMeta, player);
-            itemStack.setItemMeta(potionMeta);
-        }
-        // Manejar flechas con poción (TippedArrow)
-        else if (itemStack.getType() == Material.TIPPED_ARROW && meta instanceof PotionMeta potionMeta) {
-            processPotionMeta(potionMeta, player);
-            itemStack.setItemMeta(potionMeta);
-        }
-        // Intentar con cualquier ItemMeta que implemente PotionMeta (compatibilidad futura)
-        else {
-            try {
-                if (meta instanceof PotionMeta potionMeta) {
-                    processPotionMeta(potionMeta, player);
-                    itemStack.setItemMeta(potionMeta);
-                }
-            } catch (Exception ignored) {
-                // Si falla, continuar sin efectos de poción
-            }
-        }
-    }
-
-    private void processPotionMeta(PotionMeta potionMeta, Player player) {
-        // Establecer tipo base de poción si está especificado
-        if (rawBasePotionType != null) {
-            String processedType = player != null ?
-                    context.processPlaceholders(rawBasePotionType, player) : rawBasePotionType;
-
-            try {
-                PotionType potionType = PotionType.valueOf(processedType.toUpperCase());
-                potionMeta.setBasePotionData(new PotionData(potionType));
-            } catch (Exception ignored) {
-                // Intentar con diferentes formatos
-                try {
-                    PotionType potionType = getPotionTypeByName(processedType);
-                    if (potionType != null) {
-                        potionMeta.setBasePotionData(new PotionData(potionType));
-                    }
-                } catch (Exception ignored2) {
-                }
-            }
+        if (potionConfig.getBasePotionType() != null) {
+            PotionData potionData = potionConfig.createPotionData();
+            potionMeta.setBasePotionData(potionData);
         }
 
-        // Agregar efectos custom
-        if (!rawPotionEffects.isEmpty()) {
-            for (PotionEffectData effectData : rawPotionEffects) {
-                String effectType = effectData.type;
-                String amplifierStr = effectData.amplifier;
-                String durationStr = effectData.duration;
-
-                if (player != null) {
-                    effectType = context.processPlaceholders(effectType, player);
-                    amplifierStr = context.processPlaceholders(amplifierStr, player);
-                    durationStr = context.processPlaceholders(durationStr, player);
-                }
-
-                try {
-                    PotionEffectType type = getPotionEffectByName(effectType);
-                    int amplifier = Integer.parseInt(amplifierStr);
-                    int duration = Integer.parseInt(durationStr);
-
-                    if (type != null) {
-                        PotionEffect effect = new PotionEffect(type, duration, amplifier);
-                        potionMeta.addCustomEffect(effect, true);
-                    }
-                } catch (NumberFormatException ignored) {
-                }
-            }
+        List<PotionEffect> customEffects = potionConfig.createCustomEffects(player, context);
+        for (PotionEffect effect : customEffects) {
+            potionMeta.addCustomEffect(effect, true);
         }
 
-        // Establecer color custom
-        if (rawPotionColor != null) {
-            String processedColor = player != null ?
-                    context.processPlaceholders(rawPotionColor, player) : rawPotionColor;
-
-            Color color = parseColor(processedColor);
-            if (color != null) {
-                potionMeta.setColor(color);
-            }
+        Color color = potionConfig.getProcessedColor(player, context);
+        if (color != null) {
+            potionMeta.setColor(color);
         }
+
+        itemStack.setItemMeta(potionMeta);
     }
 
     private List<String> getCurrentLore() {
@@ -594,51 +468,6 @@ public class MenuItem {
         }
     }
 
-    private PotionEffectType getPotionEffectByName(String name) {
-        try {
-            return PotionEffectType.getByName(name.toUpperCase());
-        } catch (Exception e) {
-            for (PotionEffectType type : PotionEffectType.values()) {
-                if (type != null && (type.getName().equalsIgnoreCase(name) ||
-                        type.toString().equalsIgnoreCase(name))) {
-                    return type;
-                }
-            }
-            return null;
-        }
-    }
-
-    private Color parseColor(String colorString) {
-        try {
-            if (colorString.startsWith("#")) {
-                int rgb = Integer.parseInt(colorString.substring(1), 16);
-                return Color.fromRGB(rgb);
-            }
-
-            String[] parts = colorString.split(",");
-            if (parts.length == 3) {
-                int r = Integer.parseInt(parts[0].trim());
-                int g = Integer.parseInt(parts[1].trim());
-                int b = Integer.parseInt(parts[2].trim());
-                return Color.fromRGB(r, g, b);
-            }
-
-            switch (colorString.toLowerCase()) {
-                case "red": return Color.RED;
-                case "blue": return Color.BLUE;
-                case "green": return Color.GREEN;
-                case "yellow": return Color.YELLOW;
-                case "purple": return Color.PURPLE;
-                case "orange": return Color.ORANGE;
-                case "white": return Color.WHITE;
-                case "black": return Color.BLACK;
-                default: return null;
-            }
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public void handleClick(MenuClickEvent event) {
         if (clickHandler != null) {
             clickHandler.accept(event);
@@ -656,9 +485,7 @@ public class MenuItem {
         clone.context = this.context.copy();
         clone.loreDynamicSupplier = this.loreDynamicSupplier;
         clone.rawEnchantments.putAll(this.rawEnchantments);
-        clone.rawPotionEffects.addAll(this.rawPotionEffects);
-        clone.rawPotionColor = this.rawPotionColor;
-        clone.rawBasePotionType = this.rawBasePotionType;
+        clone.potionConfig = this.potionConfig;
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -735,30 +562,41 @@ public class MenuItem {
             }
         }
 
-        if (config.contains("potion_effects")) {
-            List<?> effectsList = config.getList("potion_effects");
-            if (effectsList != null) {
-                for (Object effectObj : effectsList) {
-                    if (effectObj instanceof Map<?, ?> effectMap) {
-                        String type = String.valueOf(effectMap.get("type"));
-                        Object amplifier = effectMap.get("amplifier");
-                        Object duration = effectMap.get("duration");
+        if (config.contains("potion")) {
+            org.bukkit.configuration.ConfigurationSection potionSection = config.getConfigurationSection("potion");
+            item.configurePotionFromConfig(potionSection);
+        }
 
-                        String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
-                        String durationStr = duration != null ? String.valueOf(duration) : "600";
+        if (config.contains("potion_effects") || config.contains("base_potion_type") || config.contains("potion_color")) {
+            if (item.potionConfig == null) {
+                item.potionConfig = new PotionConfig();
+            }
 
-                        item.addPotionEffect(type, amplifierStr, durationStr);
+            if (config.contains("potion_effects")) {
+                List<?> effectsList = config.getList("potion_effects");
+                if (effectsList != null) {
+                    for (Object effectObj : effectsList) {
+                        if (effectObj instanceof Map<?, ?> effectMap) {
+                            String type = String.valueOf(effectMap.get("type"));
+                            Object amplifier = effectMap.get("amplifier");
+                            Object duration = effectMap.get("duration");
+
+                            String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
+                            String durationStr = duration != null ? String.valueOf(duration) : "600";
+
+                            item.potionConfig.addCustomEffect(type, amplifierStr, durationStr);
+                        }
                     }
                 }
             }
-        }
 
-        if (config.contains("base_potion_type")) {
-            item.setBasePotionType(config.getString("base_potion_type"));
-        }
+            if (config.contains("base_potion_type")) {
+                item.potionConfig.setBasePotionType(config.getString("base_potion_type"));
+            }
 
-        if (config.contains("potion_color")) {
-            item.setPotionColor(config.getString("potion_color"));
+            if (config.contains("potion_color")) {
+                item.potionConfig.setPotionColor(config.getString("potion_color"));
+            }
         }
 
         if (context != null) {
@@ -810,11 +648,11 @@ public class MenuItem {
         return new HashMap<>(rawEnchantments);
     }
 
-    public List<PotionEffectData> getPotionEffects() {
-        return new ArrayList<>(rawPotionEffects);
+    public PotionConfig getPotionConfig() {
+        return potionConfig;
     }
 
-    public String getPotionColor() {
-        return rawPotionColor;
+    public boolean hasPotionConfig() {
+        return potionConfig != null && potionConfig.hasConfiguration();
     }
 }
