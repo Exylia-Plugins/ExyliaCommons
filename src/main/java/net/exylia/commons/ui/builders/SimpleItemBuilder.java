@@ -5,9 +5,6 @@ import org.bukkit.Material;
 
 import java.util.function.Consumer;
 
-/**
- * Simple item builder
- */
 public class SimpleItemBuilder extends ItemBuilder<SimpleItemBuilder> {
 
     public SimpleItemBuilder(Material material) {

@@ -6,6 +6,7 @@ import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.PaginationMenu;
 import net.exylia.commons.ui.menus.EditableMenu;
+import net.exylia.commons.ui.builders.EditableMenuBuilder;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
@@ -13,14 +14,12 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Configuration-based menu builder
- * Replaces the old MenuBuilder with a cleaner API
- */
 public class MenuConfiguration {
 
     private final JavaPlugin plugin;
@@ -29,34 +28,14 @@ public class MenuConfiguration {
         this.plugin = plugin;
     }
 
-    /**
-     * Builds a menu from configuration
-     * @param config The configuration
-     * @param player The player
-     * @return The built menu
-     */
     public Menu buildMenu(FileConfiguration config, Player player) {
         return buildMenu(config, player, null);
     }
 
-    /**
-     * Builds a menu from configuration with context
-     * @param config The configuration
-     * @param player The player
-     * @param context The menu context
-     * @return The built menu
-     */
     public Menu buildMenu(FileConfiguration config, Player player, ExyliaContext context) {
         return buildFromSection(config, player, context);
     }
 
-    /**
-     * Builds a menu from a configuration section
-     * @param section The configuration section
-     * @param player The player
-     * @param context The menu context
-     * @return The built menu
-     */
     public Menu buildMenu(ConfigurationSection section, Player player, ExyliaContext context) {
         return buildFromSection(section, player, context);
     }
@@ -66,59 +45,113 @@ public class MenuConfiguration {
         int rows = config.getInt("rows", 3);
         String type = config.getString("type", "normal").toLowerCase();
 
-        Menu menu = createMenuByType(type, title, rows, config, context);
+        Menu menu = createMenuByType(type, title, rows, config, context, player);
 
         if (config.getBoolean("dynamic_updates", false)) {
             long interval = config.getLong("update_interval", 20L);
             menu.enableDynamicUpdates(plugin, interval);
         }
 
-        // Configure fillers
         configureFiller(menu, config.getConfigurationSection("global_filler"), "global", player, context);
         configureFiller(menu, config.getConfigurationSection("border_filler"), "border", player, context);
 
-        // Load items
         ConfigurationSection itemsSection = config.getConfigurationSection("items");
         if (itemsSection != null) {
             loadItems(menu, itemsSection, player, rows, context);
         }
+
         menu.enableSmartRefresh();
         return menu;
     }
 
-    private Menu createMenuByType(String type, String title, int rows, ConfigurationSection config, ExyliaContext context) {
+    private Menu createMenuByType(String type, String title, int rows, ConfigurationSection config,
+                                  ExyliaContext context, Player player) {
         return switch (type) {
-            case "pagination" -> {
-                String slotsString = config.getString("item_slots", "10-16,19-25,28-34");
-                int[] slots = parseSlots(slotsString, rows);
-
-                PaginationMenu menu = new PaginationMenu(title, rows, slots, context);
-
-                ConfigurationSection globalFillerSection = config.getConfigurationSection("global_filler");
-                if (globalFillerSection != null) {
-                    menu.setGlobalFiller(buildMenuItem(globalFillerSection, null, context));
-                }
-
-                ConfigurationSection sectionFillerSection = config.getConfigurationSection("section_filler");
-                if (sectionFillerSection != null) {
-                    menu.setItemSlotFiller(buildMenuItem(sectionFillerSection, null, context));
-                }
-
-                ConfigurationSection prevButtonSection = config.getConfigurationSection("prev_button");
-                if (prevButtonSection != null) {
-                    menu.setPreviousButton(buildMenuItem(prevButtonSection, null, context), prevButtonSection.getInt("slot", 1));
-                }
-
-                ConfigurationSection nextButtonSection = config.getConfigurationSection("next_button");
-                if (nextButtonSection != null) {
-                    menu.setNextButton(buildMenuItem(nextButtonSection, null, context), nextButtonSection.getInt("slot", 1));
-                }
-
-                yield menu;
-            }
-            case "editable" -> new EditableMenu(title, rows, context);
+            case "pagination" -> createPaginationMenu(title, rows, config, context);
+            case "editable" -> createEditableMenu(title, rows, config, context, player);
             default -> new Menu(title, rows, context);
         };
+    }
+
+    private PaginationMenu createPaginationMenu(String title, int rows, ConfigurationSection config, ExyliaContext context) {
+        String slotsString = config.getString("item_slots", "10-16,19-25,28-34");
+        int[] slots = parseSlots(slotsString, rows);
+
+        PaginationMenu menu = new PaginationMenu(title, rows, slots, context);
+
+        ConfigurationSection globalFillerSection = config.getConfigurationSection("global_filler");
+        if (globalFillerSection != null) {
+            menu.setGlobalFiller(buildMenuItem(globalFillerSection, null, context));
+        }
+
+        ConfigurationSection sectionFillerSection = config.getConfigurationSection("section_filler");
+        if (sectionFillerSection != null) {
+            menu.setItemSlotFiller(buildMenuItem(sectionFillerSection, null, context));
+        }
+
+        ConfigurationSection prevButtonSection = config.getConfigurationSection("prev_button");
+        if (prevButtonSection != null) {
+            menu.setPreviousButton(buildMenuItem(prevButtonSection, null, context), prevButtonSection.getInt("slot", 1));
+        }
+
+        ConfigurationSection nextButtonSection = config.getConfigurationSection("next_button");
+        if (nextButtonSection != null) {
+            menu.setNextButton(buildMenuItem(nextButtonSection, null, context), nextButtonSection.getInt("slot", 1));
+        }
+
+        return menu;
+    }
+
+    private EditableMenu createEditableMenu(String title, int rows, ConfigurationSection config,
+                                            ExyliaContext context, Player player) {
+        EditableMenuBuilder builder = new EditableMenuBuilder(title, rows, context);
+
+        String editableSlotsString = config.getString("editable_slots");
+        if (editableSlotsString != null && !editableSlotsString.isEmpty()) {
+            int[] editableSlots = parseSlots(editableSlotsString, rows);
+            builder.addEditableSlots(editableSlots);
+        }
+
+        ConfigurationSection sectionFillerSection = config.getConfigurationSection("section_filler");
+        if (sectionFillerSection != null) {
+            MenuItem sectionFiller = buildMenuItem(sectionFillerSection, player, context);
+            builder.editableSlotFiller(sectionFiller);
+        }
+
+        EditableMenu menu = builder.build();
+
+        ConfigurationSection editableSectionConfig = config.getConfigurationSection("editable_section");
+        if (editableSectionConfig != null) {
+            loadEditableItems(menu, editableSectionConfig, player, context);
+        }
+
+        return menu;
+    }
+
+    private void loadEditableItems(EditableMenu menu, ConfigurationSection editableSection,
+                                   Player player, ExyliaContext context) {
+        for (String itemKey : editableSection.getKeys(false)) {
+            ConfigurationSection itemConfig = editableSection.getConfigurationSection(itemKey);
+            if (itemConfig == null) continue;
+
+            MenuItem menuItem = buildMenuItem(itemConfig, player, context);
+            ItemStack itemStack = menuItem.buildProcessed(player);
+
+            if (itemConfig.contains("slot")) {
+                int slot = itemConfig.getInt("slot");
+                if (menu.isSlotEditable(slot)) {
+                    menu.setEditableItem(slot, itemStack);
+                }
+            } else if (itemConfig.contains("slots")) {
+                List<Integer> slots = getItemSlots(itemConfig, menu.getRows());
+                for (int slot : slots) {
+                    if (menu.isSlotEditable(slot)) {
+                        menu.setEditableItem(slot, itemStack.clone());
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private void configureFiller(Menu menu, ConfigurationSection fillerConfig, String type, Player player, ExyliaContext context) {
@@ -149,45 +182,8 @@ public class MenuConfiguration {
     }
 
     private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
-        String material = config.getString("material", "STONE");
-        MenuItem item = new MenuItem(material);
+        MenuItem item = MenuItem.fromConfig(config, player, context);
 
-        // Basic properties
-        if (config.contains("name")) {
-            item.setName(config.getString("name"));
-        }
-
-        if (config.contains("lore")) {
-            item.setLoreList(config.getStringList("lore"));
-        }
-
-        if (config.contains("amount")) {
-            Object amount = config.get("amount");
-            if (amount instanceof String) {
-                item.setAmount((String) amount);
-            } else if (amount instanceof Integer) {
-                item.setAmount((Integer) amount);
-            }
-        }
-
-        // Visual properties
-        if (config.getBoolean("glow", false)) {
-            item.setGlowing(true);
-        }
-
-        if (config.getBoolean("hide_attributes", true)) {
-            item.hideAllAttributes();
-        }
-
-        // Dynamic updates
-        if (config.getBoolean("dynamic_update", false)) {
-            item.setDynamicUpdate(true);
-            if (config.contains("update_interval")) {
-                item.setUpdateInterval(config.getLong("update_interval", 20L));
-            }
-        }
-
-        // Actions - usando el sistema global
         if (config.contains("action")) {
             String actionString = config.getString("action");
             item.setClickHandler(event -> {
@@ -203,7 +199,11 @@ public class MenuConfiguration {
             });
         }
 
-        item.withContext(context);
+        if (context != null) {
+            item.withContext(context);
+        }
+
+        item.process(player);
 
         return item;
     }
@@ -211,7 +211,6 @@ public class MenuConfiguration {
     private ActionContext createActionContextFromMenuClick(MenuClickEvent event) {
         ActionContext context = new ActionContext(event.getPlayer(), ActionSource.MENU);
 
-        // Añadir datos del menú al contexto
         context.withData("menu", event.getMenu());
         context.withData("item", event.getItem());
         context.withData("slot", event.getSlot());
@@ -224,12 +223,10 @@ public class MenuConfiguration {
         for (String command : commands) {
             String processed = command;
 
-            // Process placeholders if context is available
             if (context != null) {
                 processed = context.processPlaceholders(processed, player);
             }
 
-            // Execute command based on prefix
             if (processed.startsWith("player:")) {
                 String cmd = processed.substring(7).trim();
                 player.performCommand(cmd);
@@ -237,7 +234,6 @@ public class MenuConfiguration {
                 String cmd = processed.substring(8).trim();
                 plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), cmd);
             } else {
-                // Default to player command
                 player.performCommand(processed);
             }
         }
@@ -247,7 +243,6 @@ public class MenuConfiguration {
         List<Integer> slots = new ArrayList<>();
         int maxSlot = rows * 9 - 1;
 
-        // Single slot
         if (config.contains("slot")) {
             int slot = config.getInt("slot", -1);
             if (slot >= 0 && slot <= maxSlot) {
@@ -255,7 +250,6 @@ public class MenuConfiguration {
             }
         }
 
-        // Multiple slots as string
         if (config.contains("slots") && config.isString("slots")) {
             String slotsString = config.getString("slots");
             int[] parsedSlots = parseSlots(slotsString, rows);
@@ -264,7 +258,6 @@ public class MenuConfiguration {
             }
         }
 
-        // Multiple slots as list
         if (config.contains("slots") && config.isList("slots")) {
             List<Integer> slotsList = config.getIntegerList("slots");
             for (int slot : slotsList) {
@@ -290,7 +283,6 @@ public class MenuConfiguration {
             part = part.trim();
 
             if (part.contains("-")) {
-                // Range: "10-16"
                 String[] range = part.split("-");
                 if (range.length == 2) {
                     try {
@@ -303,7 +295,6 @@ public class MenuConfiguration {
                     } catch (NumberFormatException ignored) {}
                 }
             } else {
-                // Single slot
                 try {
                     int slot = Integer.parseInt(part);
                     if (slot >= 0 && slot <= maxSlot) {

@@ -7,6 +7,7 @@ import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.enchantments.Enchantment;
@@ -14,28 +15,26 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionData;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.potion.PotionType;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static net.exylia.commons.utils.skull.SkullUtils.*;
 
-/**
- * MenuItem modernizado que usa ExyliaContext para el manejo de contextos
- */
 public class MenuItem {
 
     @Getter
     private final String id;
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
 
-    // Propiedades del item (raw = sin procesar)
     private ItemStack itemStack;
     @Getter
     private String rawMaterial;
@@ -46,16 +45,19 @@ public class MenuItem {
     @Getter
     private String rawAmount;
 
-    // Contexto modernizado
     @Getter
     private ExyliaContext context = ExyliaContext.create();
 
-    // Comportamiento
     private boolean dynamicUpdate = false;
     @Getter
     private long updateInterval = 20L;
     @Getter
     private Consumer<MenuClickEvent> clickHandler;
+
+    private final Map<String, Integer> rawEnchantments = new HashMap<>();
+    private final List<PotionEffectData> rawPotionEffects = new ArrayList<>();
+    private String rawPotionColor;
+    private String rawBasePotionType;
 
     public MenuItem(Material material) {
         this(material.name());
@@ -73,19 +75,50 @@ public class MenuItem {
         this.rawMaterial = itemStack.getType().name();
     }
 
-    // ==================== CONFIGURACIÓN BÁSICA ====================
+    public static class PotionEffectData {
+        public final String type;
+        public final String amplifier;
+        public final String duration;
 
-    /**
-     * Establece el nombre (con soporte de placeholders)
-     */
+        public PotionEffectData(String type, String amplifier, String duration) {
+            this.type = type;
+            this.amplifier = amplifier;
+            this.duration = duration;
+        }
+    }
+
+    private PotionType getPotionTypeByName(String name) {
+        try {
+            return PotionType.valueOf(name.toUpperCase());
+        } catch (Exception e) {
+            return switch (name.toLowerCase()) {
+                case "speed", "swiftness" -> PotionType.SPEED;
+                case "slowness", "slow" -> PotionType.SLOWNESS;
+                case "strength" -> PotionType.STRENGTH;
+                case "instant_health", "healing", "heal" -> PotionType.INSTANT_HEAL;
+                case "instant_damage", "harming", "harm" -> PotionType.INSTANT_DAMAGE;
+                case "jump_boost", "jump" -> PotionType.JUMP;
+                case "regeneration", "regen" -> PotionType.REGEN;
+                case "fire_resistance", "fire_resist" -> PotionType.FIRE_RESISTANCE;
+                case "water_breathing" -> PotionType.WATER_BREATHING;
+                case "invisibility", "invis" -> PotionType.INVISIBILITY;
+                case "night_vision" -> PotionType.NIGHT_VISION;
+                case "weakness", "weak" -> PotionType.WEAKNESS;
+                case "poison" -> PotionType.POISON;
+                case "luck" -> PotionType.LUCK;
+                case "turtle_master" -> PotionType.TURTLE_MASTER;
+                case "slow_falling" -> PotionType.SLOW_FALLING;
+                default -> null;
+            };
+        }
+    }
+
+
     public MenuItem setName(String name) {
         this.rawName = name;
         return this;
     }
 
-    /**
-     * Establece el nombre directamente como Component
-     */
     public MenuItem setName(Component name) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -95,159 +128,159 @@ public class MenuItem {
         return this;
     }
 
-    /**
-     * Establece el lore (con soporte de placeholders)
-     */
     public MenuItem setLore(String... lore) {
         this.rawLore = Arrays.asList(lore);
-        this.loreDynamicSupplier = null; // Limpiar supplier dinámico
+        this.loreDynamicSupplier = null;
         return this;
     }
 
-    /**
-     * Establece el lore desde lista
-     */
     public MenuItem setLoreList(List<String> lore) {
         this.rawLore = new ArrayList<>(lore);
-        this.loreDynamicSupplier = null; // Limpiar supplier dinámico
+        this.loreDynamicSupplier = null;
         return this;
     }
 
-    /**
-     * Establece el lore dinámico usando un Supplier
-     */
     public MenuItem setLore(Supplier<List<String>> loreSupplier) {
         this.loreDynamicSupplier = loreSupplier;
-        this.rawLore = null; // Limpiar lore estático
+        this.rawLore = null;
         return this;
     }
 
-    /**
-     * Establece el lore directamente como Components
-     */
     public MenuItem setLore(List<Component> lore) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
             adapter.setLore(meta, lore);
             itemStack.setItemMeta(meta);
         }
-        // Limpiar tanto lore estático como dinámico si se establece directamente
         this.rawLore = null;
         this.loreDynamicSupplier = null;
         return this;
     }
 
-    /**
-     * Establece la cantidad
-     */
     public MenuItem setAmount(int amount) {
         itemStack.setAmount(Math.max(1, Math.min(64, amount)));
         return this;
     }
 
-    /**
-     * Establece la cantidad con soporte de placeholders
-     */
     public MenuItem setAmount(String amountString) {
         this.rawAmount = amountString;
         return this;
     }
 
-    /**
-     * Establece el material
-     */
     public MenuItem setMaterial(Material material) {
         return setMaterial(material.name());
     }
 
-    /**
-     * Establece el material desde string (soporte para heads)
-     */
     public MenuItem setMaterial(String materialString) {
         this.rawMaterial = materialString;
         this.itemStack = createItemFromString(materialString);
         return this;
     }
 
-    // ==================== GESTIÓN DE CONTEXTOS CON EXYLIACONTEXT ====================
+    public MenuItem addEnchantment(Enchantment enchantment, int level) {
+        return addEnchantment(enchantment.getKey().getKey(), String.valueOf(level));
+    }
 
-    /**
-     * Establece el contexto completo
-     */
+    public MenuItem addEnchantment(String enchantmentName, String level) {
+        rawEnchantments.put(enchantmentName, Integer.parseInt(level));
+        return this;
+    }
+
+    public MenuItem addEnchantment(String enchantmentName, int level) {
+        return addEnchantment(enchantmentName, String.valueOf(level));
+    }
+
+    public MenuItem removeEnchantment(Enchantment enchantment) {
+        return removeEnchantment(enchantment.getKey().getKey());
+    }
+
+    public MenuItem removeEnchantment(String enchantmentName) {
+        rawEnchantments.remove(enchantmentName);
+        return this;
+    }
+
+    public MenuItem clearEnchantments() {
+        rawEnchantments.clear();
+        return this;
+    }
+
+    public MenuItem addPotionEffect(PotionEffectType effectType, int amplifier, int duration) {
+        return addPotionEffect(effectType.getName(), String.valueOf(amplifier), String.valueOf(duration));
+    }
+
+    public MenuItem addPotionEffect(String effectType, String amplifier, String duration) {
+        rawPotionEffects.add(new PotionEffectData(effectType, amplifier, duration));
+        return this;
+    }
+
+    public MenuItem addPotionEffect(String effectType, int amplifier, int duration) {
+        return addPotionEffect(effectType, String.valueOf(amplifier), String.valueOf(duration));
+    }
+
+    public MenuItem clearPotionEffects() {
+        rawPotionEffects.clear();
+        return this;
+    }
+
+    public MenuItem setPotionColor(Color color) {
+        return setPotionColor(String.format("#%02x%02x%02x", color.getRed(), color.getGreen(), color.getBlue()));
+    }
+
+    public MenuItem setPotionColor(String colorString) {
+        this.rawPotionColor = colorString;
+        return this;
+    }
+
+    public MenuItem setBasePotionType(String potionType) {
+        this.rawBasePotionType = potionType;
+        return this;
+    }
+
     public MenuItem withContext(ExyliaContext context) {
         this.context = context != null ? context : ExyliaContext.create();
         return this;
     }
 
-    /**
-     * Añade un objeto al contexto
-     */
     public MenuItem addToContext(Object object) {
         this.context.add(object);
         return this;
     }
 
-    /**
-     * Añade múltiples objetos al contexto
-     */
     public MenuItem addToContext(Object... objects) {
         this.context.addAll(objects);
         return this;
     }
 
-    /**
-     * Añade datos con clave al contexto
-     */
     public MenuItem addToContext(String key, Object value) {
         this.context.put(key, value);
         return this;
     }
 
-    /**
-     * Añade un objeto con tipo específico al contexto
-     */
     public <T> MenuItem addToContext(Class<T> type, T object) {
         this.context.add(type, object);
         return this;
     }
 
-    /**
-     * Añade datos dinámicos al contexto
-     */
     public MenuItem addDynamicToContext(String key, java.util.function.Supplier<Object> supplier) {
         this.context.putDynamic(key, supplier);
         return this;
     }
 
-    /**
-     * Limpia el contexto
-     */
     public MenuItem clearContext() {
         this.context = ExyliaContext.create();
         return this;
     }
 
-    /**
-     * Fusiona otro contexto con el actual
-     */
     public MenuItem mergeContext(ExyliaContext otherContext) {
         this.context.merge(otherContext);
         return this;
     }
 
-    /**
-     * Crea un contexto hijo
-     */
     public MenuItem createChildContext() {
         this.context = this.context.createChild();
         return this;
     }
 
-    // ==================== PROPIEDADES VISUALES ====================
-
-    /**
-     * Establece efecto de brillo
-     */
     public MenuItem setGlowing(boolean glowing) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -262,9 +295,6 @@ public class MenuItem {
         return this;
     }
 
-    /**
-     * Añade flags al item
-     */
     public MenuItem addItemFlags(ItemFlag... flags) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -274,9 +304,6 @@ public class MenuItem {
         return this;
     }
 
-    /**
-     * Oculta todos los atributos
-     */
     public MenuItem hideAllAttributes() {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -286,39 +313,22 @@ public class MenuItem {
         return this;
     }
 
-    // ==================== COMPORTAMIENTO ====================
-
-    /**
-     * Establece el manejador de clicks
-     */
     public MenuItem setClickHandler(Consumer<MenuClickEvent> handler) {
         this.clickHandler = handler;
         return this;
     }
 
-    /**
-     * Habilita/deshabilita actualización dinámica
-     */
     public MenuItem setDynamicUpdate(boolean dynamic) {
         this.dynamicUpdate = dynamic;
         return this;
     }
 
-    /**
-     * Establece intervalo de actualización
-     */
     public MenuItem setUpdateInterval(long interval) {
         this.updateInterval = Math.max(1, interval);
         return this;
     }
 
-    // ==================== PROCESAMIENTO CON EXYLIACONTEXT ====================
-
-    /**
-     * Procesa el item con placeholders usando ExyliaContext
-     */
     public void process(Player player) {
-        // Procesar material con placeholders
         if (rawMaterial != null) {
             String processedMaterial = context.processPlaceholders(rawMaterial, player);
             if (!processedMaterial.equals(rawMaterial)) {
@@ -326,13 +336,11 @@ public class MenuItem {
             }
         }
 
-        // Procesar nombre con placeholders
         if (rawName != null) {
             String processedName = context.processPlaceholders(rawName, player);
             updateName(processedName);
         }
 
-        // Procesar lore con placeholders
         List<String> currentLore = getCurrentLore();
         if (currentLore != null && !currentLore.isEmpty()) {
             List<Component> processedLore = new ArrayList<>();
@@ -343,55 +351,157 @@ public class MenuItem {
             updateLore(processedLore);
         }
 
-        // Procesar cantidad con placeholders
         if (rawAmount != null) {
             String processedAmount = context.processPlaceholders(rawAmount, player);
             updateAmount(processedAmount);
         }
+
+        processEnchantments(player);
+        processPotionEffects(player);
     }
 
-    /**
-     * Procesa el item sin jugador específico
-     */
     public void process() {
         process(null);
     }
 
-    /**
-     * Construye el ItemStack final con procesamiento
-     */
     public ItemStack buildProcessed(Player player) {
         process(player);
         return itemStack.clone();
     }
 
-    /**
-     * Construye el ItemStack final sin procesamiento
-     */
     public ItemStack build() {
         return itemStack.clone();
     }
 
-    // ==================== MÉTODOS INTERNOS DE ACTUALIZACIÓN ====================
+    private void processEnchantments(Player player) {
+        if (rawEnchantments.isEmpty()) return;
 
-    /**
-     * Obtiene el lore actual (dinámico o estático)
-     */
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        for (Map.Entry<String, Integer> entry : rawEnchantments.entrySet()) {
+            String enchantName = entry.getKey();
+            String levelStr = String.valueOf(entry.getValue());
+
+            if (player != null) {
+                enchantName = context.processPlaceholders(enchantName, player);
+                levelStr = context.processPlaceholders(levelStr, player);
+            }
+
+            try {
+                Enchantment enchantment = getEnchantmentByName(enchantName);
+                int level = Integer.parseInt(levelStr);
+
+                if (enchantment != null) {
+                    meta.addEnchant(enchantment, level, true);
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        itemStack.setItemMeta(meta);
+    }
+
+    private void processPotionEffects(Player player) {
+        if (rawPotionEffects.isEmpty() && rawPotionColor == null) return;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        // Manejar pociones normales y splash
+        if (meta instanceof PotionMeta potionMeta) {
+            processPotionMeta(potionMeta, player);
+            itemStack.setItemMeta(potionMeta);
+        }
+        // Manejar flechas con poción (TippedArrow)
+        else if (itemStack.getType() == Material.TIPPED_ARROW && meta instanceof PotionMeta potionMeta) {
+            processPotionMeta(potionMeta, player);
+            itemStack.setItemMeta(potionMeta);
+        }
+        // Intentar con cualquier ItemMeta que implemente PotionMeta (compatibilidad futura)
+        else {
+            try {
+                if (meta instanceof PotionMeta potionMeta) {
+                    processPotionMeta(potionMeta, player);
+                    itemStack.setItemMeta(potionMeta);
+                }
+            } catch (Exception ignored) {
+                // Si falla, continuar sin efectos de poción
+            }
+        }
+    }
+
+    private void processPotionMeta(PotionMeta potionMeta, Player player) {
+        // Establecer tipo base de poción si está especificado
+        if (rawBasePotionType != null) {
+            String processedType = player != null ?
+                    context.processPlaceholders(rawBasePotionType, player) : rawBasePotionType;
+
+            try {
+                PotionType potionType = PotionType.valueOf(processedType.toUpperCase());
+                potionMeta.setBasePotionData(new PotionData(potionType));
+            } catch (Exception ignored) {
+                // Intentar con diferentes formatos
+                try {
+                    PotionType potionType = getPotionTypeByName(processedType);
+                    if (potionType != null) {
+                        potionMeta.setBasePotionData(new PotionData(potionType));
+                    }
+                } catch (Exception ignored2) {
+                }
+            }
+        }
+
+        // Agregar efectos custom
+        if (!rawPotionEffects.isEmpty()) {
+            for (PotionEffectData effectData : rawPotionEffects) {
+                String effectType = effectData.type;
+                String amplifierStr = effectData.amplifier;
+                String durationStr = effectData.duration;
+
+                if (player != null) {
+                    effectType = context.processPlaceholders(effectType, player);
+                    amplifierStr = context.processPlaceholders(amplifierStr, player);
+                    durationStr = context.processPlaceholders(durationStr, player);
+                }
+
+                try {
+                    PotionEffectType type = getPotionEffectByName(effectType);
+                    int amplifier = Integer.parseInt(amplifierStr);
+                    int duration = Integer.parseInt(durationStr);
+
+                    if (type != null) {
+                        PotionEffect effect = new PotionEffect(type, duration, amplifier);
+                        potionMeta.addCustomEffect(effect, true);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        // Establecer color custom
+        if (rawPotionColor != null) {
+            String processedColor = player != null ?
+                    context.processPlaceholders(rawPotionColor, player) : rawPotionColor;
+
+            Color color = parseColor(processedColor);
+            if (color != null) {
+                potionMeta.setColor(color);
+            }
+        }
+    }
+
     private List<String> getCurrentLore() {
         if (loreDynamicSupplier != null) {
             try {
                 return loreDynamicSupplier.get();
             } catch (Exception e) {
-                // Si hay error en el supplier, devolver lista vacía
                 return new ArrayList<>();
             }
         }
         return rawLore;
     }
 
-    /**
-     * Actualiza el material preservando metadata
-     */
     private void updateMaterial(String materialString) {
         ItemStack newStack = createItemFromString(materialString);
         ItemMeta currentMeta = itemStack.getItemMeta();
@@ -399,7 +509,6 @@ public class MenuItem {
         if (currentMeta != null) {
             ItemMeta newMeta = newStack.getItemMeta();
             if (newMeta != null) {
-                // Copiar metadata importante
                 if (currentMeta.hasDisplayName()) {
                     adapter.setDisplayName(newMeta, adapter.getDisplayName(currentMeta));
                 }
@@ -407,7 +516,6 @@ public class MenuItem {
                     adapter.setLore(newMeta, adapter.getLore(currentMeta));
                 }
 
-                // Copiar flags y encantamientos
                 newMeta.addItemFlags(currentMeta.getItemFlags().toArray(new ItemFlag[0]));
                 currentMeta.getEnchants().forEach((enchant, level) ->
                         newMeta.addEnchant(enchant, level, true));
@@ -420,9 +528,6 @@ public class MenuItem {
         this.itemStack = newStack;
     }
 
-    /**
-     * Actualiza el nombre
-     */
     private void updateName(String name) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -431,9 +536,6 @@ public class MenuItem {
         }
     }
 
-    /**
-     * Actualiza el lore
-     */
     private void updateLore(List<Component> lore) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -442,23 +544,14 @@ public class MenuItem {
         }
     }
 
-    /**
-     * Actualiza la cantidad
-     */
     private void updateAmount(String amountString) {
         try {
             int amount = Integer.parseInt(amountString.trim());
             itemStack.setAmount(Math.max(1, Math.min(64, amount)));
         } catch (NumberFormatException e) {
-            // Mantener cantidad actual si falla el parsing
         }
     }
 
-    // ==================== MÉTODOS AUXILIARES ====================
-
-    /**
-     * Crea ItemStack desde string
-     */
     private ItemStack createItemFromString(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
             return new ItemStack(Material.STONE);
@@ -487,18 +580,71 @@ public class MenuItem {
         }
     }
 
-    /**
-     * Maneja eventos de click
-     */
+    private Enchantment getEnchantmentByName(String name) {
+        try {
+            return Enchantment.getByKey(NamespacedKey.minecraft(name.toLowerCase()));
+        } catch (Exception e) {
+            for (Enchantment enchant : Enchantment.values()) {
+                if (enchant.getKey().getKey().equalsIgnoreCase(name) ||
+                        enchant.toString().equalsIgnoreCase(name)) {
+                    return enchant;
+                }
+            }
+            return null;
+        }
+    }
+
+    private PotionEffectType getPotionEffectByName(String name) {
+        try {
+            return PotionEffectType.getByName(name.toUpperCase());
+        } catch (Exception e) {
+            for (PotionEffectType type : PotionEffectType.values()) {
+                if (type != null && (type.getName().equalsIgnoreCase(name) ||
+                        type.toString().equalsIgnoreCase(name))) {
+                    return type;
+                }
+            }
+            return null;
+        }
+    }
+
+    private Color parseColor(String colorString) {
+        try {
+            if (colorString.startsWith("#")) {
+                int rgb = Integer.parseInt(colorString.substring(1), 16);
+                return Color.fromRGB(rgb);
+            }
+
+            String[] parts = colorString.split(",");
+            if (parts.length == 3) {
+                int r = Integer.parseInt(parts[0].trim());
+                int g = Integer.parseInt(parts[1].trim());
+                int b = Integer.parseInt(parts[2].trim());
+                return Color.fromRGB(r, g, b);
+            }
+
+            switch (colorString.toLowerCase()) {
+                case "red": return Color.RED;
+                case "blue": return Color.BLUE;
+                case "green": return Color.GREEN;
+                case "yellow": return Color.YELLOW;
+                case "purple": return Color.PURPLE;
+                case "orange": return Color.ORANGE;
+                case "white": return Color.WHITE;
+                case "black": return Color.BLACK;
+                default: return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public void handleClick(MenuClickEvent event) {
         if (clickHandler != null) {
             clickHandler.accept(event);
         }
     }
 
-    /**
-     * Clona el item
-     */
     public MenuItem clone() {
         MenuItem clone = new MenuItem(this.itemStack.clone());
         clone.rawMaterial = this.rawMaterial;
@@ -507,8 +653,12 @@ public class MenuItem {
         clone.dynamicUpdate = this.dynamicUpdate;
         clone.updateInterval = this.updateInterval;
         clone.clickHandler = this.clickHandler;
-        clone.context = this.context.copy(); // Copiar el contexto
-        clone.loreDynamicSupplier = this.loreDynamicSupplier; // Copiar supplier dinámico
+        clone.context = this.context.copy();
+        clone.loreDynamicSupplier = this.loreDynamicSupplier;
+        clone.rawEnchantments.putAll(this.rawEnchantments);
+        clone.rawPotionEffects.addAll(this.rawPotionEffects);
+        clone.rawPotionColor = this.rawPotionColor;
+        clone.rawBasePotionType = this.rawBasePotionType;
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -517,11 +667,6 @@ public class MenuItem {
         return clone;
     }
 
-    // ==================== NBT SUPPORT ====================
-
-    /**
-     * Establece datos NBT
-     */
     public MenuItem setNBT(JavaPlugin plugin, String key, String value) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -532,9 +677,6 @@ public class MenuItem {
         return this;
     }
 
-    /**
-     * Obtiene datos NBT
-     */
     public String getNBT(JavaPlugin plugin, String key) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
@@ -544,21 +686,14 @@ public class MenuItem {
         return null;
     }
 
-    // ==================== FACTORY METHODS ====================
-
-    /**
-     * Crea un MenuItem desde ConfigurationSection con ExyliaContext
-     */
     public static MenuItem fromConfig(org.bukkit.configuration.ConfigurationSection config, Player player, ExyliaContext context) {
         if (config == null) {
             throw new IllegalArgumentException("Configuration section cannot be null");
         }
 
-        // Material (obligatorio)
         String material = config.getString("material", "STONE");
         MenuItem item = new MenuItem(material);
 
-        // Configurar propiedades básicas
         if (config.contains("name")) {
             item.setName(config.getString("name"));
         }
@@ -575,22 +710,57 @@ public class MenuItem {
             }
         }
 
-        // Configurar propiedades visuales
         if (config.getBoolean("glowing", false)) {
             item.setGlowing(true);
         }
 
-        if (config.getBoolean("hide_attributes", true)) {
+        if (config.getBoolean("hide_attributes", false)) {
             item.hideAllAttributes();
         }
 
-        // Configurar actualizaciones dinámicas
         if (config.getBoolean("dynamic_update", false)) {
             item.setDynamicUpdate(true);
             item.setUpdateInterval(config.getLong("update_interval", 20L));
         }
 
-        // Establecer contexto y procesar si es necesario
+        org.bukkit.configuration.ConfigurationSection enchantments = config.getConfigurationSection("enchantments");
+        if (enchantments != null) {
+            for (String enchantName : enchantments.getKeys(false)) {
+                Object level = enchantments.get(enchantName);
+                if (level instanceof Integer) {
+                    item.addEnchantment(enchantName, (Integer) level);
+                } else if (level instanceof String) {
+                    item.addEnchantment(enchantName, (String) level);
+                }
+            }
+        }
+
+        if (config.contains("potion_effects")) {
+            List<?> effectsList = config.getList("potion_effects");
+            if (effectsList != null) {
+                for (Object effectObj : effectsList) {
+                    if (effectObj instanceof Map<?, ?> effectMap) {
+                        String type = String.valueOf(effectMap.get("type"));
+                        Object amplifier = effectMap.get("amplifier");
+                        Object duration = effectMap.get("duration");
+
+                        String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
+                        String durationStr = duration != null ? String.valueOf(duration) : "600";
+
+                        item.addPotionEffect(type, amplifierStr, durationStr);
+                    }
+                }
+            }
+        }
+
+        if (config.contains("base_potion_type")) {
+            item.setBasePotionType(config.getString("base_potion_type"));
+        }
+
+        if (config.contains("potion_color")) {
+            item.setPotionColor(config.getString("potion_color"));
+        }
+
         if (context != null) {
             item.withContext(context);
             item.process(player);
@@ -599,18 +769,12 @@ public class MenuItem {
         return item;
     }
 
-    /**
-     * Crea un MenuItem básico con contexto
-     */
     public static MenuItem create(Material material, String name, ExyliaContext context) {
         return new MenuItem(material)
                 .setName(name)
                 .withContext(context);
     }
 
-    /**
-     * Crea un MenuItem con lore y contexto
-     */
     public static MenuItem create(Material material, String name, List<String> lore, ExyliaContext context) {
         return new MenuItem(material)
                 .setName(name)
@@ -618,17 +782,12 @@ public class MenuItem {
                 .withContext(context);
     }
 
-    /**
-     * Crea un MenuItem con lore dinámico y contexto
-     */
     public static MenuItem create(Material material, String name, Supplier<List<String>> loreSupplier, ExyliaContext context) {
         return new MenuItem(material)
                 .setName(name)
                 .setLore(loreSupplier)
                 .withContext(context);
     }
-
-    // ==================== GETTERS ====================
 
     public ItemStack getItemStack() {
         return itemStack.clone();
@@ -645,5 +804,17 @@ public class MenuItem {
 
     public boolean hasDynamicLore() {
         return loreDynamicSupplier != null;
+    }
+
+    public Map<String, Integer> getEnchantments() {
+        return new HashMap<>(rawEnchantments);
+    }
+
+    public List<PotionEffectData> getPotionEffects() {
+        return new ArrayList<>(rawPotionEffects);
+    }
+
+    public String getPotionColor() {
+        return rawPotionColor;
     }
 }

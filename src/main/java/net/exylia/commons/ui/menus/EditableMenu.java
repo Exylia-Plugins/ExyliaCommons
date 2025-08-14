@@ -228,9 +228,7 @@ public class EditableMenu extends Menu {
             ItemStack editableItem = editableItems.get(slot);
             if (editableItem != null) {
                 // Create a MenuItem from the ItemStack
-                MenuItem item = new MenuItem(editableItem.clone());
-                item.hideAllAttributes();
-                return item;
+                return new MenuItem(editableItem.clone());
             }
             // Return null for empty editable slots (no filler)
             return null;

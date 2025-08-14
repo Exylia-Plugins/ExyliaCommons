@@ -7,55 +7,38 @@ import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
-import net.exylia.commons.utils.DebugUtils;
-import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffectType;
 
-/**
- * Builder for creating MenuItems from ConfigurationSection
- */
+import java.util.List;
+import java.util.Map;
+
 public class MenuItemBuilder {
 
-    /**
-     * Creates a MenuItem from a ConfigurationSection
-     * @param config The configuration section
-     * @return The built MenuItem
-     */
     public static MenuItem fromConfig(ConfigurationSection config) {
         return fromConfig(config, null, null);
     }
 
-    /**
-     * Creates a MenuItem from a ConfigurationSection with player context
-     * @param config The configuration section
-     * @param player The player (for placeholders)
-     * @return The built MenuItem
-     */
     public static MenuItem fromConfig(ConfigurationSection config, Player player) {
         return fromConfig(config, player, null);
     }
 
-    /**
-     * Creates a MenuItem from a ConfigurationSection with full context
-     * @param config The configuration section
-     * @param player The player (for placeholders)
-     * @param context The menu context (for placeholders)
-     * @return The built MenuItem
-     */
     public static MenuItem fromConfig(ConfigurationSection config, Player player, ExyliaContext context) {
         if (config == null) {
             throw new IllegalArgumentException("Configuration section cannot be null");
         }
 
-        // Material (obligatorio)
         String material = config.getString("material", "STONE");
         MenuItem item = new MenuItem(material);
 
-        // Configurar propiedades básicas, visuales, comportamiento, etc.
         configureBasicProperties(item, config);
         configureVisualProperties(item, config);
         configureBehavior(item, config);
+        configureEnchantments(item, config);
+        configurePotionEffects(item, config);
         configureActions(item, config);
         configureCommands(item, config, player, context);
 
@@ -69,12 +52,10 @@ public class MenuItemBuilder {
     }
 
     private static void configureBasicProperties(MenuItem item, ConfigurationSection config) {
-        // Nombre
         if (config.contains("name")) {
             item.setName(config.getString("name"));
         }
 
-        // Lore
         if (config.contains("lore")) {
             if (config.isList("lore")) {
                 item.setLoreList(config.getStringList("lore"));
@@ -83,7 +64,6 @@ public class MenuItemBuilder {
             }
         }
 
-        // Cantidad
         if (config.contains("amount")) {
             Object amount = config.get("amount");
             if (amount instanceof String) {
@@ -95,24 +75,16 @@ public class MenuItemBuilder {
     }
 
     private static void configureVisualProperties(MenuItem item, ConfigurationSection config) {
-        // Brillo
         if (config.getBoolean("glow", false)) {
             item.setGlowing(true);
         }
 
-        // Ocultar atributos
-        if (config.getBoolean("hide_attributes", true)) {
+        if (config.getBoolean("hide_attributes", false)) {
             item.hideAllAttributes();
-        }
-
-        // Flags específicos
-        if (config.contains("item_flags")) {
-            // TODO: Implementar flags específicos si es necesario
         }
     }
 
     private static void configureBehavior(MenuItem item, ConfigurationSection config) {
-        // Actualizaciones dinámicas
         if (config.getBoolean("dynamic_update", false)) {
             item.setDynamicUpdate(true);
 
@@ -122,8 +94,64 @@ public class MenuItemBuilder {
         }
     }
 
+    private static void configureEnchantments(MenuItem item, ConfigurationSection config) {
+        ConfigurationSection enchantments = config.getConfigurationSection("enchantments");
+        if (enchantments != null) {
+            for (String enchantName : enchantments.getKeys(false)) {
+                Object level = enchantments.get(enchantName);
+                if (level instanceof Integer) {
+                    item.addEnchantment(enchantName, (Integer) level);
+                } else if (level instanceof String) {
+                    item.addEnchantment(enchantName, (String) level);
+                }
+            }
+        }
+
+        if (config.isList("enchantments")) {
+            List<?> enchantList = config.getList("enchantments");
+            if (enchantList != null) {
+                for (Object enchantObj : enchantList) {
+                    if (enchantObj instanceof Map<?, ?> enchantMap) {
+                        String enchantName = String.valueOf(enchantMap.get("type"));
+                        Object level = enchantMap.get("level");
+                        String levelStr = level != null ? String.valueOf(level) : "1";
+
+                        item.addEnchantment(enchantName, levelStr);
+                    }
+                }
+            }
+        }
+    }
+
+    private static void configurePotionEffects(MenuItem item, ConfigurationSection config) {
+        if (config.contains("potion_effects")) {
+            List<?> effectsList = config.getList("potion_effects");
+            if (effectsList != null) {
+                for (Object effectObj : effectsList) {
+                    if (effectObj instanceof Map<?, ?> effectMap) {
+                        String type = String.valueOf(effectMap.get("type"));
+                        Object amplifier = effectMap.get("amplifier");
+                        Object duration = effectMap.get("duration");
+
+                        String amplifierStr = amplifier != null ? String.valueOf(amplifier) : "0";
+                        String durationStr = duration != null ? String.valueOf(duration) : "600";
+
+                        item.addPotionEffect(type, amplifierStr, durationStr);
+                    }
+                }
+            }
+        }
+
+        if (config.contains("base_potion_type")) {
+            item.setBasePotionType(config.getString("base_potion_type"));
+        }
+
+        if (config.contains("potion_color")) {
+            item.setPotionColor(config.getString("potion_color"));
+        }
+    }
+
     private static void configureActions(MenuItem item, ConfigurationSection config) {
-        // Acción simple - usando el sistema global
         if (config.contains("action")) {
             String actionString = config.getString("action");
             item.setClickHandler(event -> {
@@ -132,13 +160,11 @@ public class MenuItemBuilder {
             });
         }
 
-        // Click handler personalizado (para casos especiales)
         if (config.contains("click_type")) {
             String clickType = config.getString("click_type");
             switch (clickType.toLowerCase()) {
                 case "close" -> item.setClickHandler(MenuClickEvent::closeMenu);
                 case "back" -> item.setClickHandler(MenuClickEvent::openParentMenu);
-                // Agregar más tipos según necesidad
             }
         }
     }
@@ -146,7 +172,6 @@ public class MenuItemBuilder {
     private static ActionContext createActionContextFromMenuClick(MenuClickEvent event) {
         ActionContext context = new ActionContext(event.getPlayer(), ActionSource.MENU);
 
-        // Añadir datos del menú al contexto
         context.withData("menu", event.getMenu());
         context.withData("item", event.getItem());
         context.withData("slot", event.getSlot());
@@ -156,7 +181,6 @@ public class MenuItemBuilder {
     }
 
     private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, Object... context) {
-        // Comandos
         if (config.contains("commands")) {
             java.util.List<String> commands = config.getStringList("commands");
             if (!commands.isEmpty()) {
@@ -171,12 +195,10 @@ public class MenuItemBuilder {
         for (String command : commands) {
             String processed = command;
 
-            // Procesar placeholders si hay contexto
             if (context != null) {
                 processed = PlaceholderSystemManager.getInstance().process(processed, player, context);
             }
 
-            // Ejecutar comando según prefijo
             if (processed.startsWith("player:")) {
                 String cmd = processed.substring(7).trim();
                 player.performCommand(cmd);
@@ -185,31 +207,18 @@ public class MenuItemBuilder {
                 org.bukkit.Bukkit.getServer().dispatchCommand(
                         org.bukkit.Bukkit.getServer().getConsoleSender(), cmd);
             } else {
-                // Default a comando de jugador
                 player.performCommand(processed);
             }
         }
     }
 
-    /**
-     * Creates a fluent builder for MenuItem
-     * @param material The material
-     * @return A fluent builder
-     */
     public static FluentMenuItemBuilder create(String material) {
         return new FluentMenuItemBuilder(new MenuItem(material));
     }
 
-    /**
-     * Creates a fluent builder from existing MenuItem
-     * @param item The existing item
-     * @return A fluent builder
-     */
     public static FluentMenuItemBuilder from(MenuItem item) {
         return new FluentMenuItemBuilder(item);
     }
-
-    // ==================== FLUENT BUILDER ====================
 
     public static class FluentMenuItemBuilder {
         private final MenuItem item;
@@ -264,6 +273,56 @@ public class MenuItemBuilder {
 
         public FluentMenuItemBuilder updateInterval(long interval) {
             item.setUpdateInterval(interval);
+            return this;
+        }
+
+        public FluentMenuItemBuilder enchant(Enchantment enchantment, int level) {
+            item.addEnchantment(enchantment, level);
+            return this;
+        }
+
+        public FluentMenuItemBuilder enchant(String enchantmentName, int level) {
+            item.addEnchantment(enchantmentName, level);
+            return this;
+        }
+
+        public FluentMenuItemBuilder enchant(String enchantmentName, String level) {
+            item.addEnchantment(enchantmentName, level);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionEffect(PotionEffectType effectType, int amplifier, int duration) {
+            item.addPotionEffect(effectType, amplifier, duration);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionEffect(String effectType, int amplifier, int duration) {
+            item.addPotionEffect(effectType, amplifier, duration);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionEffect(String effectType, String amplifier, String duration) {
+            item.addPotionEffect(effectType, amplifier, duration);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(Color color) {
+            item.setPotionColor(color);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(String colorString) {
+            item.setPotionColor(colorString);
+            return this;
+        }
+
+        public FluentMenuItemBuilder potionColor(int r, int g, int b) {
+            item.setPotionColor(Color.fromRGB(r, g, b));
+            return this;
+        }
+
+        public FluentMenuItemBuilder basePotionType(String potionType) {
+            item.setBasePotionType(potionType);
             return this;
         }
 

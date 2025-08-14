@@ -1,15 +1,14 @@
-
 package net.exylia.commons.ui.builders;
 
 import net.exylia.commons.ui.items.MenuItem;
+import org.bukkit.Color;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.potion.PotionEffectType;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-/**
- * Base builder for menu items
- */
 public abstract class ItemBuilder<T extends ItemBuilder<T>> {
 
     protected MenuItem item;
@@ -51,7 +50,6 @@ public abstract class ItemBuilder<T extends ItemBuilder<T>> {
         return self();
     }
 
-
     public T amount(int amount) {
         item.setAmount(amount);
         return self();
@@ -79,6 +77,76 @@ public abstract class ItemBuilder<T extends ItemBuilder<T>> {
 
     public T updateInterval(long interval) {
         item.setUpdateInterval(interval);
+        return self();
+    }
+
+    public T enchant(Enchantment enchantment, int level) {
+        item.addEnchantment(enchantment, level);
+        return self();
+    }
+
+    public T enchant(String enchantmentName, int level) {
+        item.addEnchantment(enchantmentName, level);
+        return self();
+    }
+
+    public T enchant(String enchantmentName, String level) {
+        item.addEnchantment(enchantmentName, level);
+        return self();
+    }
+
+    public T removeEnchant(Enchantment enchantment) {
+        item.removeEnchantment(enchantment);
+        return self();
+    }
+
+    public T removeEnchant(String enchantmentName) {
+        item.removeEnchantment(enchantmentName);
+        return self();
+    }
+
+    public T clearEnchants() {
+        item.clearEnchantments();
+        return self();
+    }
+
+    public T potionEffect(PotionEffectType effectType, int amplifier, int duration) {
+        item.addPotionEffect(effectType, amplifier, duration);
+        return self();
+    }
+
+    public T potionEffect(String effectType, int amplifier, int duration) {
+        item.addPotionEffect(effectType, amplifier, duration);
+        return self();
+    }
+
+    public T potionEffect(String effectType, String amplifier, String duration) {
+        item.addPotionEffect(effectType, amplifier, duration);
+        return self();
+    }
+
+    public T clearPotionEffects() {
+        item.clearPotionEffects();
+        return self();
+    }
+
+    public T potionColor(Color color) {
+        item.setPotionColor(color);
+        return self();
+    }
+
+    public T potionColor(String colorString) {
+        item.setPotionColor(colorString);
+        return self();
+    }
+
+    public T potionColor(int r, int g, int b) {
+        item.setPotionColor(Color.fromRGB(r, g, b));
+        return self();
+    }
+
+    public T basePotionType(String potionType) {
+        item.setBasePotionType(potionType);
         return self();
     }
 

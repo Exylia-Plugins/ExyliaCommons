@@ -7,10 +7,6 @@ import org.bukkit.Material;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Builder for numeric input items
- * Provides increment/decrement functionality without hardcoded UI
- */
 public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
 
     private Consumer<Integer> setter;
@@ -29,55 +25,28 @@ public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
         super(materialString);
     }
 
-    /**
-     * Sets the value setter
-     * @param setter The setter function
-     * @return This builder
-     */
     public NumericItemBuilder setter(Consumer<Integer> setter) {
         this.setter = setter;
         return this;
     }
 
-    /**
-     * Sets the value getter
-     * @param getter The getter function
-     * @return This builder
-     */
     public NumericItemBuilder getter(Supplier<Integer> getter) {
         this.getter = getter;
         return this;
     }
 
-    /**
-     * Sets the value range
-     * @param min Minimum value
-     * @param max Maximum value
-     * @return This builder
-     */
     public NumericItemBuilder range(int min, int max) {
         this.minValue = min;
         this.maxValue = max;
         return this;
     }
 
-    /**
-     * Sets the increment amounts
-     * @param normal Normal click increment
-     * @param shift Shift-click increment
-     * @return This builder
-     */
     public NumericItemBuilder increments(int normal, int shift) {
         this.normalIncrement = normal;
         this.shiftIncrement = shift;
         return this;
     }
 
-    /**
-     * Sets the callback for when value changes
-     * @param callback The callback
-     * @return This builder
-     */
     public NumericItemBuilder onValueChange(Consumer<MenuClickEvent> callback) {
         this.onValueChange = callback;
         return this;
@@ -93,7 +62,6 @@ public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
             int currentValue = getter.get();
             int newValue = calculateNewValue(currentValue, event);
 
-            // Apply bounds
             newValue = Math.max(minValue, Math.min(maxValue, newValue));
 
             setter.accept(newValue);
@@ -112,7 +80,7 @@ public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
         return switch (event.getClickType()) {
             case LEFT, SHIFT_LEFT -> currentValue + increment;
             case RIGHT, SHIFT_RIGHT -> currentValue - increment;
-            case MIDDLE -> minValue; // Reset to minimum
+            case MIDDLE -> minValue;
             default -> currentValue;
         };
     }

@@ -180,7 +180,7 @@ public class MultiPaginationMenuConfiguration {
             item.setGlowing(true);
         }
 
-        if (config.getBoolean("hide_attributes", true)) {
+        if (config.getBoolean("hide_attributes", false)) {
             item.hideAllAttributes();
         }
 
