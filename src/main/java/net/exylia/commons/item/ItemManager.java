@@ -337,9 +337,6 @@ public class ItemManager implements Listener {
         Player player = event.getPlayer();
         ItemStack itemStack = event.getItem();
 
-        DebugUtils.logInternalDebug(debug(), "PlayerItemConsume event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug(debug(), "Consuming item: " + itemStack.getType() + " for player: " + player.getName());
-
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem == null) {
             return;

@@ -6,6 +6,7 @@ import net.exylia.commons.region.RegionManager;
 import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
 import net.exylia.commons.region.blocks.TemporaryBlocksManager;
+import net.exylia.commons.region.cloning.RegionCloner;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.selection.model.Selection;
 import org.bukkit.Bukkit;
@@ -19,9 +20,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Representa una región en el mundo con sistema de flags mejorado
- */
 @Getter
 @Setter
 public class Region {
@@ -59,8 +57,6 @@ public class Region {
         this.playersInside = ConcurrentHashMap.newKeySet();
     }
 
-    // ===== GESTIÓN DE FLAGS =====
-
     public void setFlag(RegionFlag flag, RegionFlagType type) {
         RegionFlagType previousType = flagStates.get(flag);
 
@@ -70,7 +66,6 @@ public class Region {
             flagStates.put(flag, type);
         }
 
-        // Auto-invalidar cache si el valor cambió
         if (previousType != type) {
             invalidateCacheForFlag(flag);
         }
@@ -129,12 +124,10 @@ public class Region {
     public Map<RegionFlag, Boolean> getAllFlagValues() {
         Map<RegionFlag, Boolean> allFlags = new EnumMap<>(RegionFlag.class);
 
-        // Añadir todas las flags con sus valores default
         for (RegionFlag flag : RegionFlag.values()) {
             allFlags.put(flag, flag.isDefaultValue());
         }
 
-        // Sobrescribir con flags configuradas
         for (Map.Entry<RegionFlag, RegionFlagType> entry : flagStates.entrySet()) {
             allFlags.put(entry.getKey(), entry.getValue().getEffectiveValue(entry.getKey()));
         }
@@ -149,8 +142,6 @@ public class Region {
         flagStates.clear();
         flagStates.putAll(flags);
     }
-
-    // ===== GESTIÓN DE MIEMBROS =====
 
     public boolean isOwner(UUID playerId) {
         return owners.contains(playerId);
@@ -170,10 +161,8 @@ public class Region {
     }
     public void removeMember(UUID playerId) {
         members.remove(playerId);
-        owners.remove(playerId); // También remover de owners si estaba
+        owners.remove(playerId);
     }
-
-    // ===== MÉTODOS =====
 
     public boolean contains(Location location) {
         return selection.contains(location);
@@ -304,8 +293,6 @@ public class Region {
         void execute(Player player, Region region);
     }
 
-    // ===== MÉTODOS DE REGENERACIÓN =====
-
     public CompletableFuture<Boolean> saveSchematic() {
         return RegionRegenerationManager.getInstance().saveRegionSchematic(this);
     }
@@ -328,8 +315,6 @@ public class Region {
         return RegionRegenerationManager.getInstance().clearRegionPlayerBlocks(this);
     }
 
-    // ===== MÉTODOS DE RASTREO DE BLOQUES =====
-
     public boolean isPlayerPlacedBlock(Location location) {
         return PlayerBlockTracker.getInstance().isPlayerPlacedBlock(id, location);
     }
@@ -350,7 +335,6 @@ public class Region {
         setFlag(RegionFlag.TRACK_PLAYER_BLOCKS, RegionFlagType.DEFAULT);
         setFlag(RegionFlag.PLAYER_BUILD_ONLY, RegionFlagType.DEFAULT);
 
-        // Limpiar datos existentes
         clearPlayerBlocks();
     }
     public boolean hasPlayerBlockTracking() {
@@ -359,8 +343,6 @@ public class Region {
     public boolean hasProtectedBuilding() {
         return getFlagValue(RegionFlag.PLAYER_BUILD_ONLY);
     }
-
-    // ===== MÉTODOS PARA REGION_MEMBERS_ONLY =====
 
     public void enableRegionMembersOnly() {
         setFlag(RegionFlag.REGION_MEMBERS_ONLY, RegionFlagType.ALLOW);
@@ -373,24 +355,18 @@ public class Region {
     }
     public boolean canPlayerAffectRegion(Player player, RegionFlag action) {
         if (!hasRegionMembersOnly()) {
-            // Si REGION_MEMBERS_ONLY no está activo, usar lógica normal
             return getFlagValue(action);
         }
 
-        // Si REGION_MEMBERS_ONLY está activo y la acción es afectada por él
         if (action.isAffectedByRegionMembersOnly()) {
-            // El jugador debe estar dentro de la región
             boolean playerInside = contains(player.getLocation());
             if (!playerInside) {
                 return false;
             }
         }
 
-        // Si el jugador está dentro o la acción no es afectada, usar valor normal de la flag
         return getFlagValue(action);
     }
-
-    // ===== MÉTODOS PARA BLOQUES PERMITIDOS =====
 
     public void enableAllowedBlocksOnly() {
         setFlag(RegionFlag.ALLOWED_BLOCKS_ONLY, RegionFlagType.ALLOW);
@@ -416,9 +392,6 @@ public class Region {
     public boolean isMaterialAllowed(Material material) {
         return AllowedBlocksManager.getInstance().isMaterialAllowed(this, material);
     }
-
-
-    // ===== MÉTODOS PARA BLOQUES TEMPORALES =====
 
     public void enableTemporaryBlocks() {
         setFlag(RegionFlag.TEMPORARY_BLOCKS, RegionFlagType.ALLOW);
@@ -450,8 +423,6 @@ public class Region {
     public TemporaryBlocksManager.TemporaryBlock getTemporaryBlockAt(Location location) {
         return TemporaryBlocksManager.getInstance().getTemporaryBlock(location);
     }
-
-    // ===== MÉTODOS PARA RE_GIVE_BLOCKS =====
 
     public void enableReGiveBlocks() {
         if (!getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
@@ -487,7 +458,6 @@ public class Region {
         boolean temporaryActive = getFlagValue(RegionFlag.TEMPORARY_BLOCKS);
         boolean reGiveActive = getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
 
-        // Si RE_GIVE_BLOCKS está activo, TEMPORARY_BLOCKS también debe estarlo
         if (reGiveActive && !temporaryActive) {
             return false;
         }
@@ -510,5 +480,53 @@ public class Region {
         }
 
         return summary;
+    }
+
+    public CompletableFuture<Region> cloneTo(Location targetCenter) {
+        return RegionCloner.getInstance().cloneRegion(this, targetCenter);
+    }
+
+    public CompletableFuture<Region> cloneTo(Location targetCenter, String customName) {
+        return RegionCloner.getInstance().cloneRegion(this, targetCenter, customName);
+    }
+
+    public CompletableFuture<Region> cloneTo(Location targetCenter, World targetWorld) {
+        return RegionCloner.getInstance().cloneRegion(this, targetCenter, targetWorld);
+    }
+
+    public CompletableFuture<Region> cloneTo(Location targetCenter, String customName, World targetWorld) {
+        return RegionCloner.getInstance().cloneRegion(this, targetCenter, customName, targetWorld);
+    }
+
+    public CompletableFuture<Region> cloneWithOffset(int offsetX, int offsetY, int offsetZ) {
+        return RegionCloner.getInstance().cloneRegionWithOffset(this, offsetX, offsetY, offsetZ);
+    }
+
+    public CompletableFuture<Boolean> pasteStructureAt(Location targetLocation) {
+        return RegionRegenerationManager.getInstance().pasteRegionSchematicAt(this, targetLocation);
+    }
+
+    public CompletableFuture<Boolean> copyStructureTo(Location targetCenter) {
+        return RegionRegenerationManager.getInstance().copyRegionStructure(this, targetCenter);
+    }
+
+    public boolean isBeingCloned() {
+        return RegionCloner.getInstance().isCloneInProgress(this.getId());
+    }
+
+    public Region createClone(Location targetCenter) {
+        try {
+            return cloneTo(targetCenter).join();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Region createClone(Location targetCenter, String customName) {
+        try {
+            return cloneTo(targetCenter, customName).join();
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

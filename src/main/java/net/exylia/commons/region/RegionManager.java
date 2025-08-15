@@ -3,6 +3,7 @@ package net.exylia.commons.region;
 import lombok.Getter;
 import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.TemporaryBlocksManager;
+import net.exylia.commons.region.cloning.RegionCloner;
 import net.exylia.commons.region.events.*;
 import net.exylia.commons.region.listener.UnifiedRegionListener;
 import net.exylia.commons.region.model.*;
@@ -13,6 +14,7 @@ import net.exylia.commons.selection.model.Selection;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -798,6 +800,7 @@ public class RegionManager {
 
         regions.clear();
         playerRegions.clear();
+        RegionCloner.getInstance().cleanup();
 
         logInternalDebug(debug(), "RegionManager optimizado limpiado completamente");
     }
@@ -819,5 +822,95 @@ public class RegionManager {
             this.to = to.clone();
             this.timestamp = timestamp;
         }
+    }
+
+    public CompletableFuture<Region> cloneRegion(String sourceRegionId, Location targetCenter) {
+        Optional<Region> sourceRegion = getRegion(sourceRegionId);
+        if (sourceRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return RegionCloner.getInstance().cloneRegion(sourceRegion.get(), targetCenter);
+    }
+
+    public CompletableFuture<Region> cloneRegion(String sourceRegionId, Location targetCenter, String customName) {
+        Optional<Region> sourceRegion = getRegion(sourceRegionId);
+        if (sourceRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return RegionCloner.getInstance().cloneRegion(sourceRegion.get(), targetCenter, customName);
+    }
+
+    public CompletableFuture<Region> cloneRegion(String sourceRegionId, Location targetCenter, World targetWorld) {
+        Optional<Region> sourceRegion = getRegion(sourceRegionId);
+        if (sourceRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return RegionCloner.getInstance().cloneRegion(sourceRegion.get(), targetCenter, targetWorld);
+    }
+
+    public CompletableFuture<Boolean> cloneMultipleRegions(String[] sourceRegionIds, Location[] targetCenters) {
+        if (sourceRegionIds.length != targetCenters.length) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        Region[] sourceRegions = new Region[sourceRegionIds.length];
+        for (int i = 0; i < sourceRegionIds.length; i++) {
+            Optional<Region> region = getRegion(sourceRegionIds[i]);
+            if (region.isEmpty()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            sourceRegions[i] = region.get();
+        }
+
+        return RegionCloner.getInstance().cloneMultipleRegions(sourceRegions, targetCenters);
+    }
+
+    public boolean isRegionBeingCloned(String regionId) {
+        return RegionCloner.getInstance().isCloneInProgress(regionId);
+    }
+
+    public int getActiveCloneOperationsCount() {
+        return RegionCloner.getInstance().getActiveCloneCount();
+    }
+
+    public RegionCloner.CloneOperation getCloneOperation(String operationId) {
+        return RegionCloner.getInstance().getCloneOperation(operationId);
+    }
+
+    public CompletableFuture<Boolean> copyRegionStructure(String sourceRegionId, Location targetCenter) {
+        Optional<Region> sourceRegion = getRegion(sourceRegionId);
+        if (sourceRegion.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return RegionRegenerationManager.getInstance().copyRegionStructure(sourceRegion.get(), targetCenter);
+    }
+
+    public Collection<Region> findRegionsByPattern(String pattern) {
+        return regions.values().stream()
+                .filter(region -> region.getId().contains(pattern) ||
+                        region.getDisplayName().contains(pattern))
+                .collect(Collectors.toList());
+    }
+
+    public Collection<Region> getRegionsInWorld(World world) {
+        return regions.values().stream()
+                .filter(region -> region.getWorld().equals(world))
+                .collect(Collectors.toList());
+    }
+
+    public Optional<Region> findCloneSource(String cloneRegionId) {
+        if (!cloneRegionId.contains("_clone_")) {
+            return Optional.empty();
+        }
+
+        String sourceId = cloneRegionId.substring(0, cloneRegionId.indexOf("_clone_"));
+        return getRegion(sourceId);
+    }
+
+    public Collection<Region> findAllClonesOf(String sourceRegionId) {
+        String clonePrefix = sourceRegionId + "_clone_";
+        return regions.values().stream()
+                .filter(region -> region.getId().startsWith(clonePrefix))
+                .collect(Collectors.toList());
     }
 }
