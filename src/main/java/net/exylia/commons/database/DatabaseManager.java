@@ -5,6 +5,7 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.adapters.*;
 import net.exylia.commons.database.annotations.Table;
 import net.exylia.commons.database.exceptions.*;
+import net.exylia.commons.database.io.*;
 import net.exylia.commons.database.migration.MigrationManager;
 import net.exylia.commons.database.repository.Repository;
 import net.exylia.commons.database.repository.RepositoryImpl;
@@ -35,6 +36,8 @@ public class DatabaseManager {
     private FileConfiguration databaseConfig;
     private volatile boolean tablesInitialized = false;
     private final Object initializationLock = new Object();
+    @Getter
+    private DatabaseExportImportManager exportImportManager;
 
     // Enhanced error handling
     @Getter
@@ -47,6 +50,7 @@ public class DatabaseManager {
         this.registeredEntities = new HashSet<>();
         this.migrationManager = new MigrationManager();
         this.errorHandler = new DatabaseErrorHandler(plugin, debug());
+        this.exportImportManager = new DatabaseExportImportManager(plugin, this);
     }
 
     public static void initialize(ExyliaPlugin plugin) {
@@ -477,6 +481,42 @@ public class DatabaseManager {
     public void clearRepositoryCache() {
         logInternalDebug(debug(), "Clearing repository cache...");
         repositories.clear();
+    }
+
+    public CompletableFuture<ExportResult> exportDatabase(ExportOptions options) {
+        return exportImportManager.exportDatabase(options);
+    }
+
+    public CompletableFuture<ImportResult> importDatabase(ImportOptions options) {
+        return exportImportManager.importDatabase(options);
+    }
+
+    public CompletableFuture<ExportResult> exportEntity(Class<?> entityClass, ExportOptions options) {
+        return exportImportManager.exportEntity(entityClass, options);
+    }
+
+    public CompletableFuture<ImportResult> importEntity(Class<?> entityClass, ImportOptions options) {
+        return exportImportManager.importEntity(entityClass, options);
+    }
+
+    public CompletableFuture<ExportResult> createBackup() {
+        return exportImportManager.createBackup();
+    }
+
+    public CompletableFuture<ImportResult> restoreBackup(String backupFileName, boolean clearExisting) {
+        return exportImportManager.restoreBackup(backupFileName, clearExisting);
+    }
+
+    public List<String> listExports() {
+        return exportImportManager.listExports();
+    }
+
+    public ExportMetadata getExportInfo(String fileName) {
+        return exportImportManager.getExportInfo(fileName);
+    }
+
+    public boolean deleteExport(String fileName) {
+        return exportImportManager.deleteExport(fileName);
     }
 
     public void shutdown() {

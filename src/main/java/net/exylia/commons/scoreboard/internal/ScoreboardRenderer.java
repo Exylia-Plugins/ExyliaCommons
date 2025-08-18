@@ -42,9 +42,9 @@ public class ScoreboardRenderer {
 
         // Crear team principal si está configurado
         Team mainTeam = null;
-        if (settings.hasCustomTeamSettings() && settings.isCreateMainTeam()) {
-            mainTeam = setupMainTeam(fastBoard, player);
-        }
+//        if (settings.hasCustomTeamSettings() && settings.isCreateMainTeam()) {
+//            mainTeam = setupMainTeam(fastBoard, player);
+//        }
 
         return new RenderedScoreboard(fastBoard, new HashMap<>(), mainTeam);
     }
@@ -112,7 +112,7 @@ public class ScoreboardRenderer {
 
         // Actualizar configuración del team principal si existe
         if (rendered.mainTeam != null) {
-            updateMainTeam(rendered.mainTeam, player, context);
+//            updateMainTeam(rendered.mainTeam, player, context);
         }
 
         // Procesar líneas
