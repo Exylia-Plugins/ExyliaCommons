@@ -313,6 +313,28 @@ public class ItemConfiguration {
     }
 
     @SuppressWarnings("unchecked")
+    public Map<String, Object> getActionConfigSection(String sectionKey) {
+        Object value = actionConfig.get(sectionKey);
+        if (value instanceof Map) {
+            return new HashMap<>((Map<String, Object>) value);
+        }
+
+        if (value != null && value.getClass().getSimpleName().equals("MemorySection")) {
+            try {
+                java.lang.reflect.Method getValuesMethod = value.getClass().getMethod("getValues", boolean.class);
+                Object result = getValuesMethod.invoke(value, false);
+                if (result instanceof Map) {
+                    return new HashMap<>((Map<String, Object>) result);
+                }
+            } catch (Exception e) {
+                Bukkit.getLogger().warning("Error al procesar MemorySection: " + e.getMessage());
+            }
+        }
+
+        return new HashMap<>();
+    }
+
+    @SuppressWarnings("unchecked")
     private <T> T convertActionConfigValue(Object value, T defaultValue) {
         if (defaultValue instanceof Integer && value instanceof Number) {
             return (T) Integer.valueOf(((Number) value).intValue());

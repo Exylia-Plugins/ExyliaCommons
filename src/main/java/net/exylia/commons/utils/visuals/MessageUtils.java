@@ -512,13 +512,11 @@ public class MessageUtils {
 
     public static void sendActionBar(Player player, Component message) {
         if (message == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(message);
-        if (plainText.trim().isEmpty()) return;
         player.sendActionBar(message);
     }
 
     public static void sendActionBar(Player player, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null) return;
         Component component = ColorUtils.parse(message);
         sendActionBar(player, component);
     }

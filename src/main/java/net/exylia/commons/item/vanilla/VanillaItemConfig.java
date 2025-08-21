@@ -3,6 +3,9 @@ package net.exylia.commons.item.vanilla;
 import lombok.Getter;
 import org.bukkit.Material;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Getter
 public class VanillaItemConfig {
 
@@ -11,25 +14,41 @@ public class VanillaItemConfig {
     private final VanillaTriggerType triggerType;
     private final String displayName;
     private final boolean hasDisplayName;
+    private final Integer maxUsesPerRegion;
+    private final Map<String, VanillaRegionConfig> regionConfigs;
 
     public VanillaItemConfig(Material material, double cooldownSeconds, VanillaTriggerType triggerType) {
-        this(material, cooldownSeconds, triggerType, null);
+        this(material, cooldownSeconds, triggerType, null, null);
     }
 
     public VanillaItemConfig(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName) {
+        this(material, cooldownSeconds, triggerType, displayName, null);
+    }
+
+    public VanillaItemConfig(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName, Integer maxUsesPerRegion) {
+        this(material, cooldownSeconds, triggerType, displayName, maxUsesPerRegion, new HashMap<>());
+    }
+
+    public VanillaItemConfig(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName, Integer maxUsesPerRegion, Map<String, VanillaRegionConfig> regionConfigs) {
         this.material = material;
         this.cooldownSeconds = cooldownSeconds;
         this.triggerType = triggerType != null ? triggerType : VanillaTriggerType.AUTO_DETECT;
         this.displayName = displayName;
         this.hasDisplayName = displayName != null && !displayName.trim().isEmpty();
+        this.maxUsesPerRegion = maxUsesPerRegion;
+        this.regionConfigs = regionConfigs != null ? regionConfigs : new HashMap<>();
     }
 
     public VanillaItemConfig(Material material, double cooldownSeconds) {
-        this(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, null);
+        this(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, null, null);
     }
 
     public VanillaItemConfig(Material material, double cooldownSeconds, String displayName) {
-        this(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
+        this(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName, null);
+    }
+
+    public VanillaItemConfig(Material material, double cooldownSeconds, Integer maxUsesPerRegion) {
+        this(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, null, maxUsesPerRegion);
     }
 
     public boolean hasCooldown() {
@@ -38,6 +57,32 @@ public class VanillaItemConfig {
 
     public boolean hasDisplayName() {
         return hasDisplayName;
+    }
+
+    public boolean hasRegionLimit() {
+        return maxUsesPerRegion != null && maxUsesPerRegion > 0;
+    }
+
+    public boolean hasRegionConfigs() {
+        return !regionConfigs.isEmpty();
+    }
+
+    public double getCooldownForRegion(String regionName) {
+        VanillaRegionConfig regionConfig = regionConfigs.get(regionName);
+        return regionConfig != null ? regionConfig.getCooldown() : cooldownSeconds;
+    }
+
+    public int getMaxUsesForRegion(String regionName) {
+        VanillaRegionConfig regionConfig = regionConfigs.get(regionName);
+        if (regionConfig != null && regionConfig.getMaxUses() != null) {
+            return regionConfig.getMaxUses();
+        }
+        return maxUsesPerRegion != null ? maxUsesPerRegion : -1;
+    }
+    
+    public boolean isBlockedInRegion(String regionName) {
+        VanillaRegionConfig regionConfig = regionConfigs.get(regionName);
+        return regionConfig != null && regionConfig.isBlocked();
     }
 
     /**

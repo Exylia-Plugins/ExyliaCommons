@@ -52,6 +52,16 @@ public class VanillaCooldownBuilder {
         return this;
     }
 
+    public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, Integer maxUsesPerRegion) {
+        manager.registerCooldown(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, null, maxUsesPerRegion);
+        return this;
+    }
+
+    public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, VanillaTriggerType trigger, String displayName, Integer maxUsesPerRegion) {
+        manager.registerCooldown(material, cooldownSeconds, trigger, displayName, maxUsesPerRegion);
+        return this;
+    }
+
     /**
      * Configura múltiples items con el mismo cooldown
      */
@@ -110,12 +120,25 @@ public class VanillaCooldownBuilder {
                     ConfigurationSection itemConfig = config.getConfigurationSection(materialName);
                     double cooldown = itemConfig.getDouble("cooldown", 0.0);
                     String triggerString = itemConfig.getString("trigger", "auto-detect");
-                    String displayName = itemConfig.getString("display-name"); // NUEVO
+                    String displayName = itemConfig.getString("display-name");
+                    Integer regionLimit = itemConfig.isSet("region-limit") ? itemConfig.getInt("region-limit") : null;
                     VanillaTriggerType trigger = VanillaTriggerType.fromString(triggerString);
 
-                    if (cooldown > 0) {
-                        addItem(material, cooldown, trigger, displayName);
+                    Map<String, VanillaRegionConfig> regionConfigs = new HashMap<>();
+                    if (itemConfig.isConfigurationSection("regions")) {
+                        ConfigurationSection regionsSection = itemConfig.getConfigurationSection("regions");
+                        for (String regionName : regionsSection.getKeys(false)) {
+                            ConfigurationSection regionSection = regionsSection.getConfigurationSection(regionName);
+                            if (regionSection != null) {
+                                double regionCooldown = regionSection.getDouble("cooldown", cooldown);
+                                Integer maxUses = regionSection.isSet("max-uses") ? regionSection.getInt("max-uses") : null;
+                                regionConfigs.put(regionName, new VanillaRegionConfig(regionCooldown, maxUses));
+                            }
+                        }
                     }
+
+                    VanillaItemConfig vanillaConfig = new VanillaItemConfig(material, cooldown, trigger, displayName, regionLimit, regionConfigs);
+                    VanillaItemCooldownManager.getInstance().registerConfig(vanillaConfig);
                 } else {
                     // Formato simple: material: cooldown
                     double cooldown = config.getDouble(materialName, 0.0);
@@ -246,7 +269,7 @@ public class VanillaCooldownBuilder {
                     Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS,
                     Material.NETHERITE_HELMET, Material.NETHERITE_CHESTPLATE,
                     Material.NETHERITE_LEGGINGS, Material.NETHERITE_BOOTS,
-                    Material.TURTLE_HELMET, Material.SHIELD, Material.TOTEM_OF_UNDYING
+                    Material.TURTLE_HELMET, Material.SHIELD
             );
 
             case BLOCKS -> Arrays.asList(

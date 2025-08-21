@@ -4,8 +4,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
@@ -16,11 +15,11 @@ public class EffectUtils {
                 String[] parts = effectString.split("\\|");
                 if (parts.length >= 3) {
                     PotionEffectType type = PotionEffectType.getByName(parts[0]);
-                    int amplifier = Integer.parseInt(parts[1]);
-                    int durationTicks = Integer.parseInt(parts[2]);
+                    int level = Integer.parseInt(parts[1]) - 1;
+                    int durationSeconds = Integer.parseInt(parts[2]) * 20;
 
                     if (type != null) {
-                        PotionEffect effect = new PotionEffect(type, durationTicks, amplifier, false, false, false);
+                        PotionEffect effect = new PotionEffect(type, durationSeconds, level, false, false, false);
                         livingEntity.addPotionEffect(effect);
                     }
                 }
@@ -29,6 +28,17 @@ public class EffectUtils {
             }
         }
     }
+
+    public static void applyRandomEffects(LivingEntity livingEntity, List<String> effects, int amount) {
+        Random random = new Random();
+        List<String> copy = new ArrayList<>(effects);
+
+        for (int i = 0; i < amount && !copy.isEmpty(); i++) {
+            String randomEffect = copy.remove(random.nextInt(copy.size()));
+            applyEffects(livingEntity, Collections.singletonList(randomEffect));
+        }
+    }
+
 
     public static void removeEffects(LivingEntity livingEntity, List<String> effects) {
         for (String effectString : effects) {

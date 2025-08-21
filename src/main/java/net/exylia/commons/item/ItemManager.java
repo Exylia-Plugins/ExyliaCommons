@@ -797,17 +797,10 @@ public class ItemManager implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBlockPlace(BlockPlaceEvent event) {
         ItemStack itemStack = event.getItemInHand();
-        Player player = event.getPlayer();
-
-        DebugUtils.logInternalDebug(debug(), "BlockPlace event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug(debug(), "Placing with item: " + (itemStack != null ? itemStack.getType() : "null"));
-
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem != null) {
             DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " in block place event, cancelling placement");
             event.setCancelled(true);
-        } else {
-            DebugUtils.logInternalDebug(debug(), "No interactive item found, allowing block placement");
         }
     }
 

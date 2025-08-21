@@ -14,6 +14,7 @@ import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityResurrectEvent;
 import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -59,10 +60,10 @@ public class VanillaItemCooldownManager implements Listener {
         plugin = javaPlugin;
         instance = new VanillaItemCooldownManager();
 
-        // Registrar eventos
+        VanillaRegionLimitManager.initialize(plugin);
+
         Bukkit.getPluginManager().registerEvents(instance, plugin);
 
-        // Tarea de limpieza de clicks y consumos
         instance.startCleanupTask();
 
         initialized = true;
@@ -103,15 +104,46 @@ public class VanillaItemCooldownManager implements Listener {
      * NUEVO: Registra un cooldown con tipo de trigger y display name
      */
     public void registerCooldown(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName) {
+        registerCooldown(material, cooldownSeconds, triggerType, displayName, null);
+    }
+
+    public void registerCooldown(Material material, double cooldownSeconds, VanillaTriggerType triggerType, String displayName, Integer maxUsesPerRegion) {
         if (material == null) {
             throw new IllegalArgumentException("Material cannot be null");
         }
 
-        VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType, displayName);
+        VanillaItemConfig config = new VanillaItemConfig(material, cooldownSeconds, triggerType, displayName, maxUsesPerRegion);
         itemConfigs.put(material, config);
 
+        if (config.hasRegionLimit()) {
+            VanillaRegionLimitManager.getInstance().registerRegionLimit(material, maxUsesPerRegion);
+        }
+
         DebugUtils.logInternalDebug(debug(), "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")" +
-                (displayName != null ? " with display name: '" + displayName + "'" : ""));
+                (displayName != null ? " with display name: '" + displayName + "'" : "") +
+                (maxUsesPerRegion != null ? " with region limit: " + maxUsesPerRegion : ""));
+    }
+
+    public void registerConfig(VanillaItemConfig config) {
+        if (config == null || config.getMaterial() == null) {
+            throw new IllegalArgumentException("Config and material cannot be null");
+        }
+
+        itemConfigs.put(config.getMaterial(), config);
+
+        if (config.hasRegionLimit()) {
+            VanillaRegionLimitManager.getInstance().registerRegionLimit(config.getMaterial(), config.getMaxUsesPerRegion());
+        }
+
+        for (String regionName : config.getRegionConfigs().keySet()) {
+            VanillaRegionConfig regionConfig = config.getRegionConfigs().get(regionName);
+            if (regionConfig.hasMaxUses()) {
+                VanillaRegionLimitManager.getInstance().registerRegionLimit(config.getMaterial(), regionConfig.getMaxUses());
+            }
+        }
+
+        DebugUtils.logInternalDebug(debug(), "Registered vanilla config: " + config.getMaterial() + " with " + 
+                config.getRegionConfigs().size() + " region overrides");
     }
 
     /**
@@ -181,6 +213,27 @@ public class VanillaItemCooldownManager implements Listener {
         if (!hasCooldownConfig(material)) return true;
         if (player.getGameMode() == GameMode.CREATIVE) return true;
 
+        VanillaItemConfig config = getCooldownConfig(material);
+        String currentRegion = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
+        
+        if (config.hasRegionConfigs() && currentRegion != null) {
+            if (config.isBlockedInRegion(currentRegion)) {
+                return false;
+            }
+            
+            int maxUses = config.getMaxUsesForRegion(currentRegion);
+            if (maxUses > 0) {
+                int currentUsage = VanillaRegionLimitManager.getInstance().getCurrentUsage(player, currentRegion, material);
+                if (currentUsage >= maxUses) {
+                    return false;
+                }
+            }
+        } else if (config.hasRegionLimit()) {
+            if (!VanillaRegionLimitManager.getInstance().canPlayerUseInRegion(player, material)) {
+                return false;
+            }
+        }
+
         String itemId = getItemId(material);
         return !CooldownManager.getInstance().hasCooldown(player, itemId);
     }
@@ -219,13 +272,29 @@ public class VanillaItemCooldownManager implements Listener {
         VanillaItemConfig config = getCooldownConfig(material);
         if (config == null) return;
 
-        String itemId = getItemId(material);
-        CooldownManager.getInstance().setCooldown(player, itemId, config.getCooldownSeconds());
+        String currentRegion = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
+        
+        if (config.hasRegionConfigs() && currentRegion != null) {
+            int maxUses = config.getMaxUsesForRegion(currentRegion);
+            if (maxUses > 0) {
+                VanillaRegionLimitManager.getInstance().recordUsage(player, material);
+            }
+        } else if (config.hasRegionLimit()) {
+            VanillaRegionLimitManager.getInstance().recordUsage(player, material);
+        }
 
-        // Establecer cooldown visual en Bukkit
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            player.setCooldown(material, (int) (config.getCooldownSeconds() * 20));
-        },1L);
+        double cooldownSeconds = config.hasRegionConfigs() && currentRegion != null 
+            ? config.getCooldownForRegion(currentRegion) 
+            : config.getCooldownSeconds();
+
+        if (cooldownSeconds > 0) {
+            String itemId = getItemId(material);
+            CooldownManager.getInstance().setCooldown(player, itemId, cooldownSeconds);
+
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                player.setCooldown(material, (int) (cooldownSeconds * 20));
+            }, 1L);
+        }
     }
 
     /**
@@ -425,12 +494,29 @@ public class VanillaItemCooldownManager implements Listener {
 
         VanillaTriggerType triggerType = config.getTriggerType();
 
-        // Aplicar cooldown después de disparar arco/ballesta
         if (triggerType == VanillaTriggerType.AFTER_PROJECTILE ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isProjectileTrigger(material))) {
 
             setCooldown(player, material);
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityResurrect(EntityResurrectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (player.getGameMode() == GameMode.CREATIVE) return;
+
+        Material material = Material.TOTEM_OF_UNDYING;
+        VanillaItemConfig config = getCooldownConfig(material);
+        if (config == null) return;
+
+        if (!canPlayerUseItem(player, material)) {
+            event.setCancelled(true);
+            handleCooldownMessage(player, material);
+            return;
+        }
+
+        setCooldown(player, material);
     }
 
     // ===== MÉTODOS AUXILIARES =====
@@ -449,6 +535,10 @@ public class VanillaItemCooldownManager implements Listener {
         return material.isEdible() ||
                 material == Material.POTION ||
                 material == Material.MILK_BUCKET;
+    }
+
+    private boolean isTotemTrigger(Material material) {
+        return material == Material.TOTEM_OF_UNDYING;
     }
 
     private boolean isProjectileTrigger(Material material) {
@@ -535,11 +625,46 @@ public class VanillaItemCooldownManager implements Listener {
      * ACTUALIZADO: Usa display name efectivo
      */
     private void handleCooldownMessage(Player player, Material material) {
-        double remainingSeconds = getRemainingCooldown(player, material);
-        String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
-
         VanillaItemConfig config = getCooldownConfig(material);
         String itemDisplayName = config != null ? config.getEffectiveDisplayName() : getItemDisplayName(material);
+
+        String currentRegion = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
+        
+        if (config != null && config.hasRegionConfigs() && currentRegion != null) {
+            if (config.isBlockedInRegion(currentRegion)) {
+                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_blocked",
+                        "%item%", itemDisplayName,
+                        "%region%", currentRegion));
+                return;
+            }
+            
+            int maxUses = config.getMaxUsesForRegion(currentRegion);
+            if (maxUses > 0) {
+                int currentUsage = VanillaRegionLimitManager.getInstance().getCurrentUsage(player, currentRegion, material);
+                if (currentUsage >= maxUses) {
+                    int remaining = maxUses - currentUsage;
+                    MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_limit",
+                            "%item%", itemDisplayName,
+                            "%remaining%", String.valueOf(remaining),
+                            "%region%", currentRegion));
+                    return;
+                }
+            }
+        } else if (config != null && config.hasRegionLimit()) {
+            if (!VanillaRegionLimitManager.getInstance().canPlayerUseInRegion(player, material)) {
+                int remaining = VanillaRegionLimitManager.getInstance().getRemainingUses(player, material);
+                String region = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
+                
+                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_limit",
+                        "%item%", itemDisplayName,
+                        "%remaining%", String.valueOf(remaining),
+                        "%region%", region != null ? region : "unknown"));
+                return;
+            }
+        }
+
+        double remainingSeconds = getRemainingCooldown(player, material);
+        String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
 
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_cooldown",
                 "%item%", itemDisplayName,
