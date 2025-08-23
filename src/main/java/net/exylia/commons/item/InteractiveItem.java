@@ -1,6 +1,8 @@
 package net.exylia.commons.item;
 
 import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.GlobalActionManager;
 import net.exylia.commons.command.CommandExecutor;
@@ -35,6 +37,8 @@ import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.skull.SkullUtils.*;
 
+@Getter
+@Accessors(fluent = true)
 public class InteractiveItem {
 
     private static final String NBT_ITEM_ID = "interactive_item_id";
@@ -48,10 +52,15 @@ public class InteractiveItem {
     private String configId;
     private ItemConfiguration config;
 
+    @Setter
     private Player placeholderPlayer;
 
-    @Getter
+    @Setter
     private Consumer<ItemClickInfo> clickHandler;
+
+    @Setter
+    @Accessors(fluent = true)
+    private ExyliaContext context = ExyliaContext.create();
 
     public InteractiveItem(String configId, ItemConfiguration config) {
         this.configId = configId;
@@ -110,30 +119,23 @@ public class InteractiveItem {
             return config;
         }
 
-        for (var entry : ItemManager.getAllConfigurations().entrySet()) {
-            ItemConfiguration itemConfig = entry.getValue();
-            if (itemConfig.hasForceId() && itemConfig.getForceId().equals(itemId)) {
-                return itemConfig;
-            }
-        }
-
-        return null;
+        return ItemManager.getAllConfigurations().entrySet().stream()
+                .map(entry -> entry.getValue())
+                .filter(itemConfig -> itemConfig.hasForceId() && itemConfig.getForceId().equals(itemId))
+                .findFirst()
+                .orElse(null);
     }
 
     private static String findOriginalConfigId(String itemId, ItemConfiguration config) {
         if (config.hasForceId() && config.getForceId().equals(itemId)) {
-            for (var entry : ItemManager.getAllConfigurations().entrySet()) {
-                if (entry.getValue() == config) {
-                    return entry.getKey();
-                }
-            }
+            return ItemManager.getAllConfigurations().entrySet().stream()
+                    .filter(entry -> entry.getValue() == config)
+                    .map(entry -> entry.getKey())
+                    .findFirst()
+                    .orElse(itemId);
         }
-
         return itemId;
     }
-
-    @Getter
-    private ExyliaContext context = ExyliaContext.create();
 
     public InteractiveItem withContext(ExyliaContext context) {
         this.context = context != null ? context : ExyliaContext.create();
@@ -157,16 +159,6 @@ public class InteractiveItem {
 
     public InteractiveItem clearContext() {
         this.context = ExyliaContext.create();
-        return this;
-    }
-
-    public InteractiveItem setClickHandler(Consumer<ItemClickInfo> clickHandler) {
-        this.clickHandler = clickHandler;
-        return this;
-    }
-
-    public InteractiveItem setPlaceholderPlayer(Player player) {
-        this.placeholderPlayer = player;
         return this;
     }
 
@@ -250,7 +242,7 @@ public class InteractiveItem {
             this.config = freshConfig;
         }
 
-        Player targetPlayer = (placeholderPlayer != null) ? placeholderPlayer : player;
+        Player targetPlayer = placeholderPlayer != null ? placeholderPlayer : player;
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return;
 
@@ -302,7 +294,6 @@ public class InteractiveItem {
                     .withData("itemConfiguration", this.getConfiguration())
                     .withData("contexts", actionContext.getAllObjects());
 
-            // Añadir hitPlayer si está presente en clickInfo
             if (clickInfo.getData().containsKey("hitPlayer")) {
                 context.withData("hitPlayer", clickInfo.getData("hitPlayer"));
             }

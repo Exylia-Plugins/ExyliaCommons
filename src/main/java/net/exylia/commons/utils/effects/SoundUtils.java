@@ -1,55 +1,58 @@
 package net.exylia.commons.utils.effects;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
+/**
+ * Plays a sound from a formatted string.
+ * Format: SOUND_NAME|VOLUME|PITCH
+ * Example: BLOCK_NOTE_BLOCK_PLING|0.5|1.0
+ */
 public class SoundUtils {
-
-    /**
-     * Plays a sound to a player from a formatted string.
-     * Format: SOUND_NAME|VOLUME|PITCH
-     * Example: BLOCK_NOTE_BLOCK_PLING|0.5|1.0
-     *
-     * @param player The player to play the sound to
-     * @param soundString The formatted sound string
-     * @return true if the sound was played, false otherwise
-     */
     public static boolean playSound(Player player, String soundString) {
-        if (soundString == null || soundString.isEmpty()) return false;
+        SoundData soundData = parseSound(soundString);
+        if (soundData == null) return false;
+        player.playSound(player.getLocation(), soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+        return true;
+    }
+    public static boolean playSound(Location location, String soundString) {
+        SoundData soundData = parseSound(soundString);
+        if (soundData == null) return false;
+        location.getWorld().playSound(location, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+        return true;
+
+    }
+    private static SoundData parseSound(String soundString) {
+        if (soundString == null || soundString.isEmpty()) return null;
 
         String[] parts = soundString.split("\\|");
-        if (parts.length < 1) return false;
+        if (parts.length < 1) return null;
 
         String soundName = parts[0];
-        float volume = parts.length > 1 ? parseFloat(parts[1], 1.0f) : 1.0f;
-        float pitch = parts.length > 2 ? parseFloat(parts[2], 1.0f) : 1.0f;
-
+        float volume = parts.length > 1 ? parseFloat(parts[1]) : 1.0f;
+        float pitch = parts.length > 2 ? parseFloat(parts[2]) : 1.0f;
         try {
             Sound sound = Sound.valueOf(soundName);
-            player.playSound(player.getLocation(), sound, volume, pitch);
-            return true;
+            return new SoundData(sound, volume, pitch);
         } catch (IllegalArgumentException e) {
-            return false;
+            return null;
         }
     }
-
-    /**
-     * Plays a sound to a player.
-     *
-     * @param player The player to play the sound to
-     * @param sound The sound to play
-     * @param volume The volume (0.0 to 1.0)
-     * @param pitch The pitch (0.5 to 2.0)
-     */
-    public static void playSound(Player player, Sound sound, float volume, float pitch) {
-        player.playSound(player.getLocation(), sound, volume, pitch);
-    }
-
-    private static float parseFloat(String value, float defaultValue) {
+    private static float parseFloat(String value) {
         try {
             return Float.parseFloat(value);
         } catch (NumberFormatException e) {
-            return defaultValue;
+            return (float) 1.0;
         }
+    }
+    @Data
+    @AllArgsConstructor
+    static class SoundData {
+        private Sound sound;
+        private float volume;
+        private float pitch;
     }
 }

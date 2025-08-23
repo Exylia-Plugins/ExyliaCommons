@@ -28,11 +28,6 @@ public class BossbarUtils {
         plugin = mainPlugin;
     }
 
-    // ==================== API SIMPLE ====================
-
-    /**
-     * Envía una boss bar usando configuración
-     */
     public static String sendBossBar(Player player, BossBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
@@ -56,16 +51,10 @@ public class BossbarUtils {
         return bossBarId;
     }
 
-    /**
-     * Envía una boss bar sin contexto
-     */
     public static String sendBossBar(Player player, BossBarConfig config) {
         return sendBossBar(player, config, ExyliaContext.create());
     }
 
-    /**
-     * Envía una boss bar con ID personalizado
-     */
     public static String sendBossBar(Player player, String bossBarId, BossBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
@@ -91,23 +80,11 @@ public class BossbarUtils {
         return bossBarId;
     }
 
-    // ==================== API BOSSBAR CON COUNTDOWN ====================
-
-    /**
-     * Envía una boss bar con countdown automático
-     * @param player El jugador
-     * @param bossBarId ID de la boss bar
-     * @param config Configuración de la boss bar (puede contener %time% y %progress% como placeholders)
-     * @param durationTicks Duración del countdown en ticks
-     * @param context Contexto adicional
-     * @return ID de la boss bar creada
-     */
     public static String sendCountdownBossBar(Player player, String bossBarId, BossBarConfig config, long durationTicks, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        // Cancelar boss bar existente si existe
         if (hasBossBar(player, bossBarId)) {
             cancelBossBar(player, bossBarId);
         }
@@ -129,36 +106,30 @@ public class BossbarUtils {
         return bossBarId;
     }
 
-    /**
-     * Envía una boss bar con countdown automático (versión simplificada)
-     */
     public static String sendCountdownBossBar(Player player, BossBarConfig config, long durationTicks) {
         return sendCountdownBossBar(player, generateBossBarId(), config, durationTicks, ExyliaContext.create());
     }
 
-    /**
-     * Envía una boss bar con countdown usando duración en segundos
-     */
     public static String sendCountdownBossBar(Player player, String bossBarId, BossBarConfig config, int durationSeconds, ExyliaContext context) {
         return sendCountdownBossBar(player, bossBarId, config, durationSeconds * 20L, context);
     }
 
-    /**
-     * Envía una boss bar con countdown usando duración en segundos (versión simplificada)
-     */
     public static String sendCountdownBossBar(Player player, BossBarConfig config, int durationSeconds) {
         return sendCountdownBossBar(player, generateBossBarId(), config, durationSeconds * 20L, ExyliaContext.create());
     }
 
-    // ==================== EJECUCIÓN COUNTDOWN ====================
-
     private static BukkitTask executeCountdownBossBar(Player player, CountdownBossBarInstance instance) {
         BossBarConfig config = instance.getConfig();
 
-        // Crear boss bar inicial
         String processedText = processPlaceholders(config.getText(), player, instance.getContext());
         BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
-        bossBar.progress(1.0f); // Empezar con progreso completo
+
+        if (bossBar == null) {
+            plugin.getLogger().warning("Failed to create BossBar for countdown");
+            return null;
+        }
+
+        bossBar.progress(1.0f);
         instance.setBossBar(bossBar);
         MessageUtils.showPlayerBossBar(player, bossBar);
 
@@ -175,37 +146,31 @@ public class BossbarUtils {
                     return;
                 }
 
-                // Calcular tiempo restante y progreso
-                long secondsRemaining = (ticksRemaining + 19) / 20; // Redondear hacia arriba
+                long secondsRemaining = (ticksRemaining + 19) / 20;
+                long millisRemaining = ticksRemaining * 50;
                 double progress = totalTicks > 0 ? (double) ticksRemaining / totalTicks : 0.0;
 
-                // Actualizar contexto con información del countdown
                 ExyliaContext currentContext = instance.getContext().copy()
                         .put("time", secondsRemaining)
-                        .put("time_formatted", timeFormatter.format(secondsRemaining))
+                        .put("time_formatted", timeFormatter.format(millisRemaining))
                         .put("ticks_remaining", ticksRemaining)
                         .put("progress", progress)
                         .put("update_count", updateCount)
                         .put("countdown_active", true)
                         .withCurrentTime();
 
-                // Procesar placeholders
                 String processedText = processPlaceholders(config.getText(), player, currentContext);
 
-                // Actualizar boss bar
-                BossBar bossBar = instance.getBossBar();
-                if (bossBar != null) {
-                    bossBar.name(ColorUtils.parse(processedText));
-                    bossBar.progress((float) Math.max(0.0, Math.min(1.0, progress)));
+                BossBar currentBossBar = instance.getBossBar();
+                if (currentBossBar != null) {
+                    currentBossBar.name(ColorUtils.parse(processedText));
+                    currentBossBar.progress((float) Math.max(0.0, Math.min(1.0, progress)));
                 }
 
-                // Actualizar contadores
                 ticksRemaining--;
                 updateCount++;
 
-                // Verificar si terminó el countdown
                 if (ticksRemaining < 0) {
-                    // Ejecutar callback si existe
                     if (instance.getOnComplete() != null) {
                         try {
                             instance.getOnComplete().run();
@@ -218,10 +183,8 @@ public class BossbarUtils {
                     cancel();
                 }
             }
-        }.runTaskTimer(plugin, 0L, 1L); // Ejecutar cada tick para precisión
+        }.runTaskTimer(plugin, 0L, 1L);
     }
-
-    // ==================== CLASE COUNTDOWN BOSSBAR INSTANCE ====================
 
     @Getter
     public static class CountdownBossBarInstance extends BossBarInstance {
@@ -242,7 +205,7 @@ public class BossbarUtils {
 
         @Override
         public boolean isPermanent() {
-            return false; // Los countdown nunca son permanentes
+            return false;
         }
 
         public CountdownBossBarInstance onComplete(Runnable callback) {
@@ -256,11 +219,6 @@ public class BossbarUtils {
         }
     }
 
-    // ==================== API EXTENDIDA PARA COUNTDOWN ====================
-
-    /**
-     * Crea una boss bar de countdown con callback
-     */
     public static String sendCountdownBossBar(Player player, String bossBarId, BossBarConfig config, int durationSeconds,
                                               ExyliaContext context, Runnable onComplete) {
         String id = sendCountdownBossBar(player, bossBarId, config, durationSeconds, context);
@@ -273,9 +231,6 @@ public class BossbarUtils {
         return id;
     }
 
-    /**
-     * Crea una boss bar de countdown con callbacks de completado y cancelación
-     */
     public static String sendCountdownBossBar(Player player, String bossBarId, BossBarConfig config, int durationSeconds,
                                               ExyliaContext context, Runnable onComplete, Runnable onCancel) {
         String id = sendCountdownBossBar(player, bossBarId, config, durationSeconds, context);
@@ -290,9 +245,6 @@ public class BossbarUtils {
         return id;
     }
 
-    /**
-     * Obtiene el tiempo restante de un countdown en segundos
-     */
     public static int getCountdownTimeRemaining(Player player, String bossBarId) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance instanceof CountdownBossBarInstance) {
@@ -305,9 +257,6 @@ public class BossbarUtils {
         return -1;
     }
 
-    /**
-     * Obtiene el progreso actual de un countdown (0.0 - 1.0)
-     */
     public static double getCountdownProgress(Player player, String bossBarId) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance instanceof CountdownBossBarInstance) {
@@ -320,17 +269,11 @@ public class BossbarUtils {
         return -1.0;
     }
 
-    /**
-     * Verifica si una boss bar es de tipo countdown
-     */
     public static boolean isCountdownBossBar(Player player, String bossBarId) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         return instance instanceof CountdownBossBarInstance;
     }
 
-    /**
-     * Obtiene todas las boss bars de countdown activas de un jugador
-     */
     public static Set<String> getCountdownBossBars(Player player) {
         Map<String, BossBarInstance> playerData = playerBossBars.get(player.getUniqueId());
         if (playerData == null) return new HashSet<>();
@@ -341,15 +284,18 @@ public class BossbarUtils {
                 .collect(Collectors.toSet());
     }
 
-    // ==================== EJECUCIÓN ====================
-
     private static BukkitTask executeBossBar(Player player, BossBarInstance instance) {
         BossBarConfig config = instance.getConfig();
 
         if (config.isPermanent()) {
-            // Boss bar permanente que se actualiza periódicamente
             String processedText = processPlaceholders(config.getText(), player, instance.getContext());
             BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
+
+            if (bossBar == null) {
+                plugin.getLogger().warning("Failed to create BossBar");
+                return null;
+            }
+
             bossBar.progress((float) config.getProgress());
             instance.setBossBar(bossBar);
             MessageUtils.showPlayerBossBar(player, bossBar);
@@ -371,27 +317,30 @@ public class BossbarUtils {
                             .withCurrentTime();
 
                     String processedText = processPlaceholders(config.getText(), player, currentContext);
-                    BossBar bossBar = instance.getBossBar();
-                    if (bossBar != null) {
-                        bossBar.name(ColorUtils.parse(processedText));
+                    BossBar currentBossBar = instance.getBossBar();
+                    if (currentBossBar != null) {
+                        currentBossBar.name(ColorUtils.parse(processedText));
                     }
 
                     updateCount++;
                 }
             }.runTaskTimer(plugin, 0L, config.getUpdateInterval());
         } else {
-            // Boss bar estática (no se actualiza)
             String processedText = processPlaceholders(config.getText(), player, instance.getContext());
             BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
+
+            if (bossBar == null) {
+                plugin.getLogger().warning("Failed to create BossBar");
+                return null;
+            }
+
             bossBar.progress((float) config.getProgress());
             instance.setBossBar(bossBar);
             MessageUtils.showPlayerBossBar(player, bossBar);
 
-            return null; // No necesita task para boss bars estáticas
+            return null;
         }
     }
-
-    // ==================== GESTIÓN DE INSTANCIAS ====================
 
     @Getter
     public static class BossBarInstance {
@@ -427,8 +376,6 @@ public class BossbarUtils {
             return System.currentTimeMillis() - createdAt;
         }
     }
-
-    // ==================== MÉTODOS AUXILIARES ====================
 
     private static String processPlaceholders(String text, Player player, ExyliaContext context) {
         if (text == null || text.isEmpty()) return "";
@@ -482,16 +429,10 @@ public class BossbarUtils {
         }
     }
 
-    // ==================== API DE GESTIÓN ====================
-
-    /**
-     * Cancela una boss bar específica
-     */
     public static boolean cancelBossBar(Player player, String bossBarId) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance == null) return false;
 
-        // Ejecutar callback de cancelación si es CountdownBossBarInstance
         if (instance instanceof CountdownBossBarInstance countdownInstance) {
             if (countdownInstance.getOnCancel() != null) {
                 try {
@@ -514,9 +455,6 @@ public class BossbarUtils {
         return true;
     }
 
-    /**
-     * Cancela todas las boss bars de un jugador
-     */
     public static int cancelAllBossBars(Player player) {
         Map<String, BossBarInstance> playerData = playerBossBars.get(player.getUniqueId());
         if (playerData == null || playerData.isEmpty()) return 0;
@@ -531,31 +469,21 @@ public class BossbarUtils {
         return count;
     }
 
-    /**
-     * Verifica si un jugador tiene una boss bar específica activa
-     */
     public static boolean hasBossBar(Player player, String bossBarId) {
         return getBossBarInstance(player, bossBarId) != null;
     }
 
-    /**
-     * Obtiene todas las boss bars activas de un jugador
-     */
     public static Set<String> getActiveBossBars(Player player) {
         Map<String, BossBarInstance> playerData = playerBossBars.get(player.getUniqueId());
         return playerData != null ? new HashSet<>(playerData.keySet()) : new HashSet<>();
     }
 
-    /**
-     * Actualiza el contexto de una boss bar
-     */
     public static boolean updateBossBar(Player player, String bossBarId, ExyliaContext newContext) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance == null) return false;
 
         instance.updateContext(newContext);
 
-        // Actualizar texto si la boss bar está activa
         if (instance.getBossBar() != null) {
             String newText = processPlaceholders(instance.getConfig().getText(), player, newContext);
             instance.getBossBar().name(ColorUtils.parse(newText));
@@ -564,9 +492,6 @@ public class BossbarUtils {
         return true;
     }
 
-    /**
-     * Actualiza el progreso de una boss bar
-     */
     public static boolean updateBossBarProgress(Player player, String bossBarId, double newProgress) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance == null || instance.getBossBar() == null) return false;
@@ -575,9 +500,6 @@ public class BossbarUtils {
         return true;
     }
 
-    /**
-     * Actualiza el color de una boss bar
-     */
     public static boolean updateBossBarColor(Player player, String bossBarId, String newColor) {
         BossBarInstance instance = getBossBarInstance(player, bossBarId);
         if (instance == null || instance.getBossBar() == null) return false;
@@ -586,9 +508,6 @@ public class BossbarUtils {
         return true;
     }
 
-    /**
-     * Obtiene todas las boss bars permanentes activas de un jugador
-     */
     public static Set<String> getPermanentBossBars(Player player) {
         Map<String, BossBarInstance> playerData = playerBossBars.get(player.getUniqueId());
         if (playerData == null) return new HashSet<>();
@@ -599,16 +518,10 @@ public class BossbarUtils {
                 .collect(Collectors.toSet());
     }
 
-    /**
-     * Verifica si un jugador tiene boss bars permanentes activos
-     */
     public static boolean hasPermanentBossBars(Player player) {
         return !getPermanentBossBars(player).isEmpty();
     }
 
-    /**
-     * Cancela todas las boss bars permanentes de un jugador
-     */
     public static int cancelAllPermanentBossBars(Player player) {
         Set<String> permanentBossBars = getPermanentBossBars(player);
         int count = 0;
@@ -620,9 +533,6 @@ public class BossbarUtils {
         return count;
     }
 
-    /**
-     * Limpia todos los datos al cerrar el plugin
-     */
     public static void cleanup() {
         for (UUID playerId : new HashSet<>(playerBossBars.keySet())) {
             Player player = Bukkit.getPlayer(playerId);

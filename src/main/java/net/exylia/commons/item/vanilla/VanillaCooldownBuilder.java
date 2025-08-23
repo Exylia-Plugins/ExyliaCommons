@@ -133,11 +133,60 @@ public class VanillaCooldownBuilder {
                                 double regionCooldown = regionSection.getDouble("cooldown", cooldown);
                                 Integer maxUses = regionSection.isSet("max-uses") ? regionSection.getInt("max-uses") : null;
                                 regionConfigs.put(regionName, new VanillaRegionConfig(regionCooldown, maxUses));
+                                DebugUtils.logInternalDebug(true, "Loaded region cooldown: " + regionName + " -> " + regionCooldown + "s for " + materialName);
                             }
                         }
                     }
 
-                    VanillaItemConfig vanillaConfig = new VanillaItemConfig(material, cooldown, trigger, displayName, regionLimit, regionConfigs);
+                    Integer worldLimit = itemConfig.isSet("world-limit") ? itemConfig.getInt("world-limit") : null;
+                    Map<String, VanillaWorldConfig> worldConfigs = new HashMap<>();
+                    
+                    // Soportar tanto "world" como "worlds"
+                    ConfigurationSection worldSection = null;
+                    if (itemConfig.isConfigurationSection("world")) {
+                        worldSection = itemConfig.getConfigurationSection("world");
+                    } else if (itemConfig.isConfigurationSection("worlds")) {
+                        worldSection = itemConfig.getConfigurationSection("worlds");
+                    }
+                    
+                    if (worldSection != null) {
+                        
+                        // Procesar configuraciones específicas por mundo si existen
+                        if (worldSection.isConfigurationSection("cooldowns")) {
+                            ConfigurationSection cooldownsSection = worldSection.getConfigurationSection("cooldowns");
+                            for (String worldName : cooldownsSection.getKeys(false)) {
+                                double worldCooldown = cooldownsSection.getDouble(worldName, cooldown);
+                                worldConfigs.put(worldName, new VanillaWorldConfig(worldCooldown, null));
+                                DebugUtils.logInternalDebug(true, "Loaded world cooldown: " + worldName + " -> " + worldCooldown + "s for " + materialName);
+                            }
+                        }
+                        
+                        // Procesar límites específicos por mundo si existen
+                        if (worldSection.isConfigurationSection("limits")) {
+                            ConfigurationSection limitsSection = worldSection.getConfigurationSection("limits");
+                            for (String worldName : limitsSection.getKeys(false)) {
+                                Integer maxUses = limitsSection.getInt(worldName);
+                                VanillaWorldConfig existingConfig = worldConfigs.get(worldName);
+                                if (existingConfig != null) {
+                                    worldConfigs.put(worldName, new VanillaWorldConfig(existingConfig.getCooldown(), maxUses));
+                                } else {
+                                    worldConfigs.put(worldName, new VanillaWorldConfig(cooldown, maxUses));
+                                }
+                            }
+                        }
+                        
+                        // Procesar configuraciones completas por mundo si existen
+                        for (String key : worldSection.getKeys(false)) {
+                            if (!key.equals("cooldowns") && !key.equals("limits") && worldSection.isConfigurationSection(key)) {
+                                ConfigurationSection specificWorldSection = worldSection.getConfigurationSection(key);
+                                double worldCooldown = specificWorldSection.getDouble("cooldown", cooldown);
+                                Integer maxUses = specificWorldSection.isSet("max-uses") ? specificWorldSection.getInt("max-uses") : null;
+                                worldConfigs.put(key, new VanillaWorldConfig(worldCooldown, maxUses));
+                            }
+                        }
+                    }
+
+                    VanillaItemConfig vanillaConfig = new VanillaItemConfig(material, cooldown, trigger, displayName, regionLimit, worldLimit, regionConfigs, worldConfigs);
                     VanillaItemCooldownManager.getInstance().registerConfig(vanillaConfig);
                 } else {
                     // Formato simple: material: cooldown

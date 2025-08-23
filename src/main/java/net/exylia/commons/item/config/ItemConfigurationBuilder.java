@@ -7,16 +7,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Builder para ItemConfiguration (separado para mejor modularización)
- * ACTUALIZADO: Soporte para TriggerType
- * NUEVO: Soporte para force-id y display-name
- */
 public class ItemConfigurationBuilder {
 
     protected String material = "STONE";
     protected String name = null;
-    protected String displayName = null; // NUEVO: display-name para otros usos
+    protected String displayName = null;
     protected List<String> lore = new ArrayList<>();
     protected int amount = 1;
     protected boolean glowing = false;
@@ -35,25 +30,23 @@ public class ItemConfigurationBuilder {
     protected boolean allowSwapToOffhand = true;
     protected boolean allowNumberKeys = true;
 
-    // Campos para efectos
-    protected String soundOnUse = null;
-    protected String particlesOnUse = null;
-    protected String fireworkOnUse = null;
+    protected ConfigurationSection effectsOnUse = null;
 
     protected Map<String, Object> actionConfig = new HashMap<>();
     protected boolean usePlaceholders = false;
 
-    // Sistema de regiones
     protected RegionFilterType regionType = RegionFilterType.NONE;
     protected RegionCheckerType regionChecker = RegionCheckerType.CONTAINS;
     protected List<RegionEntry> regionEntries = new ArrayList<>();
     protected List<String> regionList = new ArrayList<>();
     protected Map<String, Double> regionCooldowns = new HashMap<>();
 
-    // TriggerType
-    protected TriggerType triggerType = TriggerType.IMMEDIATE;
+    protected WorldFilterType worldType = WorldFilterType.NONE;
+    protected List<WorldEntry> worldEntries = new ArrayList<>();
+    protected List<String> worldList = new ArrayList<>();
+    protected Map<String, Double> worldCooldowns = new HashMap<>();
 
-    // NUEVO: Force ID
+    protected TriggerType triggerType = TriggerType.IMMEDIATE;
     protected String forceId = null;
 
     public ItemConfigurationBuilder material(String material) {
@@ -66,9 +59,6 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    /**
-     * NUEVO: Establece el display-name para otros usos
-     */
     public ItemConfigurationBuilder displayName(String displayName) {
         this.displayName = displayName;
         return this;
@@ -164,18 +154,8 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    public ItemConfigurationBuilder soundOnUse(String soundString) {
-        this.soundOnUse = soundString;
-        return this;
-    }
-
-    public ItemConfigurationBuilder particlesOnUse(String particleString) {
-        this.particlesOnUse = particleString;
-        return this;
-    }
-
-    public ItemConfigurationBuilder fireworkOnUse(String fireworkString) {
-        this.fireworkOnUse = fireworkString;
+    public ItemConfigurationBuilder effectsOnUse(ConfigurationSection effectsSection) {
+        this.effectsOnUse = effectsSection;
         return this;
     }
 
@@ -231,9 +211,6 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
-    /**
-     * NUEVO: Establece el force-id para sobrescribir items vanilla
-     */
     public ItemConfigurationBuilder forceId(String forceId) {
         this.forceId = forceId;
         return this;
@@ -360,6 +337,105 @@ public class ItemConfigurationBuilder {
                 .regionList(regions);
     }
 
+    public ItemConfigurationBuilder worldType(WorldFilterType type) {
+        this.worldType = type != null ? type : WorldFilterType.NONE;
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldType(String typeString) {
+        this.worldType = WorldFilterType.fromString(typeString);
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldEntries(List<WorldEntry> entries) {
+        this.worldEntries = new ArrayList<>(entries);
+        this.worldList = entries.stream()
+                .map(WorldEntry::getWorldName)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldEntriesFromStrings(List<String> entryStrings) {
+        this.worldEntries = new ArrayList<>();
+        this.worldList = new ArrayList<>();
+
+        for (String entryString : entryStrings) {
+            try {
+                WorldEntry entry = WorldEntry.parse(entryString);
+                this.worldEntries.add(entry);
+                this.worldList.add(entry.getWorldName());
+            } catch (IllegalArgumentException e) {
+                DebugUtils.logInternalError("Warning: Invalid world entry '" + entryString + "': " + e.getMessage());
+            }
+        }
+        return this;
+    }
+
+    public ItemConfigurationBuilder addWorldEntry(WorldEntry entry) {
+        if (!this.worldEntries.contains(entry)) {
+            this.worldEntries.add(entry);
+            if (!this.worldList.contains(entry.getWorldName())) {
+                this.worldList.add(entry.getWorldName());
+            }
+        }
+        return this;
+    }
+
+    public ItemConfigurationBuilder addWorldEntry(String entryString) {
+        try {
+            WorldEntry entry = WorldEntry.parse(entryString);
+            return addWorldEntry(entry);
+        } catch (IllegalArgumentException e) {
+            DebugUtils.logInternalError("Warning: Invalid world entry '" + entryString + "': " + e.getMessage());
+            return this;
+        }
+    }
+
+    public ItemConfigurationBuilder worldList(List<String> worlds) {
+        this.worldList = new ArrayList<>(worlds);
+        this.worldEntries = worlds.stream()
+                .map(WorldEntry::forWorld)
+                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldList(String... worlds) {
+        return worldList(List.of(worlds));
+    }
+
+    public ItemConfigurationBuilder addWorld(String worldName) {
+        if (!this.worldList.contains(worldName)) {
+            this.worldList.add(worldName);
+            this.worldEntries.add(WorldEntry.forWorld(worldName));
+        }
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldCooldowns(Map<String, Double> cooldowns) {
+        this.worldCooldowns = new HashMap<>(cooldowns);
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldCooldown(String worldName, double cooldownSeconds) {
+        this.worldCooldowns.put(worldName, cooldownSeconds);
+        return this;
+    }
+
+    public ItemConfigurationBuilder worldCooldown(String worldName, int cooldownSeconds) {
+        this.worldCooldowns.put(worldName, (double) cooldownSeconds);
+        return this;
+    }
+
+    public ItemConfigurationBuilder whitelistWorlds(String... worlds) {
+        return worldType(WorldFilterType.WHITELIST)
+                .worldList(worlds);
+    }
+
+    public ItemConfigurationBuilder blacklistWorlds(String... worlds) {
+        return worldType(WorldFilterType.BLACKLIST)
+                .worldList(worlds);
+    }
+
     public ItemConfigurationBuilder radius(double radius) {
         return actionConfigValue("radius", radius);
     }
@@ -404,7 +480,6 @@ public class ItemConfigurationBuilder {
             name(config.getString("name"));
         }
 
-        // NUEVO: Cargar display-name desde la configuración
         if (config.contains("display-name")) {
             displayName(config.getString("display-name"));
         }
@@ -474,16 +549,8 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        if (config.contains("sound-on-use")) {
-            soundOnUse(config.getString("sound-on-use"));
-        }
-
-        if (config.contains("particles-on-use")) {
-            particlesOnUse(config.getString("particles-on-use"));
-        }
-
-        if (config.contains("firework-on-use")) {
-            fireworkOnUse(config.getString("firework-on-use"));
+        if (config.contains("effects-on-use")) {
+            effectsOnUse(config.getConfigurationSection("effects-on-use"));
         }
 
         if (config.contains("allow-movement")) {
@@ -554,23 +621,65 @@ public class ItemConfigurationBuilder {
             }
         }
 
-        // Cargar triggerType desde la configuración
         if (config.contains("trigger-type")) {
             triggerType(config.getString("trigger-type"));
         }
 
-        // NUEVO: Cargar force-id desde la configuración
         if (config.contains("force-id")) {
             forceId(config.getString("force-id"));
         }
 
+        if (config.contains("world.type")) {
+            worldType(config.getString("world.type"));
+        }
+
+        if (config.contains("world.list")) {
+            if (config.isList("world.list")) {
+                List<String> worldStrings = config.getStringList("world.list");
+                worldEntriesFromStrings(worldStrings);
+            } else {
+                String worldString = config.getString("world.list");
+                if (worldString != null && !worldString.trim().isEmpty()) {
+                    String[] worlds = worldString.split(",");
+                    List<String> worldList = new ArrayList<>();
+                    for (String world : worlds) {
+                        String trimmed = world.trim();
+                        if (!trimmed.isEmpty()) {
+                            worldList.add(trimmed);
+                        }
+                    }
+                    worldEntriesFromStrings(worldList);
+                }
+            }
+        }
+
+        if (config.contains("world.cooldowns")) {
+            ConfigurationSection cooldownSection = config.getConfigurationSection("world.cooldowns");
+            if (cooldownSection != null) {
+                Map<String, Double> cooldowns = new HashMap<>();
+                for (String worldName : cooldownSection.getKeys(false)) {
+                    Object cooldownValue = cooldownSection.get(worldName);
+                    if (cooldownValue instanceof Number) {
+                        cooldowns.put(worldName, ((Number) cooldownValue).doubleValue());
+                    } else if (cooldownValue instanceof String) {
+                        try {
+                            cooldowns.put(worldName, Double.parseDouble((String) cooldownValue));
+                        } catch (NumberFormatException e) {
+                            cooldowns.put(worldName, (double) cooldownSection.getInt(worldName));
+                        }
+                    }
+                }
+                worldCooldowns(cooldowns);
+            }
+        }
+
         boolean autoDetectPlaceholders = false;
         String nameText = config.getString("name", "");
-        String displayNameText = config.getString("display-name", ""); // NUEVO: incluir display-name en detección
+        String displayNameText = config.getString("display-name", "");
         List<String> loreList = config.getStringList("lore");
 
         if (containsPlaceholders(nameText) ||
-                containsPlaceholders(displayNameText) || // NUEVO: verificar placeholders en display-name
+                containsPlaceholders(displayNameText) ||
                 loreList.stream().anyMatch(this::containsPlaceholders)) {
             autoDetectPlaceholders = true;
         }

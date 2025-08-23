@@ -218,6 +218,45 @@ public class VanillaRegionLimitManager implements Listener {
         return new ConcurrentHashMap<>(regionLimits);
     }
 
+    public Map<String, RegionLimitInfo> getActiveRegionLimitsForPlayer(Player player) {
+        Map<String, RegionLimitInfo> limits = new ConcurrentHashMap<>();
+
+        String currentRegion = getCurrentRegion(player);
+        if (currentRegion == null) {
+            return limits;
+        }
+
+        for (var entry : regionLimits.entrySet()) {
+            Material material = entry.getKey();
+            int currentUsage = getCurrentUsage(player, currentRegion, material);
+
+            if (currentUsage >= 1) {
+                String itemId = "vanilla_" + material.name().toLowerCase();
+                String displayName = VanillaItemCooldownManager.getInstance().getEffectiveDisplayName(material);
+                int maxUses = entry.getValue().getMaxUsesPerRegion();
+
+                limits.put(itemId, RegionLimitInfo.builder()
+                        .itemId(itemId)
+                        .displayName(displayName)
+                        .current(currentUsage)
+                        .max(maxUses)
+                        .build());
+            }
+        }
+
+        return limits;
+    }
+
+    public boolean hasActiveRegionLimits(Player player) {
+        String currentRegion = getCurrentRegion(player);
+        if (currentRegion == null) {
+            return false;
+        }
+
+        return regionLimits.entrySet().stream()
+                .anyMatch(entry -> getCurrentUsage(player, currentRegion, entry.getKey()) >= 1);
+    }
+
     public static class VanillaRegionLimitConfig {
         private final Material material;
         private final int maxUsesPerRegion;

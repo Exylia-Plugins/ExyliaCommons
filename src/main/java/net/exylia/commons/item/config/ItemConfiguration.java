@@ -3,6 +3,7 @@ package net.exylia.commons.item.config;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,15 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Configuración de un item interactivo almacenada en memoria
- * ACTUALIZADO: Nuevo sistema de regiones y soporte para TriggerType
- * NUEVO: Soporte para force-id y display-name
- */
 @Getter
 public class ItemConfiguration {
 
-    // Propiedades visuales
     private final String material;
     private final String name;
     private final String displayName;
@@ -26,47 +21,40 @@ public class ItemConfiguration {
     private final int amount;
     private final boolean glowing;
     private final boolean hideAttributes;
-    private final int slot; // solo para items de lobby
+    private final int slot;
 
-    // Comportamiento
     private final List<String> commands;
     private final String action;
     private final boolean consumeOnUse;
     private final boolean cancelEvent;
     private final boolean stackable;
 
-    // Sistema de usos
     private final int maxUses;
-
-    // Sistema de cooldown
     private final double cooldownSeconds;
 
-    // Efectos
-    private final String soundOnUse;
-    private final String particlesOnUse;
-    private final String fireworkOnUse;
+    private final ConfigurationSection effectsOnUse;
 
-    // Configuración de acciones
     private final Map<String, Object> actionConfig;
 
-    // Restricciones de movimiento
     private final boolean allowMovement;
     private final boolean allowShiftClick;
     private final boolean allowDrop;
     private final boolean allowSwapToOffhand;
     private final boolean allowNumberKeys;
 
-    // Placeholders
     private final boolean usePlaceholders;
 
-    // Sistema de regiones
     private final RegionFilterType regionType;
     private final RegionCheckerType regionChecker;
     private final List<RegionEntry> regionEntries;
     private final List<String> regionList;
     private final Map<String, Double> regionCooldowns;
 
-    // Tipo de trigger
+    private final WorldFilterType worldType;
+    private final List<WorldEntry> worldEntries;
+    private final List<String> worldList;
+    private final Map<String, Double> worldCooldowns;
+
     private final TriggerType triggerType;
     private final String forceId;
 
@@ -87,9 +75,7 @@ public class ItemConfiguration {
         this.maxUses = builder.maxUses;
         this.cooldownSeconds = builder.cooldownSeconds;
 
-        this.soundOnUse = builder.soundOnUse;
-        this.particlesOnUse = builder.particlesOnUse;
-        this.fireworkOnUse = builder.fireworkOnUse;
+        this.effectsOnUse = builder.effectsOnUse;
 
         this.actionConfig = new HashMap<>(builder.actionConfig);
         this.usePlaceholders = builder.usePlaceholders;
@@ -105,6 +91,11 @@ public class ItemConfiguration {
         this.regionEntries = new ArrayList<>(builder.regionEntries);
         this.regionList = new ArrayList<>(builder.regionList);
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
+
+        this.worldType = builder.worldType;
+        this.worldEntries = new ArrayList<>(builder.worldEntries);
+        this.worldList = new ArrayList<>(builder.worldList);
+        this.worldCooldowns = new HashMap<>(builder.worldCooldowns);
 
         this.triggerType = builder.triggerType;
         this.forceId = builder.forceId;
@@ -127,6 +118,10 @@ public class ItemConfiguration {
     }
 
     public boolean canUseWithChecker(List<String> playerRegions, World playerWorld, String highestPriorityRegion) {
+        if (!canUseInWorld(playerWorld)) {
+            return false;
+        }
+
         if (!hasRegionConfiguration()) {
             return true;
         }
@@ -187,25 +182,19 @@ public class ItemConfiguration {
         return !regionCooldowns.isEmpty();
     }
 
-    public boolean hasSound() {
-        return soundOnUse != null && !soundOnUse.trim().isEmpty();
-    }
-
-    public boolean hasParticles() {
-        return particlesOnUse != null && !particlesOnUse.trim().isEmpty();
-    }
-
-    public boolean hasFirework() {
-        return (fireworkOnUse != null && !fireworkOnUse.trim().isEmpty());
-    }
-
     public boolean hasEffects() {
-        return hasSound() || hasParticles() || hasFirework();
+        return effectsOnUse != null;
     }
 
     public boolean hasCooldown() {
         return cooldownSeconds > 0.0;
     }
+
+    public boolean isAllowMovement() { return allowMovement; }
+    public boolean isAllowShiftClick() { return allowShiftClick; }
+    public boolean isAllowDrop() { return allowDrop; }
+    public boolean isAllowSwapToOffhand() { return allowSwapToOffhand; }
+    public boolean isAllowNumberKeys() { return allowNumberKeys; }
 
     @SuppressWarnings("unchecked")
     public <T> T getActionConfigValue(String key, T defaultValue) {
@@ -312,6 +301,7 @@ public class ItemConfiguration {
         return actionConfig.containsKey(key);
     }
 
+    @Deprecated
     @SuppressWarnings("unchecked")
     public Map<String, Object> getActionConfigSection(String sectionKey) {
         Object value = actionConfig.get(sectionKey);
@@ -332,6 +322,14 @@ public class ItemConfiguration {
         }
 
         return new HashMap<>();
+    }
+
+    public ConfigurationSection getActionConfigurationSection(String sectionKey) {
+        Object value = actionConfig.get(sectionKey);
+        if (value instanceof ConfigurationSection) {
+            return (ConfigurationSection) value;
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -364,6 +362,49 @@ public class ItemConfiguration {
         return new ArrayList<>(regionEntries);
     }
 
+    public boolean hasWorldConfiguration() {
+        return worldType != WorldFilterType.NONE && !worldEntries.isEmpty();
+    }
+
+    public boolean canUseInWorld(World world) {
+        if (!hasWorldConfiguration()) {
+            return true;
+        }
+
+        if (world == null) {
+            return worldType == WorldFilterType.BLACKLIST;
+        }
+
+        boolean isInConfiguredWorld = worldEntries.stream()
+                .anyMatch(entry -> entry.matches(world));
+
+        return switch (worldType) {
+            case WHITELIST -> isInConfiguredWorld;
+            case BLACKLIST -> !isInConfiguredWorld;
+            case NONE -> true;
+        };
+    }
+
+    public double getCooldownForWorld(String worldName) {
+        return worldCooldowns.getOrDefault(worldName, cooldownSeconds);
+    }
+
+    public double getCooldownForWorld(World world) {
+        return world != null ? getCooldownForWorld(world.getName()) : cooldownSeconds;
+    }
+
+    public boolean hasWorldCooldowns() {
+        return !worldCooldowns.isEmpty();
+    }
+
+    public List<String> getWorldNames() {
+        return new ArrayList<>(worldList);
+    }
+
+    public List<WorldEntry> getWorldEntries() {
+        return new ArrayList<>(worldEntries);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -383,13 +424,14 @@ public class ItemConfiguration {
                 ", cooldownSeconds=" + cooldownSeconds +
                 ", actionConfig=" + actionConfig.size() + " keys" +
                 ", stackable=" + stackable +
-                ", hasSound=" + hasSound() +
-                ", hasParticles=" + hasParticles() +
-                ", hasFirework=" + hasFirework() +
+                ", hasEffects=" + hasEffects() +
                 ", regionType=" + regionType +
                 ", regionChecker=" + regionChecker +
                 ", regionEntries=" + regionEntries.size() + " region entries" +
                 ", regionCooldowns=" + regionCooldowns.size() + " region cooldowns" +
+                ", worldType=" + worldType +
+                ", worldEntries=" + worldEntries.size() + " world entries" +
+                ", worldCooldowns=" + worldCooldowns.size() + " world cooldowns" +
                 ", triggerType=" + triggerType +
                 ", forceId='" + forceId + '\'' +
                 '}';

@@ -39,17 +39,37 @@ public class ItemRegionHandler {
      * @return Cooldown en segundos (double)
      */
     public static double getCooldownForPlayerRegion(Player player, ItemConfiguration config) {
+        double baseCooldown = config.getCooldownSeconds();
+        double finalCooldown = baseCooldown;
+        
+        // Verificar cooldown específico de mundo
+        boolean hasSpecificWorldConfig = config.hasWorldCooldowns() && config.getWorldCooldowns().containsKey(player.getWorld().getName());
+        if (hasSpecificWorldConfig) {
+            finalCooldown = config.getCooldownForWorld(player.getWorld());
+        }
+
+        // Si no hay WorldGuard o no hay configuración de regiones, usar mundo o base
         if (!config.hasRegionCooldowns() || !WorldGuardUtils.isWorldGuardAvailable()) {
-            return config.getCooldownSeconds(); // Sin configuración de regiones = cooldown por defecto
+            return finalCooldown;
         }
 
         List<String> playerRegions = WorldGuardUtils.getRegionsAtPlayer(player);
 
         if (playerRegions.isEmpty()) {
-            return config.getCooldownSeconds(); // Fuera de regiones = cooldown por defecto
+            // Fuera de regiones - verificar si hay configuración __global__
+            if (config.getRegionCooldowns().containsKey("__global__")) {
+                finalCooldown = config.getRegionCooldowns().get("__global__");
+            }
+            return finalCooldown;
         }
 
-        return config.getHighestCooldownForRegions(playerRegions);
+        // Verificar si tiene configuración específica de región (OVERRIDE mundo y base)
+        boolean hasSpecificRegionConfig = playerRegions.stream().anyMatch(region -> config.getRegionCooldowns().containsKey(region));
+        if (hasSpecificRegionConfig) {
+            finalCooldown = config.getHighestCooldownForRegions(playerRegions);
+        }
+        
+        return finalCooldown;
     }
 
     /**
@@ -92,6 +112,41 @@ public class ItemRegionHandler {
     }
 
     /**
+     * Verifica si el jugador puede usar el item en su mundo actual
+     * @param player Jugador
+     * @param config Configuración del ítem
+     * @return true si puede usarlo en el mundo actual
+     */
+    public static boolean canPlayerUseItemInCurrentWorld(Player player, ItemConfiguration config) {
+        return config.canUseInWorld(player.getWorld());
+    }
+
+    /**
+     * Obtiene el cooldown específico para el mundo del jugador
+     * @param player Jugador
+     * @param config Configuración del ítem
+     * @return Cooldown en segundos para el mundo actual
+     */
+    public static double getCooldownForPlayerWorld(Player player, ItemConfiguration config) {
+        return config.getCooldownForWorld(player.getWorld());
+    }
+
+    /**
+     * Verifica si el jugador está en algún mundo específico
+     * @param player Jugador
+     * @param worldNames Nombres de mundos a verificar
+     * @return true si está en alguno de los mundos especificados
+     */
+    public static boolean isPlayerInAnyWorld(Player player, List<String> worldNames) {
+        if (worldNames.isEmpty()) {
+            return false;
+        }
+
+        String currentWorld = player.getWorld().getName();
+        return worldNames.stream().anyMatch(worldName -> worldName.equalsIgnoreCase(currentWorld));
+    }
+
+    /**
      * Obtiene información detallada sobre la verificación de regiones para debug
      * @param player Jugador
      * @param config Configuración del ítem
@@ -105,9 +160,25 @@ public class ItemRegionHandler {
         StringBuilder info = new StringBuilder();
 
         // Información básica del jugador
-        info.append("=== DEBUG REGIONES ===\n");
+        info.append("=== DEBUG REGIONES Y MUNDOS ===\n");
         info.append("Jugador: ").append(player.getName()).append("\n");
         info.append("Mundo: ").append(player.getWorld().getName()).append("\n");
+
+        // Configuración de mundos
+        if (config.hasWorldConfiguration()) {
+            info.append("Tipo de filtro de mundo: ").append(config.getWorldType()).append("\n");
+            info.append("Mundos configurados: ").append(config.getWorldNames()).append("\n");
+
+            boolean canUseInWorld = config.canUseInWorld(player.getWorld());
+            info.append("¿Puede usar el item en este mundo?: ").append(canUseInWorld).append("\n");
+
+            if (config.hasWorldCooldowns()) {
+                double worldCooldown = config.getCooldownForWorld(player.getWorld());
+                info.append("Cooldown específico de mundo: ").append(worldCooldown).append(" segundos\n");
+            }
+        } else {
+            info.append("Sin configuración de mundos\n");
+        }
 
         // Regiones donde está el jugador
         List<String> playerRegions = getPlayerRegions(player);
@@ -127,10 +198,10 @@ public class ItemRegionHandler {
             boolean canUse = config.canUseWithChecker(playerRegions, player.getWorld(), highestPriorityRegion);
             info.append("¿Puede usar el item?: ").append(canUse).append("\n");
 
-            // Cooldown específico
-            if (config.hasRegionCooldowns()) {
+            // Cooldown específico (considera tanto mundo como región)
+            if (config.hasRegionCooldowns() || config.hasWorldCooldowns()) {
                 double cooldown = getCooldownForPlayerRegion(player, config);
-                info.append("Cooldown aplicable: ").append(cooldown).append(" segundos\n");
+                info.append("Cooldown final aplicable: ").append(cooldown).append(" segundos\n");
             }
         } else {
             info.append("Sin configuración de regiones\n");

@@ -60,7 +60,7 @@ public class ParticleUtils {
      * @param particleString The formatted particle string
      * @return true if the particles were spawned, false otherwise
      */
-    public static boolean spawnParticlesForPlayer(Player player, Location location, String particleString) {
+    public static boolean spawnParticles(Player player, Location location, String particleString) {
         if (particleString == null || particleString.isEmpty() || location == null || player == null) return false;
 
         String[] parts = particleString.split("\\|");

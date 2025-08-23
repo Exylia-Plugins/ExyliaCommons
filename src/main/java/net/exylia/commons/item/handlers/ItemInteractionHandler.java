@@ -144,6 +144,11 @@ public class ItemInteractionHandler {
             return;
         }
 
+        if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(hitPlayer, config)) {
+            handleRegionDeniedMessage(player);
+            return;
+        }
+
         boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
 
         if (actionExecuted || !interactiveItem.hasAction()) {
@@ -204,7 +209,7 @@ public class ItemInteractionHandler {
                 ItemStack updatedItem = interactiveItem.getItemStack();
                 updatedItem.setAmount(1);
 
-                interactiveItem.setPlaceholderPlayer(player);
+                interactiveItem.placeholderPlayer(player);
                 interactiveItem.updatePlaceholders(player, null);
 
                 updatedItem = interactiveItem.getItemStack();
@@ -220,9 +225,14 @@ public class ItemInteractionHandler {
                         "Returned updated item to inventory for " + player.getName() +
                                 " with " + interactiveItem.getCurrentUses() + " uses remaining");
             } else {
+                if (hand == EquipmentSlot.HAND) {
+                    player.getInventory().setItemInMainHand(null);
+                } else if (hand == EquipmentSlot.OFF_HAND) {
+                    player.getInventory().setItemInOffHand(null);
+                }
                 MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
                 DebugUtils.logInternalDebug(debug(),
-                        "Item completely consumed for " + player.getName() + " - not returning to inventory");
+                        "Item completely consumed for " + player.getName() + " - removed from inventory");
             }
         });
     }
@@ -236,6 +246,11 @@ public class ItemInteractionHandler {
         }
 
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
+            handleRegionDeniedMessage(player);
+            return;
+        }
+
+        if (hitPlayer != null && !ItemRegionHandler.canPlayerUseItemInCurrentRegion(hitPlayer, config)) {
             handleRegionDeniedMessage(player);
             return;
         }
@@ -296,8 +311,8 @@ public class ItemInteractionHandler {
             Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
         }
 
-        if (interactiveItem.getClickHandler() != null) {
-            interactiveItem.getClickHandler().accept(clickInfo);
+        if (interactiveItem.clickHandler() != null) {
+            interactiveItem.clickHandler().accept(clickInfo);
         }
 
         return actionExecuted;
@@ -315,8 +330,8 @@ public class ItemInteractionHandler {
             Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
         }
 
-        if (interactiveItem.getClickHandler() != null) {
-            interactiveItem.getClickHandler().accept(clickInfo);
+        if (interactiveItem.clickHandler() != null) {
+            interactiveItem.clickHandler().accept(clickInfo);
         }
 
         return actionExecuted;
@@ -324,7 +339,7 @@ public class ItemInteractionHandler {
 
     private boolean shouldConsumeUse(InteractiveItem interactiveItem, boolean actionExecuted) {
         return actionExecuted || !interactiveItem.getCommands().isEmpty() ||
-                interactiveItem.getClickHandler() != null;
+                interactiveItem.clickHandler() != null;
     }
 
     private void processItemConsumptionFromInventory(InventoryClickEvent event, InteractiveItem interactiveItem) {
