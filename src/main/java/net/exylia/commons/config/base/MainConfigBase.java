@@ -15,6 +15,12 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "debug", defaultValue = "false")
     private boolean debug;
 
+    @ConfigValue(value = "text.automatic-font", defaultValue = "small")
+    private String textAutomaticFont;
+
+    @ConfigValue(value = "text.force-in-upper-case", defaultValue = "true")
+    private boolean textForceInUpperCase;
+
     // ===== CONFIGURACIONES DATE FORMATTER =====
 
     @ConfigValue(value = "date-formatter.default-pattern", defaultValue = "dd/MM/yyyy HH:mm:ss")
@@ -52,6 +58,18 @@ public class MainConfigBase extends ConfigBase {
         MainConfigBase instance = getActiveInstance();
         if (instance == null) return false;
         return instance.debug;
+    }
+
+    public static String textAutomaticFont() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return "small";
+        return instance.textAutomaticFont;
+    }
+
+    public static boolean textForceInUpperCase() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return false;
+        return instance.textForceInUpperCase;
     }
 
     // ===== DATE FORMATTER GETTERS =====

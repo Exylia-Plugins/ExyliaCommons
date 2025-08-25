@@ -1,6 +1,10 @@
 # Only for development purposes
 debug: false
 
+text:
+  automatic-font: "small" # small or none
+  force-in-upper-case: true
+
 date-formatter:
   default-pattern: "dd/MM/yyyy HH:mm:ss"
   date-pattern: "dd/MM/yyyy"

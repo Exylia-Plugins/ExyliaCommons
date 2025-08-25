@@ -36,6 +36,12 @@ public class ColorUtils {
     private static final Pattern PRESET_PATTERN = Pattern.compile("\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}");
     private static JavaPlugin pluginInstance;
     private static boolean presetsInitialized = false;
+    
+    // Sistema de transformación de fuentes
+    private static final Map<Character, Character> SMALL_FONT_MAP = new HashMap<>();
+    static {
+        initializeSmallFontMap();
+    }
 
     /**
      * Inicializa el sistema de presets de colores
@@ -392,6 +398,41 @@ public class ColorUtils {
 
     public static void clearCache() {
         COMPONENT_CACHE.clear();
+    }
+
+    private static void initializeSmallFontMap() {
+        String normal = "abcdefghijklmnopqrstuvwxyz";
+        String small = "ᴀʙᴄᴅᴇғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ";
+        
+        for (int i = 0; i < normal.length(); i++) {
+            SMALL_FONT_MAP.put(normal.charAt(i), small.charAt(i));
+            SMALL_FONT_MAP.put(Character.toUpperCase(normal.charAt(i)), small.charAt(i));
+        }
+    }
+
+    public static String applyFontTransformation(String message) {
+        if (message == null || message.isEmpty()) {
+            return message;
+        }
+
+        try {
+            String automaticFont = net.exylia.commons.config.base.MainConfigBase.textAutomaticFont();
+            boolean forceUpperCase = net.exylia.commons.config.base.MainConfigBase.textForceInUpperCase();
+            
+            if (!"small".equals(automaticFont)) {
+                return message;
+            }
+
+            StringBuilder result = new StringBuilder();
+            for (char c : message.toCharArray()) {
+                Character transformed = SMALL_FONT_MAP.get(forceUpperCase ? Character.toUpperCase(c) : c);
+                result.append(transformed != null ? transformed : c);
+            }
+            
+            return result.toString();
+        } catch (Exception e) {
+            return message;
+        }
     }
 
     public static void shutdown() {

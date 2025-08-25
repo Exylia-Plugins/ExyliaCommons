@@ -23,7 +23,6 @@ public class SunLicenseUtil {
     public boolean initializeLicense() {
         try {
             validateLicense();
-            DebugUtils.logInternalSuccess("License validated successfully!");
             return true;
         } catch (Exception e) {
             logLicenseError(e.getMessage());

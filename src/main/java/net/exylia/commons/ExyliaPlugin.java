@@ -45,22 +45,17 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     private BukkitAudiences adventure;
     private ConfigurationSystem configSystem;
     private ReloadManager reloadManager;
-    private final boolean requiresLicense;
     @Getter
     @Setter
     private SunLicenseAPI api;
 
     // ===== CONSTRUCTOR =====
-    protected ExyliaPlugin(boolean requiresLicense) {
-        this.requiresLicense = requiresLicense;
-
-        if (requiresLicense) {
+    protected ExyliaPlugin() {
             SunLicenseUtil licenseManager = new SunLicenseUtil(this);
 
             if (!licenseManager.initializeLicense()) {
                 getServer().getPluginManager().disablePlugin(this);
             }
-        }
     }
 
     public abstract int getProductID();
@@ -69,14 +64,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onEnable() {
         try {
-            if (requiresLicense) {
-                if (api == null) {
-                    getServer().getPluginManager().disablePlugin(this);
-                    return;
-                }
-                api.validate();
+            if (api == null) {
+                getServer().getPluginManager().disablePlugin(this);
+                return;
             }
-            DebugUtils.logInternalSuccess("License validated successfully!");
+            api.validate();
             this.adventure = BukkitAudiences.create(this);
             this.reloadManager = new ReloadManager(this);
             registeredPlugins.add(this);
