@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,6 +58,8 @@ public class ItemConfiguration {
 
     private final TriggerType triggerType;
     private final String forceId;
+    
+    private final Map<Enchantment, Integer> enchantments;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
         this.material = builder.material;
@@ -99,6 +102,8 @@ public class ItemConfiguration {
 
         this.triggerType = builder.triggerType;
         this.forceId = builder.forceId;
+        
+        this.enchantments = new HashMap<>(builder.enchantments);
     }
 
     public boolean hasDisplayName() {
@@ -403,6 +408,22 @@ public class ItemConfiguration {
 
     public List<WorldEntry> getWorldEntries() {
         return new ArrayList<>(worldEntries);
+    }
+    
+    public Map<Enchantment, Integer> getEnchantments() {
+        return new HashMap<>(enchantments);
+    }
+    
+    public boolean hasEnchantments() {
+        return !enchantments.isEmpty();
+    }
+    
+    public boolean hasEnchantment(Enchantment enchantment) {
+        return enchantments.containsKey(enchantment);
+    }
+    
+    public int getEnchantmentLevel(Enchantment enchantment) {
+        return enchantments.getOrDefault(enchantment, 0);
     }
 
     public static Builder builder() {

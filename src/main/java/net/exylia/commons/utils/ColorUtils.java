@@ -171,7 +171,8 @@ public class ColorUtils {
         // Usar cache para evitar reprocesamiento
         return COMPONENT_CACHE.get(message, key -> {
             String processed = applyColorPresets(key); // Aplicar presets primero
-            processed = preprocessColorCodes(processed);
+            processed = preprocessColorCodes(processed); // Aplicar códigos de color
+            processed = applyFontTransformation(processed); // Aplicar transformación de fuente al final
             return MINI_MESSAGE.deserialize(processed)
                     .decoration(TextDecoration.ITALIC, false);
         });
@@ -217,8 +218,9 @@ public class ColorUtils {
             return "";
         }
 
-        String processed = applyColorPresets(message);
-        return preprocessColorCodes(processed);
+        String processed = applyColorPresets(message); // Aplicar presets primero
+        processed = preprocessColorCodes(processed); // Aplicar códigos de color
+        return applyFontTransformation(processed); // Aplicar transformación de fuente al final
     }
 
     /**
@@ -424,9 +426,62 @@ public class ColorUtils {
             }
 
             StringBuilder result = new StringBuilder();
-            for (char c : message.toCharArray()) {
-                Character transformed = SMALL_FONT_MAP.get(forceUpperCase ? Character.toUpperCase(c) : c);
-                result.append(transformed != null ? transformed : c);
+            boolean insideColorCode = false;
+            
+            for (int i = 0; i < message.length(); i++) {
+                char c = message.charAt(i);
+                
+                // Detectar inicio de códigos de color MiniMessage
+                if (c == '<' && !insideColorCode) {
+                    // Verificar si es un código de color válido
+                    int closingIndex = message.indexOf('>', i);
+                    if (closingIndex != -1) {
+                        String tag = message.substring(i, closingIndex + 1);
+                        // Verificar si es un código de color hexadecimal, nombre de color o formato
+                        if (tag.matches("<#[0-9a-fA-F]{6}>") || 
+                            tag.matches("</?(black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|aqua|red|light_purple|yellow|white|obfuscated|bold|strikethrough|underlined|italic|reset|b|i|u|st|obf|r)>") ||
+                            tag.startsWith("<gradient:") || tag.equals("</gradient>") ||
+                            tag.startsWith("<rainbow") || tag.equals("</rainbow>") ||
+                            tag.startsWith("<transition:") || tag.equals("</transition>")) {
+                            insideColorCode = true;
+                        }
+                    }
+                }
+                
+                // Detectar códigos de color ampersand
+                if (c == '&' && i + 1 < message.length() && !insideColorCode) {
+                    char nextChar = message.charAt(i + 1);
+                    // Códigos simples (&0-9, &a-f, &k-o, &r) o hexadecimales (&#ffffff)
+                    if ((nextChar >= '0' && nextChar <= '9') || 
+                        (nextChar >= 'a' && nextChar <= 'f') || 
+                        (nextChar >= 'A' && nextChar <= 'F') ||
+                        "klmnoprKLMNOPR".indexOf(nextChar) != -1 ||
+                        nextChar == '#') {
+                        insideColorCode = true;
+                    }
+                }
+                
+                if (insideColorCode) {
+                    result.append(c);
+                    
+                    // Detectar final de códigos MiniMessage
+                    if (c == '>') {
+                        insideColorCode = false;
+                    }
+                    // Detectar final de códigos ampersand (después de 2 caracteres para códigos simples)
+                    else if (message.charAt(Math.max(0, i - 1)) == '&' && 
+                             "0123456789abcdefklmnoprABCDEFKLMNOPR".indexOf(c) != -1) {
+                        insideColorCode = false;
+                    }
+                    // Detectar final de códigos hexadecimales ampersand (&#ffffff)
+                    else if (i >= 7 && message.substring(Math.max(0, i - 7), i + 1).matches("&#[0-9a-fA-F]{6}")) {
+                        insideColorCode = false;
+                    }
+                } else {
+                    // Aplicar transformación de fuente solo fuera de códigos de color
+                    Character transformed = SMALL_FONT_MAP.get(forceUpperCase ? Character.toUpperCase(c) : c);
+                    result.append(transformed != null ? transformed : c);
+                }
             }
             
             return result.toString();

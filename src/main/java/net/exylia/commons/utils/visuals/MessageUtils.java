@@ -37,15 +37,13 @@ public class MessageUtils {
 
     public static void sendMessage(Player player, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         sendMessage(player, component);
     }
 
     public static void sendMessage(CommandSender sender, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         sendMessage(sender, component);
     }
 
@@ -58,8 +56,7 @@ public class MessageUtils {
 
     public static void sendMessage(UUID playerUUID, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         sendMessage(playerUUID, component);
     }
 
@@ -81,8 +78,7 @@ public class MessageUtils {
 
     public static void broadcastMessage(String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         broadcastMessage(component);
     }
 
@@ -105,8 +101,7 @@ public class MessageUtils {
 
     public static void sendMessage(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : players) {
             sendMessage(player, component);
         }
@@ -129,15 +124,13 @@ public class MessageUtils {
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         broadcastMessageExcluding(excludePlayers, component);
     }
 
     public static void broadcastMessageExcluding(Player excludePlayer, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         broadcastMessageExcluding(excludePlayer, component);
     }
 
@@ -183,8 +176,7 @@ public class MessageUtils {
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
                 sendMessage(player, component);
@@ -194,8 +186,7 @@ public class MessageUtils {
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
                 sendMessage(player, component);
@@ -239,10 +230,8 @@ public class MessageUtils {
 
     public static void sendTitleToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
                 sendTitle(player, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
@@ -252,10 +241,8 @@ public class MessageUtils {
 
     public static void sendTitleToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
                 sendTitle(player, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
@@ -299,8 +286,7 @@ public class MessageUtils {
 
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
                 sendActionBar(player, component);
@@ -310,8 +296,7 @@ public class MessageUtils {
 
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
                 sendActionBar(player, component);
@@ -468,10 +453,8 @@ public class MessageUtils {
 
     public static void sendTitle(Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         sendTitle(player, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
     }
 
@@ -484,10 +467,8 @@ public class MessageUtils {
 
     public static void broadcastTitle(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         broadcastTitle(titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
     }
 
@@ -500,10 +481,8 @@ public class MessageUtils {
 
     public static void sendTitle(Collection<Player> players, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         sendTitle(players, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
     }
 
@@ -538,8 +517,7 @@ public class MessageUtils {
 
     public static void sendActionBar(Player player, String message) {
         if (message == null) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         sendActionBar(player, component);
     }
 
@@ -552,8 +530,7 @@ public class MessageUtils {
 
     public static void broadcastActionBar(String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         broadcastActionBar(component);
     }
 
@@ -566,8 +543,7 @@ public class MessageUtils {
 
     public static void sendActionBar(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         sendActionBar(players, component);
     }
 
@@ -667,8 +643,7 @@ public class MessageUtils {
 
     public static BossBar createBossBar(String text, BossBar.Color color, BossBar.Overlay style, BossBar.Flag... flags) {
         if (text == null || text.trim().isEmpty()) return null;
-        String transformedText = ColorUtils.applyFontTransformation(text);
-        Component component = ColorUtils.parse(transformedText);
+        Component component = ColorUtils.parse(text);
         Set<BossBar.Flag> flagSet = Set.of(flags);
         return BossBar.bossBar(component, 1.0f, color, style, flagSet);
     }
@@ -719,8 +694,7 @@ public class MessageUtils {
 
     public static void sendMessageToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (condition.test(player)) {
                 sendMessage(player, component);
@@ -734,10 +708,8 @@ public class MessageUtils {
 
     public static void sendTitleToFiltered(Predicate<Player> condition, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (condition.test(player)) {
@@ -778,8 +750,7 @@ public class MessageUtils {
 
     public static void sendActionBarToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (condition.test(player)) {
@@ -820,16 +791,13 @@ public class MessageUtils {
 
     public static void sendPaginatedMessage(Player player, String header, String footer, int pageNumber, int itemsPerPage, List<String> items) {
         if (items == null || items.isEmpty()) return;
-        String transformedHeader = header != null && !header.trim().isEmpty() ? ColorUtils.applyFontTransformation(header) : null;
-        String transformedFooter = footer != null && !footer.trim().isEmpty() ? ColorUtils.applyFontTransformation(footer) : null;
-        Component headerComponent = transformedHeader != null ? ColorUtils.parse(transformedHeader) : null;
-        Component footerComponent = transformedFooter != null ? ColorUtils.parse(transformedFooter) : null;
+        Component headerComponent = header != null && !header.trim().isEmpty() ? ColorUtils.parse(header) : null;
+        Component footerComponent = footer != null && !footer.trim().isEmpty() ? ColorUtils.parse(footer) : null;
 
         List<Component> components = new java.util.ArrayList<>();
         for (String item : items) {
             if (item != null && !item.trim().isEmpty()) {
-                String transformedItem = ColorUtils.applyFontTransformation(item);
-                components.add(ColorUtils.parse(transformedItem));
+                components.add(ColorUtils.parse(item));
             }
         }
 
@@ -846,8 +814,7 @@ public class MessageUtils {
 
     public static void sendRepeatedMessage(Player player, String message, long intervalTicks, long durationTicks) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
 
         long iterations = durationTicks / intervalTicks;
 
@@ -862,8 +829,7 @@ public class MessageUtils {
 
     public static void sendRepeatedActionBar(Player player, String message, long intervalTicks, long durationTicks) {
         if (message == null || message.trim().isEmpty()) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
 
         long iterations = durationTicks / intervalTicks;
 
@@ -878,8 +844,7 @@ public class MessageUtils {
 
     public static BossBar showProgressBossBar(Player player, String text, BossBar.Color color, BossBar.Overlay style, long durationTicks, boolean decreasing) {
         if (text == null || text.trim().isEmpty()) return null;
-        String transformedText = ColorUtils.applyFontTransformation(text);
-        Component component = ColorUtils.parse(transformedText);
+        Component component = ColorUtils.parse(text);
         BossBar bossBar = BossBar.bossBar(component, decreasing ? 1.0f : 0.0f, color, style);
 
         showPlayerBossBar(player, bossBar);
@@ -987,8 +952,7 @@ public class MessageUtils {
 
     public static void sendMessageInRadius(org.bukkit.Location origin, double radius, String message) {
         if (message == null || message.trim().isEmpty() || origin == null) return;
-        String transformedMessage = ColorUtils.applyFontTransformation(message);
-        Component component = ColorUtils.parse(transformedMessage);
+        Component component = ColorUtils.parse(message);
         double radiusSquared = radius * radius;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -1001,10 +965,8 @@ public class MessageUtils {
 
     public static void sendTitleInRadius(org.bukkit.Location origin, double radius, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if (((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) || origin == null) return;
-        String transformedTitle = ColorUtils.applyFontTransformation(title != null ? title : "");
-        String transformedSubtitle = ColorUtils.applyFontTransformation(subtitle != null ? subtitle : "");
-        Component titleComponent = ColorUtils.parse(transformedTitle);
-        Component subtitleComponent = ColorUtils.parse(transformedSubtitle);
+        Component titleComponent = ColorUtils.parse(title != null ? title : "");
+        Component subtitleComponent = ColorUtils.parse(subtitle != null ? subtitle : "");
         double radiusSquared = radius * radius;
 
         for (Player player : Bukkit.getOnlinePlayers()) {

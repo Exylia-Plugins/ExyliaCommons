@@ -29,7 +29,9 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -376,6 +378,10 @@ public class InteractiveItem {
         if (!config.isStackable()) {
             makeUnique(item);
         }
+        
+        if (config.hasEnchantments()) {
+            applyEnchantments(item, config.getEnchantments());
+        }
 
         return item;
     }
@@ -442,6 +448,49 @@ public class InteractiveItem {
         hideAllAttributes(itemStack);
         return this;
     }
+    
+    public InteractiveItem addEnchantment(Enchantment enchantment, int level) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.addEnchant(enchantment, level, true);
+            itemStack.setItemMeta(meta);
+        }
+        return this;
+    }
+    
+    public InteractiveItem removeEnchantment(Enchantment enchantment) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.removeEnchant(enchantment);
+            itemStack.setItemMeta(meta);
+        }
+        return this;
+    }
+    
+    public InteractiveItem clearEnchantments() {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            Map<Enchantment, Integer> enchants = meta.getEnchants();
+            for (Enchantment enchant : enchants.keySet()) {
+                meta.removeEnchant(enchant);
+            }
+            itemStack.setItemMeta(meta);
+        }
+        return this;
+    }
+    
+    public boolean hasEnchantment(Enchantment enchantment) {
+        return itemStack.containsEnchantment(enchantment);
+    }
+    
+    public int getEnchantmentLevel(Enchantment enchantment) {
+        return itemStack.getEnchantmentLevel(enchantment);
+    }
+    
+    public Map<Enchantment, Integer> getEnchantments() {
+        ItemMeta meta = itemStack.getItemMeta();
+        return meta != null ? meta.getEnchants() : new HashMap<>();
+    }
 
     private void setGlowing(ItemStack item, boolean glowing) {
         ItemMeta meta = item.getItemMeta();
@@ -473,6 +522,22 @@ public class InteractiveItem {
 
     private void makeUnique(ItemStack item) {
         ItemNBTUtils.setNBTString(item, getPlugin(), NBT_UNIQUE_ID, UUID.randomUUID().toString());
+    }
+    
+    private void applyEnchantments(ItemStack item, Map<Enchantment, Integer> enchantments) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        
+        for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
+            Enchantment enchantment = entry.getKey();
+            int level = entry.getValue();
+            
+            if (level > 0) {
+                meta.addEnchant(enchantment, level, true);
+            }
+        }
+        
+        item.setItemMeta(meta);
     }
 
     public ItemStack getItemStack() {

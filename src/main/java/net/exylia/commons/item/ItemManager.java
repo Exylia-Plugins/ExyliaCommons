@@ -5,6 +5,7 @@ import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.item.handlers.ItemHoldHandler;
 import net.exylia.commons.item.handlers.ItemInteractionHandler;
 import net.exylia.commons.item.handlers.ItemInventoryHandler;
 import net.exylia.commons.item.handlers.ItemRegionHandler;
@@ -34,6 +35,9 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerPickupItemEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -59,6 +63,7 @@ public class ItemManager implements Listener {
     private static JavaPlugin plugin;
     private static ItemRegistry registry;
     private static ItemInteractionHandler interactionHandler;
+    private static ItemHoldHandler holdHandler;
     private static NamespacedKey itemIdKey;
     private static boolean initialized = false;
 
@@ -71,6 +76,7 @@ public class ItemManager implements Listener {
         plugin = javaPlugin;
         registry = new ItemRegistryImpl();
         interactionHandler = new ItemInteractionHandler(plugin);
+        holdHandler = new ItemHoldHandler(plugin);
         itemIdKey = new NamespacedKey(plugin, "interactive_item_id");
 
         Bukkit.getPluginManager().registerEvents(new ItemManager(), plugin);
@@ -248,6 +254,28 @@ public class ItemManager implements Listener {
 
         if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
             DebugUtils.logInternalDebug(debug(), "Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
+            return;
+        }
+        
+        if (triggerType == TriggerType.HOLD) {
+            DebugUtils.logInternalDebug(debug(), "HOLD trigger type detected for item: " + interactiveItem.getId());
+            
+            // Check if there's already an active session for this item
+            if (holdHandler.hasActiveSession(player, event.getHand(), interactiveItem.getEffectiveId())) {
+                DebugUtils.logInternalDebug(debug(), "HOLD session already active, ignoring interaction for item: " + interactiveItem.getId());
+                // Just cancel the event if needed, but don't interfere with the session
+                if (interactiveItem.shouldCancelEvent()) {
+                    event.setCancelled(true);
+                }
+                return;
+            }
+            
+            // Start session only if none exists
+            DebugUtils.logInternalDebug(debug(), "Starting new HOLD session for item: " + interactiveItem.getId());
+            holdHandler.startHoldSession(player, interactiveItem, event.getHand());
+            if (interactiveItem.shouldCancelEvent()) {
+                event.setCancelled(true);
+            }
             return;
         }
 
@@ -791,7 +819,86 @@ public class ItemManager implements Listener {
             }
         }
 
+        // Handle HOLD sessions when swapping items
+        if (!event.isCancelled()) {
+            // Stop existing sessions
+            holdHandler.stopAllSessionsForPlayer(player);
+            
+            // Start new sessions after a delay if needed
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                ItemStack newMainHand = player.getInventory().getItemInMainHand();
+                ItemStack newOffHand = player.getInventory().getItemInOffHand();
+                
+                if (newMainHand != null && newMainHand.getType() != Material.AIR) {
+                    InteractiveItem mainItem = getItemFromStack(newMainHand);
+                    if (mainItem != null && mainItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
+                        DebugUtils.logInternalDebug(debug(), "Starting HOLD session for main hand after swap: " + mainItem.getId());
+                        holdHandler.startHoldSession(player, mainItem, EquipmentSlot.HAND);
+                    }
+                }
+                
+                if (newOffHand != null && newOffHand.getType() != Material.AIR) {
+                    InteractiveItem offItem = getItemFromStack(newOffHand);
+                    if (offItem != null && offItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
+                        DebugUtils.logInternalDebug(debug(), "Starting HOLD session for off hand after swap: " + offItem.getId());
+                        holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
+                    }
+                }
+            }, 1L);
+        }
+        
         DebugUtils.logInternalDebug(debug(), "Completed PlayerSwapHandItems processing for player: " + player.getName());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerItemHeld(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        
+        DebugUtils.logInternalDebug(debug(), "PlayerItemHeld event triggered for player: " + player.getName());
+        
+        // Stop any existing HOLD sessions when switching items
+        holdHandler.stopAllSessionsForPlayer(player);
+        
+        // Check if the new item is a HOLD trigger type and start session if needed
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
+            if (newItem != null && newItem.getType() != Material.AIR) {
+                InteractiveItem interactiveItem = getItemFromStack(newItem);
+                if (interactiveItem != null && interactiveItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
+                    DebugUtils.logInternalDebug(debug(), "Starting HOLD session for newly selected item: " + interactiveItem.getId());
+                    holdHandler.startHoldSession(player, interactiveItem, EquipmentSlot.HAND);
+                }
+            }
+        }, 1L); // Delay by 1 tick to ensure the item is switched
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR) 
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        DebugUtils.logInternalDebug(debug(), "PlayerQuit event triggered for player: " + player.getName());
+        
+        // Stop all HOLD sessions for the disconnecting player
+        holdHandler.stopAllSessionsForPlayer(player);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInventoryClickForHold(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+        
+        // Only check if the click affects the hotbar or hands
+        if (event.getSlot() >= 0 && event.getSlot() <= 8) { // Hotbar slots
+            Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 1L);
+        } else if (event.getSlot() == 40) { // Off-hand slot
+            Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 1L);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerPickupItem(PlayerPickupItemEvent event) {
+        Player player = event.getPlayer();
+        
+        // Check if the picked up item could go to the hands
+        Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 2L);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -924,5 +1031,36 @@ public class ItemManager implements Listener {
 
     public static boolean isVanillaItem(String itemId) {
         return itemId.startsWith("vanilla_") && getMaterialFromVanillaId(itemId) != null;
+    }
+    
+    public static void shutdown() {
+        if (holdHandler != null) {
+            holdHandler.cleanup();
+        }
+    }
+    
+    // Utility method to check and start HOLD sessions for both hands
+    private static void checkAndStartHoldSessions(Player player) {
+        if (holdHandler == null) return;
+        
+        // Check main hand
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        if (mainHand != null && mainHand.getType() != Material.AIR) {
+            InteractiveItem mainItem = getItemFromStack(mainHand);
+            if (mainItem != null && mainItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
+                DebugUtils.logInternalDebug(debug(), "Auto-starting HOLD session for main hand: " + mainItem.getId());
+                holdHandler.startHoldSession(player, mainItem, EquipmentSlot.HAND);
+            }
+        }
+        
+        // Check off hand  
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+        if (offHand != null && offHand.getType() != Material.AIR) {
+            InteractiveItem offItem = getItemFromStack(offHand);
+            if (offItem != null && offItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
+                DebugUtils.logInternalDebug(debug(), "Auto-starting HOLD session for off hand: " + offItem.getId());
+                holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
+            }
+        }
     }
 }

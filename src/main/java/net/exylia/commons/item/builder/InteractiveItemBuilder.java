@@ -8,9 +8,11 @@ import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.placeholders.ExyliaContext;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.Map;
 import java.util.function.Consumer;
 
 @RequiredArgsConstructor
@@ -21,6 +23,7 @@ public class InteractiveItemBuilder {
     private ExyliaContext placeholderContext;
     private Consumer<ItemClickInfo> clickHandler;
     private String customId;
+    private Map<Enchantment, Integer> enchantments;
 
     public InteractiveItemBuilder withPlaceholderPlayer(Player player) {
         this.placeholderPlayer = player;
@@ -39,6 +42,19 @@ public class InteractiveItemBuilder {
 
     public InteractiveItemBuilder withCustomId(String id) {
         this.customId = id;
+        return this;
+    }
+    
+    public InteractiveItemBuilder withEnchantments(Map<Enchantment, Integer> enchantments) {
+        this.enchantments = enchantments;
+        return this;
+    }
+    
+    public InteractiveItemBuilder withEnchantment(Enchantment enchantment, int level) {
+        if (this.enchantments == null) {
+            this.enchantments = new java.util.HashMap<>();
+        }
+        this.enchantments.put(enchantment, level);
         return this;
     }
 
@@ -77,6 +93,12 @@ public class InteractiveItemBuilder {
 
         if (placeholderContext != null) {
             item.withContext(placeholderContext);
+        }
+        
+        if (enchantments != null && !enchantments.isEmpty()) {
+            for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
+                item.addEnchantment(entry.getKey(), entry.getValue());
+            }
         }
     }
 

@@ -2,6 +2,7 @@ package net.exylia.commons.item.config;
 
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,6 +49,8 @@ public class ItemConfigurationBuilder {
 
     protected TriggerType triggerType = TriggerType.IMMEDIATE;
     protected String forceId = null;
+    
+    protected Map<Enchantment, Integer> enchantments = new HashMap<>();
 
     public ItemConfigurationBuilder material(String material) {
         this.material = material;
@@ -213,6 +216,31 @@ public class ItemConfigurationBuilder {
 
     public ItemConfigurationBuilder forceId(String forceId) {
         this.forceId = forceId;
+        return this;
+    }
+    
+    public ItemConfigurationBuilder enchantments(Map<Enchantment, Integer> enchantments) {
+        this.enchantments = new HashMap<>(enchantments);
+        return this;
+    }
+    
+    public ItemConfigurationBuilder enchantment(Enchantment enchantment, int level) {
+        this.enchantments.put(enchantment, level);
+        return this;
+    }
+    
+    public ItemConfigurationBuilder addEnchantment(Enchantment enchantment, int level) {
+        this.enchantments.put(enchantment, level);
+        return this;
+    }
+    
+    public ItemConfigurationBuilder removeEnchantment(Enchantment enchantment) {
+        this.enchantments.remove(enchantment);
+        return this;
+    }
+    
+    public ItemConfigurationBuilder clearEnchantments() {
+        this.enchantments.clear();
         return this;
     }
 
@@ -627,6 +655,27 @@ public class ItemConfigurationBuilder {
 
         if (config.contains("force-id")) {
             forceId(config.getString("force-id"));
+        }
+        
+        if (config.contains("enchantments")) {
+            ConfigurationSection enchantmentSection = config.getConfigurationSection("enchantments");
+            if (enchantmentSection != null) {
+                Map<Enchantment, Integer> enchantmentMap = new HashMap<>();
+                for (String enchantName : enchantmentSection.getKeys(false)) {
+                    try {
+                        Enchantment enchantment = Enchantment.getByName(enchantName.toUpperCase());
+                        if (enchantment != null) {
+                            int level = enchantmentSection.getInt(enchantName, 1);
+                            enchantmentMap.put(enchantment, level);
+                        } else {
+                            DebugUtils.logInternalError("Unknown enchantment: " + enchantName);
+                        }
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error parsing enchantment '" + enchantName + "': " + e.getMessage());
+                    }
+                }
+                enchantments(enchantmentMap);
+            }
         }
 
         if (config.contains("world.type")) {
