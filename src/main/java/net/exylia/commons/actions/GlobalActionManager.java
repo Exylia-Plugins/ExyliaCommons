@@ -1,6 +1,7 @@
 // GlobalActionManager.java
 package net.exylia.commons.actions;
 
+import net.exylia.commons.item.exceptions.ItemException;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -86,7 +87,7 @@ public class GlobalActionManager {
             try {
                 handler.accept(context, args);
                 return true;
-            } catch (Exception e) {
+            } catch (ItemException e) {
                 JavaPlugin owner = actionOwners.get(actionName);
                 logInternalWarn("Error executing action '" + actionName + "' from plugin " +
                         (owner != null ? owner.getName() : "unknown") + ": " + e.getMessage());

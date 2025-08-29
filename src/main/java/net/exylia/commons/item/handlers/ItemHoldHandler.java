@@ -1,5 +1,7 @@
 package net.exylia.commons.item.handlers;
 
+import lombok.Getter;
+import lombok.Setter;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
@@ -7,6 +9,8 @@ import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
+import net.exylia.commons.item.exceptions.ItemException;
+import net.exylia.commons.item.exceptions.ItemHoldSessionException;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -152,24 +156,33 @@ public class ItemHoldHandler {
         InteractiveItem interactiveItem = session.getInteractiveItem();
         EquipmentSlot hand = session.getHand();
         
-        // Create click info for the action
-        ItemClickInfo clickInfo = new ItemClickInfo(player, 
-                org.bukkit.event.inventory.ClickType.RIGHT,
-                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
-                interactiveItem.getItemStack(),
-                ActionSource.ITEM_USE)
-                .withData("source", "hold_trigger");
-        
-        // Execute the action
-        boolean actionExecuted = interactiveItem.executeAction(clickInfo);
-        
-        // Execute effects if action was executed or no action is configured
-        if (actionExecuted || !interactiveItem.hasAction()) {
-            ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
+        try {
+            // Create click info for the action
+            ItemClickInfo clickInfo = new ItemClickInfo(player, 
+                    org.bukkit.event.inventory.ClickType.RIGHT,
+                    hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
+                    interactiveItem.getItemStack(),
+                    ActionSource.ITEM_USE)
+                    .withData("source", "hold_trigger");
+            
+            // Execute the action
+            boolean actionExecuted = interactiveItem.executeAction(clickInfo);
+            
+            // Execute effects if action was executed or no action is configured
+            if (actionExecuted || !interactiveItem.hasAction()) {
+                ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
+            }
+            
+            DebugUtils.logInternalDebug(debug(), "Executed HOLD action for " + player.getName() + 
+                    " with item " + interactiveItem.getId());
+                    
+        } catch (ItemHoldSessionException e) {
+            DebugUtils.logInternalDebug(debug(), "Exception occurred during HOLD action for " + player.getName() + 
+                    " with item " + interactiveItem.getId() + ": " + e.getMessage());
+            
+            // Stop the hold session immediately due to the exception
+            stopHoldSession(player, hand);
         }
-        
-        DebugUtils.logInternalDebug(debug(), "Executed HOLD action for " + player.getName() + 
-                " with item " + interactiveItem.getId());
     }
     
     private void executeCancellationAction(HoldSession session) {
@@ -252,11 +265,13 @@ public class ItemHoldHandler {
     }
     
     // Inner class to hold session data
+    @Getter
     private static class HoldSession {
         private final Player player;
         private final InteractiveItem interactiveItem;
         private final EquipmentSlot hand;
         private final String allowedHand;
+        @Setter
         private BukkitTask task;
         
         public HoldSession(Player player, InteractiveItem interactiveItem, EquipmentSlot hand, String allowedHand) {
@@ -265,12 +280,6 @@ public class ItemHoldHandler {
             this.hand = hand;
             this.allowedHand = allowedHand;
         }
-        
-        public Player getPlayer() { return player; }
-        public InteractiveItem getInteractiveItem() { return interactiveItem; }
-        public EquipmentSlot getHand() { return hand; }
-        public String getAllowedHand() { return allowedHand; }
-        public BukkitTask getTask() { return task; }
-        public void setTask(BukkitTask task) { this.task = task; }
+
     }
 }
