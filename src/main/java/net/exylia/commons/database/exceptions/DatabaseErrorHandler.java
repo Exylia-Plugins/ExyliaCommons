@@ -94,7 +94,7 @@ public class DatabaseErrorHandler {
     public void logRecovery(String operation, String entityClass, String recoveryAction) {
         String message = String.format("Database Recovery - Operation: %s, Entity: %s, Recovery: %s",
                 operation, entityClass, recoveryAction);
-        plugin.getLogger().info(message);
+        DebugUtils.logInternalInfo(message);
 
         if (debugMode) {
             DebugUtils.logInternalInfo(message);

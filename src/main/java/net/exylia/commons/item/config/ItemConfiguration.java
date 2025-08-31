@@ -60,6 +60,9 @@ public class ItemConfiguration {
     private final String forceId;
     
     private final Map<Enchantment, Integer> enchantments;
+    
+    private final long expirationTimeMillis;
+    private final String expirationBehavior;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
         this.material = builder.material;
@@ -104,6 +107,9 @@ public class ItemConfiguration {
         this.forceId = builder.forceId;
         
         this.enchantments = new HashMap<>(builder.enchantments);
+        
+        this.expirationTimeMillis = builder.expirationTimeMillis;
+        this.expirationBehavior = builder.expirationBehavior;
     }
 
     public boolean hasDisplayName() {
@@ -424,6 +430,18 @@ public class ItemConfiguration {
     
     public int getEnchantmentLevel(Enchantment enchantment) {
         return enchantments.getOrDefault(enchantment, 0);
+    }
+    
+    public long getExpirationTimeMillis() {
+        return expirationTimeMillis;
+    }
+    
+    public boolean hasExpiration() {
+        return expirationTimeMillis > 0;
+    }
+    
+    public String getExpirationBehavior() {
+        return expirationBehavior;
     }
 
     public static Builder builder() {

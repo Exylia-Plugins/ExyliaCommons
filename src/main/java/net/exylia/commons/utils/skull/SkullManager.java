@@ -7,6 +7,7 @@ import com.mojang.authlib.properties.Property;
 import dev.rollczi.liteskullapi.LiteSkullAPI;
 import dev.rollczi.liteskullapi.LiteSkullFactory;
 import dev.rollczi.liteskullapi.SkullAPI;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
@@ -61,7 +62,7 @@ public class SkullManager {
                     .cacheExpireAfterWrite(Duration.ofMinutes(45L))
                     .bukkitScheduler(pluginInstance) // Use Bukkit scheduler for sync operations
                     .build();
-            plugin.getLogger().info("LiteSkullAPI initialized successfully for player skulls");
+            DebugUtils.logInternalInfo("LiteSkullAPI initialized successfully for player skulls");
         } catch (Exception e) {
             plugin.getLogger().warning("Failed to initialize LiteSkullAPI, falling back to basic player skulls: " + e.getMessage());
             instance.skullAPI = null;

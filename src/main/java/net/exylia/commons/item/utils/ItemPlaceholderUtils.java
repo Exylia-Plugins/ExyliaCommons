@@ -43,6 +43,32 @@ public class ItemPlaceholderUtils {
     }
 
     /**
+     * Procesa placeholders de expiración en un texto
+     * %expiration_remaining% -> tiempo restante formateado (ej: "2d 5h 30m")
+     * %expiration_date% -> fecha de expiración formateada
+     * %is_expired% -> true/false si el item está expirado
+     */
+    public static String processExpirationPlaceholders(String text, InteractiveItem item) {
+        if (text == null) {
+            return text;
+        }
+
+        if (!item.hasExpiration()) {
+            return text.replace("%expiration_remaining%", "Sin expiración")
+                    .replace("%expiration_date%", "Sin expiración")
+                    .replace("%is_expired%", "false");
+        }
+
+        String remainingTime = item.getFormattedRemainingTime();
+        String expirationDate = item.getFormattedExpirationDate();
+        boolean isExpired = item.isExpired();
+
+        return text.replace("%expiration_remaining%", remainingTime)
+                .replace("%expiration_date%", expirationDate)
+                .replace("%is_expired%", String.valueOf(isExpired));
+    }
+
+    /**
      * Procesa todos los placeholders de item en un texto
      */
     public static String processAllItemPlaceholders(String text, InteractiveItem item, Player player) {
@@ -50,6 +76,7 @@ public class ItemPlaceholderUtils {
 
         String processed = processUsePlaceholders(text, item);
         processed = processCooldownPlaceholders(processed, item, player);
+        processed = processExpirationPlaceholders(processed, item);
 
         return processed;
     }
@@ -63,6 +90,9 @@ public class ItemPlaceholderUtils {
         return text.contains("%current_uses%") ||
                 text.contains("%max_uses%") ||
                 text.contains("%cooldown_formatted%") ||
-                text.contains("%cooldown_seconds%");
+                text.contains("%cooldown_seconds%") ||
+                text.contains("%expiration_remaining%") ||
+                text.contains("%expiration_date%") ||
+                text.contains("%is_expired%");
     }
 }

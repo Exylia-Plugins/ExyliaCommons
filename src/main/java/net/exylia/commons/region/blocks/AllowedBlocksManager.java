@@ -3,6 +3,7 @@ package net.exylia.commons.region.blocks;
 import lombok.Getter;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -74,7 +75,7 @@ public class AllowedBlocksManager {
 
         region.setMetadata("allowed-blocks", materialNames);
 
-        plugin.getLogger().info(String.format(
+        DebugUtils.logInternalInfo(String.format(
                 "Lista personalizada de bloques establecida para región %s: %d materiales",
                 region.getId(), materials.size()
         ));
@@ -88,7 +89,7 @@ public class AllowedBlocksManager {
         currentAllowed.addAll(materialsToAdd);
         setAllowedBlocks(region, currentAllowed);
 
-        plugin.getLogger().info(String.format(
+        DebugUtils.logInternalInfo(String.format(
                 "Añadidos %d materiales a la región %s",
                 materialsToAdd.size(), region.getId()
         ));
@@ -102,7 +103,7 @@ public class AllowedBlocksManager {
         currentAllowed.removeAll(materialsToRemove);
         setAllowedBlocks(region, currentAllowed);
 
-        plugin.getLogger().info(String.format(
+        DebugUtils.logInternalInfo(String.format(
                 "Removidos %d materiales de la región %s",
                 materialsToRemove.size(), region.getId()
         ));

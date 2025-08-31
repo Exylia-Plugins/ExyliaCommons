@@ -5,6 +5,7 @@ import net.exylia.commons.region.RegionManager;
 import net.exylia.commons.region.events.TemporaryBlockRemovedEvent;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -247,7 +248,7 @@ public class TemporaryBlocksManager {
      * Limpia todas las tareas pendientes y datos
      */
     public void shutdown() {
-        plugin.getLogger().info("Cerrando TemporaryBlocksManager...");
+        DebugUtils.logInternalInfo("Cerrando TemporaryBlocksManager...");
 
         // Cancelar todas las tareas pendientes
         scheduledRemovals.values().forEach(BukkitTask::cancel);
@@ -256,7 +257,7 @@ public class TemporaryBlocksManager {
         // Limpiar datos
         temporaryBlocks.clear();
 
-        plugin.getLogger().info("TemporaryBlocksManager cerrado");
+        DebugUtils.logInternalInfo("TemporaryBlocksManager cerrado");
     }
 
     public int cancelReGiveForPlayer(UUID playerId) {

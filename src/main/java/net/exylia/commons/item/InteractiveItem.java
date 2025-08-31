@@ -14,6 +14,7 @@ import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -28,6 +29,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,6 +51,8 @@ public class InteractiveItem {
     private static final String NBT_ITEM_ID = "interactive_item_id";
     private static final String NBT_CURRENT_USES = "current_uses";
     private static final String NBT_UNIQUE_ID = "unique_id";
+    private static final String NBT_EXPIRATION_TIME = "expiration_time";
+    private static final String NBT_EXPIRATION_BEHAVIOR = "expiration_behavior";
 
     private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
@@ -73,6 +80,7 @@ public class InteractiveItem {
         setItemId(effectiveId);
 
         initializeUses();
+        initializeExpiration();
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -89,6 +97,7 @@ public class InteractiveItem {
         setItemId(effectiveId);
 
         initializeUses();
+        initializeExpiration();
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -223,6 +232,100 @@ public class InteractiveItem {
         return getMaxUses() == -1 || getCurrentUses() > 0;
     }
 
+    public boolean hasExpiration() {
+        return getExpirationTime() > 0;
+    }
+
+    public boolean isExpired() {
+        long expirationTime = getExpirationTime();
+        return expirationTime > 0 && System.currentTimeMillis() > expirationTime;
+    }
+
+    public long getExpirationTime() {
+        return ItemNBTUtils.getNBTLong(itemStack, getPlugin(), NBT_EXPIRATION_TIME, 0L);
+    }
+
+    public InteractiveItem setExpirationTime(long expirationTimeMillis) {
+        ItemNBTUtils.setNBTLong(itemStack, getPlugin(), NBT_EXPIRATION_TIME, expirationTimeMillis);
+        return this;
+    }
+
+    public InteractiveItem setExpirationFromNow(long durationMillis) {
+        long expirationTime = System.currentTimeMillis() + durationMillis;
+        setExpirationTime(expirationTime);
+        return this;
+    }
+
+    public InteractiveItem setExpirationDate(String dateString) {
+        try {
+            long timestamp = parseDateString(dateString);
+            setExpirationTime(timestamp);
+        } catch (DateTimeParseException e) {
+            logInternalWarn("Invalid expiration date format: " + dateString + ". Use formats like '24/12/2025 15:00'");
+        }
+        return this;
+    }
+
+    public long getRemainingTime() {
+        if (!hasExpiration()) return -1;
+        return Math.max(0, getExpirationTime() - System.currentTimeMillis());
+    }
+
+    public String getFormattedRemainingTime() {
+        long remainingTime = getRemainingTime();
+        if (remainingTime <= 0) return "Expirado";
+        return TimeFormatter.timeFormatter.format(remainingTime);
+    }
+
+    public String getFormattedExpirationDate() {
+        if (!hasExpiration()) return "";
+        return TimeFormatter.timeFormatter.format(getExpirationTime());
+    }
+
+    public ExpirationBehavior getExpirationBehavior() {
+        if (!ItemNBTUtils.hasNBTValue(itemStack, getPlugin(), NBT_EXPIRATION_BEHAVIOR, PersistentDataType.STRING)) {
+            return ExpirationBehavior.KEEP;
+        }
+        String behaviorStr = ItemNBTUtils.getNBTString(itemStack, getPlugin(), NBT_EXPIRATION_BEHAVIOR);
+        return ExpirationBehavior.fromString(behaviorStr);
+    }
+
+    public InteractiveItem setExpirationBehavior(ExpirationBehavior behavior) {
+        if (behavior == null) behavior = ExpirationBehavior.KEEP;
+        ItemNBTUtils.setNBTString(itemStack, getPlugin(), NBT_EXPIRATION_BEHAVIOR, behavior.getConfigName());
+        return this;
+    }
+
+    public InteractiveItem setExpirationWithBehavior(long expirationTimeMillis, ExpirationBehavior behavior) {
+        setExpirationTime(expirationTimeMillis);
+        setExpirationBehavior(behavior);
+        return this;
+    }
+
+    public InteractiveItem setExpirationFromNowWithBehavior(long durationMillis, ExpirationBehavior behavior) {
+        setExpirationFromNow(durationMillis);
+        setExpirationBehavior(behavior);
+        return this;
+    }
+
+    public InteractiveItem setExpirationDateWithBehavior(String dateString, ExpirationBehavior behavior) {
+        setExpirationDate(dateString);
+        setExpirationBehavior(behavior);
+        return this;
+    }
+
+    public boolean shouldRemoveWhenExpired() {
+        return getExpirationBehavior() == ExpirationBehavior.REMOVE;
+    }
+
+    public boolean shouldDisableWhenExpired() {
+        return getExpirationBehavior() == ExpirationBehavior.DISABLE;
+    }
+
+    public boolean shouldTransformWhenExpired() {
+        return getExpirationBehavior() == ExpirationBehavior.TRANSFORM;
+    }
+
     public boolean consumeUse() {
         int maxUses = getMaxUses();
         if (maxUses == -1) return true;
@@ -320,6 +423,20 @@ public class InteractiveItem {
         if (maxUses > 0) {
             if (!ItemNBTUtils.hasNBTValue(itemStack, getPlugin(), NBT_CURRENT_USES, PersistentDataType.INTEGER)) {
                 setCurrentUses(maxUses);
+            }
+        }
+    }
+
+    private void initializeExpiration() {
+        if (config.hasExpiration()) {
+            if (!ItemNBTUtils.hasNBTValue(itemStack, getPlugin(), NBT_EXPIRATION_TIME, PersistentDataType.LONG)) {
+                setExpirationTime(config.getExpirationTimeMillis());
+            }
+            if (!ItemNBTUtils.hasNBTValue(itemStack, getPlugin(), NBT_EXPIRATION_BEHAVIOR, PersistentDataType.STRING)) {
+                String behavior = config.getExpirationBehavior();
+                if (behavior != null && !behavior.isEmpty()) {
+                    ItemNBTUtils.setNBTString(itemStack, getPlugin(), NBT_EXPIRATION_BEHAVIOR, behavior);
+                }
             }
         }
     }
@@ -551,6 +668,298 @@ public class InteractiveItem {
     private JavaPlugin getPlugin() {
         return ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
                 JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+    }
+
+    private long parseDateString(String dateString) throws DateTimeParseException {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            throw new DateTimeParseException("Empty date string", dateString, 0);
+        }
+        
+        dateString = dateString.trim();
+        
+        // Lista de formatos soportados
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+        };
+        
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
+                return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            } catch (DateTimeParseException e) {
+                // Continuar con el siguiente formato
+            }
+        }
+        
+        throw new DateTimeParseException("Unable to parse date: " + dateString, dateString, 0);
+    }
+
+    public static ItemStack addExpirationToItemStack(ItemStack itemStack, long expirationTimeMillis) {
+        if (itemStack == null) return null;
+        
+        ItemStack cloned = itemStack.clone();
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        ItemNBTUtils.setNBTLong(cloned, plugin, NBT_EXPIRATION_TIME, expirationTimeMillis);
+        return cloned;
+    }
+
+    public static ItemStack addExpirationFromNow(ItemStack itemStack, long durationMillis) {
+        if (itemStack == null) return null;
+        
+        long expirationTime = System.currentTimeMillis() + durationMillis;
+        return addExpirationToItemStack(itemStack, expirationTime);
+    }
+
+    public static ItemStack addExpirationDate(ItemStack itemStack, String dateString) {
+        if (itemStack == null) return null;
+        
+        try {
+            long timestamp = parseStaticDateString(dateString);
+            return addExpirationToItemStack(itemStack, timestamp);
+        } catch (DateTimeParseException e) {
+            logInternalWarn("Invalid expiration date format: " + dateString + ". Use formats like '24/12/2025 15:00'");
+            return itemStack;
+        }
+    }
+
+    public static ItemStack removeExpiration(ItemStack itemStack) {
+        if (itemStack == null) return null;
+        
+        ItemStack cloned = itemStack.clone();
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        ItemNBTUtils.removeNBTValue(cloned, plugin, NBT_EXPIRATION_TIME);
+        return cloned;
+    }
+
+    public static boolean hasExpirationTime(ItemStack itemStack) {
+        if (itemStack == null) return false;
+        
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        return ItemNBTUtils.hasNBTValue(itemStack, plugin, NBT_EXPIRATION_TIME, PersistentDataType.LONG);
+    }
+
+    public static boolean isItemStackExpired(ItemStack itemStack) {
+        if (!hasExpirationTime(itemStack)) return false;
+        
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        long expirationTime = ItemNBTUtils.getNBTLong(itemStack, plugin, NBT_EXPIRATION_TIME, 0L);
+        return expirationTime > 0 && System.currentTimeMillis() > expirationTime;
+    }
+
+    public static long getItemStackRemainingTime(ItemStack itemStack) {
+        if (!hasExpirationTime(itemStack)) return -1;
+        
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        long expirationTime = ItemNBTUtils.getNBTLong(itemStack, plugin, NBT_EXPIRATION_TIME, 0L);
+        return Math.max(0, expirationTime - System.currentTimeMillis());
+    }
+
+    public static String getItemStackFormattedRemainingTime(ItemStack itemStack) {
+        long remainingTime = getItemStackRemainingTime(itemStack);
+        if (remainingTime <= 0) return "Expirado";
+        if (remainingTime == -1) return "Sin expiración";
+        return TimeFormatter.timeFormatter.format(remainingTime);
+    }
+
+    public static ItemStack applyExpirationFromString(ItemStack itemStack, String expirationString) {
+        if (itemStack == null || expirationString == null || expirationString.trim().isEmpty()) {
+            return itemStack;
+        }
+        
+        String trimmed = expirationString.trim();
+        
+        try {
+            // Intenta parsearlo como número (milisegundos de duración)
+            long duration = Long.parseLong(trimmed);
+            return addExpirationFromNow(itemStack, duration);
+        } catch (NumberFormatException e) {
+            // Si no es número, intenta parsearlo como fecha
+            return addExpirationDate(itemStack, trimmed);
+        }
+    }
+
+    public static ItemStack addExpirationWithBehavior(ItemStack itemStack, long expirationTimeMillis, ExpirationBehavior behavior) {
+        if (itemStack == null) return null;
+        
+        ItemStack cloned = addExpirationToItemStack(itemStack, expirationTimeMillis);
+        if (behavior != null) {
+            JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                    JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+            ItemNBTUtils.setNBTString(cloned, plugin, NBT_EXPIRATION_BEHAVIOR, behavior.getConfigName());
+        }
+        return cloned;
+    }
+
+    public static ItemStack addExpirationFromNowWithBehavior(ItemStack itemStack, long durationMillis, ExpirationBehavior behavior) {
+        if (itemStack == null) return null;
+        
+        long expirationTime = System.currentTimeMillis() + durationMillis;
+        return addExpirationWithBehavior(itemStack, expirationTime, behavior);
+    }
+
+    public static ItemStack addExpirationDateWithBehavior(ItemStack itemStack, String dateString, ExpirationBehavior behavior) {
+        if (itemStack == null) return null;
+        
+        try {
+            long timestamp = parseStaticDateString(dateString);
+            return addExpirationWithBehavior(itemStack, timestamp, behavior);
+        } catch (DateTimeParseException e) {
+            logInternalWarn("Invalid expiration date format: " + dateString + ". Use formats like '24/12/2025 15:00'");
+            return itemStack;
+        }
+    }
+
+    public static ExpirationBehavior getItemStackExpirationBehavior(ItemStack itemStack) {
+        if (itemStack == null) return ExpirationBehavior.KEEP;
+        
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        
+        if (!ItemNBTUtils.hasNBTValue(itemStack, plugin, NBT_EXPIRATION_BEHAVIOR, PersistentDataType.STRING)) {
+            return ExpirationBehavior.KEEP;
+        }
+        
+        String behaviorStr = ItemNBTUtils.getNBTString(itemStack, plugin, NBT_EXPIRATION_BEHAVIOR);
+        return ExpirationBehavior.fromString(behaviorStr);
+    }
+
+    public static boolean shouldRemoveExpiredItem(ItemStack itemStack) {
+        return isItemStackExpired(itemStack) && getItemStackExpirationBehavior(itemStack) == ExpirationBehavior.REMOVE;
+    }
+
+    public static boolean shouldDisableExpiredItem(ItemStack itemStack) {
+        return isItemStackExpired(itemStack) && getItemStackExpirationBehavior(itemStack) == ExpirationBehavior.DISABLE;
+    }
+
+    public static boolean canUseItem(ItemStack itemStack) {
+        if (!hasExpirationTime(itemStack)) return true;
+        if (!isItemStackExpired(itemStack)) return true;
+        
+        ExpirationBehavior behavior = getItemStackExpirationBehavior(itemStack);
+        return behavior != ExpirationBehavior.DISABLE && behavior != ExpirationBehavior.REMOVE;
+    }
+
+    private static long parseStaticDateString(String dateString) throws DateTimeParseException {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            throw new DateTimeParseException("Empty date string", dateString, 0);
+        }
+        
+        dateString = dateString.trim().replace("_", " ");
+        
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+        };
+        
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
+                return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            } catch (DateTimeParseException e) {
+                // Continuar con el siguiente formato
+            }
+        }
+        
+        throw new DateTimeParseException("Unable to parse date: " + dateString, dateString, 0);
+    }
+
+    public static void processExpiredItemsForPlayer(org.bukkit.entity.Player player) {
+        net.exylia.commons.item.expiration.ExpirationManager manager = 
+            net.exylia.commons.item.expiration.ExpirationManager.getInstance();
+        if (manager != null) {
+            manager.checkPlayerInventoryForExpiredItems(player);
+        }
+    }
+
+    public static ItemStack updateExpirationPlaceholders(ItemStack itemStack) {
+        if (itemStack == null || !hasExpirationTime(itemStack)) {
+            return itemStack;
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null || !meta.hasLore()) {
+            return itemStack;
+        }
+
+        List<net.kyori.adventure.text.Component> originalLore = AdapterFactory.getItemMetaAdapter().getLore(meta);
+        if (originalLore == null || originalLore.isEmpty()) {
+            return itemStack;
+        }
+
+        boolean hasExpirationPlaceholders = false;
+        List<net.kyori.adventure.text.Component> updatedLore = new ArrayList<>();
+
+        for (net.kyori.adventure.text.Component component : originalLore) {
+            String loreText = net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(component);
+            
+            if (loreText.contains("%expiration_") || loreText.contains("%is_expired%")) {
+                hasExpirationPlaceholders = true;
+                String updatedText = processExpirationPlaceholdersInText(loreText, itemStack);
+                updatedLore.add(ColorUtils.parse(updatedText));
+            } else {
+                updatedLore.add(component);
+            }
+        }
+
+        if (hasExpirationPlaceholders) {
+            ItemStack cloned = itemStack.clone();
+            ItemMeta clonedMeta = cloned.getItemMeta();
+            if (clonedMeta != null) {
+                AdapterFactory.getItemMetaAdapter().setLore(clonedMeta, updatedLore);
+                cloned.setItemMeta(clonedMeta);
+            }
+            return cloned;
+        }
+
+        return itemStack;
+    }
+
+    private static String processExpirationPlaceholdersInText(String text, ItemStack itemStack) {
+        if (!hasExpirationTime(itemStack)) {
+            return text.replace("%expiration_remaining%", "Sin expiración")
+                    .replace("%expiration_date%", "Sin expiración")
+                    .replace("%is_expired%", "false");
+        }
+
+        boolean isExpired = isItemStackExpired(itemStack);
+        long remainingTime = getItemStackRemainingTime(itemStack);
+        String remainingTimeFormatted = remainingTime <= 0 ? "Expirado" : 
+            (remainingTime == -1 ? "Sin expiración" : TimeFormatter.timeFormatter.format(remainingTime));
+
+        // Para la fecha de expiración, necesitamos obtenerla del NBT
+        JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
+                JavaPlugin.getProvidingPlugin(InteractiveItem.class);
+        long expirationTime = ItemNBTUtils.getNBTLong(itemStack, plugin, NBT_EXPIRATION_TIME, 0L);
+        String expirationDateFormatted = expirationTime > 0 ? TimeFormatter.timeFormatter.format(expirationTime) : "Sin expiración";
+
+        return text.replace("%expiration_remaining%", remainingTimeFormatted)
+                .replace("%expiration_date%", expirationDateFormatted)
+                .replace("%is_expired%", String.valueOf(isExpired));
     }
 
     @Override

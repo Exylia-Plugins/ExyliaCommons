@@ -1,8 +1,13 @@
 package net.exylia.commons.item.config;
 
+import net.exylia.commons.item.ExpirationBehavior;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -51,6 +56,9 @@ public class ItemConfigurationBuilder {
     protected String forceId = null;
     
     protected Map<Enchantment, Integer> enchantments = new HashMap<>();
+    
+    protected long expirationTimeMillis = 0L;
+    protected String expirationBehavior = "keep";
 
     public ItemConfigurationBuilder material(String material) {
         this.material = material;
@@ -241,6 +249,65 @@ public class ItemConfigurationBuilder {
     
     public ItemConfigurationBuilder clearEnchantments() {
         this.enchantments.clear();
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationTime(long expirationTimeMillis) {
+        this.expirationTimeMillis = expirationTimeMillis;
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationFromNow(long durationMillis) {
+        this.expirationTimeMillis = System.currentTimeMillis() + durationMillis;
+        return this;
+    }
+    
+    public ItemConfigurationBuilder noExpiration() {
+        this.expirationTimeMillis = 0L;
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationDate(String dateString) {
+        try {
+            long timestamp = parseDateString(dateString);
+            this.expirationTimeMillis = timestamp;
+        } catch (DateTimeParseException e) {
+            DebugUtils.logInternalError("Invalid expiration date format: " + dateString + ". Use formats like '24/12/2025 15:00' or '2025-12-24 15:00:00'");
+        }
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationBehavior(ExpirationBehavior behavior) {
+        this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationBehavior(String behaviorString) {
+        ExpirationBehavior behavior = ExpirationBehavior.fromString(behaviorString);
+        this.expirationBehavior = behavior.getConfigName();
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationWithBehavior(long expirationTimeMillis, ExpirationBehavior behavior) {
+        this.expirationTimeMillis = expirationTimeMillis;
+        this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationFromNowWithBehavior(long durationMillis, ExpirationBehavior behavior) {
+        this.expirationTimeMillis = System.currentTimeMillis() + durationMillis;
+        this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
+        return this;
+    }
+    
+    public ItemConfigurationBuilder expirationDateWithBehavior(String dateString, ExpirationBehavior behavior) {
+        try {
+            long timestamp = parseDateString(dateString);
+            this.expirationTimeMillis = timestamp;
+            this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
+        } catch (DateTimeParseException e) {
+            DebugUtils.logInternalError("Invalid expiration date format: " + dateString + ". Use formats like '24/12/2025 15:00'");
+        }
         return this;
     }
 
@@ -677,6 +744,33 @@ public class ItemConfigurationBuilder {
                 enchantments(enchantmentMap);
             }
         }
+        
+        if (config.contains("expiration")) {
+            Object expirationValue = config.get("expiration");
+            if (expirationValue instanceof Number) {
+                // Si es un número, se asume que son milisegundos de duración desde ahora
+                expirationFromNow(((Number) expirationValue).longValue());
+            } else if (expirationValue instanceof String) {
+                String expirationStr = (String) expirationValue;
+                try {
+                    // Primero intenta parsearlo como número (duración)
+                    long duration = Long.parseLong(expirationStr);
+                    expirationFromNow(duration);
+                } catch (NumberFormatException e) {
+                    // Si no es un número, intenta parsearlo como fecha
+                    try {
+                        expirationDate(expirationStr);
+                    } catch (DateTimeParseException dateE) {
+                        DebugUtils.logInternalError("Invalid expiration value: " + expirationValue + 
+                            ". Expected either milliseconds (number) or date format like '24/12/2025 15:00'");
+                    }
+                }
+            }
+        }
+        
+        if (config.contains("expiration-behavior")) {
+            expirationBehavior(config.getString("expiration-behavior"));
+        }
 
         if (config.contains("world.type")) {
             worldType(config.getString("world.type"));
@@ -790,6 +884,38 @@ public class ItemConfigurationBuilder {
 
     protected boolean containsPlaceholders(String text) {
         return text != null && (text.contains("%") || text.contains("{") || text.contains("<"));
+    }
+    
+    private long parseDateString(String dateString) throws DateTimeParseException {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            throw new DateTimeParseException("Empty date string", dateString, 0);
+        }
+        
+        dateString = dateString.trim();
+        
+        // Lista de formatos soportados
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+        };
+        
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
+                return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+            } catch (DateTimeParseException e) {
+                // Continuar con el siguiente formato
+            }
+        }
+        
+        throw new DateTimeParseException("Unable to parse date: " + dateString, dateString, 0);
     }
 
     public ItemConfiguration build() {
