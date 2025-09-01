@@ -9,6 +9,7 @@ import net.exylia.commons.region.blocks.TemporaryBlocksManager;
 import net.exylia.commons.region.cloning.RegionCloner;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -19,6 +20,8 @@ import java.util.concurrent.CompletableFuture;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 
 @Getter
 @Setter
@@ -141,6 +144,9 @@ public class Region {
     public void setFlags(Map<RegionFlag, RegionFlagType> flags) {
         flagStates.clear();
         flagStates.putAll(flags);
+        for (RegionFlag flag : flags.keySet()) {
+            DebugUtils.logInternalDebug(debug(), "Set flag " + flag + " to " + flags.get(flag));
+        }
     }
 
     public boolean isOwner(UUID playerId) {

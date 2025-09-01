@@ -854,12 +854,7 @@ public class ItemManager implements Listener {
     public void onPlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         
-        DebugUtils.logInternalDebug(debug(), "PlayerItemHeld event triggered for player: " + player.getName());
-        
-        // Stop any existing HOLD sessions when switching items
         holdHandler.stopAllSessionsForPlayer(player);
-        
-        // Check if the new item is a HOLD trigger type and start session if needed
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
             if (newItem != null && newItem.getType() != Material.AIR) {
@@ -869,7 +864,7 @@ public class ItemManager implements Listener {
                     holdHandler.startHoldSession(player, interactiveItem, EquipmentSlot.HAND);
                 }
             }
-        }, 1L); // Delay by 1 tick to ensure the item is switched
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR) 

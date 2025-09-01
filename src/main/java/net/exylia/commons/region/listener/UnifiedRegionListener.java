@@ -22,6 +22,7 @@ import org.bukkit.event.block.*;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -357,7 +358,14 @@ public class UnifiedRegionListener implements Listener {
                     event.getEntityType().name(), region.getId(), result.getReason()
             ));
         } else {
-            if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+            // Si BREAK está deshabilitado, no permitir que rompa bloques
+            if (!region.getFlagValue(RegionFlag.BREAK)) {
+                event.blockList().clear();
+                logInternalDebug(debug(), String.format(
+                        "Explosión sin romper bloques: %s en región %s - BREAK deshabilitado",
+                        event.getEntityType().name(), region.getId()
+                ));
+            } else if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
                 filterExplosionBlocks(event, region);
             }
         }
@@ -383,7 +391,14 @@ public class UnifiedRegionListener implements Listener {
                     region.getId(), result.getReason()
             ));
         } else {
-            if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+            // Si BREAK está deshabilitado, no permitir que rompa bloques
+            if (!region.getFlagValue(RegionFlag.BREAK)) {
+                event.blockList().clear();
+                logInternalDebug(debug(), String.format(
+                        "Explosión de bloque sin romper bloques en región %s - BREAK deshabilitado",
+                        region.getId()
+                ));
+            } else if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
                 filterBlockExplosionBlocks(event, region);
             }
         }
@@ -407,6 +422,85 @@ public class UnifiedRegionListener implements Listener {
                 logInternalDebug(debug(), String.format(
                         "Acceso a inventario denegado: %s intentó abrir %s en región %s",
                         player.getName(), block.getType().name(), regions.get(0).getId()
+                ));
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        totalEvents++;
+
+        Player player = event.getPlayer();
+        Location location = player.getLocation();
+
+        String cacheKey = getValidationCacheKey(player, location, "item_drop", "");
+        CachedValidation cached = validationCache.get(cacheKey);
+
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            }
+        } else {
+            List<Region> regions = regionManager.getRegionsAt(location);
+            if (regions.isEmpty()) {
+                cacheValidation(cacheKey, true, null);
+                return;
+            }
+
+            Region region = regions.get(0);
+            ActionResult result = validateItemDrop(player, region, location);
+
+            cacheValidation(cacheKey, result.isAllowed(), region);
+
+            if (!result.isAllowed()) {
+                event.setCancelled(true);
+                logInternalDebug(debug(), String.format(
+                        "Tirar item denegado: %s intentó tirar %s en región %s - Razón: %s",
+                        player.getName(), event.getItemDrop().getItemStack().getType().name(),
+                        region.getId(), result.getReason()
+                ));
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onEntityPickupItem(EntityPickupItemEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        totalEvents++;
+
+        Location location = event.getItem().getLocation();
+
+        String cacheKey = getValidationCacheKey(player, location, "item_pickup", "");
+        CachedValidation cached = validationCache.get(cacheKey);
+
+        if (cached != null && !cached.isExpired()) {
+            cachedValidations++;
+            if (!cached.allowed) {
+                event.setCancelled(true);
+                return;
+            }
+        } else {
+            List<Region> regions = regionManager.getRegionsAt(location);
+            if (regions.isEmpty()) {
+                cacheValidation(cacheKey, true, null);
+                return;
+            }
+
+            Region region = regions.get(0);
+            ActionResult result = validateItemPickup(player, region, location);
+
+            cacheValidation(cacheKey, result.isAllowed(), region);
+
+            if (!result.isAllowed()) {
+                event.setCancelled(true);
+                logInternalDebug(debug(), String.format(
+                        "Recoger item denegado: %s intentó recoger %s en región %s - Razón: %s",
+                        player.getName(), event.getItem().getItemStack().getType().name(),
+                        region.getId(), result.getReason()
                 ));
             }
         }
@@ -622,6 +716,11 @@ public class UnifiedRegionListener implements Listener {
     }
 
     private ActionResult validateExplosion(Region region, EntityType entityType) {
+        // Si BREAK está deshabilitado, las explosiones no pueden romper bloques
+        if (!region.getFlagValue(RegionFlag.BREAK)) {
+            return ActionResult.deny("break-disabled", "Las explosiones no pueden romper bloques en esta región");
+        }
+
         if (entityType == EntityType.PRIMED_TNT || entityType == EntityType.MINECART_TNT) {
             if (!region.getFlagValue(RegionFlag.TNT)) {
                 return ActionResult.deny("tnt-disabled", null);
@@ -642,6 +741,20 @@ public class UnifiedRegionListener implements Listener {
     private ActionResult validateChestAccess(Player player, Region region, Location location) {
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.CHEST_ACCESS)) {
             return ActionResult.deny("chest-access-denied", "No puedes acceder a contenedores");
+        }
+        return ActionResult.allow();
+    }
+
+    private ActionResult validateItemDrop(Player player, Region region, Location location) {
+        if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.ITEM_DROP)) {
+            return ActionResult.deny("item-drop-denied", "No puedes tirar items en esta región");
+        }
+        return ActionResult.allow();
+    }
+
+    private ActionResult validateItemPickup(Player player, Region region, Location location) {
+        if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.ITEM_PICKUP)) {
+            return ActionResult.deny("item-pickup-denied", "No puedes recoger items en esta región");
         }
         return ActionResult.allow();
     }
