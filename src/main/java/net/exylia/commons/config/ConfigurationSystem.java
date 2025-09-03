@@ -453,7 +453,7 @@ public class ConfigurationSystem {
                 setupGlobalPrefix();
                 ColorUtils.reloadPresets();
 
-                logInternalSuccess("Reload completo exitoso - " + configInstances.size() + " instancias recreadas");
+                logInternalSuccess("Reloaded " + configInstances.size() + " configs");
 
                 // 5. Notificar listeners en el hilo principal
                 Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);

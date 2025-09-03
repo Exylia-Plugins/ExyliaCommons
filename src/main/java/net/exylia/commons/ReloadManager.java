@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.*;
 
 /**
@@ -74,7 +75,7 @@ public class ReloadManager {
                 }
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                logInternalSuccess("=== RELOAD COMPLETADO EXITOSAMENTE EN " + totalTime + "ms ===");
+                logInternalSuccess("=== RELOAD COMPLETED IN " + totalTime + "ms ===");
 
                 return new ReloadResult(true, totalTime, componentTimes, null);
             } catch (Exception e) {
@@ -146,7 +147,7 @@ public class ReloadManager {
                 }
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                logInternalSuccess("Reload de configuración completado en " + totalTime + "ms");
+                logInternalSuccess("Configuration reload completed in " + totalTime + "ms");
 
                 return new ReloadResult(true, totalTime, componentTimes, null);
 
@@ -168,7 +169,7 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalInfo("Iniciando reload de base de datos...");
+                logInternalDebug(debug(), "Starting database reload...");
 
                 long dbStart = System.currentTimeMillis();
                 boolean success = false;
@@ -204,7 +205,7 @@ public class ReloadManager {
                 }
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                logInternalSuccess("Reload de base de datos completado en " + totalTime + "ms");
+                logInternalSuccess("Database reload completed in " + totalTime + "ms");
 
                 return new ReloadResult(true, totalTime, componentTimes, null);
 
@@ -226,11 +227,11 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalInfo("Iniciando reload de Redis...");
+                logInternalDebug(debug(), "Iniciando reload de Redis...");
 
                 // Verificar si Redis está disponible en el classpath
                 if (!isRedisAvailable()) {
-                    logInternalInfo("Redis no está disponible en el classpath, omitiendo reload de Redis");
+                    logInternalDebug(debug(), "Redis no está disponible en el classpath, omitiendo reload de Redis");
                     return new ReloadResult(true, System.currentTimeMillis() - startTime,
                             componentTimes, null);
                 }
@@ -315,7 +316,7 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalInfo("Iniciando reload personalizado del plugin...");
+                logInternalDebug(debug(), "Iniciando reload personalizado del plugin...");
 
                 long pluginStart = System.currentTimeMillis();
                 CompletableFuture<Boolean> pluginFuture = CompletableFuture.supplyAsync(() -> {
@@ -334,7 +335,7 @@ public class ReloadManager {
 
                 long totalTime = System.currentTimeMillis() - startTime;
                 if (success) {
-                    logInternalSuccess("Reload personalizado completado en " + totalTime + "ms");
+                    logInternalSuccess("Plugin reload completed in " + totalTime + "ms");
                 } else {
                     logInternalError("Fallo en reload personalizado");
                 }

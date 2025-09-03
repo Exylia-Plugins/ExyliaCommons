@@ -258,14 +258,14 @@ public class DatabaseManager {
                     if (databaseConfig.getBoolean("database.auto-migrate", true)) {
                         for (Class<?> entityClass : registeredEntities) {
                             try {
-                                logInternalDebug(debug(), "Initializing table for: " + entityClass.getSimpleName());
+                                logInternalDebug(debug(), "Initializing table for: " + entityClass.getAnnotation(Table.class).name());
                                 migrationManager.createOrUpdateTable(adapter, entityClass);
-                                logInternalInfo("Table initialized: " + entityClass.getSimpleName());
+                                logInternalInfo("Table initialized: " + entityClass.getAnnotation(Table.class).name());
 
                             } catch (Exception e) {
-                                String errorMsg = "Failed to initialize table for " + entityClass.getSimpleName();
+                                String errorMsg = "Failed to initialize table for " + entityClass.getAnnotation(Table.class).name();
                                 DatabaseException dbException = new DatabaseException("Table Initialization",
-                                        entityClass.getSimpleName(), getAdapterType(), errorMsg, e);
+                                        entityClass.getAnnotation(Table.class).name(), getAdapterType(), errorMsg, e);
                                 errorHandler.handleError(dbException);
                                 throw dbException;
                             }
@@ -394,8 +394,6 @@ public class DatabaseManager {
             // 4. Recreate repositories
             logInternalDebug(debug(), "Recreating all repositories...");
             recreateAllRepositories();
-
-            logInternalSuccess("=== COMPLETE RELOAD SUCCESSFUL ===");
             return true;
 
         } catch (Exception e) {

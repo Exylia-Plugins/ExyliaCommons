@@ -11,6 +11,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -60,9 +61,49 @@ public class ColorUtils {
     }
 
     /**
+     * Inicializa el sistema de presets de colores con presets personalizados
+     * @param plugin Instancia del plugin para acceder a los archivos
+     * @param customPresets Map con presets personalizados del plugin
+     */
+    public static void initializePresets(JavaPlugin plugin, Map<String, String> customPresets) {
+        pluginInstance = plugin;
+        
+        // Si hay presets personalizados, usarlos como base
+        if (customPresets != null && !customPresets.isEmpty()) {
+            colorPresets.clear();
+            
+            // Añadir presets personalizados primero
+            for (Map.Entry<String, String> entry : customPresets.entrySet()) {
+                String key = entry.getKey().toLowerCase();
+                String value = entry.getValue();
+                if (key != null && value != null) {
+                    colorPresets.put(key, value);
+                }
+            }
+            
+            // Crear/actualizar archivo colors.yml con los presets personalizados
+            createCustomColorPresetsFile(customPresets);
+            
+        } else {
+            // Si no hay presets personalizados, usar la lógica normal
+            loadColorPresets();
+        }
+        
+        presetsInitialized = true;
+    }
+
+    /**
      * Carga los presets de colores desde colors.yml
      */
     private static void loadColorPresets() {
+        loadColorPresetsFromFile(true);
+    }
+
+    /**
+     * Carga los presets de colores desde colors.yml
+     * @param createIfNotExists Si crear el archivo con presets por defecto si no existe
+     */
+    private static void loadColorPresetsFromFile(boolean createIfNotExists) {
         if (pluginInstance == null) {
             return;
         }
@@ -70,20 +111,71 @@ public class ColorUtils {
         File configFile = new File(pluginInstance.getDataFolder(), "colors.yml");
 
         if (!configFile.exists()) {
-            createDefaultColorPresets(configFile);
+            if (createIfNotExists) {
+                createDefaultColorPresets(configFile);
+            } else {
+                // No existe archivo y no se debe crear, usar solo presets personalizados
+                logInternalInfo("colors.yml not found, using only custom presets.");
+                return;
+            }
         }
 
-        // Cargar presets en memoria
+        // Cargar presets desde archivo (sin limpiar los existentes si ya hay custom)
         FileConfiguration colorConfig = YamlConfiguration.loadConfiguration(configFile);
-        colorPresets.clear();
+        
+        if (createIfNotExists) {
+            colorPresets.clear(); // Solo limpiar si no hay presets personalizados
+        }
 
         for (String key : colorConfig.getKeys(false)) {
             String value = colorConfig.getString(key);
             if (value != null) {
-                colorPresets.put(key.toLowerCase(), value);
+                String lowerKey = key.toLowerCase();
+                // Solo añadir si no existe ya (para no sobrescribir presets personalizados)
+                if (!colorPresets.containsKey(lowerKey)) {
+                    colorPresets.put(lowerKey, value);
+                }
             }
         }
         logInternalSuccess("Loaded " + colorPresets.size() + " color presets.");
+    }
+
+    /**
+     * Crea el archivo colors.yml con presets personalizados del plugin
+     */
+    private static void createCustomColorPresetsFile(Map<String, String> customPresets) {
+        if (pluginInstance == null) {
+            return;
+        }
+
+        File configFile = new File(pluginInstance.getDataFolder(), "colors.yml");
+        
+        try {
+            configFile.getParentFile().mkdirs();
+            configFile.createNewFile();
+
+            FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
+
+            // Limpiar contenido existente
+            for (String key : config.getKeys(false)) {
+                config.set(key, null);
+            }
+
+            // Añadir presets personalizados
+            for (Map.Entry<String, String> entry : customPresets.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                if (key != null && value != null) {
+                    config.set(key, value);
+                }
+            }
+
+            config.save(configFile);
+        } catch (IOException e) {
+            if (pluginInstance != null) {
+                pluginInstance.getLogger().severe("ColorUtils: Error creando archivo colors.yml: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -429,6 +521,39 @@ public class ColorUtils {
      */
     public static boolean arePresetsInitialized() {
         return presetsInitialized;
+    }
+
+    /**
+     * Añade un preset de color personalizado
+     * @param name Nombre del preset
+     * @param colorCode Código de color (ej: "<#ff0000>", "<red>", etc.)
+     */
+    public static void addCustomColorPreset(String name, String colorCode) {
+        if (name != null && colorCode != null) {
+            colorPresets.put(name.toLowerCase(), colorCode);
+            // Limpiar cache para que los nuevos presets se apliquen
+            COMPONENT_CACHE.clear();
+            PROCESSED_STRING_CACHE.clear();
+        }
+    }
+
+    /**
+     * Añade múltiples presets de color personalizados
+     * @param customPresets Map con los presets personalizados
+     */
+    public static void addCustomColorPresets(Map<String, String> customPresets) {
+        if (customPresets != null && !customPresets.isEmpty()) {
+            for (Map.Entry<String, String> entry : customPresets.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue();
+                if (key != null && value != null) {
+                    colorPresets.put(key.toLowerCase(), value);
+                }
+            }
+            // Limpiar cache para que los nuevos presets se apliquen
+            COMPONENT_CACHE.clear();
+            PROCESSED_STRING_CACHE.clear();
+        }
     }
 
     public static void clearCache() {

@@ -174,6 +174,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             ConfigManager.init(configSystem, finalConfigClasses);
             TimeFormatter.init();
             DateFormatter.init();
+            
+            // Inicializar ColorUtils con presets personalizados
+            ColorUtils.initializePresets(this, getCustomColorPresets());
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
             throw new RuntimeException(e);
@@ -214,6 +217,16 @@ public abstract class ExyliaPlugin extends JavaPlugin {
      * @return Array de clases que extienden ConfigBase
      */
     protected abstract Class<? extends ConfigBase>[] getConfigurationClasses();
+
+    /**
+     * Define presets de colores personalizados para el plugin
+     * Estos presets se añadirán a los presets por defecto de ColorUtils
+     * @return LinkedHashMap con los presets personalizados (key: nombre del preset, value: código de color)
+     *         El orden de inserción se respeta en el archivo colors.yml
+     */
+    protected Map<String, String> getCustomColorPresets() {
+        return new LinkedHashMap<>();
+    }
 
     // ===== API DE RELOAD =====
 
