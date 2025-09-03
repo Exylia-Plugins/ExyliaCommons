@@ -358,7 +358,7 @@ public class UnifiedRegionListener implements Listener {
                     event.getEntityType().name(), region.getId(), result.getReason()
             ));
         } else {
-            // Si BREAK está deshabilitado, no permitir que rompa bloques
+            // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
                 logInternalDebug(debug(), String.format(
@@ -391,7 +391,7 @@ public class UnifiedRegionListener implements Listener {
                     region.getId(), result.getReason()
             ));
         } else {
-            // Si BREAK está deshabilitado, no permitir que rompa bloques
+            // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
                 logInternalDebug(debug(), String.format(
@@ -716,11 +716,6 @@ public class UnifiedRegionListener implements Listener {
     }
 
     private ActionResult validateExplosion(Region region, EntityType entityType) {
-        // Si BREAK está deshabilitado, las explosiones no pueden romper bloques
-        if (!region.getFlagValue(RegionFlag.BREAK)) {
-            return ActionResult.deny("break-disabled", "Las explosiones no pueden romper bloques en esta región");
-        }
-
         if (entityType == EntityType.PRIMED_TNT || entityType == EntityType.MINECART_TNT) {
             if (!region.getFlagValue(RegionFlag.TNT)) {
                 return ActionResult.deny("tnt-disabled", null);

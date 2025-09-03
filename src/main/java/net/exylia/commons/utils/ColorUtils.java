@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -486,5 +487,24 @@ public class ColorUtils {
         colorPresets.clear();
         presetsInitialized = false;
         pluginInstance = null;
+    }
+
+    public static String generateRandomHexColor() {
+        int red, green, blue;
+        do {
+            red = ThreadLocalRandom.current().nextInt(50, 220);
+            green = ThreadLocalRandom.current().nextInt(50, 220);
+            blue = ThreadLocalRandom.current().nextInt(50, 220);
+        } while (isTooLight(red, green, blue) || isTooDark(red, green, blue));
+
+        return String.format("<#%02x%02x%02x>", red, green, blue);
+    }
+
+    private static boolean isTooLight(int red, int green, int blue) {
+        return (red + green + blue) > 600;
+    }
+
+    private static boolean isTooDark(int red, int green, int blue) {
+        return (red + green + blue) < 200;
     }
 }
