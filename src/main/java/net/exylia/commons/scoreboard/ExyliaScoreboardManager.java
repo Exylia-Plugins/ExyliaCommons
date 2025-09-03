@@ -220,11 +220,14 @@ public class ExyliaScoreboardManager {
     }
 
     /**
-     * Limpia los datos de un jugador desconectado
+     * Limpia los datos de un jugador desconectado - OPTIMIZADO
      */
     private void cleanupDisconnectedPlayer(Player player) {
         activeScoreboards.remove(player.getUniqueId());
         originalScoreboards.remove(player.getUniqueId());
+        
+        // Limpiar cache del renderer para este jugador
+        renderer.clearPlayerCache(player.getUniqueId().toString());
     }
 
     /**

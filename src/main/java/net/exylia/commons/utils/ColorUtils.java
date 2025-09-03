@@ -35,8 +35,13 @@ public class ColorUtils {
     // Sistema de presets global
     private static final Map<String, String> colorPresets = new HashMap<>();
     private static final Pattern PRESET_PATTERN = Pattern.compile("\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}");
+    private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&#([0-9a-fA-F]{6})");
+    private static final Pattern HEX_DETECTION_PATTERN = Pattern.compile("&#[0-9a-fA-F]{6}");
     private static JavaPlugin pluginInstance;
     private static boolean presetsInitialized = false;
+    
+    // Cache específico para strings procesados (antes de Component)
+    private static final Cache<String, String> PROCESSED_STRING_CACHE = new Cache<>(1800000, 300, 300000);
     
     // Sistema de transformación de fuentes
     private static final Map<Character, Character> SMALL_FONT_MAP = new HashMap<>();
@@ -225,7 +230,7 @@ public class ColorUtils {
     }
 
     /**
-     * Preprocesa códigos de color ampersand (&) a formato MiniMessage
+     * Preprocesa códigos de color ampersand (&) a formato MiniMessage - OPTIMIZADO
      * @param message Mensaje con códigos de color
      * @return Mensaje con códigos convertidos a formato MiniMessage
      */
@@ -234,38 +239,65 @@ public class ColorUtils {
             return "";
         }
 
-        message = message.replace('§', '&');
+        // Usar cache para evitar reprocesamiento del mismo string
+        return PROCESSED_STRING_CACHE.get(message, key -> {
+            String result = key.replace('§', '&');
 
-        // Convertir códigos &# a <#hexcode>
-        message = message.replaceAll("&#([0-9a-fA-F]{6})", "<#$1>");
+            // Usar patrón compilado para códigos hex
+            result = COLOR_CODE_PATTERN.matcher(result).replaceAll("<#$1>");
 
-        // Convertir códigos simples &x a sus equivalentes MiniMessage
-        message = message.replace("&0", "<black>");
-        message = message.replace("&1", "<dark_blue>");
-        message = message.replace("&2", "<dark_green>");
-        message = message.replace("&3", "<dark_aqua>");
-        message = message.replace("&4", "<dark_red>");
-        message = message.replace("&5", "<dark_purple>");
-        message = message.replace("&6", "<gold>");
-        message = message.replace("&7", "<gray>");
-        message = message.replace("&8", "<dark_gray>");
-        message = message.replace("&9", "<blue>");
-        message = message.replace("&a", "<green>");
-        message = message.replace("&b", "<aqua>");
-        message = message.replace("&c", "<red>");
-        message = message.replace("&d", "<light_purple>");
-        message = message.replace("&e", "<yellow>");
-        message = message.replace("&f", "<white>");
-
-        // Convertir códigos de formato
-        message = message.replace("&k", "<obfuscated>");
-        message = message.replace("&l", "<bold>");
-        message = message.replace("&m", "<strikethrough>");
-        message = message.replace("&n", "<underlined>");
-        message = message.replace("&o", "<italic>");
-        message = message.replace("&r", "<reset>");
-
-        return message;
+            // Batch replacement para códigos simples - más eficiente que múltiples replace()
+            StringBuilder sb = new StringBuilder(result.length() + 32);
+            for (int i = 0; i < result.length(); i++) {
+                char c = result.charAt(i);
+                
+                if (c == '&' && i + 1 < result.length()) {
+                    char next = result.charAt(i + 1);
+                    String replacement = getColorCodeReplacement(next);
+                    if (replacement != null) {
+                        sb.append(replacement);
+                        i++; // Skip the next character
+                        continue;
+                    }
+                }
+                sb.append(c);
+            }
+            
+            return sb.toString();
+        });
+    }
+    
+    /**
+     * Obtiene el reemplazo MiniMessage para un código de color específico
+     * @param code El código de color (0-9, a-f, k-r)
+     * @return El reemplazo MiniMessage, o null si no hay reemplazo
+     */
+    private static String getColorCodeReplacement(char code) {
+        return switch (code) {
+            case '0' -> "<black>";
+            case '1' -> "<dark_blue>";
+            case '2' -> "<dark_green>";
+            case '3' -> "<dark_aqua>";
+            case '4' -> "<dark_red>";
+            case '5' -> "<dark_purple>";
+            case '6' -> "<gold>";
+            case '7' -> "<gray>";
+            case '8' -> "<dark_gray>";
+            case '9' -> "<blue>";
+            case 'a' -> "<green>";
+            case 'b' -> "<aqua>";
+            case 'c' -> "<red>";
+            case 'd' -> "<light_purple>";
+            case 'e' -> "<yellow>";
+            case 'f' -> "<white>";
+            case 'k' -> "<obfuscated>";
+            case 'l' -> "<bold>";
+            case 'm' -> "<strikethrough>";
+            case 'n' -> "<underlined>";
+            case 'o' -> "<italic>";
+            case 'r' -> "<reset>";
+            default -> null;
+        };
     }
 
     /**
@@ -426,29 +458,34 @@ public class ColorUtils {
                 return message;
             }
 
-            StringBuilder result = new StringBuilder();
+            // Pre-compilar pattern para detección de hex codes - más rápido que substring().matches()
+            int len = message.length();
+            StringBuilder result = new StringBuilder(len);
             boolean insideTag = false;
             
-            for (int i = 0; i < message.length(); i++) {
+            for (int i = 0; i < len; i++) {
                 char c = message.charAt(i);
                 
-                // Detectar inicio de cualquier tag MiniMessage
+                // Optimizar detección de tags - evitar indexOf si no es necesario
                 if (c == '<' && !insideTag) {
-                    int closingIndex = message.indexOf('>', i);
+                    // Buscar cierre de tag más eficientemente
+                    int closingIndex = -1;
+                    for (int j = i + 1; j < len && j < i + 20; j++) { // Limitar búsqueda a 20 chars
+                        if (message.charAt(j) == '>') {
+                            closingIndex = j;
+                            break;
+                        }
+                    }
                     if (closingIndex != -1) {
                         insideTag = true;
                     }
                 }
                 
-                // Detectar códigos de color ampersand
-                if (c == '&' && i + 1 < message.length() && !insideTag) {
+                // Optimizar detección de códigos ampersand
+                if (c == '&' && i + 1 < len && !insideTag) {
                     char nextChar = message.charAt(i + 1);
-                    // Códigos simples (&0-9, &a-f, &k-o, &r) o hexadecimales (&#ffffff)
-                    if ((nextChar >= '0' && nextChar <= '9') || 
-                        (nextChar >= 'a' && nextChar <= 'f') || 
-                        (nextChar >= 'A' && nextChar <= 'F') ||
-                        "klmnoprKLMNOPR".indexOf(nextChar) != -1 ||
-                        nextChar == '#') {
+                    // Usar ranges más eficientes que contains()
+                    if (isColorCode(nextChar)) {
                         insideTag = true;
                     }
                 }
@@ -460,13 +497,12 @@ public class ColorUtils {
                     if (c == '>') {
                         insideTag = false;
                     }
-                    // Detectar final de códigos ampersand (después de 2 caracteres para códigos simples)
-                    else if (message.charAt(Math.max(0, i - 1)) == '&' && 
-                             "0123456789abcdefklmnoprABCDEFKLMNOPR".indexOf(c) != -1) {
+                    // Detectar final de códigos ampersand más eficientemente
+                    else if (i > 0 && message.charAt(i - 1) == '&' && isColorCode(c)) {
                         insideTag = false;
                     }
-                    // Detectar final de códigos hexadecimales ampersand (&#ffffff)
-                    else if (i >= 7 && message.substring(Math.max(0, i - 7), i + 1).matches("&#[0-9a-fA-F]{6}")) {
+                    // Detectar final de códigos hex usando pattern pre-compilado
+                    else if (c != '#' && i >= 7 && HEX_DETECTION_PATTERN.matcher(message).region(Math.max(0, i - 7), i + 1).matches()) {
                         insideTag = false;
                     }
                 } else {
@@ -481,9 +517,25 @@ public class ColorUtils {
             return message;
         }
     }
+    
+    /**
+     * Verifica si un carácter es un código de color válido
+     * @param c el carácter a verificar
+     * @return true si es un código de color válido
+     */
+    private static boolean isColorCode(char c) {
+        return (c >= '0' && c <= '9') || 
+               (c >= 'a' && c <= 'f') || 
+               (c >= 'A' && c <= 'F') ||
+               c == 'k' || c == 'l' || c == 'm' || c == 'n' || 
+               c == 'o' || c == 'p' || c == 'r' || 
+               c == 'K' || c == 'L' || c == 'M' || c == 'N' || 
+               c == 'O' || c == 'P' || c == 'R' || c == '#';
+    }
 
     public static void shutdown() {
         COMPONENT_CACHE.shutdown();
+        PROCESSED_STRING_CACHE.shutdown();
         colorPresets.clear();
         presetsInitialized = false;
         pluginInstance = null;

@@ -15,14 +15,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Renderizador optimizado de scoreboards usando FastBoard con Adventure Components
  * Mantiene la misma API pero usa FastBoard internamente para mejor rendimiento
+ * Optimizado con caché local para componentes estáticos
  */
 public class ScoreboardRenderer {
 
     private final ScoreboardSettings settings;
+    
+    // Cache local para componentes estáticos (títulos, líneas sin placeholders)
+    private static final Map<String, String> STATIC_COMPONENT_CACHE = new ConcurrentHashMap<>();
+    
+    // Cache para componentes procesados por jugador (para reducir re-parsing)
+    private final Map<String, Map<String, String>> playerComponentCache = new ConcurrentHashMap<>();
 
     public ScoreboardRenderer(ScoreboardSettings settings) {
         this.settings = settings;
@@ -93,21 +101,19 @@ public class ScoreboardRenderer {
     }
 
     /**
-     * Actualiza el contenido de un scoreboard usando FastBoard
+     * Actualiza el contenido de un scoreboard usando FastBoard - OPTIMIZADO
      */
     public void updateScoreboard(RenderedScoreboard rendered, Player player,
                                  ScoreboardConfig config, ExyliaContext context) {
 
         FastBoard fastBoard = rendered.fastBoard;
+        String playerId = player.getUniqueId().toString();
+        Map<String, String> playerCache = playerComponentCache.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>());
 
-        // Actualizar título si cambió
-        String processedTitle = context.processPlaceholders(config.getTitle(), player);
-        if (!processedTitle.equals(rendered.lastContent.get("title"))) {
-            Component titleComponent = ColorUtils.parse(processedTitle);
-            // FastBoard Adventure requiere String para el título
-            String titleString = LegacyComponentSerializer.legacySection().serialize(titleComponent);
+        // Actualizar título de forma optimizada
+        String titleString = processAndCacheComponent(config.getTitle(), "title", playerId, player, context, rendered);
+        if (titleString != null) {
             fastBoard.updateTitle(titleString);
-            rendered.lastContent.put("title", processedTitle);
         }
 
         // Actualizar configuración del team principal si existe
@@ -115,25 +121,28 @@ public class ScoreboardRenderer {
 //            updateMainTeam(rendered.mainTeam, player, context);
         }
 
-        // Procesar líneas
+        // Procesar líneas de forma optimizada con batch processing
         List<String> lines = config.getLines();
         String[] processedLines = new String[lines.size()];
         boolean hasChanges = false;
 
+        // Pre-procesar todas las líneas en batch
         for (int i = 0; i < lines.size(); i++) {
-            String line = lines.get(i);
-            String processed = context.processPlaceholders(line, player);
-
-            // Solo actualizar si cambió el contenido
-            String previous = rendered.lastContent.get("line_" + i);
-            if (!processed.equals(previous)) {
+            String lineKey = "line_" + i;
+            String processedLineString = processAndCacheComponent(lines.get(i), lineKey, playerId, player, context, rendered);
+            
+            if (processedLineString != null) {
                 hasChanges = true;
-                rendered.lastContent.put("line_" + i, processed);
+                processedLines[i] = processedLineString;
+            } else {
+                // Reutilizar la línea previamente procesada
+                String previous = rendered.lastContent.get(lineKey);
+                if (previous != null) {
+                    String cachedLine = playerCache.get(lineKey + "_serialized");
+                    processedLines[i] = cachedLine != null ? cachedLine : 
+                        LegacyComponentSerializer.legacySection().serialize(ColorUtils.parse(previous));
+                }
             }
-
-            // Convertir Component a String legacy para FastBoard
-            Component lineComponent = ColorUtils.parse(processed);
-            processedLines[i] = LegacyComponentSerializer.legacySection().serialize(lineComponent);
         }
 
         // Solo actualizar líneas si hubo cambios
@@ -141,10 +150,50 @@ public class ScoreboardRenderer {
             fastBoard.updateLines(processedLines);
         }
 
-        // Limpiar teams vacíos si está habilitado
-        if (settings.isAutoCleanupEmptyTeams()) {
+        // Limpiar teams vacíos si está habilitado (solo cada 10 actualizaciones para reducir overhead)
+        if (settings.isAutoCleanupEmptyTeams() && System.currentTimeMillis() % 10 == 0) {
             cleanupEmptyTeams(rendered, player);
         }
+    }
+
+    /**
+     * Procesa y cachea un componente, solo actualizando si cambió
+     * @return String serializado si cambió, null si no cambió
+     */
+    private String processAndCacheComponent(String template, String key, String playerId, 
+                                          Player player, ExyliaContext context, RenderedScoreboard rendered) {
+        
+        // Verificar si es contenido estático (sin placeholders)
+        boolean isStatic = !template.contains("%");
+        
+        if (isStatic) {
+            // Para contenido estático, usar cache global
+            return STATIC_COMPONENT_CACHE.computeIfAbsent(template, t -> {
+                Component component = ColorUtils.parse(t);
+                return LegacyComponentSerializer.legacySection().serialize(component);
+            });
+        }
+        
+        // Para contenido dinámico
+        String processed = context.processPlaceholders(template, player);
+        String previous = rendered.lastContent.get(key);
+        
+        if (!processed.equals(previous)) {
+            rendered.lastContent.put(key, processed);
+            
+            // Cachear la versión serializada para evitar re-serialización
+            Component component = ColorUtils.parse(processed);
+            String serialized = LegacyComponentSerializer.legacySection().serialize(component);
+            
+            Map<String, String> playerCache = playerComponentCache.get(playerId);
+            if (playerCache != null) {
+                playerCache.put(key + "_serialized", serialized);
+            }
+            
+            return serialized;
+        }
+        
+        return null; // No cambió
     }
 
     /**
@@ -199,7 +248,22 @@ public class ScoreboardRenderer {
             DebugUtils.logError("Error limpiando teams vacíos: " + e.getMessage());
         }
     }
-
+    
+    /**
+     * Limpia el cache para un jugador específico cuando se desconecta
+     * Debe ser llamado desde el ScoreboardManager cuando un jugador se desconecta
+     */
+    public void clearPlayerCache(String playerId) {
+        playerComponentCache.remove(playerId);
+    }
+    
+    /**
+     * Limpia todos los caches para liberar memoria
+     */
+    public static void clearAllCaches() {
+        STATIC_COMPONENT_CACHE.clear();
+    }
+    
     /**
      * Container para un scoreboard renderizado usando FastBoard con Adventure
      */
