@@ -3,6 +3,7 @@ package net.exylia.commons.database.adapters;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.repository.Repository.SortOrder;
 import net.exylia.commons.database.exceptions.ConnectionException;
 import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.DatabaseException;
@@ -20,6 +21,7 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.*;
@@ -913,6 +915,144 @@ public class YAMLAdapter implements DatabaseAdapter {
         } catch (Exception e) {
             throw new DatabaseException("Value Conversion", "Unknown", "YAML",
                     String.format("Failed to convert value '%s' to type %s", value, targetType.getSimpleName()), e);
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            List<T> allEntities = findAll(entityClass);
+            
+            return allEntities.stream()
+                    .sorted((e1, e2) -> {
+                        try {
+                            Object value1 = getFieldValue(e1, field);
+                            Object value2 = getFieldValue(e2, field);
+                            
+                            if (value1 == null && value2 == null) return 0;
+                            if (value1 == null) return order == SortOrder.DESC ? 1 : -1;
+                            if (value2 == null) return order == SortOrder.DESC ? -1 : 1;
+                            
+                            @SuppressWarnings("unchecked")
+                            int comparison = ((Comparable<Object>) value1).compareTo(value2);
+                            return order == SortOrder.DESC ? -comparison : comparison;
+                            
+                        } catch (Exception e) {
+                            errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                                    "Failed to compare field values during sorting: " + e.getMessage());
+                            return 0;
+                        }
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllOrderedBy", entityClassName, "YAML",
+                        "Unexpected error during ordered find operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order, int limit) throws Exception {
+        List<T> orderedList = findAllOrderedBy(entityClass, field, order);
+        return orderedList.stream().limit(limit).collect(Collectors.toList());
+    }
+
+    @Override
+    public <T> List<T> findAllPaged(Class<T> entityClass, int page, int size) throws Exception {
+        List<T> allEntities = findAll(entityClass);
+        int startIndex = page * size;
+        int endIndex = Math.min(startIndex + size, allEntities.size());
+        
+        if (startIndex >= allEntities.size()) {
+            return new ArrayList<>();
+        }
+        
+        return allEntities.subList(startIndex, endIndex);
+    }
+
+    @Override
+    public <T> List<T> findAllPagedOrderedBy(Class<T> entityClass, String field, SortOrder order, int page, int size) throws Exception {
+        List<T> orderedList = findAllOrderedBy(entityClass, field, order);
+        int startIndex = page * size;
+        int endIndex = Math.min(startIndex + size, orderedList.size());
+        
+        if (startIndex >= orderedList.size()) {
+            return new ArrayList<>();
+        }
+        
+        return orderedList.subList(startIndex, endIndex);
+    }
+
+    @Override
+    public <T> long getRankByField(Class<T> entityClass, String field, Object value, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            List<T> allEntities = findAll(entityClass);
+            
+            long betterCount = allEntities.stream()
+                    .filter(entity -> {
+                        try {
+                            Object entityValue = getFieldValue(entity, field);
+                            if (entityValue == null || value == null) return false;
+                            
+                            @SuppressWarnings("unchecked")
+                            int comparison = ((Comparable<Object>) entityValue).compareTo(value);
+                            
+                            return order == SortOrder.DESC ? comparison > 0 : comparison < 0;
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .count();
+                    
+            return betterCount + 1;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetRankByField", entityClassName, "YAML",
+                        "Unexpected error during rank calculation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> Optional<T> getByRank(Class<T> entityClass, String field, long rank, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            List<T> orderedList = findAllOrderedBy(entityClass, field, order);
+            
+            if (rank <= 0 || rank > orderedList.size()) {
+                return Optional.empty();
+            }
+            
+            return Optional.of(orderedList.get((int) rank - 1));
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "YAML",
+                        "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 }

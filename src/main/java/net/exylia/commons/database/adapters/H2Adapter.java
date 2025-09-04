@@ -13,6 +13,7 @@ import net.exylia.commons.database.serialization.CollectionUtils;
 import net.exylia.commons.database.serialization.EnumSafetyHandler;
 import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.file.FileConfiguration;
+import net.exylia.commons.database.repository.Repository.SortOrder;
 
 import java.lang.reflect.Field;
 import java.sql.*;
@@ -1122,6 +1123,277 @@ public class H2Adapter implements DatabaseAdapter {
         } catch (Exception e) {
             throw new DatabaseException("Value Conversion", "Unknown", "H2",
                     String.format("Failed to convert value '%s' to type %s", value, targetType.getSimpleName()), e);
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String orderDirection = (order == SortOrder.DESC) ? "DESC" : "ASC";
+            String sql = "SELECT * FROM " + tableName + " ORDER BY " + field + " " + orderDirection;
+
+            List<T> results = new ArrayList<>();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindAllOrderedBy", entityClassName, "H2",
+                        String.format("SQL error during ordered query for field '%s'", field), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllOrderedBy", entityClassName, "H2",
+                        "Unexpected error during ordered query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order, int limit) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String orderDirection = (order == SortOrder.DESC) ? "DESC" : "ASC";
+            String sql = "SELECT * FROM " + tableName + " ORDER BY " + field + " " + orderDirection + " LIMIT ?";
+
+            List<T> results = new ArrayList<>();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, limit);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindAllOrderedBy", entityClassName, "H2",
+                        String.format("SQL error during limited ordered query for field '%s' with limit %d", field, limit), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllOrderedBy", entityClassName, "H2",
+                        "Unexpected error during limited ordered query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllPaged(Class<T> entityClass, int page, int size) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            int offset = page * size;
+            String sql = "SELECT * FROM " + tableName + " LIMIT ? OFFSET ?";
+
+            List<T> results = new ArrayList<>();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, size);
+                stmt.setInt(2, offset);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllPaged", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindAllPaged", entityClassName, "H2",
+                        String.format("SQL error during paged query: page %d, size %d", page, size), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllPaged", entityClassName, "H2",
+                        "Unexpected error during paged query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllPagedOrderedBy(Class<T> entityClass, String field, SortOrder order, int page, int size) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String orderDirection = (order == SortOrder.DESC) ? "DESC" : "ASC";
+            int offset = page * size;
+            String sql = "SELECT * FROM " + tableName + " ORDER BY " + field + " " + orderDirection + " LIMIT ? OFFSET ?";
+
+            List<T> results = new ArrayList<>();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setInt(1, size);
+                stmt.setInt(2, offset);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllPagedOrderedBy", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindAllPagedOrderedBy", entityClassName, "H2",
+                        String.format("SQL error during paged ordered query: field '%s', page %d, size %d", field, page, size), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllPagedOrderedBy", entityClassName, "H2",
+                        "Unexpected error during paged ordered query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> long getRankByField(Class<T> entityClass, String field, Object value, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String operator = (order == SortOrder.DESC) ? ">" : "<";
+            String sql = "SELECT COUNT(*) + 1 FROM " + tableName + " WHERE " + field + " " + operator + " ?";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setObject(1, value);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+
+                return -1;
+
+            } catch (SQLException e) {
+                throw new DatabaseException("GetRankByField", entityClassName, "H2",
+                        String.format("SQL error during rank calculation for field '%s' with value %s", field, value), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetRankByField", entityClassName, "H2",
+                        "Unexpected error during rank calculation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> Optional<T> getByRank(Class<T> entityClass, String field, long rank, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String orderDirection = (order == SortOrder.DESC) ? "DESC" : "ASC";
+            long offset = Math.max(0, rank - 1);
+            String sql = "SELECT * FROM " + tableName + " ORDER BY " + field + " " + orderDirection + " LIMIT 1 OFFSET ?";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setLong(1, offset);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    try {
+                        T entity = mapToEntity(resultSetToMap(rs), entityClass);
+                        return Optional.of(entity);
+                    } catch (Exception e) {
+                        throw new DatabaseException("GetByRank", entityClassName, "H2",
+                                "Failed to map result set to entity for rank: " + rank, e);
+                    }
+                }
+
+                return Optional.empty();
+
+            } catch (SQLException e) {
+                throw new DatabaseException("GetByRank", entityClassName, "H2",
+                        String.format("SQL error during rank query for rank %d", rank), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "H2",
+                        "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 

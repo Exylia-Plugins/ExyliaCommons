@@ -2,6 +2,7 @@ package net.exylia.commons.database.adapters;
 
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.*;
+import com.mongodb.client.model.*;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
@@ -9,6 +10,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
+import net.exylia.commons.database.repository.Repository.SortOrder;
 import net.exylia.commons.database.exceptions.ConnectionException;
 import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.DatabaseException;
@@ -1052,6 +1054,266 @@ public class MongoDBAdapter implements DatabaseAdapter {
         } catch (Exception e) {
             throw new DatabaseException("Value Conversion", "Unknown", "MongoDB",
                     String.format("Failed to convert value '%s' to type %s", value, targetType.getSimpleName()), e);
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            List<T> results = new ArrayList<>();
+            int sortDirection = (order == SortOrder.DESC) ? -1 : 1;
+
+            try (MongoCursor<Document> cursor = collection.find().sort(sortDirection == -1 ? Sorts.descending(field) : Sorts.ascending(field)).iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindAllOrderedBy", entityClassName, "MongoDB",
+                        String.format("MongoDB ordered find operation failed for field '%s'", field), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllOrderedBy", entityClassName, "MongoDB",
+                        "Unexpected error during ordered find operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order, int limit) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            List<T> results = new ArrayList<>();
+            int sortDirection = (order == SortOrder.DESC) ? -1 : 1;
+
+            try (MongoCursor<Document> cursor = collection.find()
+                    .sort(sortDirection == -1 ? Sorts.descending(field) : Sorts.ascending(field))
+                    .limit(limit)
+                    .iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindAllOrderedBy", entityClassName, "MongoDB",
+                        String.format("MongoDB limited ordered find operation failed for field '%s' with limit %d", field, limit), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllOrderedBy", entityClassName, "MongoDB",
+                        "Unexpected error during limited ordered find operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllPaged(Class<T> entityClass, int page, int size) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            List<T> results = new ArrayList<>();
+            int skip = page * size;
+
+            try (MongoCursor<Document> cursor = collection.find()
+                    .skip(skip)
+                    .limit(size)
+                    .iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllPaged", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindAllPaged", entityClassName, "MongoDB",
+                        String.format("MongoDB paged find operation failed: page %d, size %d", page, size), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllPaged", entityClassName, "MongoDB",
+                        "Unexpected error during paged find operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findAllPagedOrderedBy(Class<T> entityClass, String field, SortOrder order, int page, int size) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            List<T> results = new ArrayList<>();
+            int sortDirection = (order == SortOrder.DESC) ? -1 : 1;
+            int skip = page * size;
+
+            try (MongoCursor<Document> cursor = collection.find()
+                    .sort(sortDirection == -1 ? Sorts.descending(field) : Sorts.ascending(field))
+                    .skip(skip)
+                    .limit(size)
+                    .iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindAllPagedOrderedBy", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindAllPagedOrderedBy", entityClassName, "MongoDB",
+                        String.format("MongoDB paged ordered find operation failed: field '%s', page %d, size %d", field, page, size), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindAllPagedOrderedBy", entityClassName, "MongoDB",
+                        "Unexpected error during paged ordered find operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> long getRankByField(Class<T> entityClass, String field, Object value, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            try {
+                Document filter;
+                if (order == SortOrder.DESC) {
+                    filter = new Document(field, new Document("$gt", value));
+                } else {
+                    filter = new Document(field, new Document("$lt", value));
+                }
+
+                long betterCount = collection.countDocuments(filter);
+                return betterCount + 1;
+
+            } catch (Exception e) {
+                throw new DatabaseException("GetRankByField", entityClassName, "MongoDB",
+                        String.format("MongoDB rank calculation failed for field '%s' with value %s", field, value), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetRankByField", entityClassName, "MongoDB",
+                        "Unexpected error during rank calculation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> Optional<T> getByRank(Class<T> entityClass, String field, long rank, SortOrder order) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            int sortDirection = (order == SortOrder.DESC) ? -1 : 1;
+            int skip = (int) Math.max(0, rank - 1);
+
+            try {
+                Document document = collection.find()
+                        .sort(sortDirection == -1 ? Sorts.descending(field) : Sorts.ascending(field))
+                        .skip(skip)
+                        .limit(1)
+                        .first();
+
+                if (document != null) {
+                    try {
+                        T entity = documentToEntity(document, entityClass);
+                        return Optional.of(entity);
+                    } catch (Exception e) {
+                        throw new DatabaseException("GetByRank", entityClassName, "MongoDB",
+                                "Failed to map document to entity for rank: " + rank, e);
+                    }
+                }
+
+                return Optional.empty();
+
+            } catch (Exception e) {
+                throw new DatabaseException("GetByRank", entityClassName, "MongoDB",
+                        String.format("MongoDB rank query failed for rank %d", rank), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "MongoDB",
+                        "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
         }
     }
 }

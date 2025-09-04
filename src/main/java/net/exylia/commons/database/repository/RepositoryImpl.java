@@ -6,6 +6,7 @@ import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.RepositoryException;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -420,5 +421,228 @@ public class RepositoryImpl<T> implements Repository<T> {
             }
         }
         return "id"; // fallback
+    }
+
+    @Override
+    public List<T> findAllOrderedBy(String field, SortOrder order) {
+        try {
+            return adapter.findAllOrderedBy(entityClass, field, order);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("findAllOrderedBy", entityClass.getSimpleName(),
+                    String.format("Failed to find all entities ordered by field '%s' with order %s", field, order), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public List<T> findAllOrderedBy(String field, SortOrder order, int limit) {
+        try {
+            return adapter.findAllOrderedBy(entityClass, field, order, limit);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("findAllOrderedBy", entityClass.getSimpleName(),
+                    String.format("Failed to find entities ordered by field '%s' with order %s and limit %d", field, order, limit), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public List<T> findTopN(String field, int n) {
+        return findAllOrderedBy(field, SortOrder.DESC, n);
+    }
+
+    @Override
+    public List<T> findBottomN(String field, int n) {
+        return findAllOrderedBy(field, SortOrder.ASC, n);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findAllOrderedByAsync(String field, SortOrder order) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findAllOrderedBy(field, order);
+            } catch (Exception e) {
+                throw new RepositoryException("findAllOrderedByAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findAllOrderedBy for field '%s' with order %s", field, order), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findAllOrderedByAsync(String field, SortOrder order, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findAllOrderedBy(field, order, limit);
+            } catch (Exception e) {
+                throw new RepositoryException("findAllOrderedByAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findAllOrderedBy for field '%s' with order %s and limit %d", field, order, limit), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findTopNAsync(String field, int n) {
+        return findAllOrderedByAsync(field, SortOrder.DESC, n);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findBottomNAsync(String field, int n) {
+        return findAllOrderedByAsync(field, SortOrder.ASC, n);
+    }
+
+    @Override
+    public List<T> findAllPaged(int page, int size) {
+        try {
+            return adapter.findAllPaged(entityClass, page, size);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("findAllPaged", entityClass.getSimpleName(),
+                    String.format("Failed to find entities with pagination: page %d, size %d", page, size), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public List<T> findAllPagedOrderedBy(String field, SortOrder order, int page, int size) {
+        try {
+            return adapter.findAllPagedOrderedBy(entityClass, field, order, page, size);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("findAllPagedOrderedBy", entityClass.getSimpleName(),
+                    String.format("Failed to find entities with pagination and ordering: field '%s', order %s, page %d, size %d", field, order, page, size), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findAllPagedAsync(int page, int size) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findAllPaged(page, size);
+            } catch (Exception e) {
+                throw new RepositoryException("findAllPagedAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findAllPaged: page %d, size %d", page, size), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findAllPagedOrderedByAsync(String field, SortOrder order, int page, int size) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findAllPagedOrderedBy(field, order, page, size);
+            } catch (Exception e) {
+                throw new RepositoryException("findAllPagedOrderedByAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findAllPagedOrderedBy: field '%s', order %s, page %d, size %d", field, order, page, size), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public long getRankByField(String field, Object value, SortOrder order) {
+        try {
+            return adapter.getRankByField(entityClass, field, value, order);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("getRankByField", entityClass.getSimpleName(),
+                    String.format("Failed to get rank for field '%s' with value %s and order %s", field, value, order), e);
+            errorHandler.handleError(repoException);
+            return -1;
+        }
+    }
+
+    @Override
+    public Optional<T> getByRank(String field, long rank, SortOrder order) {
+        try {
+            return adapter.getByRank(entityClass, field, rank, order);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("getByRank", entityClass.getSimpleName(),
+                    String.format("Failed to get entity by rank %d for field '%s' with order %s", rank, field, order), e);
+            errorHandler.handleError(repoException);
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public CompletableFuture<Long> getRankByFieldAsync(String field, Object value, SortOrder order) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getRankByField(field, value, order);
+            } catch (Exception e) {
+                RepositoryException repoException = new RepositoryException("getRankByFieldAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async getRankByField for field '%s' with value %s and order %s", field, value, order), e);
+                errorHandler.handleError(repoException);
+                return -1L;
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Optional<T>> getByRankAsync(String field, long rank, SortOrder order) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getByRank(field, rank, order);
+            } catch (Exception e) {
+                RepositoryException repoException = new RepositoryException("getByRankAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async getByRank for rank %d, field '%s' with order %s", rank, field, order), e);
+                errorHandler.handleError(repoException);
+                return Optional.empty();
+            }
+        }, executor);
+    }
+
+    @Override
+    public List<T> getLeaderboard(String field, int limit) {
+        return getLeaderboard(field, limit, SortOrder.DESC);
+    }
+
+    @Override
+    public List<T> getLeaderboard(String field, int limit, SortOrder order) {
+        return findAllOrderedBy(field, order, limit);
+    }
+
+    @Override
+    public List<T> getLeaderboardRange(String field, int startRank, int endRank, SortOrder order) {
+        try {
+            int size = endRank - startRank + 1;
+            int page = startRank > 0 ? (startRank - 1) / size : 0;
+            int offset = startRank > 0 ? (startRank - 1) % size : 0;
+            
+            List<T> pageResults = adapter.findAllPagedOrderedBy(entityClass, field, order, page, size + offset);
+            
+            if (pageResults.size() <= offset) {
+                return new ArrayList<>();
+            }
+            
+            int endIndex = Math.min(pageResults.size(), offset + size);
+            return pageResults.subList(offset, endIndex);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("getLeaderboardRange", entityClass.getSimpleName(),
+                    String.format("Failed to get leaderboard range from rank %d to %d for field '%s' with order %s", startRank, endRank, field, order), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit) {
+        return getLeaderboardAsync(field, limit, SortOrder.DESC);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit, SortOrder order) {
+        return findAllOrderedByAsync(field, order, limit);
+    }
+
+    @Override
+    public CompletableFuture<List<T>> getLeaderboardRangeAsync(String field, int startRank, int endRank, SortOrder order) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getLeaderboardRange(field, startRank, endRank, order);
+            } catch (Exception e) {
+                throw new RepositoryException("getLeaderboardRangeAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async getLeaderboardRange from rank %d to %d for field '%s' with order %s", startRank, endRank, field, order), e);
+            }
+        }, executor);
     }
 }

@@ -39,4 +39,38 @@ public interface Repository<T> {
     void deleteAll(List<T> entities);
     CompletableFuture<Void> saveAllAsync(List<T> entities);
     CompletableFuture<Void> deleteAllAsync(List<T> entities);
+
+    // Métodos de ordenamiento y ranking
+    List<T> findAllOrderedBy(String field, SortOrder order);
+    List<T> findAllOrderedBy(String field, SortOrder order, int limit);
+    List<T> findTopN(String field, int n);
+    List<T> findBottomN(String field, int n);
+    CompletableFuture<List<T>> findAllOrderedByAsync(String field, SortOrder order);
+    CompletableFuture<List<T>> findAllOrderedByAsync(String field, SortOrder order, int limit);
+    CompletableFuture<List<T>> findTopNAsync(String field, int n);
+    CompletableFuture<List<T>> findBottomNAsync(String field, int n);
+
+    // Métodos de paginación
+    List<T> findAllPaged(int page, int size);
+    List<T> findAllPagedOrderedBy(String field, SortOrder order, int page, int size);
+    CompletableFuture<List<T>> findAllPagedAsync(int page, int size);
+    CompletableFuture<List<T>> findAllPagedOrderedByAsync(String field, SortOrder order, int page, int size);
+
+    // Métodos de posición y ranking
+    long getRankByField(String field, Object value, SortOrder order);
+    Optional<T> getByRank(String field, long rank, SortOrder order);
+    CompletableFuture<Long> getRankByFieldAsync(String field, Object value, SortOrder order);
+    CompletableFuture<Optional<T>> getByRankAsync(String field, long rank, SortOrder order);
+
+    // Métodos de leaderboard
+    List<T> getLeaderboard(String field, int limit);
+    List<T> getLeaderboard(String field, int limit, SortOrder order);
+    List<T> getLeaderboardRange(String field, int startRank, int endRank, SortOrder order);
+    CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit);
+    CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit, SortOrder order);
+    CompletableFuture<List<T>> getLeaderboardRangeAsync(String field, int startRank, int endRank, SortOrder order);
+
+    enum SortOrder {
+        ASC, DESC
+    }
 }
