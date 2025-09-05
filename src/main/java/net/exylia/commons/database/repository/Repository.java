@@ -70,6 +70,10 @@ public interface Repository<T> {
     CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit, SortOrder order);
     CompletableFuture<List<T>> getLeaderboardRangeAsync(String field, int startRank, int endRank, SortOrder order);
 
+    // Operaciones de mantenimiento
+    void drop();
+    CompletableFuture<Void> dropAsync();
+
     enum SortOrder {
         ASC, DESC
     }

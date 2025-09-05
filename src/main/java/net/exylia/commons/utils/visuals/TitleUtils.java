@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
 public class TitleUtils {
@@ -222,7 +223,7 @@ public class TitleUtils {
                             instance.getOnComplete().run();
                         } catch (Exception e) {
                             // Log error pero continuar
-                            plugin.getLogger().warning("Error ejecutando callback de countdown: " + e.getMessage());
+                            logInternalWarn("Error ejecutando callback de countdown: " + e.getMessage());
                         }
                     }
 
@@ -469,7 +470,7 @@ public class TitleUtils {
                 try {
                     countdownInstance.getOnCancel().run();
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Error ejecutando callback de cancelación: " + e.getMessage());
+                    logInternalWarn("Error ejecutando callback de cancelación: " + e.getMessage());
                 }
             }
         }

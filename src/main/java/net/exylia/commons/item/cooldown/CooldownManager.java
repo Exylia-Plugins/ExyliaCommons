@@ -25,6 +25,7 @@ import java.util.function.Consumer;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Sistema de cooldown persistente con soporte para double (precisión decimal)
@@ -357,7 +358,7 @@ public class CooldownManager {
             }
 
         } catch (IOException e) {
-            plugin.getLogger().warning("Error saving cooldowns: " + e.getMessage());
+            logInternalWarn("Error saving cooldowns: " + e.getMessage());
         }
     }
 
@@ -380,7 +381,7 @@ public class CooldownManager {
                         UUID uuid = UUID.fromString(uuidStr);
                         playerCooldowns.put(uuid, new ConcurrentHashMap<>(cooldowns));
                     } catch (IllegalArgumentException e) {
-                        plugin.getLogger().warning("Invalid UUID in cooldown data: " + uuidStr);
+                        logInternalWarn("Invalid UUID in cooldown data: " + uuidStr);
                     }
                 });
 
@@ -389,7 +390,7 @@ public class CooldownManager {
             }
 
         } catch (IOException e) {
-            plugin.getLogger().warning("Error loading cooldowns: " + e.getMessage());
+            logInternalWarn("Error loading cooldowns: " + e.getMessage());
         }
     }
 
@@ -484,7 +485,7 @@ public class CooldownManager {
         cooldownCallbacks.clear();
 
         initialized = false;
-        logInternalDebug(debug(), "CooldownManager shutdown");
+        logInternalDebug("CooldownManager shutdown");
     }
 
     private Material getMaterialFromItemId(String itemId, Player player) {

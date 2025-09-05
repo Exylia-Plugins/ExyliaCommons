@@ -10,11 +10,9 @@ import java.util.logging.Level;
 public class DatabaseErrorHandler {
 
     private final ExyliaPlugin plugin;
-    private final boolean debugMode;
 
-    public DatabaseErrorHandler(ExyliaPlugin plugin, boolean debugMode) {
+    public DatabaseErrorHandler(ExyliaPlugin plugin) {
         this.plugin = plugin;
-        this.debugMode = debugMode;
     }
 
     /**
@@ -24,19 +22,8 @@ public class DatabaseErrorHandler {
         // Always log the detailed message
         String detailedMessage = exception.getDetailedMessage();
 
-        if (debugMode) {
-            // In debug mode, log full details including stack trace
-            plugin.getLogger().log(Level.SEVERE, detailedMessage, exception);
-            DebugUtils.logInternalError("Full Database Error Details:\n" + detailedMessage);
-
-            // Also log the full stack trace
-            if (exception.getCause() != null) {
-                plugin.getLogger().log(Level.SEVERE, "Root cause stack trace:", exception.getCause());
-            }
-        } else {
-            // In production, log essential information without overwhelming the console
-            plugin.getLogger().severe(detailedMessage);
-        }
+        DebugUtils.logInternalError("Full Database Error Details:\n" + detailedMessage);
+        plugin.getLogger().log(Level.SEVERE, "Root cause stack trace:", exception.getCause());
     }
 
     /**
@@ -56,36 +43,12 @@ public class DatabaseErrorHandler {
     }
 
     /**
-     * Create a user-friendly error message
-     */
-    public String createUserFriendlyMessage(DatabaseException exception) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Database error in ").append(exception.getOperation() != null ? exception.getOperation().toLowerCase() : "operation");
-
-        if (exception.getEntityClass() != null && !exception.getEntityClass().equals("Unknown")) {
-            sb.append(" for ").append(exception.getEntityClass());
-        }
-
-        sb.append(": ").append(exception.getMessage());
-
-        if (debugMode && exception.getCause() != null) {
-            sb.append(" (Caused by: ").append(exception.getCause().getMessage()).append(")");
-        }
-
-        return sb.toString();
-    }
-
-    /**
      * Log a warning for recoverable errors
      */
     public void logWarning(String operation, String entityClass, String message) {
         String fullMessage = String.format("Database Warning - Operation: %s, Entity: %s, Message: %s",
                 operation, entityClass, message);
-        plugin.getLogger().warning(fullMessage);
-
-        if (debugMode) {
-            DebugUtils.logInternalWarn(fullMessage);
-        }
+        DebugUtils.logInternalWarn(fullMessage);
     }
 
     /**
@@ -95,9 +58,5 @@ public class DatabaseErrorHandler {
         String message = String.format("Database Recovery - Operation: %s, Entity: %s, Recovery: %s",
                 operation, entityClass, recoveryAction);
         DebugUtils.logInternalInfo(message);
-
-        if (debugMode) {
-            DebugUtils.logInternalInfo(message);
-        }
     }
 }

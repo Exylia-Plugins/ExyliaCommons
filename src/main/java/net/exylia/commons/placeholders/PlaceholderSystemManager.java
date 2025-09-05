@@ -17,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Sistema Centralizado de Placeholders para Exylia Commons
@@ -118,7 +119,7 @@ public class PlaceholderSystemManager {
                 result = PlaceholderAPI.setPlaceholders(player, result);
             } catch (Exception e) {
                 if (debugMode) {
-                    plugin.getLogger().warning("Error procesando PlaceholderAPI: " + e.getMessage());
+                    logInternalWarn("Error procesando PlaceholderAPI: " + e.getMessage());
                 }
             }
         }
@@ -199,7 +200,7 @@ public class PlaceholderSystemManager {
                         }
                     } catch (Exception e) {
                         if (debugMode) {
-                            plugin.getLogger().warning("Error en placeholder de contexto '" + placeholderName + "': " + e.getMessage());
+                            logInternalWarn("Error en placeholder de contexto '" + placeholderName + "': " + e.getMessage());
                         }
                     }
                 }
@@ -217,7 +218,7 @@ public class PlaceholderSystemManager {
                     }
                 } catch (Exception e) {
                     if (debugMode) {
-                        plugin.getLogger().warning("Error en placeholder de jugador '" + placeholderName + "': " + e.getMessage());
+                        logInternalWarn("Error en placeholder de jugador '" + placeholderName + "': " + e.getMessage());
                     }
                 }
             }
@@ -233,7 +234,7 @@ public class PlaceholderSystemManager {
                 }
             } catch (Exception e) {
                 if (debugMode) {
-                    plugin.getLogger().warning("Error en placeholder global '" + placeholderName + "': " + e.getMessage());
+                    logInternalWarn("Error en placeholder global '" + placeholderName + "': " + e.getMessage());
                 }
             }
         }

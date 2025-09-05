@@ -180,12 +180,12 @@ public class InteractiveItem {
     public String getEffectiveId() {
         if (config.hasForceId()) {
             String forceId = config.getForceId();
-            DebugUtils.logInternalDebug(debug(), "Using force-id: " + forceId + " for item: " + configId);
+            DebugUtils.logInternalDebug("Using force-id: " + forceId + " for item: " + configId);
             return forceId;
         }
 
         String nbtId = getItemIdFromStack(itemStack);
-        DebugUtils.logInternalDebug(debug(), "Using NBT ID: " + nbtId + " for item: " + configId);
+        DebugUtils.logInternalDebug("Using NBT ID: " + nbtId + " for item: " + configId);
         return nbtId != null ? nbtId : configId;
     }
 

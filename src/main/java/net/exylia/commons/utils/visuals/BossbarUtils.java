@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
 public class BossbarUtils {
@@ -125,7 +126,7 @@ public class BossbarUtils {
         BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
 
         if (bossBar == null) {
-            plugin.getLogger().warning("Failed to create BossBar for countdown");
+            logInternalWarn("Failed to create BossBar for countdown");
             return null;
         }
 
@@ -175,7 +176,7 @@ public class BossbarUtils {
                         try {
                             instance.getOnComplete().run();
                         } catch (Exception e) {
-                            plugin.getLogger().warning("Error ejecutando callback de countdown: " + e.getMessage());
+                            logInternalWarn("Error ejecutando callback de countdown: " + e.getMessage());
                         }
                     }
 
@@ -292,7 +293,7 @@ public class BossbarUtils {
             BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
 
             if (bossBar == null) {
-                plugin.getLogger().warning("Failed to create BossBar");
+                logInternalWarn("Failed to create BossBar");
                 return null;
             }
 
@@ -330,7 +331,7 @@ public class BossbarUtils {
             BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
 
             if (bossBar == null) {
-                plugin.getLogger().warning("Failed to create BossBar");
+                logInternalWarn("Failed to create BossBar");
                 return null;
             }
 
@@ -438,7 +439,7 @@ public class BossbarUtils {
                 try {
                     countdownInstance.getOnCancel().run();
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Error ejecutando callback de cancelación: " + e.getMessage());
+                    logInternalWarn("Error ejecutando callback de cancelación: " + e.getMessage());
                 }
             }
         }

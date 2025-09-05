@@ -49,7 +49,7 @@ public class DatabaseManager {
         this.repositories = new HashMap<>();
         this.registeredEntities = new HashSet<>();
         this.migrationManager = new MigrationManager();
-        this.errorHandler = new DatabaseErrorHandler(plugin, debug());
+        this.errorHandler = new DatabaseErrorHandler(plugin);
         this.exportImportManager = new DatabaseExportImportManager(plugin, this);
     }
 
@@ -236,7 +236,7 @@ public class DatabaseManager {
             }
 
             registeredEntities.add(entityClass);
-            logInternalDebug(debug(), "Entity registered for initialization: " + entityClass.getSimpleName());
+            logInternalDebug("Entity registered for initialization: " + entityClass.getSimpleName());
 
         } catch (Exception e) {
             throw new DatabaseException("Entity Registration", entityClass.getSimpleName(),
@@ -248,17 +248,17 @@ public class DatabaseManager {
         return CompletableFuture.runAsync(() -> {
             synchronized (initializationLock) {
                 if (tablesInitialized) {
-                    logInternalDebug(debug(), "Tables already initialized, skipping...");
+                    logInternalDebug("Tables already initialized, skipping...");
                     return;
                 }
 
                 try {
-                    logInternalDebug(debug(), "=== STARTING TABLE INITIALIZATION ===");
+                    logInternalDebug("=== STARTING TABLE INITIALIZATION ===");
 
                     if (databaseConfig.getBoolean("database.auto-migrate", true)) {
                         for (Class<?> entityClass : registeredEntities) {
                             try {
-                                logInternalDebug(debug(), "Initializing table for: " + entityClass.getAnnotation(Table.class).name());
+                                logInternalDebug("Initializing table for: " + entityClass.getAnnotation(Table.class).name());
                                 migrationManager.createOrUpdateTable(adapter, entityClass);
                                 logInternalInfo("Table initialized: " + entityClass.getAnnotation(Table.class).name());
 
@@ -273,7 +273,7 @@ public class DatabaseManager {
                     }
 
                     tablesInitialized = true;
-                    logInternalDebug(debug(), "=== TABLE INITIALIZATION COMPLETED ===");
+                    logInternalDebug("=== TABLE INITIALIZATION COMPLETED ===");
 
                 } catch (Exception e) {
                     String errorMsg = "Critical error during table initialization";
@@ -315,7 +315,7 @@ public class DatabaseManager {
             return false;
         }
 
-        logInternalDebug(debug(), "Tables initialized successfully");
+        logInternalDebug("Tables initialized successfully");
         return true;
     }
 
@@ -364,7 +364,7 @@ public class DatabaseManager {
 
     public boolean performCompleteReload() {
         try {
-            logInternalDebug(debug(), "=== STARTING COMPLETE RELOAD ===");
+            logInternalDebug("=== STARTING COMPLETE RELOAD ===");
 
             // 1. Reset initialization state
             synchronized (initializationLock) {
@@ -372,7 +372,7 @@ public class DatabaseManager {
             }
 
             // 2. Reconnect
-            logInternalDebug(debug(), "Reconnecting to database...");
+            logInternalDebug("Reconnecting to database...");
             reconnect();
 
             if (!isConnected()) {
@@ -381,7 +381,7 @@ public class DatabaseManager {
             }
 
             // 3. Initialize tables synchronously
-            logInternalDebug(debug(), "Initializing tables synchronously...");
+            logInternalDebug("Initializing tables synchronously...");
             CompletableFuture<Void> initFuture = initializeAllTables();
 
             try {
@@ -392,7 +392,7 @@ public class DatabaseManager {
             }
 
             // 4. Recreate repositories
-            logInternalDebug(debug(), "Recreating all repositories...");
+            logInternalDebug("Recreating all repositories...");
             recreateAllRepositories();
             return true;
 
@@ -424,7 +424,7 @@ public class DatabaseManager {
                 }
             }
 
-            logInternalDebug(debug(), "Repository recreation completed");
+            logInternalDebug("Repository recreation completed");
 
         } catch (Exception e) {
             DatabaseException dbException = new DatabaseException("Repository Recreation", "Multiple",
@@ -477,7 +477,7 @@ public class DatabaseManager {
     }
 
     public void clearRepositoryCache() {
-        logInternalDebug(debug(), "Clearing repository cache...");
+        logInternalDebug("Clearing repository cache...");
         repositories.clear();
     }
 
@@ -519,7 +519,7 @@ public class DatabaseManager {
 
     public void shutdown() {
         try {
-            logInternalDebug(debug(), "Shutting down database connections...");
+            logInternalDebug("Shutting down database connections...");
 
             synchronized (initializationLock) {
                 tablesInitialized = false;

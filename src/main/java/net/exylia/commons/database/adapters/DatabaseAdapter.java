@@ -49,4 +49,7 @@ public interface DatabaseAdapter {
     String getTableName(Class<?> entityClass);
     Map<String, Object> entityToMap(Object entity) throws Exception;
     <T> T mapToEntity(Map<String, Object> map, Class<T> entityClass) throws Exception;
+
+    // Operaciones de mantenimiento
+    void dropTable(Class<?> entityClass) throws Exception;
 }

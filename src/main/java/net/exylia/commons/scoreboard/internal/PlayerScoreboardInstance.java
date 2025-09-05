@@ -12,6 +12,8 @@ import org.bukkit.scoreboard.Team;
 import java.util.Set;
 import java.util.HashSet;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+
 /**
  * Instancia de scoreboard para un jugador específico usando FastBoard con Adventure Components
  * Mantiene la misma API pero usa FastBoard internamente
@@ -64,7 +66,7 @@ public class PlayerScoreboardInstance {
 
                 update();
             } catch (Exception e) {
-                plugin.getLogger().warning("Error mostrando scoreboard para " + player.getName() + ": " + e.getMessage());
+                logInternalWarn("Error mostrando scoreboard para " + player.getName() + ": " + e.getMessage());
                 visible = false;
             }
         });
@@ -85,7 +87,7 @@ public class PlayerScoreboardInstance {
                 rendered = null;
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error ocultando scoreboard de " + player.getName() + ": " + e.getMessage());
+            logInternalWarn("Error ocultando scoreboard de " + player.getName() + ": " + e.getMessage());
         }
 
         // Limpiar miembros del team
@@ -105,7 +107,7 @@ public class PlayerScoreboardInstance {
             renderer.updateScoreboard(rendered, player, config, context);
             lastUpdate = System.currentTimeMillis();
         } catch (Exception e) {
-            plugin.getLogger().warning("Error actualizando scoreboard de " + player.getName() + ": " + e.getMessage());
+            logInternalWarn("Error actualizando scoreboard de " + player.getName() + ": " + e.getMessage());
         }
     }
 
@@ -153,7 +155,7 @@ public class PlayerScoreboardInstance {
                 return true;
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error añadiendo " + targetPlayer.getName() +
+            logInternalWarn("Error añadiendo " + targetPlayer.getName() +
                     " al team principal de " + player.getName() + ": " + e.getMessage());
         }
         return false;
@@ -175,7 +177,7 @@ public class PlayerScoreboardInstance {
                 return true;
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error removiendo " + targetPlayer.getName() +
+            logInternalWarn("Error removiendo " + targetPlayer.getName() +
                     " del team principal de " + player.getName() + ": " + e.getMessage());
         }
         return false;
@@ -215,7 +217,7 @@ public class PlayerScoreboardInstance {
             teamMembers.clear();
             teamMembers.add(player.getName()); // Mantener solo al propietario
         } catch (Exception e) {
-            plugin.getLogger().warning("Error limpiando team principal de " + player.getName() + ": " + e.getMessage());
+            logInternalWarn("Error limpiando team principal de " + player.getName() + ": " + e.getMessage());
         }
     }
 
@@ -243,7 +245,7 @@ public class PlayerScoreboardInstance {
 
             return scoreboard.registerNewTeam(teamName);
         } catch (Exception e) {
-            plugin.getLogger().warning("Error creando team personalizado '" + teamName +
+            logInternalWarn("Error creando team personalizado '" + teamName +
                     "' para " + player.getName() + ": " + e.getMessage());
             return null;
         }
@@ -280,7 +282,7 @@ public class PlayerScoreboardInstance {
                 return true;
             }
         } catch (Exception e) {
-            plugin.getLogger().warning("Error eliminando team personalizado '" + teamName +
+            logInternalWarn("Error eliminando team personalizado '" + teamName +
                     "' de " + player.getName() + ": " + e.getMessage());
         }
         return false;

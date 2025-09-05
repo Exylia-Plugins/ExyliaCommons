@@ -15,6 +15,8 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+
 public class ActionBarUtils {
 
     private static Plugin plugin;
@@ -197,7 +199,7 @@ public class ActionBarUtils {
                         try {
                             instance.getOnComplete().run();
                         } catch (Exception e) {
-                            plugin.getLogger().warning("Error ejecutando callback de countdown: " + e.getMessage());
+                            logInternalWarn("Error ejecutando callback de countdown: " + e.getMessage());
                         }
                     }
 
@@ -437,7 +439,7 @@ public class ActionBarUtils {
                 try {
                     countdownInstance.getOnCancel().run();
                 } catch (Exception e) {
-                    plugin.getLogger().warning("Error ejecutando callback de cancelación: " + e.getMessage());
+                    logInternalWarn("Error ejecutando callback de cancelación: " + e.getMessage());
                 }
             }
         }

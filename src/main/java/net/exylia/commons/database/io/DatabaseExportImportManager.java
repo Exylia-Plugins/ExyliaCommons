@@ -140,28 +140,45 @@ public class DatabaseExportImportManager {
                     EntityExport entityExport = entry.getValue();
 
                     try {
+                        logInternalInfo("Starting import for table: " + tableName + " (" + entityExport.getCount() + " entities)");
+                        
                         Class<?> entityClass = Class.forName(entityExport.getEntityClass());
+                        logInternalInfo("Entity class loaded: " + entityClass.getSimpleName());
 
                         if (options.getEntityClasses() != null && !options.getEntityClasses().contains(entityClass)) {
                             result.getSkippedTables().add(tableName + " (not in filter)");
+                            logInternalInfo("Skipping table " + tableName + " - not in filter");
                             continue;
                         }
 
                         Repository<Object> repository = (Repository<Object>) databaseManager.getRepository(entityClass);
+                        logInternalInfo("Repository obtained for " + entityClass.getSimpleName());
 
                         if (options.isClearBeforeImport()) {
+                            logInternalInfo("Clearing existing data from " + tableName);
                             List<Object> existingEntities = repository.findAll();
                             if (!existingEntities.isEmpty()) {
                                 repository.deleteAll(existingEntities);
                                 logInternalInfo("Cleared " + existingEntities.size() + " existing entities from " + tableName);
+                            } else {
+                                logInternalInfo("No existing entities found in " + tableName);
                             }
                         }
 
+                        logInternalInfo("Converting " + entityExport.getEntities().size() + " maps to entities for " + tableName);
                         List<Object> entities = convertMapsToEntities(entityExport.getEntities(), entityClass);
 
+                        if (entities.size() != entityExport.getEntities().size()) {
+                            logInternalWarn("Entity conversion mismatch for " + tableName + ": expected " + 
+                                    entityExport.getEntities().size() + ", got " + entities.size());
+                        }
+
                         if (options.getBatchSize() > 0 && entities.size() > options.getBatchSize()) {
+                            logInternalInfo("Importing " + entities.size() + " entities in batches of " + options.getBatchSize() + " to " + tableName);
                             importInBatches(repository, entities, options.getBatchSize(), options.isUseUpsert());
                         } else {
+                            logInternalInfo("Importing all " + entities.size() + " entities at once to " + tableName + 
+                                    " (method: " + (options.isUseUpsert() ? "upsert" : "save") + ")");
                             if (options.isUseUpsert()) {
                                 repository.saveOrUpdateAll(entities);
                             } else {
@@ -172,16 +189,20 @@ public class DatabaseExportImportManager {
                         result.getImportedTables().add(tableName + " (" + entities.size() + " entities)");
                         totalImported += entities.size();
 
-                        logInternalInfo("Imported " + entities.size() + " entities to " + tableName);
+                        logInternalInfo("Successfully imported " + entities.size() + " entities to " + tableName);
 
                     } catch (Exception e) {
                         String error = "Failed to import " + tableName + ": " + e.getMessage();
                         result.getErrors().add(error);
 
+                        logInternalWarn("Import error for " + tableName + ": " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                        if (e.getCause() != null) {
+                            logInternalWarn("Root cause: " + e.getCause().getClass().getSimpleName() + " - " + e.getCause().getMessage());
+                        }
+
                         if (!options.isContinueOnError()) {
                             throw new DatabaseException("Import", tableName, getAdapterType(), error, e);
                         }
-                        logInternalWarn(error);
                     }
                 }
 
@@ -352,36 +373,61 @@ public class DatabaseExportImportManager {
     private List<Object> convertMapsToEntities(List<Map<String, Object>> maps, Class<?> entityClass) {
         List<Object> entities = new ArrayList<>();
         DatabaseAdapter adapter = databaseManager.getAdapter();
+        
+        String tableName = getTableName(entityClass);
+        logInternalInfo("Starting entity conversion for " + tableName + " (" + maps.size() + " maps to convert)");
 
-        for (Map<String, Object> map : maps) {
+        for (int i = 0; i < maps.size(); i++) {
+            Map<String, Object> map = maps.get(i);
             try {
                 Object entity = adapter.mapToEntity(map, entityClass);
                 entities.add(entity);
+                
+                // Log detailed information about each entity being converted
+                String entityId = extractEntityIdentifier(map);
+                logInternalInfo("Converting entity " + (i + 1) + "/" + maps.size() + " for " + tableName + 
+                    (entityId != null ? " (ID: " + entityId + ")" : ""));
+                
             } catch (Exception e) {
-                logInternalWarn("Failed to convert map to entity for " + entityClass.getSimpleName() + ": " + e.getMessage());
+                String entityId = extractEntityIdentifier(map);
+                logInternalWarn("Failed to convert entity " + (i + 1) + "/" + maps.size() + " for " + entityClass.getSimpleName() + 
+                    (entityId != null ? " (ID: " + entityId + ")" : "") + ": " + e.getMessage());
             }
         }
-
+        
+        logInternalInfo("Completed entity conversion for " + tableName + ": " + entities.size() + "/" + maps.size() + " successful");
         return entities;
     }
 
     private void importInBatches(Repository<Object> repository, List<Object> entities, int batchSize, boolean useUpsert) {
+        int totalBatches = (int) Math.ceil((double) entities.size() / batchSize);
+        logInternalInfo("Starting batch import: " + entities.size() + " entities in " + totalBatches + " batches of " + batchSize);
+        
         for (int i = 0; i < entities.size(); i += batchSize) {
             int endIndex = Math.min(i + batchSize, entities.size());
             List<Object> batch = entities.subList(i, endIndex);
+            int batchNumber = (i / batchSize + 1);
 
             try {
+                logInternalInfo("Processing batch " + batchNumber + "/" + totalBatches + 
+                    " (entities " + (i + 1) + "-" + endIndex + ", method: " + (useUpsert ? "upsert" : "save") + ")");
+                
                 if (useUpsert) {
                     repository.saveOrUpdateAll(batch);
                 } else {
                     repository.saveAll(batch);
                 }
-                logInternalInfo("Imported batch " + (i / batchSize + 1) + ": " + batch.size() + " entities");
+                
+                logInternalInfo("Successfully imported batch " + batchNumber + "/" + totalBatches + ": " + batch.size() + " entities");
+                
             } catch (Exception e) {
-                logInternalWarn("Failed to import batch starting at index " + i + ": " + e.getMessage());
+                logInternalWarn("Failed to import batch " + batchNumber + "/" + totalBatches + 
+                    " (starting at index " + i + "): " + e.getMessage());
                 throw e;
             }
         }
+        
+        logInternalInfo("Batch import completed: " + entities.size() + " entities processed in " + totalBatches + " batches");
     }
 
     private String getTableName(Class<?> entityClass) {
@@ -395,5 +441,26 @@ public class DatabaseExportImportManager {
     private String getAdapterType() {
         DatabaseAdapter adapter = databaseManager.getAdapter();
         return adapter != null ? adapter.getClass().getSimpleName().replace("Adapter", "") : "Unknown";
+    }
+    
+    private String extractEntityIdentifier(Map<String, Object> entityMap) {
+        // Try common identifier field names
+        String[] idFields = {"id", "uuid", "playerId", "player", "name", "identifier"};
+        
+        for (String field : idFields) {
+            Object value = entityMap.get(field);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        
+        // If no common identifier found, return the first non-null value
+        for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
+            if (entry.getValue() != null) {
+                return entry.getKey() + "=" + entry.getValue();
+            }
+        }
+        
+        return null;
     }
 }

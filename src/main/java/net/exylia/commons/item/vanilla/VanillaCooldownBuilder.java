@@ -133,7 +133,7 @@ public class VanillaCooldownBuilder {
                                 double regionCooldown = regionSection.getDouble("cooldown", cooldown);
                                 Integer maxUses = regionSection.isSet("max-uses") ? regionSection.getInt("max-uses") : null;
                                 regionConfigs.put(regionName, new VanillaRegionConfig(regionCooldown, maxUses));
-                                DebugUtils.logInternalDebug(true, "Loaded region cooldown: " + regionName + " -> " + regionCooldown + "s for " + materialName);
+                                DebugUtils.logInternalDebug("Loaded region cooldown: " + regionName + " -> " + regionCooldown + "s for " + materialName);
                             }
                         }
                     }
@@ -157,7 +157,7 @@ public class VanillaCooldownBuilder {
                             for (String worldName : cooldownsSection.getKeys(false)) {
                                 double worldCooldown = cooldownsSection.getDouble(worldName, cooldown);
                                 worldConfigs.put(worldName, new VanillaWorldConfig(worldCooldown, null));
-                                DebugUtils.logInternalDebug(true, "Loaded world cooldown: " + worldName + " -> " + worldCooldown + "s for " + materialName);
+                                DebugUtils.logInternalDebug("Loaded world cooldown: " + worldName + " -> " + worldCooldown + "s for " + materialName);
                             }
                         }
                         
@@ -196,7 +196,7 @@ public class VanillaCooldownBuilder {
                     }
                 }
             } catch (IllegalArgumentException e) {
-                DebugUtils.logError("Invalid material in vanilla cooldown config: " + materialName);
+                DebugUtils.logInternalError("Invalid material in vanilla cooldown config: " + materialName);
             }
         }
 

@@ -641,7 +641,7 @@ public class FlagManager {
             // Si se desactiva TEMPORARY_BLOCKS, también desactivar RE_GIVE_BLOCKS
             if (region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS)) {
                 region.setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.DEFAULT);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "RE_GIVE_BLOCKS desactivado automáticamente en región %s al desactivar TEMPORARY_BLOCKS",
                         region.getId()
                 ));

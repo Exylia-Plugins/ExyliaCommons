@@ -39,8 +39,6 @@ public class ConfigurationSystem {
     private final ConfigCache cache = new ConfigCache();
 
     private String globalPrefix = "";
-    private boolean debugMode = false;
-
     public ConfigurationSystem(JavaPlugin plugin) {
         this.plugin = plugin;
         this.placeholderManager = PlaceholderSystemManager.getInstance();
@@ -93,7 +91,7 @@ public class ConfigurationSystem {
             instance.initialize(this, fileData);
             configInstances.put(configClass, instance);
 
-            logInternalDebug(debugMode, "Clase de configuración cargada: " + configClass.getSimpleName());
+            logInternalDebug("Clase de configuración cargada: " + configClass.getSimpleName());
 
         } catch (Exception e) {
             logInternalError("Error cargando clase de configuración " + configClass.getSimpleName() + ": " + e.getMessage());
@@ -432,7 +430,7 @@ public class ConfigurationSystem {
                     try {
                         // Recrear la instancia completamente
                         if (recreateConfigInstance(configClass)) {
-                            logInternalDebug(debugMode, "Instancia recreada exitosamente: " + configClass.getSimpleName());
+                            logInternalDebug("Instancia recreada exitosamente: " + configClass.getSimpleName());
                         } else {
                             logInternalError("Error recreando instancia: " + configClass.getSimpleName());
                             allInstancesSuccess = false;
@@ -494,17 +492,17 @@ public class ConfigurationSystem {
             }
 
             // Crear nueva instancia
-            logInternalDebug(debugMode, "Creando nueva instancia de: " + configClass.getSimpleName());
+            logInternalDebug("Creando nueva instancia de: " + configClass.getSimpleName());
             ConfigBase newInstance = (ConfigBase) configClass.getDeclaredConstructor().newInstance();
 
             // Inicializar la nueva instancia
-            logInternalDebug(debugMode, "Inicializando nueva instancia de: " + configClass.getSimpleName());
+            logInternalDebug("Inicializando nueva instancia de: " + configClass.getSimpleName());
             newInstance.initialize(this, fileData);
 
             // Guardar la nueva instancia
             configInstances.put(configClass, newInstance);
 
-            logInternalDebug(debugMode, "Instancia recreada y registrada: " + configClass.getSimpleName());
+            logInternalDebug("Instancia recreada y registrada: " + configClass.getSimpleName());
             return true;
 
         } catch (Exception e) {
@@ -531,7 +529,7 @@ public class ConfigurationSystem {
                 return false;
             }
 
-            logInternalDebug(debugMode, "Recargando archivo: " + fileName);
+            logInternalDebug("Recargando archivo: " + fileName);
             FileConfiguration newConfig = YamlConfiguration.loadConfiguration(file);
 
             // Validar si hay un validador
@@ -544,7 +542,7 @@ public class ConfigurationSystem {
             oldData.configuration = newConfig;
             oldData.lastModified = file.lastModified();
 
-            logInternalDebug(debugMode, "Archivo recargado exitosamente: " + fileName);
+            logInternalDebug("Archivo recargado exitosamente: " + fileName);
             return true;
 
         } catch (Exception e) {
@@ -564,7 +562,7 @@ public class ConfigurationSystem {
                 if (required) {
                     plugin.saveResource(fileName + ".yml", false);
                 } else {
-                    logInternalDebug(debugMode, "Archivo opcional no encontrado: " + fileName);
+                    logInternalDebug("Archivo opcional no encontrado: " + fileName);
                     return null;
                 }
             }
@@ -573,7 +571,7 @@ public class ConfigurationSystem {
             ConfigFileData data = new ConfigFileData(config, file.lastModified());
 
             configFiles.put(fileName, data);
-            logInternalDebug(debugMode, "Archivo cargado: " + fileName);
+            logInternalDebug("Archivo cargado: " + fileName);
 
             return data;
 
@@ -591,7 +589,6 @@ public class ConfigurationSystem {
         FileConfiguration messages = getFile("messages");
         if (messages != null) {
             globalPrefix = messages.getString("prefix", "");
-            debugMode = messages.getBoolean("debug", false);
         }
     }
 
@@ -650,7 +647,7 @@ public class ConfigurationSystem {
             // Limpiar cache relacionado
             cache.invalidateAll();
 
-            logInternalDebug(debugMode, "Archivo guardado: " + fileName);
+            logInternalDebug("Archivo guardado: " + fileName);
         } catch (Exception e) {
             logInternalError("Error guardando archivo " + fileName + ": " + e.getMessage());
             throw new RuntimeException("Error guardando archivo", e);

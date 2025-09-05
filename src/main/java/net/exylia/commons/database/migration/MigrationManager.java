@@ -22,10 +22,10 @@ public class MigrationManager {
         String version = tableAnnotation.version();
         String tableName = adapter.getTableName(entityClass);
 
-        logInternalDebug(debug(), "Checking table: " + tableName + " (version: " + version + ")");
+        logInternalDebug("Checking table: " + tableName + " (version: " + version + ")");
 
         if (!adapter.tableExists(entityClass)) {
-            logInternalDebug(debug(), "Creating table: " + tableName);
+            logInternalDebug("Creating table: " + tableName);
             adapter.createTable(entityClass);
 
             // Guardar información de versión si es SQL
@@ -34,22 +34,22 @@ public class MigrationManager {
                 saveTableVersion(adapter, tableName, version);
             }
 
-            logInternalDebug(debug(), "Table created: " + tableName);
+            logInternalDebug("Table created: " + tableName);
         } else {
             // Verificar si necesita actualización
             if (isSQLAdapter(adapter)) {
                 String currentVersion = getTableVersion(adapter, tableName);
 
-                logInternalDebug(debug(), "Actual table version for " + tableName + ": " + currentVersion +
+                logInternalDebug("Actual table version for " + tableName + ": " + currentVersion +
                         ", Version to check: " + version);
 
                 if (!version.equals(currentVersion)) {
-                    logInternalDebug(debug(), "Updating table " + tableName + " from " + currentVersion + " to " + version);
+                    logInternalDebug("Updating table " + tableName + " from " + currentVersion + " to " + version);
                     adapter.updateTable(entityClass);
                     updateTableVersion(adapter, tableName, version);
-                    logInternalDebug(debug(), "Table updated: " + tableName);
+                    logInternalDebug("Table updated: " + tableName);
                 } else {
-                    logInternalDebug(debug(), "Table " + tableName + " is up to date: " + version);
+                    logInternalDebug("Table " + tableName + " is up to date: " + version);
                 }
             } else {
                 // Para MongoDB, siempre actualizar (es seguro)
@@ -106,7 +106,7 @@ public class MigrationManager {
                 adapter.executeUpdate(sql, tableName, version);
             }
 
-            logInternalDebug(debug(), "Versión de tabla guardada: " + tableName + " -> " + version);
+            logInternalDebug("Versión de tabla guardada: " + tableName + " -> " + version);
         } catch (Exception e) {
             logInternalError("Error guardando versión de tabla: " + e.getMessage());
         }
@@ -132,13 +132,13 @@ public class MigrationManager {
                             Object versionObj = map.get("version");
                             if (versionObj != null) {
                                 String foundVersion = versionObj.toString();
-                                logInternalDebug(debug(), "Versión encontrada para tabla " + tableName + ": " + foundVersion);
+                                logInternalDebug("Versión encontrada para tabla " + tableName + ": " + foundVersion);
                                 return foundVersion;
                             }
                         }
                     }
                 } catch (Exception e) {
-                    logInternalDebug(debug(), "No se encontró versión para tabla " + tableName + ", usando versión por defecto");
+                    logInternalDebug("No se encontró versión para tabla " + tableName + ", usando versión por defecto");
                 }
             }
 

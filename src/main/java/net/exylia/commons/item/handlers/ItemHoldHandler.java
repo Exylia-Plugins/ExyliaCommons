@@ -50,12 +50,12 @@ public class ItemHoldHandler {
             String existingItemId = existingSession.getInteractiveItem().getEffectiveId();
             String newItemId = interactiveItem.getEffectiveId();
             if (existingItemId.equals(newItemId)) {
-                DebugUtils.logInternalDebug(debug(), "HOLD session already active for " + player.getName() + 
+                DebugUtils.logInternalDebug("HOLD session already active for " + player.getName() + 
                         " with same item " + newItemId + ", keeping existing session");
                 return;
             } else {
                 // Different item, stop the existing session
-                DebugUtils.logInternalDebug(debug(), "Stopping existing HOLD session for different item. Old: " + 
+                DebugUtils.logInternalDebug("Stopping existing HOLD session for different item. Old: " + 
                         existingItemId + ", New: " + newItemId);
                 stopHoldSession(player, hand);
             }
@@ -70,7 +70,7 @@ public class ItemHoldHandler {
             return;
         }
         
-        DebugUtils.logInternalDebug(debug(), "Starting HOLD session for " + player.getName() + 
+        DebugUtils.logInternalDebug("Starting HOLD session for " + player.getName() + 
                 " with item " + interactiveItem.getId() + " in " + hand + " hand");
         
         // Create hold session
@@ -95,7 +95,7 @@ public class ItemHoldHandler {
         HoldSession session = activeSessions.remove(sessionKey);
         
         if (session != null) {
-            DebugUtils.logInternalDebug(debug(), "Stopping HOLD session for " + player.getName() + 
+            DebugUtils.logInternalDebug("Stopping HOLD session for " + player.getName() + 
                     " in " + hand + " hand");
             
             // Cancel the task
@@ -173,11 +173,11 @@ public class ItemHoldHandler {
                 ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
             }
             
-            DebugUtils.logInternalDebug(debug(), "Executed HOLD action for " + player.getName() + 
+            DebugUtils.logInternalDebug("Executed HOLD action for " + player.getName() + 
                     " with item " + interactiveItem.getId());
                     
         } catch (ItemHoldSessionException e) {
-            DebugUtils.logInternalDebug(debug(), "Exception occurred during HOLD action for " + player.getName() + 
+            DebugUtils.logInternalDebug("Exception occurred during HOLD action for " + player.getName() + 
                     " with item " + interactiveItem.getId() + ": " + e.getMessage());
             
             // Stop the hold session immediately due to the exception
@@ -217,10 +217,10 @@ public class ItemHoldHandler {
             boolean actionExecuted = GlobalActionManager.executeAction(action, context);
             
             if (actionExecuted) {
-                DebugUtils.logInternalDebug(debug(), "Executed HOLD cancellation for action '" + action + "' for " + player.getName() + 
+                DebugUtils.logInternalDebug("Executed HOLD cancellation for action '" + action + "' for " + player.getName() + 
                         " with item " + interactiveItem.getId());
             } else {
-                DebugUtils.logInternalDebug(debug(), "Failed to execute HOLD cancellation for action '" + action + "' for " + player.getName() + 
+                DebugUtils.logInternalDebug("Failed to execute HOLD cancellation for action '" + action + "' for " + player.getName() + 
                         " with item " + interactiveItem.getId());
             }
         }

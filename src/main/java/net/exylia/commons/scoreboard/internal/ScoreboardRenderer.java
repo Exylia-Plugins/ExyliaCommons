@@ -95,7 +95,7 @@ public class ScoreboardRenderer {
 
             return mainTeam;
         } catch (Exception e) {
-            DebugUtils.logError("Error configurando team principal: " + e.getMessage());
+            DebugUtils.logInternalError("Error configurando team principal: " + e.getMessage());
             return null;
         }
     }
@@ -221,7 +221,7 @@ public class ScoreboardRenderer {
                 mainTeam.addEntry(player.getName());
             }
         } catch (Exception e) {
-            DebugUtils.logError("Error actualizando team principal: " + e.getMessage());
+            DebugUtils.logInternalError("Error actualizando team principal: " + e.getMessage());
         }
     }
 
@@ -245,7 +245,7 @@ public class ScoreboardRenderer {
                         }
                     });
         } catch (Exception e) {
-            DebugUtils.logError("Error limpiando teams vacíos: " + e.getMessage());
+            DebugUtils.logInternalError("Error limpiando teams vacíos: " + e.getMessage());
         }
     }
     
@@ -293,7 +293,7 @@ public class ScoreboardRenderer {
                     }
                 }
             } catch (Exception e) {
-                DebugUtils.logError("Error limpiando scoreboard: " + e.getMessage());
+                DebugUtils.logInternalError("Error limpiando scoreboard: " + e.getMessage());
             }
         }
 

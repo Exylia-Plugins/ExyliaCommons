@@ -1410,4 +1410,34 @@ public class H2Adapter implements DatabaseAdapter {
 
         return map;
     }
+
+    @Override
+    public void dropTable(Class<?> entityClass) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "DROP TABLE IF EXISTS " + tableName;
+
+            try (Connection conn = getConnection();
+                 Statement stmt = conn.createStatement()) {
+                stmt.execute(sql);
+                logInternalInfo("Table dropped successfully: " + tableName);
+            } catch (SQLException e) {
+                throw new DatabaseException("DropTable", entityClassName, "H2",
+                        "SQL error during table drop: " + e.getMessage(), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("DropTable", entityClassName, "H2",
+                        "Unexpected error during table drop", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
 }

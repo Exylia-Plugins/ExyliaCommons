@@ -241,7 +241,7 @@ public class ExyliaScoreboardManager {
         int activeCount = activeScoreboards.size();
         if (activeCount == 0) return;
 
-        logInternalDebug(debug(), "Ciclo de limpieza ejecutado. Scoreboards activos: " + activeCount);
+        logInternalDebug("Ciclo de limpieza ejecutado. Scoreboards activos: " + activeCount);
     }
 
     /**

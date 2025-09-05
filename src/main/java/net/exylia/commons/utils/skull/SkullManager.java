@@ -22,6 +22,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+
 public class SkullManager {
 
     private static SkullManager instance;
@@ -64,7 +66,7 @@ public class SkullManager {
                     .build();
             DebugUtils.logInternalInfo("LiteSkullAPI initialized successfully for player skulls");
         } catch (Exception e) {
-            plugin.getLogger().warning("Failed to initialize LiteSkullAPI, falling back to basic player skulls: " + e.getMessage());
+            logInternalWarn("Failed to initialize LiteSkullAPI, falling back to basic player skulls: " + e.getMessage());
             instance.skullAPI = null;
         }
 
@@ -209,7 +211,7 @@ public class SkullManager {
             skull.setItemMeta(meta);
         } catch (Exception e) {
             if (plugin != null) {
-                plugin.getLogger().warning("Failed to create skull from texture: " + e.getMessage());
+                logInternalWarn("Failed to create skull from texture: " + e.getMessage());
             }
         }
 
@@ -233,7 +235,7 @@ public class SkullManager {
             skull.setItemMeta(meta);
         } catch (Exception e) {
             if (plugin != null) {
-                plugin.getLogger().warning("Failed to create player skull for " + playerName + ": " + e.getMessage());
+                logInternalWarn("Failed to create player skull for " + playerName + ": " + e.getMessage());
             }
         }
 
@@ -259,7 +261,7 @@ public class SkullManager {
             skull.setItemMeta(meta);
         } catch (Exception e) {
             if (plugin != null) {
-                plugin.getLogger().warning("Failed to create basic player skull: " + e.getMessage());
+                logInternalWarn("Failed to create basic player skull: " + e.getMessage());
             }
         }
 

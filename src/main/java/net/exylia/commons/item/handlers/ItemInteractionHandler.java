@@ -176,7 +176,7 @@ public class ItemInteractionHandler {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing projectile launch for " + player.getName());
+        DebugUtils.logInternalDebug("Processing projectile launch for " + player.getName());
 
         if (config.getTriggerType() == TriggerType.ON_PROJECTILE_LAUNCH) {
             ItemEffectsHandler.executeEffects(player, player.getLocation(), config);
@@ -195,7 +195,7 @@ public class ItemInteractionHandler {
                     player.setCooldown(material, (int) (cooldownSeconds * 20));
                 }, 1);
 
-                DebugUtils.logInternalDebug(debug(),
+                DebugUtils.logInternalDebug(
                         "Force-ID immediate override: Material " + material + " -> " + effectiveId +
                                 " with cooldown " + cooldownSeconds + "s for player " + player.getName() +
                                 " (vanilla cooldown prevented)");
@@ -221,7 +221,7 @@ public class ItemInteractionHandler {
                     player.getInventory().setItemInOffHand(updatedItem);
                 }
 
-                DebugUtils.logInternalDebug(debug(),
+                DebugUtils.logInternalDebug(
                         "Returned updated item to inventory for " + player.getName() +
                                 " with " + interactiveItem.getCurrentUses() + " uses remaining");
             } else {
@@ -231,7 +231,7 @@ public class ItemInteractionHandler {
                     player.getInventory().setItemInOffHand(null);
                 }
                 MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
-                DebugUtils.logInternalDebug(debug(),
+                DebugUtils.logInternalDebug(
                         "Item completely consumed for " + player.getName() + " - removed from inventory");
             }
         });
@@ -255,7 +255,7 @@ public class ItemInteractionHandler {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing projectile hit for " + player.getName() +
+        DebugUtils.logInternalDebug("Processing projectile hit for " + player.getName() +
                 (hitPlayer != null ? " hitting " + hitPlayer.getName() : " hitting block/entity"));
 
         Location hitLocation = hitPlayer != null ? hitPlayer.getLocation() : player.getLocation();
@@ -271,7 +271,7 @@ public class ItemInteractionHandler {
             ItemEffectsHandler.executeEffects(player, hitLocation, config);
         }
 
-        DebugUtils.logInternalDebug(debug(),
+        DebugUtils.logInternalDebug(
                 "Projectile hit action executed: " + actionExecuted + " for " + player.getName());
     }
 

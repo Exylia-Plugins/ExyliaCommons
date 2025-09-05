@@ -245,24 +245,24 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " for player: " + player.getName());
+        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " for player: " + player.getName());
 
         ItemConfiguration config = interactiveItem.getConfiguration();
         TriggerType triggerType = config.getTriggerType();
 
-        DebugUtils.logInternalDebug(debug(), "Item trigger type: " + triggerType + " for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Item trigger type: " + triggerType + " for item: " + interactiveItem.getId());
 
         if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
-            DebugUtils.logInternalDebug(debug(), "Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
             return;
         }
         
         if (triggerType == TriggerType.HOLD) {
-            DebugUtils.logInternalDebug(debug(), "HOLD trigger type detected for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("HOLD trigger type detected for item: " + interactiveItem.getId());
             
             // Check if there's already an active session for this item
             if (holdHandler.hasActiveSession(player, event.getHand(), interactiveItem.getEffectiveId())) {
-                DebugUtils.logInternalDebug(debug(), "HOLD session already active, ignoring interaction for item: " + interactiveItem.getId());
+                DebugUtils.logInternalDebug("HOLD session already active, ignoring interaction for item: " + interactiveItem.getId());
                 // Just cancel the event if needed, but don't interfere with the session
                 if (interactiveItem.shouldCancelEvent()) {
                     event.setCancelled(true);
@@ -271,7 +271,7 @@ public class ItemManager implements Listener {
             }
             
             // Start session only if none exists
-            DebugUtils.logInternalDebug(debug(), "Starting new HOLD session for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Starting new HOLD session for item: " + interactiveItem.getId());
             holdHandler.startHoldSession(player, interactiveItem, event.getHand());
             if (interactiveItem.shouldCancelEvent()) {
                 event.setCancelled(true);
@@ -280,36 +280,36 @@ public class ItemManager implements Listener {
         }
 
         if (!canPlayerClick(player.getUniqueId())) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " cannot click (spam protection or other restriction)");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " cannot click (spam protection or other restriction)");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " passed click validation");
+        DebugUtils.logInternalDebug("Player " + player.getName() + " passed click validation");
 
         if (triggerType == TriggerType.AFTER_CONSUME) {
-            DebugUtils.logInternalDebug(debug(), "Processing AFTER_CONSUME trigger for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Processing AFTER_CONSUME trigger for item: " + interactiveItem.getId());
             String effectiveId = interactiveItem.getEffectiveId();
             if (config.hasCooldown() && !canPlayerUseItem(player, effectiveId)) {
-                DebugUtils.logInternalDebug(debug(), "Item " + effectiveId + " is on cooldown for player: " + player.getName());
+                DebugUtils.logInternalDebug("Item " + effectiveId + " is on cooldown for player: " + player.getName());
                 event.setCancelled(true);
                 double remainingSeconds = getRemainingCooldown(player, effectiveId);
-                DebugUtils.logInternalDebug(debug(), "Remaining cooldown: " + remainingSeconds + " seconds for player: " + player.getName());
+                DebugUtils.logInternalDebug("Remaining cooldown: " + remainingSeconds + " seconds for player: " + player.getName());
                 interactionHandler.handleCooldownMessage(player, remainingSeconds);
                 return;
             }
-            DebugUtils.logInternalDebug(debug(), "AFTER_CONSUME item passed cooldown check, allowing consumption for player: " + player.getName());
+            DebugUtils.logInternalDebug("AFTER_CONSUME item passed cooldown check, allowing consumption for player: " + player.getName());
             return;
         }
 
         if (interactiveItem.shouldCancelEvent()) {
-            DebugUtils.logInternalDebug(debug(), "Cancelling PlayerInteract event for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Cancelling PlayerInteract event for item: " + interactiveItem.getId());
             event.setCancelled(true);
         }
 
-        DebugUtils.logInternalDebug(debug(), "Creating click info and processing interaction for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Creating click info and processing interaction for item: " + interactiveItem.getId());
         ItemClickInfo clickInfo = createItemClickInfo(event, player, itemStack);
         interactionHandler.processItemInteractionWithHand(player, itemStack, interactiveItem, clickInfo, event.getHand());
-        DebugUtils.logInternalDebug(debug(), "Completed PlayerInteract processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
+        DebugUtils.logInternalDebug("Completed PlayerInteract processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -328,36 +328,36 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " in inventory for player: " + player.getName());
+        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " in inventory for player: " + player.getName());
 
         if (player.getGameMode() == GameMode.CREATIVE &&
                 event.getClickedInventory() == player.getInventory()) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " is in creative mode and clicking own inventory, allowing movement");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " is in creative mode and clicking own inventory, allowing movement");
             return;
         }
 
         if (ItemInventoryHandler.isMovementClick(event, interactiveItem.getConfiguration())) {
-            DebugUtils.logInternalDebug(debug(), "Movement click detected for item: " + interactiveItem.getId() + ", allowing movement");
+            DebugUtils.logInternalDebug("Movement click detected for item: " + interactiveItem.getId() + ", allowing movement");
             return;
         }
 
         if (!canPlayerClick(player.getUniqueId())) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " cannot click (spam protection or other restriction) in inventory");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " cannot click (spam protection or other restriction) in inventory");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " passed inventory click validation");
+        DebugUtils.logInternalDebug("Player " + player.getName() + " passed inventory click validation");
 
         if (interactiveItem.shouldCancelEvent() &&
                 interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
-            DebugUtils.logInternalDebug(debug(), "Cancelling InventoryClick event for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Cancelling InventoryClick event for item: " + interactiveItem.getId());
             event.setCancelled(true);
         }
 
-        DebugUtils.logInternalDebug(debug(), "Creating inventory click info and processing interaction for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Creating inventory click info and processing interaction for item: " + interactiveItem.getId());
         ItemClickInfo clickInfo = createInventoryClickInfo(event, player, clickedItem);
         interactionHandler.processItemInteractionFromInventory(player, event, interactiveItem, clickInfo);
-        DebugUtils.logInternalDebug(debug(), "Completed InventoryClick processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
+        DebugUtils.logInternalDebug("Completed InventoryClick processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -370,27 +370,27 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " for consumption by player: " + player.getName());
+        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " for consumption by player: " + player.getName());
 
         if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " is not AFTER_CONSUME type, ignoring consumption");
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " is not AFTER_CONSUME type, ignoring consumption");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Cancelling consumption event to handle manually for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Cancelling consumption event to handle manually for item: " + interactiveItem.getId());
         event.setCancelled(true); // Siempre cancelar para manejar usos manualmente
 
         if (!canPlayerClick(player.getUniqueId())) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " cannot click (spam protection or other restriction) during consumption");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " cannot click (spam protection or other restriction) during consumption");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " passed consumption click validation");
+        DebugUtils.logInternalDebug("Player " + player.getName() + " passed consumption click validation");
 
         EquipmentSlot hand = player.getInventory().getItemInMainHand().equals(itemStack) ?
                 EquipmentSlot.HAND : EquipmentSlot.OFF_HAND;
 
-        DebugUtils.logInternalDebug(debug(), "Detected consumption hand: " + hand + " for player: " + player.getName());
+        DebugUtils.logInternalDebug("Detected consumption hand: " + hand + " for player: " + player.getName());
 
         ItemClickInfo clickInfo = new ItemClickInfo(player,
                 org.bukkit.event.inventory.ClickType.RIGHT,
@@ -398,9 +398,9 @@ public class ItemManager implements Listener {
                 itemStack,
                 ActionSource.ITEM_USE);
 
-        DebugUtils.logInternalDebug(debug(), "Processing item consumption for item: " + interactiveItem.getId() + " and player: " + player.getName());
+        DebugUtils.logInternalDebug("Processing item consumption for item: " + interactiveItem.getId() + " and player: " + player.getName());
         interactionHandler.processItemConsumptionEvent(player, itemStack, interactiveItem, clickInfo, hand);
-        DebugUtils.logInternalDebug(debug(), "Completed PlayerItemConsume processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
+        DebugUtils.logInternalDebug("Completed PlayerItemConsume processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -419,11 +419,11 @@ public class ItemManager implements Listener {
         EquipmentSlot hand = null;
 
         if (isInteractiveItem(mainHand)) {
-            DebugUtils.logInternalDebug(debug(), "Found interactive item in main hand for player: " + player.getName());
+            DebugUtils.logInternalDebug("Found interactive item in main hand for player: " + player.getName());
             interactiveItem = getItemFromStack(mainHand);
             hand = EquipmentSlot.HAND;
         } else if (isInteractiveItem(offHand)) {
-            DebugUtils.logInternalDebug(debug(), "Found interactive item in off hand for player: " + player.getName());
+            DebugUtils.logInternalDebug("Found interactive item in off hand for player: " + player.getName());
             interactiveItem = getItemFromStack(offHand);
             hand = EquipmentSlot.OFF_HAND;
         }
@@ -432,14 +432,14 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing hit with interactive item: " + interactiveItem.getId() + " in " + hand + " hand");
+        DebugUtils.logInternalDebug("Processing hit with interactive item: " + interactiveItem.getId() + " in " + hand + " hand");
 
         if (!canPlayerClick(player.getUniqueId())) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " cannot click (spam protection or other restriction) during hit");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " cannot click (spam protection or other restriction) during hit");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " passed hit click validation");
+        DebugUtils.logInternalDebug("Player " + player.getName() + " passed hit click validation");
 
         ItemClickInfo clickInfo = new ItemClickInfo(player,
                 org.bukkit.event.inventory.ClickType.LEFT,
@@ -449,11 +449,11 @@ public class ItemManager implements Listener {
 
         clickInfo.withData("hitPlayer", hitPlayer); // Añadir hitPlayer al contexto
 
-        DebugUtils.logInternalDebug(debug(), "Processing hit player interaction for item: " + interactiveItem.getId() +
+        DebugUtils.logInternalDebug("Processing hit player interaction for item: " + interactiveItem.getId() +
                 ", attacker: " + player.getName() + ", victim: " + hitPlayer.getName());
         interactionHandler.processHitPlayer(player, hitPlayer, hand == EquipmentSlot.HAND ? mainHand : offHand,
                 interactiveItem, clickInfo, hand);
-        DebugUtils.logInternalDebug(debug(), "Completed EntityDamageByEntity processing for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Completed EntityDamageByEntity processing for item: " + interactiveItem.getId());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -474,15 +474,15 @@ public class ItemManager implements Listener {
             InteractiveItem mainItem = getItemFromStack(mainHand);
             if (mainItem != null) {
                 TriggerType trigger = mainItem.getConfiguration().getTriggerType();
-                DebugUtils.logInternalDebug(debug(), "Main hand item " + mainItem.getId() + " has trigger type: " + trigger);
+                DebugUtils.logInternalDebug("Main hand item " + mainItem.getId() + " has trigger type: " + trigger);
                 if (trigger != TriggerType.ON_PROJECTILE_LAUNCH && trigger != TriggerType.ON_PROJECTILE_HIT) {
-                    DebugUtils.logInternalDebug(debug(), "Cancelling projectile launch - main hand item has incompatible trigger type: " + trigger);
+                    DebugUtils.logInternalDebug("Cancelling projectile launch - main hand item has incompatible trigger type: " + trigger);
                     event.setCancelled(true);
                     return;
                 }
                 interactiveItem = mainItem;
                 hand = EquipmentSlot.HAND;
-                DebugUtils.logInternalDebug(debug(), "Selected main hand item for projectile launch: " + mainItem.getId());
+                DebugUtils.logInternalDebug("Selected main hand item for projectile launch: " + mainItem.getId());
             }
         }
 
@@ -490,15 +490,15 @@ public class ItemManager implements Listener {
             InteractiveItem offItem = getItemFromStack(offHand);
             if (offItem != null) {
                 TriggerType trigger = offItem.getConfiguration().getTriggerType();
-                DebugUtils.logInternalDebug(debug(), "Off hand item " + offItem.getId() + " has trigger type: " + trigger);
+                DebugUtils.logInternalDebug("Off hand item " + offItem.getId() + " has trigger type: " + trigger);
                 if (trigger != TriggerType.ON_PROJECTILE_LAUNCH && trigger != TriggerType.ON_PROJECTILE_HIT) {
-                    DebugUtils.logInternalDebug(debug(), "Cancelling projectile launch - off hand item has incompatible trigger type: " + trigger);
+                    DebugUtils.logInternalDebug("Cancelling projectile launch - off hand item has incompatible trigger type: " + trigger);
                     event.setCancelled(true);
                     return;
                 }
                 interactiveItem = offItem;
                 hand = EquipmentSlot.OFF_HAND;
-                DebugUtils.logInternalDebug(debug(), "Selected off hand item for projectile launch: " + offItem.getId());
+                DebugUtils.logInternalDebug("Selected off hand item for projectile launch: " + offItem.getId());
             }
         }
 
@@ -506,42 +506,42 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing projectile launch with item: " + interactiveItem.getId() + " in " + hand + " hand");
+        DebugUtils.logInternalDebug("Processing projectile launch with item: " + interactiveItem.getId() + " in " + hand + " hand");
 
         ItemConfiguration config = interactiveItem.getConfiguration();
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " cannot use item " + interactiveItem.getId() + " in current region");
+            DebugUtils.logInternalDebug("Player " + player.getName() + " cannot use item " + interactiveItem.getId() + " in current region");
             event.setCancelled(true);
             interactionHandler.handleRegionDeniedMessage(player);
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " passed region check for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Player " + player.getName() + " passed region check for item: " + interactiveItem.getId());
 
         String effectiveId = interactiveItem.getEffectiveId();
         if (config.hasCooldown() && !canPlayerUseItem(player, effectiveId)) {
-            DebugUtils.logInternalDebug(debug(), "Item " + effectiveId + " is on cooldown for player: " + player.getName());
+            DebugUtils.logInternalDebug("Item " + effectiveId + " is on cooldown for player: " + player.getName());
             event.setCancelled(true);
             double remainingSeconds = getRemainingCooldown(player, effectiveId);
-            DebugUtils.logInternalDebug(debug(), "Remaining cooldown: " + remainingSeconds + " seconds for projectile launch");
+            DebugUtils.logInternalDebug("Remaining cooldown: " + remainingSeconds + " seconds for projectile launch");
             interactionHandler.handleCooldownMessage(player, remainingSeconds);
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Item " + effectiveId + " passed cooldown check for projectile launch");
+        DebugUtils.logInternalDebug("Item " + effectiveId + " passed cooldown check for projectile launch");
 
         if (!interactiveItem.hasUsesRemaining()) {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " has no uses remaining, cancelling projectile launch");
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " has no uses remaining, cancelling projectile launch");
             event.setCancelled(true);
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " has uses remaining for projectile launch");
+        DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " has uses remaining for projectile launch");
 
         TriggerType triggerType = config.getTriggerType();
 
         if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
-            DebugUtils.logInternalDebug(debug(), "Processing projectile trigger type: " + triggerType + " for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Processing projectile trigger type: " + triggerType + " for item: " + interactiveItem.getId());
 
             ItemClickInfo clickInfo = new ItemClickInfo(player,
                     org.bukkit.event.inventory.ClickType.RIGHT,
@@ -553,7 +553,7 @@ public class ItemManager implements Listener {
                     interactiveItem, clickInfo, hand);
 
             if (triggerType == TriggerType.ON_PROJECTILE_HIT) {
-                DebugUtils.logInternalDebug(debug(), "Setting metadata for ON_PROJECTILE_HIT item: " + interactiveItem.getId());
+                DebugUtils.logInternalDebug("Setting metadata for ON_PROJECTILE_HIT item: " + interactiveItem.getId());
                 projectile.setMetadata("interactive_item_id", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.getId()));
                 projectile.setMetadata("interactive_item_effective_id", new org.bukkit.metadata.FixedMetadataValue(plugin, effectiveId));
                 projectile.setMetadata("interactive_item_hand", new org.bukkit.metadata.FixedMetadataValue(plugin, hand.name()));
@@ -561,10 +561,10 @@ public class ItemManager implements Listener {
                 ItemStack itemClone = hand == EquipmentSlot.HAND ? mainHand.clone() : offHand.clone();
                 projectile.setMetadata("interactive_item_stack", new org.bukkit.metadata.FixedMetadataValue(plugin, itemClone));
                 projectile.setMetadata("interactive_item_object", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.clone()));
-                DebugUtils.logInternalDebug(debug(), "Metadata set for projectile hit detection, item: " + interactiveItem.getId());
+                DebugUtils.logInternalDebug("Metadata set for projectile hit detection, item: " + interactiveItem.getId());
             }
 
-            DebugUtils.logInternalDebug(debug(), "Completed ProjectileLaunch processing for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Completed ProjectileLaunch processing for item: " + interactiveItem.getId());
         }
     }
 
@@ -575,14 +575,14 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "ProjectileHit event triggered for projectile: " + projectile.getType());
+        DebugUtils.logInternalDebug("ProjectileHit event triggered for projectile: " + projectile.getType());
 
         String itemId = projectile.getMetadata("interactive_item_id").get(0).asString();
         String effectiveId = projectile.getMetadata("interactive_item_effective_id").get(0).asString();
         String handName = projectile.getMetadata("interactive_item_hand").get(0).asString();
         String shooterUUID = projectile.getMetadata("interactive_item_shooter").get(0).asString();
 
-        DebugUtils.logInternalDebug(debug(), "Projectile hit metadata - ItemId: " + itemId + ", EffectiveId: " + effectiveId +
+        DebugUtils.logInternalDebug("Projectile hit metadata - ItemId: " + itemId + ", EffectiveId: " + effectiveId +
                 ", Hand: " + handName + ", Shooter: " + shooterUUID);
 
         ItemStack originalItemStack = null;
@@ -590,32 +590,32 @@ public class ItemManager implements Listener {
 
         if (projectile.hasMetadata("interactive_item_stack")) {
             originalItemStack = (ItemStack) projectile.getMetadata("interactive_item_stack").get(0).value();
-            DebugUtils.logInternalDebug(debug(), "Retrieved original item stack from projectile metadata");
+            DebugUtils.logInternalDebug("Retrieved original item stack from projectile metadata");
         }
 
         if (projectile.hasMetadata("interactive_item_object")) {
             originalInteractiveItem = (InteractiveItem) projectile.getMetadata("interactive_item_object").get(0).value();
-            DebugUtils.logInternalDebug(debug(), "Retrieved original interactive item from projectile metadata");
+            DebugUtils.logInternalDebug("Retrieved original interactive item from projectile metadata");
         }
 
         Player shooter;
         try {
             shooter = Bukkit.getPlayer(java.util.UUID.fromString(shooterUUID));
         } catch (Exception e) {
-            DebugUtils.logInternalDebug(debug(), "Failed to parse shooter UUID: " + shooterUUID + ", error: " + e.getMessage());
+            DebugUtils.logInternalDebug("Failed to parse shooter UUID: " + shooterUUID + ", error: " + e.getMessage());
             return;
         }
 
         if (shooter == null || !shooter.isOnline()) {
-            DebugUtils.logInternalDebug(debug(), "Shooter is null or offline for projectile hit, UUID: " + shooterUUID);
+            DebugUtils.logInternalDebug("Shooter is null or offline for projectile hit, UUID: " + shooterUUID);
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Shooter found and online: " + shooter.getName());
+        DebugUtils.logInternalDebug("Shooter found and online: " + shooter.getName());
 
         InteractiveItem interactiveItem = originalInteractiveItem;
         if (interactiveItem == null) {
-            DebugUtils.logInternalDebug(debug(), "No original interactive item in metadata, searching in shooter's hands");
+            DebugUtils.logInternalDebug("No original interactive item in metadata, searching in shooter's hands");
             EquipmentSlot hand = EquipmentSlot.valueOf(handName);
             ItemStack itemStack = hand == EquipmentSlot.HAND ?
                     shooter.getInventory().getItemInMainHand() :
@@ -623,11 +623,11 @@ public class ItemManager implements Listener {
 
             interactiveItem = getItemFromStack(itemStack);
             if (interactiveItem == null || !interactiveItem.getId().equals(itemId)) {
-                DebugUtils.logInternalDebug(debug(), "Item in hand changed since launch, searching inventory for item: " + itemId);
+                DebugUtils.logInternalDebug("Item in hand changed since launch, searching inventory for item: " + itemId);
                 // El item cambió desde el lanzamiento, intentar buscar en inventario
                 interactiveItem = findInteractiveItemInInventory(shooter, itemId);
                 if (interactiveItem == null) {
-                    DebugUtils.logInternalDebug(debug(), "Item not found in inventory, creating fallback item for: " + itemId);
+                    DebugUtils.logInternalDebug("Item not found in inventory, creating fallback item for: " + itemId);
                     // FALLBACK: Crear un item temporal con la configuración
                     ItemConfiguration config = getItemConfiguration(itemId);
                     if (config != null) {
@@ -637,36 +637,36 @@ public class ItemManager implements Listener {
                             InteractiveItem tempFromStack = InteractiveItem.fromItemStack(originalItemStack);
                             if (tempFromStack != null) {
                                 interactiveItem = tempFromStack;
-                                DebugUtils.logInternalDebug(debug(), "Created fallback item from original stack NBT data");
+                                DebugUtils.logInternalDebug("Created fallback item from original stack NBT data");
                             }
                         }
-                        DebugUtils.logInternalDebug(debug(), "Created fallback interactive item: " + itemId);
+                        DebugUtils.logInternalDebug("Created fallback interactive item: " + itemId);
                     } else {
-                        DebugUtils.logInternalDebug(debug(), "No configuration found for item: " + itemId + ", cannot process projectile hit");
+                        DebugUtils.logInternalDebug("No configuration found for item: " + itemId + ", cannot process projectile hit");
                         return;
                     }
                 } else {
-                    DebugUtils.logInternalDebug(debug(), "Found item in inventory: " + interactiveItem.getId());
+                    DebugUtils.logInternalDebug("Found item in inventory: " + interactiveItem.getId());
                 }
             } else {
-                DebugUtils.logInternalDebug(debug(), "Item still in shooter's hand: " + interactiveItem.getId());
+                DebugUtils.logInternalDebug("Item still in shooter's hand: " + interactiveItem.getId());
             }
         } else {
-            DebugUtils.logInternalDebug(debug(), "Using original interactive item from metadata: " + originalInteractiveItem.getId());
+            DebugUtils.logInternalDebug("Using original interactive item from metadata: " + originalInteractiveItem.getId());
         }
 
         if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.ON_PROJECTILE_HIT) {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " is not ON_PROJECTILE_HIT type, ignoring hit");
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " is not ON_PROJECTILE_HIT type, ignoring hit");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Processing ON_PROJECTILE_HIT for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Processing ON_PROJECTILE_HIT for item: " + interactiveItem.getId());
 
         Player hitPlayer = event.getHitEntity() instanceof Player ? (Player) event.getHitEntity() : null;
         if (hitPlayer != null) {
-            DebugUtils.logInternalDebug(debug(), "Projectile hit player: " + hitPlayer.getName());
+            DebugUtils.logInternalDebug("Projectile hit player: " + hitPlayer.getName());
         } else {
-            DebugUtils.logInternalDebug(debug(), "Projectile hit non-player entity or block");
+            DebugUtils.logInternalDebug("Projectile hit non-player entity or block");
         }
 
         ItemStack itemStackForClick = originalItemStack != null ? originalItemStack :
@@ -685,36 +685,36 @@ public class ItemManager implements Listener {
         }
         clickInfo.withData("effectiveId", effectiveId);
 
-        DebugUtils.logInternalDebug(debug(), "Processing projectile hit interaction for item: " + interactiveItem.getId() +
+        DebugUtils.logInternalDebug("Processing projectile hit interaction for item: " + interactiveItem.getId() +
                 ", shooter: " + shooter.getName() + (hitPlayer != null ? ", hit player: " + hitPlayer.getName() : ""));
         interactionHandler.processProjectileHit(shooter, hitPlayer, itemStackForClick,
                 interactiveItem, clickInfo, EquipmentSlot.valueOf(handName));
-        DebugUtils.logInternalDebug(debug(), "Completed ProjectileHit processing for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Completed ProjectileHit processing for item: " + interactiveItem.getId());
     }
 
     private InteractiveItem findInteractiveItemInInventory(Player player, String itemId) {
-        DebugUtils.logInternalDebug(debug(), "Searching inventory for interactive item: " + itemId + " for player: " + player.getName());
+        DebugUtils.logInternalDebug("Searching inventory for interactive item: " + itemId + " for player: " + player.getName());
         for (ItemStack item : player.getInventory().getContents()) {
             if (item != null) {
                 InteractiveItem interactiveItem = getItemFromStack(item);
                 if (interactiveItem != null && interactiveItem.getId().equals(itemId)) {
-                    DebugUtils.logInternalDebug(debug(), "Found interactive item " + itemId + " in inventory for player: " + player.getName());
+                    DebugUtils.logInternalDebug("Found interactive item " + itemId + " in inventory for player: " + player.getName());
                     return interactiveItem;
                 }
             }
         }
-        DebugUtils.logInternalDebug(debug(), "Interactive item " + itemId + " not found in inventory for player: " + player.getName());
+        DebugUtils.logInternalDebug("Interactive item " + itemId + " not found in inventory for player: " + player.getName());
         return null;
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
-            DebugUtils.logInternalDebug(debug(), "InventoryDrag event not triggered by player, ignoring");
+            DebugUtils.logInternalDebug("InventoryDrag event not triggered by player, ignoring");
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "InventoryDrag event triggered for player: " + player.getName());
+        DebugUtils.logInternalDebug("InventoryDrag event triggered for player: " + player.getName());
 
         ItemStack draggedItem = event.getOldCursor();
         InteractiveItem interactiveItem = getItemFromStack(draggedItem);
@@ -722,17 +722,17 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " being dragged by player: " + player.getName());
+        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " being dragged by player: " + player.getName());
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
         if (player.getGameMode() == GameMode.CREATIVE) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " is in creative mode, allowing drag for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Player " + player.getName() + " is in creative mode, allowing drag for item: " + interactiveItem.getId());
             return;
         }
 
         if (!config.isAllowMovement()) {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " does not allow movement, cancelling drag");
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " does not allow movement, cancelling drag");
             event.setCancelled(true);
             return;
         }
@@ -740,14 +740,14 @@ public class ItemManager implements Listener {
         boolean involvesPlayerInventory = event.getRawSlots().stream()
                 .anyMatch(slot -> slot >= event.getView().getTopInventory().getSize());
 
-        DebugUtils.logInternalDebug(debug(), "Drag involves player inventory: " + involvesPlayerInventory + " for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Drag involves player inventory: " + involvesPlayerInventory + " for item: " + interactiveItem.getId());
 
         if (involvesPlayerInventory && !config.isAllowMovement()) {
-            DebugUtils.logInternalDebug(debug(), "Cancelling drag involving player inventory for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Cancelling drag involving player inventory for item: " + interactiveItem.getId());
             event.setCancelled(true);
         }
 
-        DebugUtils.logInternalDebug(debug(), "Completed InventoryDrag processing for item: " + interactiveItem.getId());
+        DebugUtils.logInternalDebug("Completed InventoryDrag processing for item: " + interactiveItem.getId());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -755,28 +755,28 @@ public class ItemManager implements Listener {
         Player player = event.getPlayer();
         ItemStack droppedItem = event.getItemDrop().getItemStack();
 
-        DebugUtils.logInternalDebug(debug(), "PlayerDropItem event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug(debug(), "Dropped item: " + droppedItem.getType() + " by player: " + player.getName());
+        DebugUtils.logInternalDebug("PlayerDropItem event triggered for player: " + player.getName());
+        DebugUtils.logInternalDebug("Dropped item: " + droppedItem.getType() + " by player: " + player.getName());
 
         InteractiveItem interactiveItem = getItemFromStack(droppedItem);
         if (interactiveItem == null) {
             return;
         }
 
-        DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " being dropped by player: " + player.getName());
+        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " being dropped by player: " + player.getName());
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
         if (player.getGameMode() == GameMode.CREATIVE) {
-            DebugUtils.logInternalDebug(debug(), "Player " + player.getName() + " is in creative mode, allowing drop for item: " + interactiveItem.getId());
+            DebugUtils.logInternalDebug("Player " + player.getName() + " is in creative mode, allowing drop for item: " + interactiveItem.getId());
             return;
         }
 
         if (!config.isAllowDrop()) {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " does not allow dropping, cancelling drop by player: " + player.getName());
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " does not allow dropping, cancelling drop by player: " + player.getName());
             event.setCancelled(true);
         } else {
-            DebugUtils.logInternalDebug(debug(), "Item " + interactiveItem.getId() + " allows dropping, drop successful for player: " + player.getName());
+            DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " allows dropping, drop successful for player: " + player.getName());
         }
     }
 
@@ -786,21 +786,21 @@ public class ItemManager implements Listener {
         ItemStack mainHand = event.getMainHandItem();
         ItemStack offHand = event.getOffHandItem();
 
-        DebugUtils.logInternalDebug(debug(), "PlayerSwapHandItems event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug(debug(), "Swapping - MainHand: " + (mainHand != null ? mainHand.getType() : "null") +
+        DebugUtils.logInternalDebug("PlayerSwapHandItems event triggered for player: " + player.getName());
+        DebugUtils.logInternalDebug("Swapping - MainHand: " + (mainHand != null ? mainHand.getType() : "null") +
                 ", OffHand: " + (offHand != null ? offHand.getType() : "null"));
 
         if (mainHand != null) {
             InteractiveItem mainInteractiveItem = getItemFromStack(mainHand);
             if (mainInteractiveItem != null) {
-                DebugUtils.logInternalDebug(debug(), "Found interactive item in main hand: " + mainInteractiveItem.getId());
+                DebugUtils.logInternalDebug("Found interactive item in main hand: " + mainInteractiveItem.getId());
                 ItemConfiguration config = mainInteractiveItem.getConfiguration();
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
-                    DebugUtils.logInternalDebug(debug(), "Item " + mainInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
+                    DebugUtils.logInternalDebug("Item " + mainInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
                     event.setCancelled(true);
                     return;
                 } else {
-                    DebugUtils.logInternalDebug(debug(), "Item " + mainInteractiveItem.getId() + " allows swap to offhand or player is in creative");
+                    DebugUtils.logInternalDebug("Item " + mainInteractiveItem.getId() + " allows swap to offhand or player is in creative");
                 }
             }
         }
@@ -808,13 +808,13 @@ public class ItemManager implements Listener {
         if (offHand != null) {
             InteractiveItem offInteractiveItem = getItemFromStack(offHand);
             if (offInteractiveItem != null) {
-                DebugUtils.logInternalDebug(debug(), "Found interactive item in off hand: " + offInteractiveItem.getId());
+                DebugUtils.logInternalDebug("Found interactive item in off hand: " + offInteractiveItem.getId());
                 ItemConfiguration config = offInteractiveItem.getConfiguration();
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
-                    DebugUtils.logInternalDebug(debug(), "Item " + offInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
+                    DebugUtils.logInternalDebug("Item " + offInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
                     event.setCancelled(true);
                 } else {
-                    DebugUtils.logInternalDebug(debug(), "Item " + offInteractiveItem.getId() + " allows swap to offhand or player is in creative");
+                    DebugUtils.logInternalDebug("Item " + offInteractiveItem.getId() + " allows swap to offhand or player is in creative");
                 }
             }
         }
@@ -832,7 +832,7 @@ public class ItemManager implements Listener {
                 if (newMainHand != null && newMainHand.getType() != Material.AIR) {
                     InteractiveItem mainItem = getItemFromStack(newMainHand);
                     if (mainItem != null && mainItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
-                        DebugUtils.logInternalDebug(debug(), "Starting HOLD session for main hand after swap: " + mainItem.getId());
+                        DebugUtils.logInternalDebug("Starting HOLD session for main hand after swap: " + mainItem.getId());
                         holdHandler.startHoldSession(player, mainItem, EquipmentSlot.HAND);
                     }
                 }
@@ -840,14 +840,14 @@ public class ItemManager implements Listener {
                 if (newOffHand != null && newOffHand.getType() != Material.AIR) {
                     InteractiveItem offItem = getItemFromStack(newOffHand);
                     if (offItem != null && offItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
-                        DebugUtils.logInternalDebug(debug(), "Starting HOLD session for off hand after swap: " + offItem.getId());
+                        DebugUtils.logInternalDebug("Starting HOLD session for off hand after swap: " + offItem.getId());
                         holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
                     }
                 }
             }, 1L);
         }
         
-        DebugUtils.logInternalDebug(debug(), "Completed PlayerSwapHandItems processing for player: " + player.getName());
+        DebugUtils.logInternalDebug("Completed PlayerSwapHandItems processing for player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -860,7 +860,7 @@ public class ItemManager implements Listener {
             if (newItem != null && newItem.getType() != Material.AIR) {
                 InteractiveItem interactiveItem = getItemFromStack(newItem);
                 if (interactiveItem != null && interactiveItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
-                    DebugUtils.logInternalDebug(debug(), "Starting HOLD session for newly selected item: " + interactiveItem.getId());
+                    DebugUtils.logInternalDebug("Starting HOLD session for newly selected item: " + interactiveItem.getId());
                     holdHandler.startHoldSession(player, interactiveItem, EquipmentSlot.HAND);
                 }
             }
@@ -870,7 +870,7 @@ public class ItemManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR) 
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        DebugUtils.logInternalDebug(debug(), "PlayerQuit event triggered for player: " + player.getName());
+        DebugUtils.logInternalDebug("PlayerQuit event triggered for player: " + player.getName());
         
         // Stop all HOLD sessions for the disconnecting player
         holdHandler.stopAllSessionsForPlayer(player);
@@ -901,7 +901,7 @@ public class ItemManager implements Listener {
         ItemStack itemStack = event.getItemInHand();
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem != null) {
-            DebugUtils.logInternalDebug(debug(), "Found interactive item: " + interactiveItem.getId() + " in block place event, cancelling placement");
+            DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " in block place event, cancelling placement");
             event.setCancelled(true);
         }
     }
@@ -1043,7 +1043,7 @@ public class ItemManager implements Listener {
         if (mainHand != null && mainHand.getType() != Material.AIR) {
             InteractiveItem mainItem = getItemFromStack(mainHand);
             if (mainItem != null && mainItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
-                DebugUtils.logInternalDebug(debug(), "Auto-starting HOLD session for main hand: " + mainItem.getId());
+                DebugUtils.logInternalDebug("Auto-starting HOLD session for main hand: " + mainItem.getId());
                 holdHandler.startHoldSession(player, mainItem, EquipmentSlot.HAND);
             }
         }
@@ -1053,7 +1053,7 @@ public class ItemManager implements Listener {
         if (offHand != null && offHand.getType() != Material.AIR) {
             InteractiveItem offItem = getItemFromStack(offHand);
             if (offItem != null && offItem.getConfiguration().getTriggerType() == TriggerType.HOLD) {
-                DebugUtils.logInternalDebug(debug(), "Auto-starting HOLD session for off hand: " + offItem.getId());
+                DebugUtils.logInternalDebug("Auto-starting HOLD session for off hand: " + offItem.getId());
                 holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
             }
         }

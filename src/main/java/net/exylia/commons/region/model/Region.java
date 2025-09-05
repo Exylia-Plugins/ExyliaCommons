@@ -145,7 +145,7 @@ public class Region {
         flagStates.clear();
         flagStates.putAll(flags);
         for (RegionFlag flag : flags.keySet()) {
-            DebugUtils.logInternalDebug(debug(), "Set flag " + flag + " to " + flags.get(flag));
+            DebugUtils.logInternalDebug("Set flag " + flag + " to " + flags.get(flag));
         }
     }
 

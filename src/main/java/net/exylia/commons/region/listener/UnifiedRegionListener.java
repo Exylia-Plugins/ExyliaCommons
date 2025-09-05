@@ -74,7 +74,7 @@ public class UnifiedRegionListener implements Listener {
         // Solo tarea de limpieza de cache
         startCacheCleanupTask();
 
-        logInternalDebug(debug(), "UnifiedRegionListener iniciado con procesamiento inmediato");
+        logInternalDebug("UnifiedRegionListener iniciado con procesamiento inmediato");
     }
 
     // ===== EVENTOS DE CONSTRUCCIÓN (sin cambios significativos) =====
@@ -118,7 +118,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Colocación de bloque denegada: %s intentó colocar %s en región %s - Razón: %s",
                     player.getName(), material.name(), region.getId(), result.getReason()
             ));
@@ -162,7 +162,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Rotura de bloque denegada: %s intentó romper bloque en región %s - Razón: %s",
                     player.getName(), region.getId(), result.getReason()
             ));
@@ -184,7 +184,7 @@ public class UnifiedRegionListener implements Listener {
             if (blockTracker.isPlayerPlacedBlock(regionId, location)) {
                 blockTracker.removePlayerBlock(regionId, location);
 
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Bloque temporal removido del tracker: %s en región %s (vivió %d segundos)",
                         event.getMaterial().name(),
                         regionId,
@@ -227,7 +227,7 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Interacción denegada: %s intentó interactuar con %s en región %s - Razón: %s",
                         player.getName(), block.getType().name(), region.getId(), result.getReason()
                 ));
@@ -259,7 +259,7 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "PvP denegado: %s intentó atacar a %s - Razón: %s",
                         attacker.getName(), target.getName(), result.getReason()
                 ));
@@ -283,7 +283,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Daño denegado: %s iba a recibir daño por %s en región %s",
                     player.getName(), event.getCause().name(), region.getId()
             ));
@@ -312,7 +312,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!movementAllowed) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Movimiento cancelado inmediatamente para %s de %s a %s",
                     event.getPlayer().getName(),
                     String.format("(%d,%d,%d)", from.getBlockX(), from.getBlockY(), from.getBlockZ()),
@@ -331,7 +331,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!teleportAllowed) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Teleport cancelado para %s de %s a %s",
                     event.getPlayer().getName(), from, to
             ));
@@ -353,7 +353,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Explosión denegada: %s en región %s - Razón: %s",
                     event.getEntityType().name(), region.getId(), result.getReason()
             ));
@@ -361,7 +361,7 @@ public class UnifiedRegionListener implements Listener {
             // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Explosión sin romper bloques: %s en región %s - BREAK deshabilitado",
                         event.getEntityType().name(), region.getId()
                 ));
@@ -386,7 +386,7 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Explosión de bloque denegada en región %s - Razón: %s",
                     region.getId(), result.getReason()
             ));
@@ -394,7 +394,7 @@ public class UnifiedRegionListener implements Listener {
             // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Explosión de bloque sin romper bloques en región %s - BREAK deshabilitado",
                         region.getId()
                 ));
@@ -419,7 +419,7 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Acceso a inventario denegado: %s intentó abrir %s en región %s",
                         player.getName(), block.getType().name(), regions.get(0).getId()
                 ));
@@ -457,7 +457,7 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Tirar item denegado: %s intentó tirar %s en región %s - Razón: %s",
                         player.getName(), event.getItemDrop().getItemStack().getType().name(),
                         region.getId(), result.getReason()
@@ -497,7 +497,7 @@ public class UnifiedRegionListener implements Listener {
 
             if (!result.isAllowed()) {
                 event.setCancelled(true);
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Recoger item denegado: %s intentó recoger %s en región %s - Razón: %s",
                         player.getName(), event.getItem().getItemStack().getType().name(),
                         region.getId(), result.getReason()
@@ -525,7 +525,7 @@ public class UnifiedRegionListener implements Listener {
         }
 
 
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Bloque formado cerca de jugador: %s causó posible formación de %s en %s",
                     "N/A",
                     event.getNewState().getType().name(),
@@ -575,7 +575,7 @@ public class UnifiedRegionListener implements Listener {
             // SIMPLIFICADO: Registrar propagación sin buscar jugador específico
             blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType());
 
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Propagación registrada: %s se propagó de %s a %s",
                     event.getNewState().getType().name(),
                     sourceLocation,
@@ -801,7 +801,7 @@ public class UnifiedRegionListener implements Listener {
             }
         }
 
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "Explosión filtrada en región %s: %d->%d bloques pueden ser destruidos",
                 region.getId(), originalCount, event.blockList().size()
         ));
@@ -1006,7 +1006,7 @@ public class UnifiedRegionListener implements Listener {
     private void logBlockPlacementInfo(Player player, Region region, Location location, Material material, String context) {
         if (!debug()) return;
 
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "%s - Jugador: %s, Material: %s, Región: %s, Ubicación: (%d,%d,%d), Tracking: %s, Temporal: %s",
                 context,
                 player.getName(),

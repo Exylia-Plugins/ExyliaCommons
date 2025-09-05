@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Manager para manejar bloques temporales que desaparecen automáticamente
@@ -123,7 +124,7 @@ public class TemporaryBlocksManager {
             // Obtener información del bloque antes de removerlo
             TemporaryBlock temporaryBlock = temporaryBlocks.get(locationKey);
             if (temporaryBlock == null) {
-                plugin.getLogger().warning("Intento de remover bloque temporal inexistente: " + locationKey);
+                logInternalWarn("Intento de remover bloque temporal inexistente: " + locationKey);
                 return;
             }
 
@@ -149,7 +150,7 @@ public class TemporaryBlocksManager {
 
             // Si el evento fue cancelado, no remover el bloque
             if (event.isCancelled()) {
-                logInternalDebug(debug(), "Remoción de bloque temporal cancelada por evento: " + locationKey);
+                logInternalDebug("Remoción de bloque temporal cancelada por evento: " + locationKey);
                 return;
             }
 
@@ -172,7 +173,7 @@ public class TemporaryBlocksManager {
             }
 
         } catch (Exception e) {
-            plugin.getLogger().warning("Error removiendo bloque temporal en " + locationKey + ": " + e.getMessage());
+            logInternalWarn("Error removiendo bloque temporal en " + locationKey + ": " + e.getMessage());
 
             // Limpiar registros incluso si hay error, para evitar memory leaks
             scheduledRemovals.remove(locationKey);
@@ -183,14 +184,14 @@ public class TemporaryBlocksManager {
     private void giveBlockBackToPlayer(TemporaryBlock temporaryBlock) {
         UUID playerId = temporaryBlock.getPlayerId();
         if (playerId == null) {
-            logInternalDebug(debug(), "No se puede devolver bloque: ID de jugador nulo");
+            logInternalDebug("No se puede devolver bloque: ID de jugador nulo");
             return;
         }
 
         // Verificar si el jugador está online
         Player player = Bukkit.getPlayer(playerId);
         if (player == null || !player.isOnline()) {
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "No se puede devolver bloque a jugador offline: %s (Material: %s)",
                     playerId, temporaryBlock.getMaterial().name()
             ));
@@ -205,7 +206,7 @@ public class TemporaryBlocksManager {
             // Hay espacio en el inventario
             player.getInventory().addItem(blockItem);
 
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Bloque devuelto al inventario: %s recibió %s",
                     player.getName(), temporaryBlock.getMaterial().name()
             ));
@@ -214,7 +215,7 @@ public class TemporaryBlocksManager {
             Location dropLocation = player.getLocation();
             dropLocation.getWorld().dropItemNaturally(dropLocation, blockItem);
 
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Bloque dropeado por falta de espacio: %s - %s en %s",
                     player.getName(), temporaryBlock.getMaterial().name(), dropLocation
             ));
@@ -275,7 +276,7 @@ public class TemporaryBlocksManager {
                 tempBlock.cancelReGive();
                 canceledCount++;
 
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Re-give cancelado para bloque: %s de jugador %s en %s",
                         tempBlock.getMaterial().name(),
                         playerId.toString(),
@@ -284,7 +285,7 @@ public class TemporaryBlocksManager {
             }
         }
 
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "Cancelados %d re-gives para jugador %s (bloques seguirán desapareciendo)",
                 canceledCount, playerId.toString()
         ));

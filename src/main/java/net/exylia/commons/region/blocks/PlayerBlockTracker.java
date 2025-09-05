@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Sistema MEJORADO para rastrear bloques colocados por jugadores en regiones
@@ -97,7 +98,7 @@ public class PlayerBlockTracker {
         // Auto-guardado si es necesario
         checkAutoSave();
 
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "Bloque registrado con cache inteligente: %s colocó %s en región %s en %s",
                 playerName, material.name(), regionKey, location
         ));
@@ -182,7 +183,7 @@ public class PlayerBlockTracker {
                 String cacheKey = getCacheKey(regionKey, location);
                 intelligentCache.put(cacheKey, new CacheEntry(false, System.currentTimeMillis(), true));
 
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Bloque removido y cache actualizado: %s en región %s",
                         location, regionKey
                 ));
@@ -208,7 +209,7 @@ public class PlayerBlockTracker {
             }
 
             markDirty();
-            logInternalDebug(debug(), "Cache actualizado para " + removed.size() + " bloques en región: " + regionKey);
+            logInternalDebug("Cache actualizado para " + removed.size() + " bloques en región: " + regionKey);
         }
     }
 
@@ -262,7 +263,7 @@ public class PlayerBlockTracker {
         }
 
         if (removed > 0 || criticalProtected > 0) {
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Cache inteligente: Eliminadas %d entradas, protegidas %d críticas. Tamaño: %d",
                     removed, criticalProtected, intelligentCache.size()
             ));
@@ -279,7 +280,7 @@ public class PlayerBlockTracker {
             saveDataAsync().thenRun(() -> {
                 isDirty = false;
                 lastAutoSave = System.currentTimeMillis();
-                logInternalDebug(debug(), "Auto-guardado completado");
+                logInternalDebug("Auto-guardado completado");
             });
         }
     }
@@ -365,7 +366,7 @@ public class PlayerBlockTracker {
 
         if (removedCount > 0) {
             markDirty();
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Removidos %d bloques del jugador %s en región %s",
                     removedCount, playerId, regionKey
             ));
@@ -451,7 +452,7 @@ public class PlayerBlockTracker {
     private void saveData() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
             oos.writeObject(regionPlayerBlocks);
-            logInternalDebug(debug(), "Datos guardados: " + regionPlayerBlocks.size() + " regiones");
+            logInternalDebug("Datos guardados: " + regionPlayerBlocks.size() + " regiones");
         } catch (IOException e) {
             plugin.getLogger().severe("Error guardando datos: " + e.getMessage());
         }
@@ -460,7 +461,7 @@ public class PlayerBlockTracker {
     @SuppressWarnings("unchecked")
     private void loadData() {
         if (!dataFile.exists()) {
-            logInternalDebug(debug(), "No se encontraron datos previos");
+            logInternalDebug("No se encontraron datos previos");
             return;
         }
 
@@ -469,12 +470,12 @@ public class PlayerBlockTracker {
             if (data instanceof Map) {
                 regionPlayerBlocks.putAll((Map<String, Set<BlockPosition>>) data);
                 int totalBlocks = regionPlayerBlocks.values().stream().mapToInt(Set::size).sum();
-                logInternalDebug(debug(), "Datos cargados: " + regionPlayerBlocks.size() +
+                logInternalDebug("Datos cargados: " + regionPlayerBlocks.size() +
                         " regiones, " + totalBlocks + " bloques");
             }
         } catch (IOException | ClassNotFoundException e) {
-            plugin.getLogger().warning("Error cargando datos: " + e.getMessage());
-            logInternalDebug(debug(), "Se iniciará con datos limpios");
+            logInternalWarn("Error cargando datos: " + e.getMessage());
+            logInternalDebug("Se iniciará con datos limpios");
         }
     }
 
@@ -486,7 +487,7 @@ public class PlayerBlockTracker {
     }
 
     public void shutdown() {
-        logInternalDebug(debug(), "Cerrando PlayerBlockTracker...");
+        logInternalDebug("Cerrando PlayerBlockTracker...");
 
         // Guardado final
         if (isDirty) {
@@ -496,7 +497,7 @@ public class PlayerBlockTracker {
         regionPlayerBlocks.clear();
         intelligentCache.clear();
 
-        logInternalDebug(debug(), "PlayerBlockTracker cerrado con guardado final");
+        logInternalDebug("PlayerBlockTracker cerrado con guardado final");
     }
 
     // ===== CLASES INTERNAS MEJORADAS =====

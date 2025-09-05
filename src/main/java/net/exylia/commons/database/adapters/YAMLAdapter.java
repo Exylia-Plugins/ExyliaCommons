@@ -109,7 +109,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             entityConfigs.put(entityClass, yamlConfig);
             entityFiles.put(entityClass, entityFile);
 
-            logInternalDebug(debug(), "Loaded YAML configuration for entity: " + entityClass.getSimpleName());
+            logInternalDebug("Loaded YAML configuration for entity: " + entityClass.getSimpleName());
         }
         return yamlConfig;
     }
@@ -121,7 +121,7 @@ public class YAMLAdapter implements DatabaseAdapter {
         if (yamlConfig != null && entityFile != null) {
             try {
                 yamlConfig.save(entityFile);
-                logInternalDebug(debug(), "Saved YAML configuration for entity: " + entityClass.getSimpleName());
+                logInternalDebug("Saved YAML configuration for entity: " + entityClass.getSimpleName());
             } catch (IOException e) {
                 throw new DatabaseException("SaveConfig", entityClass.getSimpleName(), "YAML",
                         "Failed to save YAML configuration file", e);
@@ -161,7 +161,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             }
 
             saveEntityConfig(entity.getClass());
-            logInternalDebug(debug(), "Entity saved to YAML: " + entityClassName + " with ID: " + primaryKeyValue);
+            logInternalDebug("Entity saved to YAML: " + entityClassName + " with ID: " + primaryKeyValue);
 
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
@@ -338,7 +338,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             }
 
             saveEntityConfig(entity.getClass());
-            logInternalDebug(debug(), "Entity updated in YAML: " + entityClassName + " with ID: " + primaryKeyValue);
+            logInternalDebug("Entity updated in YAML: " + entityClassName + " with ID: " + primaryKeyValue);
 
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
@@ -377,7 +377,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
             yamlConfig.set(entityPath, null);
             saveEntityConfig(entity.getClass());
-            logInternalDebug(debug(), "Entity deleted from YAML: " + entityClassName + " with ID: " + primaryKeyValue);
+            logInternalDebug("Entity deleted from YAML: " + entityClassName + " with ID: " + primaryKeyValue);
 
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
@@ -1050,6 +1050,42 @@ public class YAMLAdapter implements DatabaseAdapter {
             } else {
                 DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "YAML",
                         "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public void dropTable(Class<?> entityClass) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String fileName = getTableName(entityClass) + ".yml";
+            File entityFile = new File(dataDirectory, fileName);
+
+            if (entityFile.exists()) {
+                if (entityFile.delete()) {
+                    logInternalInfo("YAML file dropped successfully: " + fileName);
+                } else {
+                    throw new DatabaseException("DropTable", entityClassName, "YAML",
+                            "Failed to delete YAML file: " + fileName);
+                }
+            } else {
+                logInternalInfo("YAML file does not exist, nothing to drop: " + fileName);
+            }
+
+            // Remove from cache
+            entityConfigs.remove(entityClass);
+            entityFiles.remove(entityClass);
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("DropTable", entityClassName, "YAML",
+                        "Unexpected error during file drop", e);
                 errorHandler.handleError(dbException);
                 throw dbException;
             }

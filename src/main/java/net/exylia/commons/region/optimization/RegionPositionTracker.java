@@ -56,7 +56,7 @@ public class RegionPositionTracker {
         // Ejecutar cada 0.5 segundos en el hilo principal
         positionTask.runTaskTimer(plugin, CHECK_INTERVAL_TICKS, CHECK_INTERVAL_TICKS);
 
-        logInternalDebug(debug(), "RegionPositionTracker iniciado - Checking every " +
+        logInternalDebug("RegionPositionTracker iniciado - Checking every " +
                 (CHECK_INTERVAL_TICKS / 20.0) + " segundos");
     }
 
@@ -70,7 +70,7 @@ public class RegionPositionTracker {
         }
 
         lastKnownPositions.clear();
-        logInternalDebug(debug(), "RegionPositionTracker detenido");
+        logInternalDebug("RegionPositionTracker detenido");
     }
 
     /**
@@ -105,7 +105,7 @@ public class RegionPositionTracker {
             // El jugador se movió - procesar como movimiento lento
             slowMovementsDetected++;
 
-//            logInternalDebug(debug(), String.format(
+//            logInternalDebug(String.format(
 //                    "Slow movement detected for %s: %.3f blocks (from %s to %s)",
 //                    player.getName(), distanceMoved,
 //                    locationToString(lastPosition.location),
@@ -121,7 +121,7 @@ public class RegionPositionTracker {
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     if (player.isOnline()) {
                         player.teleport(lastPosition.location);
-                        logInternalDebug(debug(), String.format(
+                        logInternalDebug(String.format(
                                 "Slow movement blocked: Teleported %s back to %s",
                                 player.getName(), locationToString(lastPosition.location)
                         ));

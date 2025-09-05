@@ -119,7 +119,7 @@ public class VanillaItemCooldownManager implements Listener {
             VanillaRegionLimitManager.getInstance().registerRegionLimit(material, maxUsesPerRegion);
         }
 
-        DebugUtils.logInternalDebug(debug(), "Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")" +
+        DebugUtils.logInternalDebug("Registered vanilla cooldown: " + material + " -> " + cooldownSeconds + "s (" + triggerType + ")" +
                 (displayName != null ? " with display name: '" + displayName + "'" : "") +
                 (maxUsesPerRegion != null ? " with region limit: " + maxUsesPerRegion : ""));
     }
@@ -142,7 +142,7 @@ public class VanillaItemCooldownManager implements Listener {
             }
         }
 
-        DebugUtils.logInternalDebug(debug(), "Registered vanilla config: " + config.getMaterial() + " with " + 
+        DebugUtils.logInternalDebug("Registered vanilla config: " + config.getMaterial() + " with " + 
                 config.getRegionConfigs().size() + " region overrides");
     }
 
@@ -179,7 +179,7 @@ public class VanillaItemCooldownManager implements Listener {
      */
     public void unregisterCooldown(Material material) {
         itemConfigs.remove(material);
-        DebugUtils.logInternalDebug(debug(), "Unregistered vanilla cooldown: " + material);
+        DebugUtils.logInternalDebug("Unregistered vanilla cooldown: " + material);
     }
 
     /**
@@ -306,39 +306,39 @@ public class VanillaItemCooldownManager implements Listener {
         double baseCooldown = config.getCooldownSeconds();
         double finalCooldown = baseCooldown;
         
-        DebugUtils.logInternalDebug(debug(), "=== Vanilla Cooldown Debug ===");
-        DebugUtils.logInternalDebug(debug(), "Material: " + material + ", Player: " + player.getName());
-        DebugUtils.logInternalDebug(debug(), "World: " + currentWorld + ", Region: " + currentRegion);
-        DebugUtils.logInternalDebug(debug(), "Base cooldown: " + baseCooldown);
-        DebugUtils.logInternalDebug(debug(), "Has world configs: " + config.hasWorldConfigs());
-        DebugUtils.logInternalDebug(debug(), "Has region configs: " + config.hasRegionConfigs());
+        DebugUtils.logInternalDebug("=== Vanilla Cooldown Debug ===");
+        DebugUtils.logInternalDebug("Material: " + material + ", Player: " + player.getName());
+        DebugUtils.logInternalDebug("World: " + currentWorld + ", Region: " + currentRegion);
+        DebugUtils.logInternalDebug("Base cooldown: " + baseCooldown);
+        DebugUtils.logInternalDebug("Has world configs: " + config.hasWorldConfigs());
+        DebugUtils.logInternalDebug("Has region configs: " + config.hasRegionConfigs());
         
         // Verificar cooldown específico de mundo (si no hay región específica)
         boolean hasSpecificWorldConfig = config.hasWorldConfigs() && config.getWorldConfigs().containsKey(currentWorld);
         if (hasSpecificWorldConfig) {
             finalCooldown = config.getCooldownForWorld(currentWorld);
-            DebugUtils.logInternalDebug(debug(), "Using world-specific cooldown for " + currentWorld + ": " + finalCooldown);
+            DebugUtils.logInternalDebug("Using world-specific cooldown for " + currentWorld + ": " + finalCooldown);
         } else {
-            DebugUtils.logInternalDebug(debug(), "No specific world config for " + currentWorld + ", using base: " + finalCooldown);
+            DebugUtils.logInternalDebug("No specific world config for " + currentWorld + ", using base: " + finalCooldown);
         }
         
         // Verificar cooldown específico de región (OVERRIDE mundo y base)
         boolean hasSpecificRegionConfig = config.hasRegionConfigs() && currentRegion != null && config.getRegionConfigs().containsKey(currentRegion);
         if (hasSpecificRegionConfig) {
             finalCooldown = config.getCooldownForRegion(currentRegion);
-            DebugUtils.logInternalDebug(debug(), "Using region-specific cooldown for " + currentRegion + ": " + finalCooldown + " (overrides world/base)");
+            DebugUtils.logInternalDebug("Using region-specific cooldown for " + currentRegion + ": " + finalCooldown + " (overrides world/base)");
         } else if (currentRegion == null && config.hasRegionConfigs() && config.getRegionConfigs().containsKey("__global__")) {
             // Jugador no está en ninguna región pero hay configuración __global__
             finalCooldown = config.getCooldownForRegion("__global__");
-            DebugUtils.logInternalDebug(debug(), "Player not in any region, using __global__ region cooldown: " + finalCooldown + " (overrides world/base)");
+            DebugUtils.logInternalDebug("Player not in any region, using __global__ region cooldown: " + finalCooldown + " (overrides world/base)");
         } else if (currentRegion != null) {
-            DebugUtils.logInternalDebug(debug(), "No specific region config for " + currentRegion + ", keeping: " + finalCooldown);
+            DebugUtils.logInternalDebug("No specific region config for " + currentRegion + ", keeping: " + finalCooldown);
         } else {
-            DebugUtils.logInternalDebug(debug(), "Player not in any region and no __global__ config, keeping: " + finalCooldown);
+            DebugUtils.logInternalDebug("Player not in any region and no __global__ config, keeping: " + finalCooldown);
         }
         
-        DebugUtils.logInternalDebug(debug(), "Final cooldown: " + finalCooldown);
-        DebugUtils.logInternalDebug(debug(), "=== End Debug ===");
+        DebugUtils.logInternalDebug("Final cooldown: " + finalCooldown);
+        DebugUtils.logInternalDebug("=== End Debug ===");
 
         final double cooldownSeconds = finalCooldown;
         if (cooldownSeconds > 0) {

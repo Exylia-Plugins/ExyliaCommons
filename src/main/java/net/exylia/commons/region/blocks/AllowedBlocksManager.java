@@ -11,6 +11,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+
 /**
  * Manager para manejar listas de bloques permitidos en regiones específicas
  */
@@ -117,7 +119,7 @@ public class AllowedBlocksManager {
         try {
             return Material.valueOf(materialName.toUpperCase());
         } catch (IllegalArgumentException e) {
-            plugin.getLogger().warning("Material desconocido: " + materialName);
+            logInternalWarn("Material desconocido: " + materialName);
             return null;
         }
     }

@@ -8,6 +8,7 @@ import org.bukkit.Bukkit;
 import java.util.HashMap;
 import java.util.Map;
 
+import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.AnsiComponentLogger.convertHexColors;
 
 /**
@@ -22,8 +23,8 @@ public class DebugUtils {
         sendPluginMOTD(plugin);
     }
 
-    public static void logDebug(Boolean enabled, String message){
-        if (!enabled) return;
+    public static void logDebug(String message){
+        if (!debug()) return;
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#e7cfff>[DEBUG] " + message)));
     }
 
@@ -47,8 +48,8 @@ public class DebugUtils {
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#e7cfff> " + message)));
     }
     
-    public static void logInternalDebug(Boolean enabled, String message){
-        if (!enabled) return;
+    public static void logInternalDebug(String message){
+        if (!debug()) return;
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff>[DEBUG] " + message)));
     }
     

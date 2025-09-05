@@ -76,7 +76,7 @@ public class RegionRegenerationManager {
         if (!schemsFolder.exists()) {
             boolean created = schemsFolder.mkdirs();
             if (created) {
-                logInternalDebug(debug(), "Directorio de schematics de regiones creado: " + schemsFolder.getPath());
+                logInternalDebug("Directorio de schematics de regiones creado: " + schemsFolder.getPath());
             }
         }
 
@@ -162,16 +162,16 @@ public class RegionRegenerationManager {
                 // CLAVE: Ejecutar operations fuera del main thread
                 Operations.complete(pasteOperation);
 
-                logInternalDebug(debug(), "Paste operation completed successfully for: " + operation.operationId);
+                logInternalDebug("Paste operation completed successfully for: " + operation.operationId);
                 return true;
 
             } catch (WorldEditException e) {
-                DebugUtils.logError("WorldEdit error in paste operation " + operation.operationId + ": " + e.getMessage());
+                DebugUtils.logInternalError("WorldEdit error in paste operation " + operation.operationId + ": " + e.getMessage());
                 return false;
             }
 
         } catch (Exception e) {
-            DebugUtils.logError("Unexpected error in paste operation " + operation.operationId + ": " + e.getMessage());
+            DebugUtils.logInternalError("Unexpected error in paste operation " + operation.operationId + ": " + e.getMessage());
             return false;
         }
     }
@@ -222,7 +222,7 @@ public class RegionRegenerationManager {
                 return operationFuture.join();
 
             } catch (Exception e) {
-                DebugUtils.logError("Error in pasteRegionSchematicAt: " + e.getMessage());
+                DebugUtils.logInternalError("Error in pasteRegionSchematicAt: " + e.getMessage());
                 return false;
             }
         });
@@ -247,7 +247,7 @@ public class RegionRegenerationManager {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logInternalDebug(debug(), "Regenerando región: " + region.getId());
+                logInternalDebug("Regenerando región: " + region.getId());
 
                 Clipboard clipboard = clipboardCache.get(regionId);
 
@@ -265,7 +265,7 @@ public class RegionRegenerationManager {
                 return executeRegenerationOptimized(region, clipboard);
 
             } catch (Exception e) {
-                DebugUtils.logError("Error regenerando región " + region.getId() + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error regenerando región " + region.getId() + ": " + e.getMessage());
                 return false;
             } finally {
                 regeneratingRegions.remove(regionId);
@@ -297,15 +297,15 @@ public class RegionRegenerationManager {
 
             boolean success = pasteResult.join();
             if (success) {
-                logInternalDebug(debug(), "Región regenerada exitosamente: " + region.getId());
+                logInternalDebug("Región regenerada exitosamente: " + region.getId());
             } else {
-                DebugUtils.logError("Fallo en regeneración para región: " + region.getId());
+                DebugUtils.logInternalError("Fallo en regeneración para región: " + region.getId());
             }
 
             return success;
 
         } catch (Exception e) {
-            DebugUtils.logError("Error inesperado regenerando región " + region.getId() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error inesperado regenerando región " + region.getId() + ": " + e.getMessage());
             return false;
         }
     }
@@ -343,12 +343,12 @@ public class RegionRegenerationManager {
                         }
                     }
 
-                    logInternalDebug(debug(), "Limpiadas " + removed + " entidades en región " + region.getId());
+                    logInternalDebug("Limpiadas " + removed + " entidades en región " + region.getId());
                     return removed;
 
                 }).get();
             } catch (Exception e) {
-                DebugUtils.logError("Error limpiando entidades en región " + region.getId() + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error limpiando entidades en región " + region.getId() + ": " + e.getMessage());
                 return 0;
             }
         });
@@ -377,7 +377,7 @@ public class RegionRegenerationManager {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                logInternalDebug(debug(), "Guardando schematic para región: " + region.getId());
+                logInternalDebug("Guardando schematic para región: " + region.getId());
 
                 Location min = region.getMinimumPoint();
                 Location max = region.getMaximumPoint();
@@ -406,13 +406,13 @@ public class RegionRegenerationManager {
                             cacheClipboard(region, clipboard);
                         }
 
-                        logInternalDebug(debug(), "Schematic guardado: " + schematicFile.getName());
+                        logInternalDebug("Schematic guardado: " + schematicFile.getName());
                         return true;
                     }
                 }
 
             } catch (Exception e) {
-                DebugUtils.logError("Error guardando schematic para región " + region.getId() + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error guardando schematic para región " + region.getId() + ": " + e.getMessage());
                 return false;
             }
         });
@@ -436,7 +436,7 @@ public class RegionRegenerationManager {
             if (schematicFile.exists()) {
                 boolean deleted = schematicFile.delete();
                 if (deleted) {
-                    logInternalDebug(debug(), "Schematic eliminado para región: " + region.getId());
+                    logInternalDebug("Schematic eliminado para región: " + region.getId());
                 }
                 return deleted;
             }
@@ -458,7 +458,7 @@ public class RegionRegenerationManager {
     public void clearCache() {
         int size = clipboardCache.size();
         clipboardCache.clear();
-        logInternalDebug(debug(), "Cache de clipboards limpiado: " + size + " elementos");
+        logInternalDebug("Cache de clipboards limpiado: " + size + " elementos");
     }
 
     private Clipboard loadSchematicFromFile(File schematicFile) {
@@ -468,7 +468,7 @@ public class RegionRegenerationManager {
             return reader.read();
 
         } catch (IOException e) {
-            DebugUtils.logError("Error cargando schematic " + schematicFile.getName() + ": " + e.getMessage());
+            DebugUtils.logInternalError("Error cargando schematic " + schematicFile.getName() + ": " + e.getMessage());
             return null;
         }
     }
@@ -482,7 +482,7 @@ public class RegionRegenerationManager {
         }
 
         clipboardCache.put(regionId, clipboard);
-        logInternalDebug(debug(), "Clipboard cacheado para región: " + region.getId());
+        logInternalDebug("Clipboard cacheado para región: " + region.getId());
     }
 
     public CompletableFuture<Integer> clearRegionPlayerBlocks(Region region) {
@@ -494,7 +494,7 @@ public class RegionRegenerationManager {
 
             tracker.clearRegionBlocks(regionId);
 
-            logInternalDebug(debug(), "Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
+            logInternalDebug("Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
             return blocksBefore;
         });
     }
@@ -515,7 +515,7 @@ public class RegionRegenerationManager {
         }
 
         if (!regeneratingRegions.isEmpty()) {
-            DebugUtils.logInfo("Esperando " + regeneratingRegions.size() + " regeneraciones...");
+            DebugUtils.logInternalInfo("Esperando " + regeneratingRegions.size() + " regeneraciones...");
             int attempts = 0;
             while (!regeneratingRegions.isEmpty() && attempts < 10) {
                 try {
@@ -571,7 +571,7 @@ public class RegionRegenerationManager {
                 return copyAreaDirectly(sourceMin, sourceMax, targetMin);
 
             } catch (Exception e) {
-                DebugUtils.logError("Error copying region structure: " + e.getMessage());
+                DebugUtils.logInternalError("Error copying region structure: " + e.getMessage());
                 return false;
             }
         });
@@ -611,12 +611,12 @@ public class RegionRegenerationManager {
                 return true;
 
             } catch (Exception e) {
-                DebugUtils.logError("Error in direct area copy: " + e.getMessage());
+                DebugUtils.logInternalError("Error in direct area copy: " + e.getMessage());
                 return false;
             }
 
         } catch (Exception e) {
-            DebugUtils.logError("Unexpected error in direct copy: " + e.getMessage());
+            DebugUtils.logInternalError("Unexpected error in direct copy: " + e.getMessage());
             return false;
         }
     }

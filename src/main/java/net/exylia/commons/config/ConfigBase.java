@@ -67,7 +67,7 @@ public abstract class ConfigBase {
 
                 // Log de debug para componentes
                 if (isConfigComponent(field.getType())) {
-                    logInternalDebug(debug(), "Campo de componente recargado: " + field.getName() + " = " + value);
+                    logInternalDebug("Campo de componente recargado: " + field.getName() + " = " + value);
                 }
             }
         }
@@ -308,10 +308,10 @@ public abstract class ConfigBase {
     private BossBarConfig createBossBarConfig(String basePath) {
         ConfigurationSection section = config.getConfigurationSection(basePath);
         if (section != null) {
-            logInternalDebug(debug(), "Creando BossBarConfig desde sección: " + basePath);
+            logInternalDebug("Creando BossBarConfig desde sección: " + basePath);
             return new BossBarConfig(basePath, config);
         } else {
-            logInternalDebug(debug(), "Creando BossBarConfig por defecto para: " + basePath);
+            logInternalDebug("Creando BossBarConfig por defecto para: " + basePath);
             return new BossBarConfig();
         }
     }
@@ -319,10 +319,10 @@ public abstract class ConfigBase {
     private TitleConfig createTitleConfig(String basePath) {
         ConfigurationSection section = config.getConfigurationSection(basePath);
         if (section != null) {
-            logInternalDebug(debug(), "Creando TitleConfig desde sección: " + basePath);
+            logInternalDebug("Creando TitleConfig desde sección: " + basePath);
             return new TitleConfig(basePath, config);
         } else {
-            logInternalDebug(debug(), "Creando TitleConfig por defecto para: " + basePath);
+            logInternalDebug("Creando TitleConfig por defecto para: " + basePath);
             return new TitleConfig();
         }
     }
@@ -330,10 +330,10 @@ public abstract class ConfigBase {
     private ActionBarConfig createActionBarConfig(String basePath) {
         ConfigurationSection section = config.getConfigurationSection(basePath);
         if (section != null) {
-            logInternalDebug(debug(), "Creando ActionBarConfig desde sección: " + basePath);
+            logInternalDebug("Creando ActionBarConfig desde sección: " + basePath);
             return new ActionBarConfig(basePath, config);
         } else {
-            logInternalDebug(debug(), "Creando ActionBarConfig por defecto para: " + basePath);
+            logInternalDebug("Creando ActionBarConfig por defecto para: " + basePath);
             return new ActionBarConfig();
         }
     }
@@ -341,10 +341,10 @@ public abstract class ConfigBase {
     private ScoreboardConfig createScoreboardConfig(String basePath) {
         ConfigurationSection section = config.getConfigurationSection(basePath);
         if (section != null) {
-            logInternalDebug(debug(), "Creando ScoreboardConfig desde sección: " + basePath);
+            logInternalDebug("Creando ScoreboardConfig desde sección: " + basePath);
             return new ScoreboardConfig(basePath, config);
         } else {
-            logInternalDebug(debug(), "Creando ScoreboardConfig por defecto para: " + basePath);
+            logInternalDebug("Creando ScoreboardConfig por defecto para: " + basePath);
             return new ScoreboardConfig();
         }
     }
@@ -380,7 +380,7 @@ public abstract class ConfigBase {
                 data.lastModified = configFile.lastModified();
             }
 
-            logInternalDebug(debug(), "Configuración guardada: " + fileName);
+            logInternalDebug("Configuración guardada: " + fileName);
         } catch (Exception e) {
             logInternalError("Error guardando configuración " + fileName + ": " + e.getMessage());
             throw new RuntimeException("Error guardando configuración", e);
@@ -409,7 +409,7 @@ public abstract class ConfigBase {
                     field.setAccessible(true);
                     Object value = getValueForField(field, annotation);
                     field.set(this, value);
-                    logInternalDebug(debug(), "Campo recargado: " + fieldName + " = " + value);
+                    logInternalDebug("Campo recargado: " + fieldName + " = " + value);
                 }
             }
         } catch (Exception e) {
@@ -422,9 +422,9 @@ public abstract class ConfigBase {
      */
     protected void reloadAllFields() {
         try {
-            logInternalDebug(debug(), "Recargando todos los campos de configuración para: " + fileName);
+            logInternalDebug("Recargando todos los campos de configuración para: " + fileName);
             loadAnnotatedFields();
-            logInternalDebug(debug(), "Todos los campos recargados correctamente para: " + fileName);
+            logInternalDebug("Todos los campos recargados correctamente para: " + fileName);
         } catch (Exception e) {
             logInternalError("Error recargando todos los campos para " + fileName + ": " + e.getMessage());
         }
@@ -463,10 +463,10 @@ public abstract class ConfigBase {
 
     public final void onReload() {
         // CORREGIDO: Asegurar que se recargan todos los campos incluyendo componentes
-        logInternalDebug(debug(), "Ejecutando onReload para: " + fileName);
+        logInternalDebug("Ejecutando onReload para: " + fileName);
         loadAnnotatedFields(); // Esto recarga TODOS los campos, incluyendo componentes
         onCustomReload();
-        logInternalDebug(debug(), "onReload completado para: " + fileName);
+        logInternalDebug("onReload completado para: " + fileName);
     }
 
     // Métodos que pueden ser sobrescritos por las clases hijas

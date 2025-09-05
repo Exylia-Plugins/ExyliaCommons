@@ -116,7 +116,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             // If has _id field and is ObjectId, set it back in the entity
             setIdFromDocument(entity, document);
 
-            logInternalDebug(debug(), "Entity saved successfully to MongoDB collection: " + collectionName);
+            logInternalDebug("Entity saved successfully to MongoDB collection: " + collectionName);
 
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
@@ -295,7 +295,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
             try {
                 collection.replaceOne(filter, document, new ReplaceOptions().upsert(false));
-                logInternalDebug(debug(), "Entity updated successfully in MongoDB collection: " + collectionName);
+                logInternalDebug("Entity updated successfully in MongoDB collection: " + collectionName);
             } catch (Exception e) {
                 throw new DatabaseException("Update", entityClassName, "MongoDB",
                         "MongoDB update operation failed for ID: " + id, e);
@@ -332,7 +332,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
             try {
                 collection.deleteOne(filter);
-                logInternalDebug(debug(), "Entity deleted successfully from MongoDB collection: " + collectionName);
+                logInternalDebug("Entity deleted successfully from MongoDB collection: " + collectionName);
             } catch (Exception e) {
                 throw new DatabaseException("Delete", entityClassName, "MongoDB",
                         "MongoDB delete operation failed for ID: " + id, e);
@@ -1311,6 +1311,48 @@ public class MongoDBAdapter implements DatabaseAdapter {
             } else {
                 DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "MongoDB",
                         "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public void dropTable(Class<?> entityClass) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+
+            try {
+                // Check if collection exists before dropping
+                boolean exists = false;
+                for (String name : database.listCollectionNames()) {
+                    if (name.equals(collectionName)) {
+                        exists = true;
+                        break;
+                    }
+                }
+
+                if (exists) {
+                    MongoCollection<Document> collection = database.getCollection(collectionName);
+                    collection.drop();
+                    logInternalInfo("MongoDB collection dropped successfully: " + collectionName);
+                } else {
+                    logInternalInfo("MongoDB collection does not exist, nothing to drop: " + collectionName);
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("DropTable", entityClassName, "MongoDB",
+                        "Failed to drop MongoDB collection: " + collectionName, e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("DropTable", entityClassName, "MongoDB",
+                        "Unexpected error during collection drop", e);
                 errorHandler.handleError(dbException);
                 throw dbException;
             }

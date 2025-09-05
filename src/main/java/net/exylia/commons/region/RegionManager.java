@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
+import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
  * Manager principal para el sistema de regiones - OPTIMIZADO con spatial index
@@ -97,7 +98,7 @@ public class RegionManager {
             positionTracker.start(); // NUEVO: Iniciar detección de movimiento lento
         }
 
-        logInternalDebug(debug(), "RegionManager inicializado con detección inmediata optimizada");
+        logInternalDebug("RegionManager inicializado con detección inmediata optimizada");
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -139,7 +140,7 @@ public class RegionManager {
         // OPTIMIZACIÓN: Registrar en spatial index
         spatialIndex.addRegion(region);
 
-        logInternalDebug(debug(), "Región registrada con spatial index: " + region.getInfo());
+        logInternalDebug("Región registrada con spatial index: " + region.getInfo());
 
         return true;
     }
@@ -173,7 +174,7 @@ public class RegionManager {
             handlePlayerExit(player, region);
         }
 
-        logInternalDebug(debug(), "Región eliminada del spatial index: " + region.getInfo());
+        logInternalDebug("Región eliminada del spatial index: " + region.getInfo());
 
         return true;
     }
@@ -193,7 +194,7 @@ public class RegionManager {
         }
 
         regions.clear();
-        logInternalDebug(debug(), "Todas las regiones han sido eliminadas y spatial index limpiado");
+        logInternalDebug("Todas las regiones han sido eliminadas y spatial index limpiado");
     }
 
     // ===== BÚSQUEDA DE REGIONES OPTIMIZADA =====
@@ -333,7 +334,7 @@ public class RegionManager {
         // Verificar primero si el movimiento está permitido por las flags
         boolean movementAllowed = flagManager.canPlayerPerformActionAt(player, to, RegionFlag.ENTRY);
         if (!movementAllowed) {
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Movement blocked by flags for player %s to location %s",
                     player.getName(), to));
             return false;
@@ -346,7 +347,7 @@ public class RegionManager {
         Set<Region> enterRegions = result.getEnterRegions();
         for (Region region : enterRegions) {
             if (!canPlayerEnterRegion(player, region, from, to)) {
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Entry blocked for player %s to region %s",
                         player.getName(), region.getId()));
                 return false;
@@ -357,7 +358,7 @@ public class RegionManager {
         Set<Region> exitRegions = result.getExitRegions();
         for (Region region : exitRegions) {
             if (!canPlayerExitRegion(player, region, from, to)) {
-                logInternalDebug(debug(), String.format(
+                logInternalDebug(String.format(
                         "Exit blocked for player %s from region %s",
                         player.getName(), region.getId()));
                 return false;
@@ -365,7 +366,7 @@ public class RegionManager {
         }
 
         if (!exitRegions.isEmpty() || !enterRegions.isEmpty()) {
-            logInternalDebug(debug(), String.format(
+            logInternalDebug(String.format(
                     "Player %s movement: entering %d regions, exiting %d regions",
                     player.getName(), enterRegions.size(), exitRegions.size()));
         }
@@ -455,7 +456,7 @@ public class RegionManager {
      * Maneja la entrada de un jugador a una región
      */
     private void handlePlayerEnter(Player player, Region region) {
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "Processing ENTER for player %s to region %s",
                 player.getName(), region.getId()));
 
@@ -476,7 +477,7 @@ public class RegionManager {
             try {
                 region.getOnEnter().execute(player, region);
             } catch (Exception e) {
-                plugin.getLogger().warning("Error executing onEnter callback: " + e.getMessage());
+                logInternalWarn("Error executing onEnter callback: " + e.getMessage());
             }
         }
     }
@@ -485,7 +486,7 @@ public class RegionManager {
      * Maneja la salida de un jugador de una región
      */
     private void handlePlayerExit(Player player, Region region) {
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "Processing EXIT for player %s from region %s",
                 player.getName(), region.getId()));
 
@@ -503,7 +504,7 @@ public class RegionManager {
         RegionExitEvent exitEvent = new RegionExitEvent(player, region);
         Bukkit.getPluginManager().callEvent(exitEvent);
 
-        logInternalDebug(debug(), String.format(
+        logInternalDebug(String.format(
                 "EXIT event fired for player %s from region %s with flags removed",
                 player.getName(), region.getId()));
 
@@ -512,7 +513,7 @@ public class RegionManager {
             try {
                 region.getOnExit().execute(player, region);
             } catch (Exception e) {
-                plugin.getLogger().warning("Error executing onExit callback: " + e.getMessage());
+                logInternalWarn("Error executing onExit callback: " + e.getMessage());
             }
         }
     }
@@ -634,10 +635,10 @@ public class RegionManager {
 
         if (enabled) {
             positionTracker.start();
-            logInternalDebug(debug(), "Slow movement detection ENABLED");
+            logInternalDebug("Slow movement detection ENABLED");
         } else {
             positionTracker.stop();
-            logInternalDebug(debug(), "Slow movement detection DISABLED");
+            logInternalDebug("Slow movement detection DISABLED");
         }
     }
 
@@ -777,7 +778,7 @@ public class RegionManager {
                 }
             }
 
-            logInternalDebug(debug(), "Limpiados " + cleared + " bloques temporales activos");
+            logInternalDebug("Limpiados " + cleared + " bloques temporales activos");
             return cleared;
         });
     }
@@ -802,7 +803,7 @@ public class RegionManager {
         playerRegions.clear();
         RegionCloner.getInstance().cleanup();
 
-        logInternalDebug(debug(), "RegionManager optimizado limpiado completamente");
+        logInternalDebug("RegionManager optimizado limpiado completamente");
     }
 
 // ===== CLASE AUXILIAR =====

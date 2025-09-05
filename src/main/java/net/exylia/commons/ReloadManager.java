@@ -169,7 +169,7 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalDebug(debug(), "Starting database reload...");
+                logInternalDebug("Starting database reload...");
 
                 long dbStart = System.currentTimeMillis();
                 boolean success = false;
@@ -227,11 +227,11 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalDebug(debug(), "Iniciando reload de Redis...");
+                logInternalDebug("Iniciando reload de Redis...");
 
                 // Verificar si Redis está disponible en el classpath
                 if (!isRedisAvailable()) {
-                    logInternalDebug(debug(), "Redis no está disponible en el classpath, omitiendo reload de Redis");
+                    logInternalDebug("Redis no está disponible en el classpath, omitiendo reload de Redis");
                     return new ReloadResult(true, System.currentTimeMillis() - startTime,
                             componentTimes, null);
                 }
@@ -316,7 +316,7 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalDebug(debug(), "Iniciando reload personalizado del plugin...");
+                logInternalDebug("Iniciando reload personalizado del plugin...");
 
                 long pluginStart = System.currentTimeMillis();
                 CompletableFuture<Boolean> pluginFuture = CompletableFuture.supplyAsync(() -> {

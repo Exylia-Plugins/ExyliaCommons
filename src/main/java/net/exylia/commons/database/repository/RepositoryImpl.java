@@ -6,9 +6,7 @@ import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 import net.exylia.commons.database.exceptions.RepositoryException;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
@@ -307,14 +305,7 @@ public class RepositoryImpl<T> implements Repository<T> {
     @Override
     public void saveOrUpdate(T entity) {
         try {
-            String primaryKey = getPrimaryKeyField(entity.getClass());
-            Object primaryKeyValue = getPrimaryKeyValue(entity, primaryKey);
-
-            if (primaryKeyValue != null && exists(primaryKeyValue)) {
-                update(entity);
-            } else {
-                save(entity);
-            }
+            adapter.saveOrUpdateAll(Collections.singletonList(entity));
         } catch (Exception e) {
             RepositoryException repoException = new RepositoryException("saveOrUpdate", entityClass.getSimpleName(),
                     "Failed to perform saveOrUpdate operation", e);
@@ -322,6 +313,7 @@ public class RepositoryImpl<T> implements Repository<T> {
             throw repoException;
         }
     }
+
 
     @Override
     public void saveOrUpdateAll(List<T> entities) {
@@ -642,6 +634,31 @@ public class RepositoryImpl<T> implements Repository<T> {
             } catch (Exception e) {
                 throw new RepositoryException("getLeaderboardRangeAsync", entityClass.getSimpleName(),
                         String.format("Failed in async getLeaderboardRange from rank %d to %d for field '%s' with order %s", startRank, endRank, field, order), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public void drop() {
+        try {
+            adapter.dropTable(entityClass);
+            adapter.createTable(entityClass);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("drop", entityClass.getSimpleName(),
+                    "Failed to drop and recreate table/collection", e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> dropAsync() {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                drop();
+            } catch (Exception e) {
+                throw new RepositoryException("dropAsync", entityClass.getSimpleName(),
+                        "Failed in async drop operation", e);
             }
         }, executor);
     }
