@@ -219,7 +219,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             }
 
             saveEntityConfig(entities.get(0).getClass());
-            logInternalInfo("saveOrUpdateAll completed: " + successCount + " of " + entities.size() + " entities processed");
+            logInternalDebug("saveOrUpdateAll completed: " + successCount + " of " + entities.size() + " entities processed");
 
             if (failureCount > 0) {
                 errorHandler.logWarning("SaveOrUpdateAll", entityClassName,

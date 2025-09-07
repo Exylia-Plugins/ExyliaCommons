@@ -176,7 +176,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             if (!operations.isEmpty()) {
                 try {
                     BulkWriteResult result = collection.bulkWrite(operations);
-                    logInternalInfo("saveOrUpdateAll completed: " +
+                    logInternalDebug("saveOrUpdateAll completed: " +
                             result.getInsertedCount() + " inserted, " +
                             result.getModifiedCount() + " updated, " +
                             result.getUpserts().size() + " upserts");

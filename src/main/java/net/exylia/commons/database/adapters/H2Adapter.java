@@ -20,6 +20,7 @@ import java.sql.*;
 import java.util.*;
 import java.util.Date;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 public class H2Adapter implements DatabaseAdapter {
@@ -230,7 +231,7 @@ public class H2Adapter implements DatabaseAdapter {
                     if (result >= 0) processed++; // MERGE can return different values
                 }
 
-                logInternalInfo("saveOrUpdateAll completed for " + processed + " of " + entities.size() + " entities");
+                logInternalDebug("saveOrUpdateAll completed for " + processed + " of " + entities.size() + " entities");
 
                 if (failureCount > 0) {
                     errorHandler.logWarning("SaveOrUpdateAll", entityClassName,

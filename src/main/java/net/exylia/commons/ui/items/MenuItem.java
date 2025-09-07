@@ -443,6 +443,7 @@ public class MenuItem {
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
+            preloadPlayerSkulls(playerName);
             return createPlayerSkull(playerName);
         }
 
