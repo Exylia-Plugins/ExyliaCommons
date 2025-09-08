@@ -15,6 +15,7 @@ import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
@@ -26,6 +27,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -56,7 +58,7 @@ public class InteractiveItem {
 
     private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
-    private final ItemStack itemStack;
+    private ItemStack itemStack;
 
     private String configId;
     private ItemConfiguration config;
@@ -70,6 +72,11 @@ public class InteractiveItem {
     @Setter
     @Accessors(fluent = true)
     private ExyliaContext context = ExyliaContext.create();
+
+    // Player skull async loading
+    private boolean awaitingPlayerSkull = false;
+    private String pendingPlayerName;
+    private boolean dynamicSkullUpdate = false;
 
     public InteractiveItem(String configId, ItemConfiguration config) {
         this.configId = configId;
@@ -339,49 +346,6 @@ public class InteractiveItem {
         return false;
     }
 
-    public void updatePlaceholders(Player player, EquipmentSlot hand) {
-        if (!usesPlaceholders()) return;
-
-        ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
-        if (freshConfig != null) {
-            this.config = freshConfig;
-        }
-
-        Player targetPlayer = placeholderPlayer != null ? placeholderPlayer : player;
-        ItemMeta meta = itemStack.getItemMeta();
-        if (meta == null) return;
-
-        ExyliaContext fullContext = context.copy().add(this);
-
-        String rawName = getRawName();
-        if (rawName != null) {
-            String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
-            processedName = ItemPlaceholderUtils.processAllItemPlaceholders(processedName, this, targetPlayer);
-            adapter.setDisplayName(meta, ColorUtils.parse(processedName));
-        }
-
-        List<String> rawLore = getRawLore();
-        if (!rawLore.isEmpty()) {
-            List<Component> loreComponents = new ArrayList<>();
-            for (String line : rawLore) {
-                String processedLine = fullContext.processPlaceholders(line, targetPlayer);
-                processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, targetPlayer);
-                loreComponents.add(ColorUtils.parse(processedLine));
-            }
-            adapter.setLore(meta, loreComponents);
-        }
-
-        itemStack.setItemMeta(meta);
-
-        if (hand != null) {
-            PlayerInventory inventory = player.getInventory();
-            if (hand == EquipmentSlot.HAND) {
-                inventory.setItemInMainHand(itemStack);
-            } else if (hand == EquipmentSlot.OFF_HAND) {
-                inventory.setItemInOffHand(itemStack);
-            }
-        }
-    }
 
     public boolean hasAction() {
         String action = getAction();
@@ -525,7 +489,22 @@ public class InteractiveItem {
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            return createPlayerSkull(playerName);
+            DebugUtils.logInternalDebug("Creating player skull for: " + playerName);
+            ItemStack cachedSkull = createPlayerSkull(playerName);
+            if (isRealPlayerSkull(cachedSkull, playerName)) {
+                DebugUtils.logInternalDebug("Real player skull found for: " + playerName);
+                this.awaitingPlayerSkull = false;
+                this.pendingPlayerName = null;
+                this.dynamicSkullUpdate = false;
+                return cachedSkull;
+            }
+            DebugUtils.logInternalDebug("No real player skull found for: " + playerName + ", starting async loading");
+            this.awaitingPlayerSkull = true;
+            this.pendingPlayerName = playerName;
+            this.dynamicSkullUpdate = true;
+            
+            loadPlayerSkullAsync(playerName);
+            return cachedSkull;
         }
 
         try {
@@ -962,12 +941,119 @@ public class InteractiveItem {
                 .replace("%is_expired%", String.valueOf(isExpired));
     }
 
+    private boolean isRealPlayerSkull(ItemStack skull, String expectedPlayerName) {
+        if (skull.getType() != Material.PLAYER_HEAD) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: Not a player head");
+            return false;
+        }
+        
+        SkullMeta meta = (SkullMeta) skull.getItemMeta();
+        if (meta == null) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: No skull meta");
+            return false;
+        }
+        
+        try {
+            return isPlayerSkullCached(expectedPlayerName);
+        } catch (Exception e) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: Exception - " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isPlayerSkullCached(String playerName) {
+        try {
+            return SkullManager.getInstance().isPlayerCached(playerName);
+        } catch (Exception e) {
+            DebugUtils.logInternalDebug("isPlayerSkullCached: Exception - " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void loadPlayerSkullAsync(String playerName) {
+        acceptAsyncPlayerSkull(playerName, skull -> {
+            updateSkullIfNeeded();
+        });
+    }
+
+    private void updateSkullIfNeeded() {
+        if (pendingPlayerName == null || !awaitingPlayerSkull) return;
+        
+        ItemStack updatedSkull = createPlayerSkull(pendingPlayerName);
+        if (isRealPlayerSkull(updatedSkull, pendingPlayerName)) {
+            DebugUtils.logInternalDebug("updateSkullIfNeeded: Player skull now available for " + pendingPlayerName);
+            this.itemStack = updatedSkull;
+            this.awaitingPlayerSkull = false;
+            this.pendingPlayerName = null;
+            // Keep dynamicSkullUpdate true if other dynamic features are needed
+            if (!usesPlaceholders()) {
+                this.dynamicSkullUpdate = false;
+            }
+        }
+    }
+
+    public void updatePlaceholders(Player player, EquipmentSlot hand) {
+        // Check for pending player skull updates first
+        if (awaitingPlayerSkull && pendingPlayerName != null) {
+            updateSkullIfNeeded();
+        }
+        
+        if (!usesPlaceholders()) return;
+
+        ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
+        if (freshConfig != null) {
+            this.config = freshConfig;
+        }
+
+        Player targetPlayer = placeholderPlayer != null ? placeholderPlayer : player;
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        ExyliaContext fullContext = context.copy().add(this);
+
+        String rawName = getRawName();
+        if (rawName != null) {
+            String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
+            processedName = ItemPlaceholderUtils.processAllItemPlaceholders(processedName, this, targetPlayer);
+            adapter.setDisplayName(meta, ColorUtils.parse(processedName));
+        }
+
+        List<String> rawLore = getRawLore();
+        if (!rawLore.isEmpty()) {
+            List<Component> loreComponents = new ArrayList<>();
+            for (String line : rawLore) {
+                String processedLine = fullContext.processPlaceholders(line, targetPlayer);
+                processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, targetPlayer);
+                loreComponents.add(ColorUtils.parse(processedLine));
+            }
+            adapter.setLore(meta, loreComponents);
+        }
+
+        itemStack.setItemMeta(meta);
+
+        if (hand != null) {
+            PlayerInventory inventory = player.getInventory();
+            if (hand == EquipmentSlot.HAND) {
+                inventory.setItemInMainHand(itemStack);
+            } else if (hand == EquipmentSlot.OFF_HAND) {
+                inventory.setItemInOffHand(itemStack);
+            }
+        }
+    }
+
+    public boolean needsDynamicUpdate() {
+        return dynamicSkullUpdate || awaitingPlayerSkull || usesPlaceholders();
+    }
+
     @Override
     public InteractiveItem clone() {
         InteractiveItem clone = new InteractiveItem(this.itemStack.clone(), this.configId, this.config);
         clone.clickHandler = this.clickHandler;
         clone.placeholderPlayer = this.placeholderPlayer;
         clone.context = this.context.copy();
+        clone.awaitingPlayerSkull = this.awaitingPlayerSkull;
+        clone.pendingPlayerName = this.pendingPlayerName;
+        clone.dynamicSkullUpdate = this.dynamicSkullUpdate;
         return clone;
     }
 }

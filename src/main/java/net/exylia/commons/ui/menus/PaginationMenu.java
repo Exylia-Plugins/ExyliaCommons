@@ -15,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.ui.commons.SlotUtils.parseSlots;
-import static net.exylia.commons.utils.skull.SkullUtils.*;
 
 /**
  * Pagination menu implementation
@@ -116,9 +115,6 @@ public class PaginationMenu extends Menu {
      */
     public PaginationMenu addItems(Collection<MenuItem> items) {
         paginationItems.addAll(items);
-        
-        // Preload player skulls for new items - this is done with raw names since viewer might not be available yet
-        
         return this;
     }
 
@@ -130,41 +126,7 @@ public class PaginationMenu extends Menu {
     public PaginationMenu setItems(Collection<MenuItem> items) {
         paginationItems.clear();
         paginationItems.addAll(items);
-        
-        // Preload all player skulls for better performance
-        preloadAllPlayerSkulls();
-        
         return this;
-    }
-    
-    /**
-     * Preloads all player skulls found in pagination items
-     */
-    private void preloadAllPlayerSkulls() {
-        if (viewer == null) return;
-        
-        List<String> playerNames = new ArrayList<>();
-        
-        for (MenuItem item : paginationItems) {
-            String material = item.getRawMaterial();
-            if (material != null && material.startsWith("playerhead-")) {
-                String rawPlayerName = material.substring(11);
-                if (!rawPlayerName.isEmpty()) {
-                    // Process placeholders in player name
-                    String processedPlayerName = rawPlayerName;
-                    if (context != null) {
-                        processedPlayerName = context.processPlaceholders(rawPlayerName, viewer);
-                    }
-                    if (!processedPlayerName.isEmpty() && !playerNames.contains(processedPlayerName)) {
-                        playerNames.add(processedPlayerName);
-                    }
-                }
-            }
-        }
-        
-        if (!playerNames.isEmpty()) {
-            preloadPlayerSkulls(playerNames.toArray(new String[0]));
-        }
     }
 
     /**
@@ -289,45 +251,7 @@ public class PaginationMenu extends Menu {
         int currentPage = getCurrentPage(player);
         if (currentPage < getTotalPages()) {
             setCurrentPage(player, currentPage + 1);
-            
-            // Preload skulls for next page before refreshing
-            preloadCurrentPageSkulls();
-            
             refreshForPlayer(player);
-        }
-    }
-    
-    /**
-     * Preloads skulls for the current page
-     */
-    private void preloadCurrentPageSkulls() {
-        if (viewer == null) return;
-        
-        int currentPage = getCurrentPage(viewer);
-        int startIndex = (currentPage - 1) * itemsPerPage;
-        int endIndex = Math.min(startIndex + itemsPerPage, paginationItems.size());
-        
-        List<String> playerNames = new ArrayList<>();
-        for (int i = startIndex; i < endIndex; i++) {
-            MenuItem item = paginationItems.get(i);
-            String material = item.getRawMaterial();
-            if (material != null && material.startsWith("playerhead-")) {
-                String rawPlayerName = material.substring(11);
-                if (!rawPlayerName.isEmpty()) {
-                    // Process placeholders in player name
-                    String processedPlayerName = rawPlayerName;
-                    if (context != null) {
-                        processedPlayerName = context.processPlaceholders(rawPlayerName, viewer);
-                    }
-                    if (!processedPlayerName.isEmpty()) {
-                        playerNames.add(processedPlayerName);
-                    }
-                }
-            }
-        }
-        
-        if (!playerNames.isEmpty()) {
-            preloadPlayerSkulls(playerNames.toArray(new String[0]));
         }
     }
 
@@ -339,10 +263,6 @@ public class PaginationMenu extends Menu {
         int currentPage = getCurrentPage(player);
         if (currentPage > 1) {
             setCurrentPage(player, currentPage - 1);
-            
-            // Preload skulls for previous page before refreshing
-            preloadCurrentPageSkulls();
-            
             refreshForPlayer(player);
         }
     }
@@ -408,57 +328,15 @@ public class PaginationMenu extends Menu {
             inventory.setItem(slot, null);
         }
 
-        // Preload player skulls for performance
-        List<String> playerNames = new ArrayList<>();
-        for (int i = startIndex; i < endIndex; i++) {
-            MenuItem item = paginationItems.get(i);
-            String material = item.getRawMaterial();
-            if (material != null && material.startsWith("playerhead-")) {
-                String rawPlayerName = material.substring(11);
-                if (!rawPlayerName.isEmpty()) {
-                    // Process placeholders in player name
-                    String processedPlayerName = rawPlayerName;
-                    if (context != null) {
-                        processedPlayerName = context.processPlaceholders(rawPlayerName, viewer);
-                    }
-                    if (!processedPlayerName.isEmpty()) {
-                        playerNames.add(processedPlayerName);
-                    }
-                }
-            }
-        }
-        
-        // Preload skulls asynchronously
-        if (!playerNames.isEmpty()) {
-            preloadPlayerSkulls(playerNames.toArray(new String[0]));
-        }
-
         // Add page items
         for (int i = startIndex; i < endIndex; i++) {
             int slotIndex = i - startIndex;
             if (slotIndex < itemSlots.length) {
                 MenuItem item = paginationItems.get(i).clone();
 
-                // Merge contexts properly
-                if (context != null && !context.isEmpty()) {
-                    // Create a child context from the menu context
-                    ExyliaContext combinedContext = context.createChild();
-                    
-                    // Merge with item's own context if it exists
-                    if (item.getContext() != null && !item.getContext().isEmpty()) {
-                        combinedContext.merge(item.getContext());
-                    }
-                    
-                    // Apply the combined context to the item
-                    item.withContext(combinedContext);
-                } else if (item.getContext() == null || item.getContext().isEmpty()) {
-                    // If no context exists, create a basic one with the player
-                    item.withContext(ExyliaContext.create().withPlayer(viewer));
-                }
-
                 int slot = itemSlots[slotIndex];
-                inventory.setItem(slot, item.buildProcessed(viewer));
-                items.put(slot, item);
+                inventory.setItem(slot, item.build());
+                items.put(slot, item); // Store for click handling
             }
         }
 
@@ -470,10 +348,11 @@ public class PaginationMenu extends Menu {
 
                 if (context != null) {
                     filler.withContext(context);
+                    filler.process(viewer);
                 }
 
                 int slot = itemSlots[i];
-                inventory.setItem(slot, filler.buildProcessed(viewer));
+                inventory.setItem(slot, filler.build());
                 items.put(slot, filler);
             }
         }
@@ -496,15 +375,12 @@ public class PaginationMenu extends Menu {
         if (currentPage > 1 && previousButton != null) {
             MenuItem prevBtn = previousButton.clone();
             prevBtn.setClickHandler(this::handlePreviousClick);
-            
-            // Apply context with page info
-            ExyliaContext navContext = context != null ? context.createChild() : ExyliaContext.create();
-            navContext.put("current_page", currentPage);
-            navContext.put("total_pages", totalPages);
-            navContext.withPlayer(viewer);
-            
-            prevBtn.withContext(navContext);
-            inventory.setItem(previousButtonSlot, prevBtn.buildProcessed(viewer));
+            if (context != null) {
+                prevBtn.withContext(context);
+                prevBtn.process(viewer);
+            }
+
+            inventory.setItem(previousButtonSlot, prevBtn.build());
             items.put(previousButtonSlot, prevBtn);
         } else {
             // Fill with global filler if no previous button is needed
@@ -515,15 +391,12 @@ public class PaginationMenu extends Menu {
         if (currentPage < totalPages && nextButton != null) {
             MenuItem nextBtn = nextButton.clone();
             nextBtn.setClickHandler(this::handleNextClick);
-            
-            // Apply context with page info
-            ExyliaContext navContext = context != null ? context.createChild() : ExyliaContext.create();
-            navContext.put("current_page", currentPage);
-            navContext.put("total_pages", totalPages);
-            navContext.withPlayer(viewer);
-            
-            nextBtn.withContext(navContext);
-            inventory.setItem(nextButtonSlot, nextBtn.buildProcessed(viewer));
+            if (context != null) {
+                nextBtn.withContext(context);
+                nextBtn.process(viewer);
+            }
+
+            inventory.setItem(nextButtonSlot, nextBtn.build());
             items.put(nextButtonSlot, nextBtn);
         } else {
             // Fill with global filler if no next button is needed
@@ -541,8 +414,9 @@ public class PaginationMenu extends Menu {
             MenuItem fillerClone = filler.clone();
             if (context != null) {
                 fillerClone.withContext(context);
+                fillerClone.process(viewer);
             }
-            inventory.setItem(slot, fillerClone.buildProcessed(viewer));
+            inventory.setItem(slot, fillerClone.build());
             items.put(slot, fillerClone);
         }
     }

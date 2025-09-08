@@ -5,8 +5,11 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -16,6 +19,7 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionData;
@@ -53,6 +57,10 @@ public class MenuItem {
     private Consumer<MenuClickEvent> clickHandler;
 
     private final Map<String, Integer> rawEnchantments = new HashMap<>();
+    
+    // Player skull async loading
+    private boolean awaitingPlayerSkull = false;
+    private String pendingPlayerName;
 
     // Nueva configuración de pociones
     private PotionConfig potionConfig;
@@ -268,6 +276,11 @@ public class MenuItem {
     }
 
     public void process(Player player) {
+        // Check for pending player skull updates first
+        if (awaitingPlayerSkull && pendingPlayerName != null) {
+            checkPlayerSkullUpdate();
+        }
+        
         if (rawMaterial != null) {
             String processedMaterial = context.processPlaceholders(rawMaterial, player);
             if (!processedMaterial.equals(rawMaterial)) {
@@ -443,10 +456,22 @@ public class MenuItem {
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            preloadPlayerSkulls(playerName);
-            return createPlayerSkull(playerName);
+            DebugUtils.logInternalDebug("Creating player skull for: " + playerName);
+            ItemStack cachedSkull = createPlayerSkull(playerName);
+            if (isRealPlayerSkull(cachedSkull, playerName)) {
+                DebugUtils.logInternalDebug("Real player skull found for: " + playerName);
+                this.awaitingPlayerSkull = false;
+                this.pendingPlayerName = null;
+                return cachedSkull;
+            }
+            DebugUtils.logInternalDebug("No real player skull found for: " + playerName + ", starting async loading");
+            this.awaitingPlayerSkull = true;
+            this.pendingPlayerName = playerName;
+            this.dynamicUpdate = true;
+            
+            loadPlayerSkullAsync(playerName);
+            return cachedSkull;
         }
-
         try {
             Material material = Material.valueOf(materialString.toUpperCase());
             return new ItemStack(material);
@@ -469,6 +494,58 @@ public class MenuItem {
         }
     }
 
+    private boolean isRealPlayerSkull(ItemStack skull, String expectedPlayerName) {
+        if (skull.getType() != Material.PLAYER_HEAD) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: Not a player head");
+            return false;
+        }
+        
+        SkullMeta meta = (SkullMeta) skull.getItemMeta();
+        if (meta == null) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: No skull meta");
+            return false;
+        }
+        
+        try {
+            return isPlayerSkullCached(expectedPlayerName);
+        } catch (Exception e) {
+            DebugUtils.logInternalDebug("isRealPlayerSkull: Exception - " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean isPlayerSkullCached(String playerName) {
+        try {
+            return SkullManager.getInstance().isPlayerCached(playerName);
+        } catch (Exception e) {
+            DebugUtils.logInternalDebug("isPlayerSkullCached: Exception - " + e.getMessage());
+            return false;
+        }
+    }
+    private void loadPlayerSkullAsync(String playerName) {
+        acceptAsyncPlayerSkull(playerName, skull -> {
+            refreshMenuIfDisplayed();
+        });
+    }
+
+    private void refreshMenuIfDisplayed() {
+        // todo
+    }
+    
+    private void checkPlayerSkullUpdate() {
+        if (pendingPlayerName == null) return;
+        ItemStack updatedSkull = createPlayerSkull(pendingPlayerName);
+        if (isRealPlayerSkull(updatedSkull, pendingPlayerName)) {
+            DebugUtils.logInternalDebug("checkPlayerSkullUpdate: Player skull now available for " + pendingPlayerName);
+            this.itemStack = updatedSkull;
+            this.awaitingPlayerSkull = false;
+            this.pendingPlayerName = null;
+            if (dynamicUpdate && !hasDynamicLore() && rawName == null && rawAmount == null) {
+                this.dynamicUpdate = false;
+            }
+        }
+    }
+
     public void handleClick(MenuClickEvent event) {
         if (clickHandler != null) {
             clickHandler.accept(event);
@@ -487,6 +564,8 @@ public class MenuItem {
         clone.loreDynamicSupplier = this.loreDynamicSupplier;
         clone.rawEnchantments.putAll(this.rawEnchantments);
         clone.potionConfig = this.potionConfig;
+        clone.awaitingPlayerSkull = this.awaitingPlayerSkull;
+        clone.pendingPlayerName = this.pendingPlayerName;
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -633,7 +712,7 @@ public class MenuItem {
     }
 
     public boolean needsDynamicUpdate() {
-        return dynamicUpdate;
+        return dynamicUpdate || awaitingPlayerSkull;
     }
 
     public List<String> getRawLore() {
