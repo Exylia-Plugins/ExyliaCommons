@@ -162,10 +162,10 @@ public class UnifiedRegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-            logInternalDebug(String.format(
-                    "Rotura de bloque denegada: %s intentó romper bloque en región %s - Razón: %s",
-                    player.getName(), region.getId(), result.getReason()
-            ));
+//            logInternalDebug(String.format(
+//                    "Rotura de bloque denegada: %s intentó romper bloque en región %s - Razón: %s",
+//                    player.getName(), region.getId(), result.getReason()
+//            ));
         } else {
             executePostBreakEffects(player, region, location);
         }
@@ -1004,19 +1004,17 @@ public class UnifiedRegionListener implements Listener {
     }
 
     private void logBlockPlacementInfo(Player player, Region region, Location location, Material material, String context) {
-        if (!debug()) return;
-
-        logInternalDebug(String.format(
-                "%s - Jugador: %s, Material: %s, Región: %s, Ubicación: (%d,%d,%d), Tracking: %s, Temporal: %s",
-                context,
-                player.getName(),
-                material.name(),
-                region.getId(),
-                location.getBlockX(),
-                location.getBlockY(),
-                location.getBlockZ(),
-                region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS) ? "SÍ" : "NO",
-                region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS) ? "SÍ" : "NO"
-        ));
+//        logInternalDebug(String.format(
+//                "%s - Jugador: %s, Material: %s, Región: %s, Ubicación: (%d,%d,%d), Tracking: %s, Temporal: %s",
+//                context,
+//                player.getName(),
+//                material.name(),
+//                region.getId(),
+//                location.getBlockX(),
+//                location.getBlockY(),
+//                location.getBlockZ(),
+//                region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS) ? "SÍ" : "NO",
+//                region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS) ? "SÍ" : "NO"
+//        ));
     }
 }

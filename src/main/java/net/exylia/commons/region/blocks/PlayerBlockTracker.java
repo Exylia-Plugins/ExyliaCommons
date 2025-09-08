@@ -98,10 +98,10 @@ public class PlayerBlockTracker {
         // Auto-guardado si es necesario
         checkAutoSave();
 
-        logInternalDebug(String.format(
-                "Bloque registrado con cache inteligente: %s colocó %s en región %s en %s",
-                playerName, material.name(), regionKey, location
-        ));
+//        logInternalDebug(String.format(
+//                "Bloque registrado con cache inteligente: %s colocó %s en región %s en %s",
+//                playerName, material.name(), regionKey, location
+//        ));
     }
 
     /**
@@ -183,10 +183,10 @@ public class PlayerBlockTracker {
                 String cacheKey = getCacheKey(regionKey, location);
                 intelligentCache.put(cacheKey, new CacheEntry(false, System.currentTimeMillis(), true));
 
-                logInternalDebug(String.format(
-                        "Bloque removido y cache actualizado: %s en región %s",
-                        location, regionKey
-                ));
+//                logInternalDebug(String.format(
+//                        "Bloque removido y cache actualizado: %s en región %s",
+//                        location, regionKey
+//                ));
             }
         }
     }

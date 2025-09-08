@@ -57,4 +57,8 @@ public class SkullUtils {
     public static void clearTextureCache() {
         SkullManager.getInstance().clearTextureCache();
     }
+
+    public static java.util.concurrent.CompletableFuture<java.util.List<org.bukkit.inventory.ItemStack>> createPlayerSkullsBatch(String... playerNames) {
+        return SkullManager.getInstance().createPlayerSkullsBatch(playerNames);
+    }
 }

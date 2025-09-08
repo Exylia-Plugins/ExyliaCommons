@@ -22,9 +22,7 @@ import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.time.Duration;
-import java.util.Base64;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -56,6 +54,11 @@ public class SkullManager {
     private static final long PLAYER_CACHE_DURATION = TimeUnit.HOURS.toMillis(6);
     private static final int MAX_PLAYER_CACHE_SIZE = 2000;
     private static final long BACKOFF_ON_429 = TimeUnit.MINUTES.toMillis(10);
+    private static final int MAX_CONCURRENT_REQUESTS = 3;
+    private static final long REQUEST_DELAY = 100L;
+    
+    private final Map<String, Long> lastRequestTime = new ConcurrentHashMap<>();
+    private final Object requestLock = new Object();
 
     private SkullManager() {}
 
@@ -175,31 +178,69 @@ public class SkullManager {
         if (playerName == null || playerName.isEmpty()) {
             return CompletableFuture.completedFuture(new ItemStack(Material.PLAYER_HEAD));
         }
+        
         long now = System.currentTimeMillis();
         if (now < backoffUntil) {
             return CompletableFuture.completedFuture(createBasicPlayerSkull(playerName));
         }
+        
         String key = playerName.toLowerCase();
         CachedSkull cached = playerCache.get(key);
         if (cached != null && !cached.isExpired()) {
             return CompletableFuture.completedFuture(cached.getSkull().clone());
         }
+        
         CompletableFuture<ItemStack> pending = pendingRequests.get(key);
         if (pending != null && !pending.isDone()) {
             return pending;
         }
+        
+        // Rate limiting check
+        synchronized (requestLock) {
+            Long lastRequest = lastRequestTime.get(key);
+            if (lastRequest != null && (now - lastRequest) < REQUEST_DELAY) {
+                return CompletableFuture.completedFuture(createBasicPlayerSkull(playerName));
+            }
+            
+            // Limit concurrent requests
+            if (pendingRequests.size() >= MAX_CONCURRENT_REQUESTS) {
+                return CompletableFuture.completedFuture(createBasicPlayerSkull(playerName));
+            }
+            
+            lastRequestTime.put(key, now);
+        }
+        
         if (skullAPI == null) {
-            CompletableFuture<ItemStack> f = CompletableFuture.supplyAsync(() -> createPlayerSkullInternal(playerName));
+            CompletableFuture<ItemStack> f = CompletableFuture.supplyAsync(() -> {
+                try {
+                    Thread.sleep(REQUEST_DELAY);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return createPlayerSkullInternal(playerName);
+            });
             pendingRequests.put(key, f);
             f.whenComplete((r, t) -> pendingRequests.remove(key));
             return f;
         }
-        CompletableFuture<ItemStack> future = skullAPI.getSkull(playerName)
+        
+        CompletableFuture<ItemStack> future = CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(REQUEST_DELAY);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return null;
+        }).thenCompose(ignored -> 
+            skullAPI.getSkull(playerName)
                 .handle((result, throwable) -> {
                     if (throwable != null) {
                         String msg = String.valueOf(throwable);
                         if (msg.contains("Status: 429") || msg.contains("Too Many Requests")) {
-                            backoffUntil = System.currentTimeMillis() + BACKOFF_ON_429;
+                            synchronized (requestLock) {
+                                backoffUntil = System.currentTimeMillis() + BACKOFF_ON_429;
+                                DebugUtils.logInternalWarn("Rate limited by Mojang API, backing off for " + (BACKOFF_ON_429 / 1000) + " seconds");
+                            }
                         }
                         return createBasicPlayerSkull(playerName);
                     }
@@ -210,7 +251,9 @@ public class SkullManager {
                                 .forEach(e -> playerCache.remove(e.getKey()));
                     }
                     return result;
-                });
+                })
+        );
+        
         pendingRequests.put(key, future);
         future.whenComplete((r, t) -> pendingRequests.remove(key));
         return future;
@@ -227,9 +270,18 @@ public class SkullManager {
         if (playerNames == null) return;
         long now = System.currentTimeMillis();
         if (now < backoffUntil) return;
-        for (String name : playerNames) {
+        
+        for (int i = 0; i < playerNames.length; i++) {
+            String name = playerNames[i];
             if (name != null && !name.isEmpty()) {
-                createPlayerSkullAsync(name);
+                int delay = i * 50;
+                if (plugin != null) {
+                    Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+                        createPlayerSkullAsync(name);
+                    }, delay / 50L);
+                } else {
+                    createPlayerSkullAsync(name);
+                }
             }
         }
     }
@@ -343,11 +395,13 @@ public class SkullManager {
     public void clearCache() {
         textureCache.clear();
         pendingRequests.clear();
+        lastRequestTime.clear();
     }
 
     public void clearPlayerCache() {
         pendingRequests.clear();
         playerCache.clear();
+        lastRequestTime.clear();
     }
 
     public void clearTextureCache() {
@@ -355,9 +409,10 @@ public class SkullManager {
     }
 
     public String getCacheStats() {
+        long backoffRemaining = Math.max(0, backoffUntil - System.currentTimeMillis());
         return String.format(
-                "Cache Stats: Textures=%d, Players=%d, Pending=%d (Player cache: local + LiteSkullAPI)",
-                textureCache.size(), playerCache.size(), pendingRequests.size()
+                "Cache Stats: Textures=%d, Players=%d, Pending=%d, Backoff=%dms (Player cache: local + LiteSkullAPI)",
+                textureCache.size(), playerCache.size(), pendingRequests.size(), backoffRemaining
         );
     }
 
@@ -379,6 +434,37 @@ public class SkullManager {
             }
         } catch (Exception ignored) {}
         return false;
+    }
+
+    public CompletableFuture<List<ItemStack>> createPlayerSkullsBatch(String... playerNames) {
+        if (playerNames == null || playerNames.length == 0) {
+            return CompletableFuture.completedFuture(new ArrayList<>());
+        }
+        
+        List<CompletableFuture<ItemStack>> futures = new ArrayList<>();
+        
+        for (int i = 0; i < playerNames.length; i++) {
+            String name = playerNames[i];
+            if (name != null && !name.isEmpty()) {
+                final int delay = i * 100;
+                
+                CompletableFuture<ItemStack> delayed = CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Thread.sleep(delay);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return null;
+                }).thenCompose(ignored -> createPlayerSkullAsync(name));
+                
+                futures.add(delayed);
+            }
+        }
+        
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .thenApply(v -> futures.stream()
+                        .map(CompletableFuture::join)
+                        .collect(java.util.stream.Collectors.toList()));
     }
 
     public static class CachedSkull {

@@ -284,7 +284,7 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug("Player " + player.getName() + " passed click validation");
+//        DebugUtils.logInternalDebug("Player " + player.getName() + " passed click validation");
 
         if (triggerType == TriggerType.AFTER_CONSUME) {
             DebugUtils.logInternalDebug("Processing AFTER_CONSUME trigger for item: " + interactiveItem.getId());
@@ -302,14 +302,14 @@ public class ItemManager implements Listener {
         }
 
         if (interactiveItem.shouldCancelEvent()) {
-            DebugUtils.logInternalDebug("Cancelling PlayerInteract event for item: " + interactiveItem.getId());
+//            DebugUtils.logInternalDebug("Cancelling PlayerInteract event for item: " + interactiveItem.getId());
             event.setCancelled(true);
         }
 
-        DebugUtils.logInternalDebug("Creating click info and processing interaction for item: " + interactiveItem.getId());
+//        DebugUtils.logInternalDebug("Creating click info and processing interaction for item: " + interactiveItem.getId());
         ItemClickInfo clickInfo = createItemClickInfo(event, player, itemStack);
         interactionHandler.processItemInteractionWithHand(player, itemStack, interactiveItem, clickInfo, event.getHand());
-        DebugUtils.logInternalDebug("Completed PlayerInteract processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
+//        DebugUtils.logInternalDebug("Completed PlayerInteract processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -754,9 +754,6 @@ public class ItemManager implements Listener {
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
         ItemStack droppedItem = event.getItemDrop().getItemStack();
-
-        DebugUtils.logInternalDebug("PlayerDropItem event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug("Dropped item: " + droppedItem.getType() + " by player: " + player.getName());
 
         InteractiveItem interactiveItem = getItemFromStack(droppedItem);
         if (interactiveItem == null) {
