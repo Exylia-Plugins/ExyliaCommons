@@ -211,7 +211,7 @@ public class ExyliaScoreboardManager {
                 }
             } catch (Exception e) {
                 errors++;
-                logInternalWarn("Error actualizando scoreboard de " + instance.getPlayer().getName() + ": " + e.getMessage());
+                logInternalDebug("Error actualizando scoreboard de " + instance.getPlayer().getName() + ": " + e.getMessage());
             }
         }
 
