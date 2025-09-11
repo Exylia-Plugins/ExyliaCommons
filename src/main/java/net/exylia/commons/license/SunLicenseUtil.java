@@ -71,7 +71,7 @@ public class SunLicenseUtil {
                 writer.write("#\n");
                 writer.write("# =================================================\n");
                 writer.write("# license:\n");
-                writer.write("#   key: Your license key (format: XXXXX-XXXXX-XXXXX-XXXXX-XXXXX)\n");
+                writer.write("#   key: Your license key (format: XXXX-XXXX-XXXX-XXXX-XXXX)\n");
                 writer.write("# =================================================\n");
                 writer.write("\n");
                 writer.write("license:\n");

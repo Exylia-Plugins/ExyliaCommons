@@ -37,7 +37,6 @@ public class ColorUtils {
     private static final Map<String, String> colorPresets = new HashMap<>();
     private static final Pattern PRESET_PATTERN = Pattern.compile("\\{([a-zA-Z_][a-zA-Z0-9_]*)\\}");
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&#([0-9a-fA-F]{6})");
-    private static final Pattern HEX_DETECTION_PATTERN = Pattern.compile("&#[0-9a-fA-F]{6}");
     private static JavaPlugin pluginInstance;
     private static boolean presetsInitialized = false;
     
@@ -472,12 +471,6 @@ public class ColorUtils {
 
         return message;
     }
-
-    /**
-     * Quita todos los colores y formato de un Component y lo convierte a string plano
-     * @param component Componente con colores y formato
-     * @return String sin colores ni formato
-     */
     public static String stripColors(Component component) {
         if (component == null) {
             return "";
@@ -486,27 +479,12 @@ public class ColorUtils {
         // Serializar el componente a texto plano
         return PlainTextComponentSerializer.plainText().serialize(component);
     }
-
-    /**
-     * Obtiene un preset de color específico
-     * @param presetName Nombre del preset
-     * @return El código de color del preset, o null si no existe
-     */
     public static String getColorPreset(String presetName) {
         return colorPresets.get(presetName.toLowerCase());
     }
-
-    /**
-     * Obtiene todos los presets de colores disponibles
-     * @return Mapa con todos los presets de colores
-     */
     public static Map<String, String> getAllColorPresets() {
         return new HashMap<>(colorPresets);
     }
-
-    /**
-     * Recarga los presets de colores desde el archivo
-     */
     public static void reloadPresets() {
         if (presetsInitialized) {
             loadColorPresets();
@@ -514,20 +492,9 @@ public class ColorUtils {
             COMPONENT_CACHE.clear();
         }
     }
-
-    /**
-     * Verifica si los presets están inicializados
-     * @return true si los presets están inicializados
-     */
     public static boolean arePresetsInitialized() {
         return presetsInitialized;
     }
-
-    /**
-     * Añade un preset de color personalizado
-     * @param name Nombre del preset
-     * @param colorCode Código de color (ej: "<#ff0000>", "<red>", etc.)
-     */
     public static void addCustomColorPreset(String name, String colorCode) {
         if (name != null && colorCode != null) {
             colorPresets.put(name.toLowerCase(), colorCode);
@@ -537,10 +504,6 @@ public class ColorUtils {
         }
     }
 
-    /**
-     * Añade múltiples presets de color personalizados
-     * @param customPresets Map con los presets personalizados
-     */
     public static void addCustomColorPresets(Map<String, String> customPresets) {
         if (customPresets != null && !customPresets.isEmpty()) {
             for (Map.Entry<String, String> entry : customPresets.entrySet()) {
@@ -583,55 +546,43 @@ public class ColorUtils {
                 return message;
             }
 
-            // Pre-compilar pattern para detección de hex codes - más rápido que substring().matches()
             int len = message.length();
             StringBuilder result = new StringBuilder(len);
             boolean insideTag = false;
+            int tagDepth = 0;
             
             for (int i = 0; i < len; i++) {
                 char c = message.charAt(i);
                 
-                // Optimizar detección de tags - evitar indexOf si no es necesario
                 if (c == '<' && !insideTag) {
-                    // Buscar cierre de tag más eficientemente
-                    int closingIndex = -1;
-                    for (int j = i + 1; j < len && j < i + 20; j++) { // Limitar búsqueda a 20 chars
-                        if (message.charAt(j) == '>') {
-                            closingIndex = j;
-                            break;
-                        }
-                    }
+                    int closingIndex = findTagEnd(message, i);
                     if (closingIndex != -1) {
                         insideTag = true;
+                        tagDepth = 1;
+                    }
+                } else if (c == '<' && insideTag) {
+                    tagDepth++;
+                } else if (c == '>' && insideTag) {
+                    tagDepth--;
+                    if (tagDepth <= 0) {
+                        insideTag = false;
+                        tagDepth = 0;
                     }
                 }
                 
-                // Optimizar detección de códigos ampersand
                 if (c == '&' && i + 1 < len && !insideTag) {
                     char nextChar = message.charAt(i + 1);
-                    // Usar ranges más eficientes que contains()
                     if (isColorCode(nextChar)) {
-                        insideTag = true;
+                        result.append(c);
+                        i++;
+                        result.append(nextChar);
+                        continue;
                     }
                 }
                 
                 if (insideTag) {
                     result.append(c);
-                    
-                    // Detectar final de tags MiniMessage
-                    if (c == '>') {
-                        insideTag = false;
-                    }
-                    // Detectar final de códigos ampersand más eficientemente
-                    else if (i > 0 && message.charAt(i - 1) == '&' && isColorCode(c)) {
-                        insideTag = false;
-                    }
-                    // Detectar final de códigos hex usando pattern pre-compilado
-                    else if (c != '#' && i >= 7 && HEX_DETECTION_PATTERN.matcher(message).region(Math.max(0, i - 7), i + 1).matches()) {
-                        insideTag = false;
-                    }
                 } else {
-                    // Aplicar transformación de fuente solo fuera de tags
                     Character transformed = SMALL_FONT_MAP.get(forceUpperCase ? Character.toUpperCase(c) : c);
                     result.append(transformed != null ? transformed : c);
                 }
@@ -643,11 +594,22 @@ public class ColorUtils {
         }
     }
     
-    /**
-     * Verifica si un carácter es un código de color válido
-     * @param c el carácter a verificar
-     * @return true si es un código de color válido
-     */
+    private static int findTagEnd(String message, int startIndex) {
+        int depth = 0;
+        for (int i = startIndex; i < message.length(); i++) {
+            char c = message.charAt(i);
+            if (c == '<') {
+                depth++;
+            } else if (c == '>') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
     private static boolean isColorCode(char c) {
         return (c >= '0' && c <= '9') || 
                (c >= 'a' && c <= 'f') || 
