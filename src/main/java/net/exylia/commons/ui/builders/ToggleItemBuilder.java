@@ -70,6 +70,7 @@ public class ToggleItemBuilder extends ItemBuilder<ToggleItemBuilder> {
             }
 
             item.process(event.getPlayer());
+            event.updateItem(item);
         });
 
         return super.build();

@@ -71,6 +71,7 @@ public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
             }
 
             item.process(event.getPlayer());
+            event.updateItem(item);
         });
 
         return super.build();
