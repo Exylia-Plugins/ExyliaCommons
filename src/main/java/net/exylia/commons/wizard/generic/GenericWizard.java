@@ -30,6 +30,8 @@ public final class GenericWizard implements Listener {
     private static ExyliaPlugin plugin;
 
     private final Map<UUID, GenericWizardSession> activeSessions = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastInteractionTime = new ConcurrentHashMap<>();
+    private static final long INTERACTION_COOLDOWN_MS = 50;
 
     private GenericWizard() {}
 
@@ -128,8 +130,10 @@ public final class GenericWizard implements Listener {
             return false;
         }
 
-        GenericWizardSession session = instance.activeSessions.remove(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        GenericWizardSession session = instance.activeSessions.remove(playerId);
         if (session != null) {
+            instance.lastInteractionTime.remove(playerId);
             session.cancel();
             clearDisplay(player);
             return true;
@@ -145,8 +149,10 @@ public final class GenericWizard implements Listener {
             return false;
         }
 
-        GenericWizardSession session = instance.activeSessions.remove(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        GenericWizardSession session = instance.activeSessions.remove(playerId);
         if (session != null) {
+            instance.lastInteractionTime.remove(playerId);
             session.complete(result);
             clearDisplay(player);
             return true;
@@ -186,7 +192,8 @@ public final class GenericWizard implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
-        GenericWizardSession session = activeSessions.get(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        GenericWizardSession session = activeSessions.get(playerId);
 
         if (session == null) {
             return;
@@ -195,6 +202,15 @@ public final class GenericWizard implements Listener {
         if (!player.isSneaking()) {
             return;
         }
+
+        long currentTime = System.currentTimeMillis();
+        Long lastTime = lastInteractionTime.get(playerId);
+
+        if (lastTime != null && (currentTime - lastTime) < INTERACTION_COOLDOWN_MS) {
+            return;
+        }
+
+        lastInteractionTime.put(playerId, currentTime);
 
         GenericWizardHandler<?> handler = session.getHandler();
         WizardActionResult result = null;
@@ -213,7 +229,8 @@ public final class GenericWizard implements Listener {
             }
 
         } catch (Exception e) {
-            activeSessions.remove(player.getUniqueId());
+            activeSessions.remove(playerId);
+            lastInteractionTime.remove(playerId);
             clearDisplay(player);
             session.completeExceptionally(e);
         }
@@ -228,6 +245,8 @@ public final class GenericWizard implements Listener {
 
     @SuppressWarnings("unchecked")
     private void handleActionResult(Player player, GenericWizardSession session, WizardActionResult result) {
+        UUID playerId = player.getUniqueId();
+
         switch (result.getType()) {
             case CONTINUE:
                 // Update display if provided
@@ -237,13 +256,15 @@ public final class GenericWizard implements Listener {
                 break;
 
             case COMPLETE:
-                activeSessions.remove(player.getUniqueId());
+                activeSessions.remove(playerId);
+                lastInteractionTime.remove(playerId);
                 clearDisplay(player);
                 session.complete(result.getValue());
                 break;
 
             case CANCEL:
-                activeSessions.remove(player.getUniqueId());
+                activeSessions.remove(playerId);
+                lastInteractionTime.remove(playerId);
                 clearDisplay(player);
                 session.cancel();
                 break;

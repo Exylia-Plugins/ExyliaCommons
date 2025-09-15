@@ -49,6 +49,10 @@ public class MessagesBase extends ConfigBase {
         return getActiveInstance().getSystem().message(path).withContext(ExyliaContext.of(context)).build();
     }
 
+    public static Component getWithContext(String path, ExyliaContext context) {
+        return getActiveInstance().getSystem().message(path).withContext(context).build();
+    }
+
     /**
      * Obtiene un mensaje para un jugador específico
      */
