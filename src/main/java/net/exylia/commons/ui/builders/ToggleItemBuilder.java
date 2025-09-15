@@ -68,6 +68,8 @@ public class ToggleItemBuilder extends ItemBuilder<ToggleItemBuilder> {
             if (onToggle != null) {
                 onToggle.accept(event);
             }
+
+            item.process(event.getPlayer());
         });
 
         return super.build();

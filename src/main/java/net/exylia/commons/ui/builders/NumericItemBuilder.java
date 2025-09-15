@@ -69,6 +69,8 @@ public class NumericItemBuilder extends ItemBuilder<NumericItemBuilder> {
             if (onValueChange != null) {
                 onValueChange.accept(event);
             }
+
+            item.process(event.getPlayer());
         });
 
         return super.build();
