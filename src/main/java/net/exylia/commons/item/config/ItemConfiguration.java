@@ -444,6 +444,14 @@ public class ItemConfiguration {
         return expirationBehavior;
     }
 
+    public int getHitCount() {
+        return getActionConfigInt("hit-count", 5);
+    }
+
+    public int getHitPeriod() {
+        return getActionConfigInt("hit-period", 40);
+    }
+
     public static Builder builder() {
         return new Builder();
     }

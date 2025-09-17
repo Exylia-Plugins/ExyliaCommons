@@ -136,7 +136,7 @@ public class ItemInteractionHandler {
                                  InteractiveItem interactiveItem, ItemClickInfo clickInfo, EquipmentSlot hand) {
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        if (config.getTriggerType() != TriggerType.ON_HIT_PLAYER) {
+        if (config.getTriggerType() != TriggerType.ON_HIT_PLAYER && config.getTriggerType() != TriggerType.ON_MULTIPLE_HIT_PLAYER) {
             return;
         }
 
@@ -147,6 +147,16 @@ public class ItemInteractionHandler {
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(hitPlayer, config)) {
             handleRegionDeniedMessage(player);
             return;
+        }
+
+        if (config.getTriggerType() == TriggerType.ON_MULTIPLE_HIT_PLAYER) {
+            String effectiveId = interactiveItem.getEffectiveId();
+            boolean shouldActivate = HitTracker.recordHit(player.getUniqueId(), hitPlayer.getUniqueId(),
+                    effectiveId, config.getHitCount(), config.getHitPeriod());
+
+            if (!shouldActivate) {
+                return;
+            }
         }
 
         boolean actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);
@@ -412,6 +422,21 @@ public class ItemInteractionHandler {
     }
 
     public void handleCooldownMessage(Player player, double remainingSeconds) {
+        if (CooldownManager.isInitialized() && CooldownManager.getInstance().hasGlobalCooldown(player.getUniqueId())) {
+            handleGlobalCooldownMessage(player, remainingSeconds);
+        } else {
+            handleItemCooldownMessage(player, remainingSeconds);
+        }
+    }
+
+    public void handleGlobalCooldownMessage(Player player, double remainingSeconds) {
+        String formattedTime = timeFormatter.format(remainingSeconds);
+        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.global_cooldown",
+                "%cooldown_formatted%", formattedTime,
+                "%cooldown_seconds%", String.valueOf(remainingSeconds)));
+    }
+
+    public void handleItemCooldownMessage(Player player, double remainingSeconds) {
         String formattedTime = timeFormatter.format(remainingSeconds);
         MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.in_cooldown",
                 "%cooldown_formatted%", formattedTime,

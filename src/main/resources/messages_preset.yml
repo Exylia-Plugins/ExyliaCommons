@@ -35,6 +35,7 @@ system:
     consumed: "%prefix% {warning}The item has been consumed."
     region_denied: "%prefix% {error}You are not allowed to use this item in this region."
     in_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again."
+    global_cooldown: "%prefix% {warning}You have a global cooldown active, please wait {info}%cooldown_formatted%{warning} before using any item."
     vanilla_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again." # %item%
     vanilla_region_blocked: "%prefix% {error}You are not allowed to use this item in {info}%region%{error}."
     vanilla_region_limit: "%prefix% {error}You have reached the maximum uses for this item in {info}%region%{error}."

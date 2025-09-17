@@ -566,6 +566,18 @@ public class ItemConfigurationBuilder {
                 .maxTargets(maxTargets);
     }
 
+    public ItemConfigurationBuilder hitCount(int hitCount) {
+        return actionConfigValue("hit-count", hitCount);
+    }
+
+    public ItemConfigurationBuilder hitPeriod(int hitPeriod) {
+        return actionConfigValue("hit-period", hitPeriod);
+    }
+
+    public ItemConfigurationBuilder multipleHitConfig(int hitCount, int hitPeriod) {
+        return hitCount(hitCount).hitPeriod(hitPeriod);
+    }
+
     public ItemConfigurationBuilder loadFromConfig(ConfigurationSection config) {
         if (config.contains("material")) {
             material(config.getString("material"));
@@ -866,6 +878,14 @@ public class ItemConfigurationBuilder {
 
                     if (actionConfigSection.contains("max-targets")) {
                         maxTargets(actionConfigSection.getInt("max-targets"));
+                    }
+
+                    if (actionConfigSection.contains("hit-count")) {
+                        hitCount(actionConfigSection.getInt("hit-count"));
+                    }
+
+                    if (actionConfigSection.contains("hit-period")) {
+                        hitPeriod(actionConfigSection.getInt("hit-period"));
                     }
                 }
             }

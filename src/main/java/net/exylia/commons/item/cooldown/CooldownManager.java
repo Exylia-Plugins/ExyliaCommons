@@ -2,6 +2,8 @@ package net.exylia.commons.item.cooldown;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import lombok.Getter;
+import lombok.Setter;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.config.ItemConfiguration;
@@ -23,67 +25,51 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
+import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * Sistema de cooldown persistente con soporte para double (precisión decimal)
- * Almacena datos en memoria para rendimiento y persiste en archivos JSON
- */
 public class CooldownManager {
 
     private static CooldownManager instance;
     private final JavaPlugin plugin;
     private final Gson gson;
+    @Getter
+    @Setter
+    private CooldownConfiguration configuration;
 
-    // Estructura: jugador -> item -> tiempo de expiración en milisegundos
     private final Map<UUID, Map<String, Long>> playerCooldowns;
-
-    // Callbacks para eventos de cooldown
+    private final Map<UUID, Long> playerGlobalCooldowns;
     private final Map<String, Consumer<CooldownEvent>> cooldownCallbacks;
-
-    // Configuración
     private final File cooldownDataFile;
-    private final long saveIntervalTicks;
-    private final long cleanupIntervalTicks;
 
-    // Tareas programadas
     private BukkitTask saveTask;
     private BukkitTask cleanupTask;
-
-    // Control de inicialización
     private boolean initialized = false;
 
-    private CooldownManager(JavaPlugin plugin) {
+    private CooldownManager(JavaPlugin plugin, CooldownConfiguration configuration) {
         this.plugin = plugin;
         this.gson = new Gson();
+        this.configuration = configuration;
         this.playerCooldowns = new ConcurrentHashMap<>();
+        this.playerGlobalCooldowns = new ConcurrentHashMap<>();
         this.cooldownCallbacks = new ConcurrentHashMap<>();
+        this.cooldownDataFile = new File(plugin.getDataFolder(), configuration.getDataFileName());
 
-        // Configuración por defecto
-        this.cooldownDataFile = new File(plugin.getDataFolder(), "cooldowns.json");
-        this.saveIntervalTicks = 1200L; // 1 minuto
-        this.cleanupIntervalTicks = 6000L; // 5 minutos
+        logInternalDebug("CooldownManager constructor initialized for plugin: " + plugin.getName());
     }
 
-    /**
-     * Inicializa el sistema de cooldowns
-     * @param plugin Plugin que usa el sistema
-     */
-    public static void initialize(JavaPlugin plugin) {
+    public static void initialize(JavaPlugin plugin, CooldownConfiguration configuration) {
         if (instance != null && instance.initialized) {
+            logInternalDebug("CooldownManager already initialized, skipping...");
             return;
         }
 
-        instance = new CooldownManager(plugin);
+        logInternalDebug("Initializing CooldownManager with configuration: " + configuration);
+        instance = new CooldownManager(plugin, configuration);
         instance.start();
     }
 
-    /**
-     * Obtiene la instancia del manager
-     * @return Instancia del CooldownManager
-     */
     public static CooldownManager getInstance() {
         if (instance == null || !instance.initialized) {
             throw new IllegalStateException("CooldownManager not initialized. Call initialize() first.");
@@ -91,70 +77,63 @@ public class CooldownManager {
         return instance;
     }
 
-    /**
-     * Verifica si el manager está inicializado
-     * @return true si está inicializado
-     */
     public static boolean isInitialized() {
         return instance != null && instance.initialized;
     }
 
-    // ===== MÉTODOS PRINCIPALES CON DOUBLE =====
-
-    /**
-     * Establece un cooldown para un jugador y item específico
-     * @param player Jugador
-     * @param itemId ID del item
-     * @param cooldownSeconds Cooldown en segundos (acepta decimales)
-     */
     public void setCooldown(Player player, String itemId, double cooldownSeconds) {
         setCooldown(player.getUniqueId(), itemId, cooldownSeconds);
     }
 
-    /**
-     * Establece un cooldown para un jugador y item específico
-     * @param playerId UUID del jugador
-     * @param itemId ID del item
-     * @param cooldownSeconds Cooldown en segundos (acepta decimales)
-     */
     public void setCooldown(UUID playerId, String itemId, double cooldownSeconds) {
+        logInternalDebug("Setting cooldown for player " + playerId + ", item " + itemId + ", duration " + cooldownSeconds + "s");
+
         if (cooldownSeconds <= 0) {
+            logInternalDebug("Cooldown duration <= 0, removing cooldown instead");
             removeCooldown(playerId, itemId);
             return;
         }
 
-        long expirationTime = System.currentTimeMillis() + (long)(cooldownSeconds * 1000.0);
+        if (configuration.hasMaxItemsLimit()) {
+            int currentItemsInCooldown = getCurrentItemsInCooldown(playerId);
+            if (currentItemsInCooldown >= configuration.getMaxItemsInCooldown() && !hasCooldown(playerId, itemId)) {
+                logInternalDebug("Max items limit reached (" + configuration.getMaxItemsInCooldown() + ") for player " + playerId + ", skipping cooldown");
+                return;
+            }
+        }
 
+        long expirationTime = System.currentTimeMillis() + (long)(cooldownSeconds * 1000.0);
         playerCooldowns.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
                 .put(itemId.toLowerCase(), expirationTime);
+
+        if (configuration.hasGlobalCooldown()) {
+            long globalExpirationTime = System.currentTimeMillis() + (long)(configuration.getGlobalCooldownSeconds() * 1000.0);
+            playerGlobalCooldowns.put(playerId, globalExpirationTime);
+            logInternalDebug("Global cooldown set for player " + playerId + " for " + configuration.getGlobalCooldownSeconds() + "s");
+        }
 
         triggerCooldownEvent(CooldownEventType.SET, playerId, itemId, cooldownSeconds);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
-                player.setCooldown(getMaterialFromItemId(itemId, player), (int) cooldownSeconds * 20);
+                Material material = getMaterialFromItemId(itemId, player);
+                player.setCooldown(material, (int) cooldownSeconds * 20);
+                logInternalDebug("Vanilla cooldown set for player " + playerId + ", material " + material + ", ticks " + ((int) cooldownSeconds * 20));
             }
         }, 1);
     }
 
-    /**
-     * Verifica si un jugador tiene cooldown activo para un item
-     * @param player Jugador
-     * @param itemId ID del item
-     * @return true si tiene cooldown activo
-     */
     public boolean hasCooldown(Player player, String itemId) {
         return hasCooldown(player.getUniqueId(), itemId);
     }
 
-    /**
-     * Verifica si un jugador tiene cooldown activo para un item
-     * @param playerId UUID del jugador
-     * @param itemId ID del item
-     * @return true si tiene cooldown activo
-     */
     public boolean hasCooldown(UUID playerId, String itemId) {
+        if (hasGlobalCooldown(playerId)) {
+            logInternalDebug("Player " + playerId + " has global cooldown active, blocking item " + itemId);
+            return true;
+        }
+
         Map<String, Long> playerData = playerCooldowns.get(playerId);
         if (playerData == null) {
             return false;
@@ -166,7 +145,7 @@ public class CooldownManager {
         }
 
         if (System.currentTimeMillis() >= expirationTime) {
-            // Cooldown expirado, remover automáticamente
+            logInternalDebug("Cooldown expired for player " + playerId + ", item " + itemId + ", removing automatically");
             playerData.remove(itemId.toLowerCase());
             triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0.0);
             return false;
@@ -175,23 +154,17 @@ public class CooldownManager {
         return true;
     }
 
-    /**
-     * Obtiene el tiempo restante de cooldown en segundos (con decimales)
-     * @param player Jugador
-     * @param itemId ID del item
-     * @return Segundos restantes (con precisión decimal)
-     */
     public double getRemainingCooldown(Player player, String itemId) {
         return getRemainingCooldown(player.getUniqueId(), itemId);
     }
 
-    /**
-     * Obtiene el tiempo restante de cooldown en segundos (con decimales)
-     * @param playerId UUID del jugador
-     * @param itemId ID del item
-     * @return Segundos restantes (con precisión decimal)
-     */
     public double getRemainingCooldown(UUID playerId, String itemId) {
+        double globalRemaining = getRemainingGlobalCooldown(playerId);
+        if (globalRemaining > 0) {
+            logInternalDebug("Player " + playerId + " has global cooldown remaining: " + globalRemaining + "s for item " + itemId);
+            return globalRemaining;
+        }
+
         Map<String, Long> playerData = playerCooldowns.get(playerId);
         if (playerData == null) {
             return 0.0;
@@ -204,119 +177,144 @@ public class CooldownManager {
 
         long remainingMs = expirationTime - System.currentTimeMillis();
         if (remainingMs <= 0) {
-            // Cooldown expirado
+            logInternalDebug("Cooldown expired during check for player " + playerId + ", item " + itemId);
             playerData.remove(itemId.toLowerCase());
             triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemId, 0.0);
             return 0.0;
         }
 
-        return remainingMs / 1000.0;
+        double remainingSeconds = remainingMs / 1000.0;
+        logInternalDebug("Remaining cooldown for player " + playerId + ", item " + itemId + ": " + remainingSeconds + "s");
+        return remainingSeconds;
     }
 
-    /**
-     * Obtiene todos los cooldowns activos de un jugador
-     * @param player Jugador
-     * @return Map con item ID -> segundos restantes (double)
-     */
     public Map<String, String> getPlayerCooldowns(Player player) {
         return getPlayerCooldowns(player.getUniqueId());
     }
 
-    /**
-     * Obtiene todos los cooldowns activos de un jugador
-     * @param playerId UUID del jugador
-     * @return Map con item ID -> tiempo formateado
-     */
     public Map<String, String> getPlayerCooldowns(UUID playerId) {
         Map<String, String> result = new ConcurrentHashMap<>();
         Map<String, Long> playerData = playerCooldowns.get(playerId);
 
         if (playerData != null) {
             long currentTime = System.currentTimeMillis();
-            playerData.entrySet().removeIf(entry -> {
+            int expiredCount = 0;
+
+            for (Map.Entry<String, Long> entry : new ConcurrentHashMap<>(playerData).entrySet()) {
                 long remainingMs = entry.getValue() - currentTime;
                 if (remainingMs <= 0) {
+                    playerData.remove(entry.getKey());
                     triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, entry.getKey(), 0.0);
-                    return true; // Remover expirado
+                    expiredCount++;
+                } else {
+                    result.put(entry.getKey(), TimeFormatter.timeFormatter.format(remainingMs));
                 }
-                result.put(entry.getKey(), TimeFormatter.timeFormatter.format((long) remainingMs));
-                return false; // Mantener activo
-            });
+            }
+
+            if (expiredCount > 0) {
+                logInternalDebug("Removed " + expiredCount + " expired cooldowns for player " + playerId);
+            }
         }
 
+        logInternalDebug("Retrieved " + result.size() + " active cooldowns for player " + playerId);
         return result;
     }
 
-    // ===== MÉTODOS DE REMOCIÓN =====
-
-    /**
-     * Remueve el cooldown de un jugador para un item específico
-     * @param player Jugador
-     * @param itemId ID del item
-     */
     public void removeCooldown(Player player, String itemId) {
         removeCooldown(player.getUniqueId(), itemId);
     }
 
-    /**
-     * Remueve el cooldown de un jugador para un item específico
-     * @param playerId UUID del jugador
-     * @param itemId ID del item
-     */
     public void removeCooldown(UUID playerId, String itemId) {
+        logInternalDebug("Removing cooldown for player " + playerId + ", item " + itemId);
+
         Map<String, Long> playerData = playerCooldowns.get(playerId);
         if (playerData != null) {
             Long removed = playerData.remove(itemId.toLowerCase());
             if (removed != null) {
+                logInternalDebug("Successfully removed cooldown for player " + playerId + ", item " + itemId);
                 triggerCooldownEvent(CooldownEventType.REMOVE, playerId, itemId, 0.0);
             }
 
-            // Limpiar el map del jugador si está vacío
             if (playerData.isEmpty()) {
                 playerCooldowns.remove(playerId);
+                logInternalDebug("Removed empty cooldown map for player " + playerId);
             }
         }
     }
 
-    /**
-     * Remueve todos los cooldowns de un jugador
-     * @param player Jugador
-     */
     public void removeAllCooldowns(Player player) {
         removeAllCooldowns(player.getUniqueId());
     }
 
-    /**
-     * Remueve todos los cooldowns de un jugador
-     * @param playerId UUID del jugador
-     */
     public void removeAllCooldowns(UUID playerId) {
+        logInternalDebug("Removing all cooldowns for player " + playerId);
+
         Map<String, Long> removed = playerCooldowns.remove(playerId);
+        playerGlobalCooldowns.remove(playerId);
+
         if (removed != null && !removed.isEmpty()) {
+            logInternalDebug("Removed " + removed.size() + " cooldowns for player " + playerId);
             triggerCooldownEvent(CooldownEventType.CLEAR_ALL, playerId, null, 0.0);
         }
     }
 
-    // ===== SISTEMA DE CALLBACKS =====
+    public boolean hasGlobalCooldown(UUID playerId) {
+        if (!configuration.hasGlobalCooldown()) {
+            return false;
+        }
 
-    /**
-     * Registra un callback para eventos de cooldown de un item específico
-     * @param itemId ID del item
-     * @param callback Callback a ejecutar
-     */
+        Long globalExpirationTime = playerGlobalCooldowns.get(playerId);
+        if (globalExpirationTime == null) {
+            return false;
+        }
+
+        if (System.currentTimeMillis() >= globalExpirationTime) {
+            logInternalDebug("Global cooldown expired for player " + playerId + ", removing");
+            playerGlobalCooldowns.remove(playerId);
+            return false;
+        }
+
+        return true;
+    }
+
+    public double getRemainingGlobalCooldown(UUID playerId) {
+        if (!configuration.hasGlobalCooldown()) {
+            return 0.0;
+        }
+
+        Long globalExpirationTime = playerGlobalCooldowns.get(playerId);
+        if (globalExpirationTime == null) {
+            return 0.0;
+        }
+
+        long remainingMs = globalExpirationTime - System.currentTimeMillis();
+        if (remainingMs <= 0) {
+            logInternalDebug("Global cooldown expired during check for player " + playerId);
+            playerGlobalCooldowns.remove(playerId);
+            return 0.0;
+        }
+
+        return remainingMs / 1000.0;
+    }
+
+    public void removeGlobalCooldown(UUID playerId) {
+        logInternalDebug("Removing global cooldown for player " + playerId);
+        playerGlobalCooldowns.remove(playerId);
+    }
+
     public void registerCooldownCallback(String itemId, Consumer<CooldownEvent> callback) {
+        logInternalDebug("Registering cooldown callback for item " + itemId);
         cooldownCallbacks.put(itemId.toLowerCase(), callback);
     }
 
-    /**
-     * Remueve un callback de cooldown
-     * @param itemId ID del item
-     */
     public void unregisterCooldownCallback(String itemId) {
+        logInternalDebug("Unregistering cooldown callback for item " + itemId);
         cooldownCallbacks.remove(itemId.toLowerCase());
     }
 
     private void triggerCooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
+        logInternalDebug("Triggering cooldown event: " + type + " for player " + playerId + ", item " + itemId + ", seconds " + seconds);
+
         CooldownEvent event = new CooldownEvent(type, playerId, itemId, seconds);
         if (itemId != null) {
             Consumer<CooldownEvent> callback = cooldownCallbacks.get(itemId.toLowerCase());
@@ -324,27 +322,20 @@ public class CooldownManager {
                 Bukkit.getScheduler().runTask(plugin, () -> callback.accept(event));
             }
         }
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
-            Bukkit.getPluginManager().callEvent(event);
-        });
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> Bukkit.getPluginManager().callEvent(event));
     }
 
-    // ===== PERSISTENCIA =====
-
-    /**
-     * Guarda los cooldowns en el archivo JSON
-     */
     public void saveCooldowns() {
+        logInternalDebug("Saving cooldowns to file: " + cooldownDataFile.getAbsolutePath());
+
         try {
-            // Crear directorio si no existe
             if (!cooldownDataFile.getParentFile().exists()) {
-                cooldownDataFile.getParentFile().mkdirs();
+                boolean created = cooldownDataFile.getParentFile().mkdirs();
+                logInternalDebug("Created parent directories: " + created);
             }
 
-            // Limpiar cooldowns expirados antes de guardar
             cleanupExpiredCooldowns();
 
-            // Convertir a formato serializable
             Map<String, Map<String, Long>> saveData = new ConcurrentHashMap<>();
             playerCooldowns.forEach((uuid, cooldowns) -> {
                 if (!cooldowns.isEmpty()) {
@@ -352,23 +343,24 @@ public class CooldownManager {
                 }
             });
 
-            // Escribir archivo
             try (FileWriter writer = new FileWriter(cooldownDataFile)) {
                 gson.toJson(saveData, writer);
             }
 
+            logInternalDebug("Successfully saved " + saveData.size() + " player cooldowns");
+
         } catch (IOException e) {
-            logInternalWarn("Error saving cooldowns: " + e.getMessage());
+            logInternalError("Error saving cooldowns: " + e.getMessage());
         }
     }
 
-    /**
-     * Carga los cooldowns desde el archivo JSON
-     */
     public void loadCooldowns() {
         if (!cooldownDataFile.exists()) {
+            logInternalDebug("Cooldown file does not exist, skipping load");
             return;
         }
+
+        logInternalDebug("Loading cooldowns from file: " + cooldownDataFile.getAbsolutePath());
 
         try (FileReader reader = new FileReader(cooldownDataFile)) {
             Type type = new TypeToken<Map<String, Map<String, Long>>>(){}.getType();
@@ -376,71 +368,116 @@ public class CooldownManager {
 
             if (loadedData != null) {
                 playerCooldowns.clear();
-                loadedData.forEach((uuidStr, cooldowns) -> {
-                    try {
-                        UUID uuid = UUID.fromString(uuidStr);
-                        playerCooldowns.put(uuid, new ConcurrentHashMap<>(cooldowns));
-                    } catch (IllegalArgumentException e) {
-                        logInternalWarn("Invalid UUID in cooldown data: " + uuidStr);
-                    }
-                });
+                int loadedPlayers = 0;
+                int invalidUUIDs = 0;
 
-                // Limpiar cooldowns expirados después de cargar
+                for (Map.Entry<String, Map<String, Long>> entry : loadedData.entrySet()) {
+                    try {
+                        UUID uuid = UUID.fromString(entry.getKey());
+                        playerCooldowns.put(uuid, new ConcurrentHashMap<>(entry.getValue()));
+                        loadedPlayers++;
+                    } catch (IllegalArgumentException e) {
+                        logInternalWarn("Invalid UUID in cooldown data: " + entry.getKey());
+                        invalidUUIDs++;
+                    }
+                }
+
                 cleanupExpiredCooldowns();
+                logInternalDebug("Successfully loaded cooldowns for " + loadedPlayers + " players, invalid UUIDs: " + invalidUUIDs);
             }
 
         } catch (IOException e) {
-            logInternalWarn("Error loading cooldowns: " + e.getMessage());
+            logInternalError("Error loading cooldowns: " + e.getMessage());
         }
     }
 
-    // ===== UTILIDADES =====
-
-    /**
-     * Limpia todos los cooldowns expirados
-     */
     public void cleanupExpiredCooldowns() {
         long currentTime = System.currentTimeMillis();
+        int cleanedPlayers = 0;
+        int cleanedItems = 0;
 
-        playerCooldowns.entrySet().removeIf(playerEntry -> {
+        for (Map.Entry<UUID, Map<String, Long>> playerEntry : new ConcurrentHashMap<>(playerCooldowns).entrySet()) {
             UUID playerId = playerEntry.getKey();
             Map<String, Long> playerData = playerEntry.getValue();
+            int expiredItems = 0;
 
-            playerData.entrySet().removeIf(itemEntry -> {
+            for (Map.Entry<String, Long> itemEntry : new ConcurrentHashMap<>(playerData).entrySet()) {
                 if (currentTime >= itemEntry.getValue()) {
+                    playerData.remove(itemEntry.getKey());
                     triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, itemEntry.getKey(), 0.0);
-                    return true;
+                    expiredItems++;
                 }
-                return false;
-            });
+            }
 
-            return playerData.isEmpty();
-        });
+            cleanedItems += expiredItems;
+            if (playerData.isEmpty()) {
+                playerCooldowns.remove(playerId);
+                cleanedPlayers++;
+            }
+        }
+
+        if (cleanedPlayers > 0 || cleanedItems > 0) {
+            logInternalDebug("Cleanup completed: removed " + cleanedItems + " expired items, " + cleanedPlayers + " empty players");
+        }
     }
 
-    /**
-     * Obtiene estadísticas del sistema de cooldowns
-     * @return String con estadísticas
-     */
+    public int getCurrentItemsInCooldown(UUID playerId) {
+        Map<String, Long> playerData = playerCooldowns.get(playerId);
+        if (playerData == null) {
+            return 0;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        int expiredCount = 0;
+
+        for (Map.Entry<String, Long> entry : new ConcurrentHashMap<>(playerData).entrySet()) {
+            if (currentTime >= entry.getValue()) {
+                playerData.remove(entry.getKey());
+                triggerCooldownEvent(CooldownEventType.EXPIRE, playerId, entry.getKey(), 0.0);
+                expiredCount++;
+            }
+        }
+
+        if (expiredCount > 0) {
+            logInternalDebug("Removed " + expiredCount + " expired items during count for player " + playerId);
+        }
+
+        return playerData.size();
+    }
+
+    public boolean canAddMoreItemsToCooldown(UUID playerId) {
+        if (!configuration.hasMaxItemsLimit()) {
+            return true;
+        }
+        boolean canAdd = getCurrentItemsInCooldown(playerId) < configuration.getMaxItemsInCooldown();
+        logInternalDebug("Player " + playerId + " can add more items to cooldown: " + canAdd);
+        return canAdd;
+    }
+
     public String getStats() {
         int totalPlayers = playerCooldowns.size();
         int totalCooldowns = playerCooldowns.values().stream()
                 .mapToInt(Map::size)
                 .sum();
+        int globalCooldowns = playerGlobalCooldowns.size();
 
-        return String.format("Players with cooldowns: %d, Total active cooldowns: %d",
-                totalPlayers, totalCooldowns);
+        String maxItemsInfo = configuration.hasMaxItemsLimit() ?
+                ", Max items per player: " + configuration.getMaxItemsInCooldown() : "";
+        String globalInfo = configuration.hasGlobalCooldown() ?
+                ", Global cooldown: " + configuration.getGlobalCooldownSeconds() + "s, Active global: " + globalCooldowns : "";
+
+        String stats = String.format("Players with cooldowns: %d, Total active cooldowns: %d%s%s",
+                totalPlayers, totalCooldowns, maxItemsInfo, globalInfo);
+
+        logInternalDebug("Stats requested: " + stats);
+        return stats;
     }
-
-    // ===== CONTROL DEL CICLO DE VIDA =====
 
     private void start() {
         if (initialized) return;
 
-        // Cargar datos existentes
+        logInternalDebug("Starting CooldownManager...");
         loadCooldowns();
-
-        // Iniciar tareas programadas
         startTasks();
 
         initialized = true;
@@ -448,20 +485,19 @@ public class CooldownManager {
     }
 
     private void startTasks() {
-        // Tarea de guardado periódico
-        saveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
-                this::saveCooldowns, saveIntervalTicks, saveIntervalTicks);
+        logInternalDebug("Starting periodic tasks - save interval: " + configuration.getSaveIntervalTicks() +
+                        " ticks, cleanup interval: " + configuration.getCleanupIntervalTicks() + " ticks");
 
-        // Tarea de limpieza periódica
+        saveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
+                this::saveCooldowns, configuration.getSaveIntervalTicks(), configuration.getSaveIntervalTicks());
+
         cleanupTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
-                this::cleanupExpiredCooldowns, cleanupIntervalTicks, cleanupIntervalTicks);
+                this::cleanupExpiredCooldowns, configuration.getCleanupIntervalTicks(), configuration.getCleanupIntervalTicks());
     }
 
-    /**
-     * Apaga el sistema de cooldowns y guarda los datos
-     */
     public static void shutdown() {
         if (instance != null && instance.initialized) {
+            logInternalDebug("Shutting down CooldownManager...");
             instance.stop();
         }
     }
@@ -469,52 +505,61 @@ public class CooldownManager {
     private void stop() {
         if (!initialized) return;
 
-        // Cancelar tareas
         if (saveTask != null) {
             saveTask.cancel();
+            logInternalDebug("Save task cancelled");
         }
         if (cleanupTask != null) {
             cleanupTask.cancel();
+            logInternalDebug("Cleanup task cancelled");
         }
 
-        // Guardar datos finales
         saveCooldowns();
 
-        // Limpiar memoria
+        int totalPlayers = playerCooldowns.size();
+        int totalGlobal = playerGlobalCooldowns.size();
+        int totalCallbacks = cooldownCallbacks.size();
+
         playerCooldowns.clear();
+        playerGlobalCooldowns.clear();
         cooldownCallbacks.clear();
 
         initialized = false;
-        logInternalDebug("CooldownManager shutdown");
+        logInternalDebug("CooldownManager shutdown - cleared " + totalPlayers + " players, " +
+                        totalGlobal + " global cooldowns, " + totalCallbacks + " callbacks");
     }
 
     private Material getMaterialFromItemId(String itemId, Player player) {
         ItemConfiguration config = ItemManager.getItemConfiguration(itemId);
         if (config == null) {
+            logInternalWarn("No configuration found for item ID: " + itemId + ", using STONE");
             return Material.STONE;
         }
 
         String materialString = config.getMaterial();
 
-        // Si tiene placeholders y tenemos un jugador, procesarlos
         if (player != null && materialString.contains("%")) {
-            // Crear item temporal para procesar placeholders
             InteractiveItem tempItem = ItemManager.createItem(itemId, player);
             if (tempItem != null) {
-                return tempItem.getItemStack().getType();
+                Material material = tempItem.getItemStack().getType();
+                logInternalDebug("Resolved material with placeholders for item " + itemId + ": " + material);
+                return material;
             }
         }
 
-        // Procesar sin placeholders
         if (materialString.startsWith("headbase-") ||
                 materialString.startsWith("headurl-") ||
                 materialString.startsWith("playerhead-")) {
+            logInternalDebug("Head item detected for " + itemId + ", using PLAYER_HEAD");
             return Material.PLAYER_HEAD;
         }
 
         try {
-            return Material.valueOf(materialString.toUpperCase());
+            Material material = Material.valueOf(materialString.toUpperCase());
+            logInternalDebug("Resolved material for item " + itemId + ": " + material);
+            return material;
         } catch (IllegalArgumentException e) {
+            logInternalWarn("Invalid material '" + materialString + "' for item " + itemId + ", using STONE");
             return Material.STONE;
         }
     }

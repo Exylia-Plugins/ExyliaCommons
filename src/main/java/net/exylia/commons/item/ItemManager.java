@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
+import net.exylia.commons.item.cooldown.CooldownConfiguration;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.item.handlers.ItemHoldHandler;
 import net.exylia.commons.item.handlers.ItemInteractionHandler;
@@ -71,6 +72,10 @@ public class ItemManager implements Listener {
     private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
 
     public static void initialize(JavaPlugin javaPlugin) {
+        initialize(javaPlugin, CooldownConfiguration.getDefault());
+    }
+
+    public static void initialize(JavaPlugin javaPlugin, CooldownConfiguration cooldownConfiguration) {
         if (initialized) return;
 
         plugin = javaPlugin;
@@ -80,7 +85,7 @@ public class ItemManager implements Listener {
         itemIdKey = new NamespacedKey(plugin, "interactive_item_id");
 
         Bukkit.getPluginManager().registerEvents(new ItemManager(), plugin);
-        CooldownManager.initialize(plugin);
+        CooldownManager.initialize(plugin, cooldownConfiguration);
         startClickTimeCleanupTask();
 
         initialized = true;
@@ -90,7 +95,6 @@ public class ItemManager implements Listener {
         }
     }
 
-    // ... métodos de registro sin cambios ...
     public static void registerItemConfiguration(String id, ItemConfiguration config) {
         ensureInitialized();
         registry.registerItemConfiguration(id, config);

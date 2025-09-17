@@ -68,7 +68,7 @@ public class RadiusHandler {
     private static Location determineCenter(Player sourcePlayer, TriggerType triggerType, Player targetPlayer) {
         return switch (triggerType) {
             case RADIUS, IMMEDIATE, AFTER_CONSUME, ON_PROJECTILE_LAUNCH, HOLD -> sourcePlayer.getLocation();
-            case ON_HIT_PLAYER, ON_PROJECTILE_HIT -> targetPlayer != null ? targetPlayer.getLocation() : sourcePlayer.getLocation();
+            case ON_HIT_PLAYER, ON_MULTIPLE_HIT_PLAYER, ON_PROJECTILE_HIT -> targetPlayer != null ? targetPlayer.getLocation() : sourcePlayer.getLocation();
         };
     }
 
