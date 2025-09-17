@@ -682,7 +682,8 @@ public class ItemManager implements Listener {
                 org.bukkit.event.inventory.ClickType.RIGHT,
                 EquipmentSlot.valueOf(handName) == EquipmentSlot.HAND ? shooter.getInventory().getHeldItemSlot() : 40,
                 itemStackForClick,
-                ActionSource.ITEM_USE);
+                ActionSource.ITEM_USE,
+                projectile.getLocation());
 
         if (hitPlayer != null) {
             clickInfo.withData("hitPlayer", hitPlayer);

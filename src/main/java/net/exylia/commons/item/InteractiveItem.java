@@ -363,6 +363,10 @@ public class InteractiveItem {
                     .withData("itemConfiguration", this.getConfiguration())
                     .withData("contexts", actionContext.getAllObjects());
 
+            if (clickInfo.getLocation() != null) {
+                context.withData("hitLocation", clickInfo.getLocation());
+            }
+
             if (clickInfo.getData().containsKey("hitPlayer")) {
                 context.withData("hitPlayer", clickInfo.getData("hitPlayer"));
             }

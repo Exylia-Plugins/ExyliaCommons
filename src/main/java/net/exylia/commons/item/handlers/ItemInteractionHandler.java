@@ -268,7 +268,8 @@ public class ItemInteractionHandler {
         DebugUtils.logInternalDebug("Processing projectile hit for " + player.getName() +
                 (hitPlayer != null ? " hitting " + hitPlayer.getName() : " hitting block/entity"));
 
-        Location hitLocation = hitPlayer != null ? hitPlayer.getLocation() : player.getLocation();
+        Location hitLocation = clickInfo.getLocation() != null ? clickInfo.getLocation() :
+                              (hitPlayer != null ? hitPlayer.getLocation() : player.getLocation());
 
         boolean actionExecuted;
         if (hitPlayer != null) {
