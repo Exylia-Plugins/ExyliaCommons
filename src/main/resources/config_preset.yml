@@ -19,3 +19,4 @@ time-formatter:
   language: "en" # en, es
   compact-mode: false
   auto-detect-seconds: true
+  force-show-zero-decimals: false

@@ -216,30 +216,58 @@ public class ItemInteractionHandler {
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (hasUsesLeft) {
-                ItemStack updatedItem = interactiveItem.getItemStack();
-                updatedItem.setAmount(1);
+                // Get current item in hand to check original amount
+                ItemStack currentItem = hand == EquipmentSlot.HAND ?
+                        player.getInventory().getItemInMainHand() :
+                        player.getInventory().getItemInOffHand();
 
-                interactiveItem.placeholderPlayer(player);
-                interactiveItem.updatePlaceholders(player, null);
+                if (currentItem != null && currentItem.getAmount() > 1) {
+                    // Reduce by 1 from the stack
+                    currentItem.setAmount(currentItem.getAmount() - 1);
+                    if (hand == EquipmentSlot.HAND) {
+                        player.getInventory().setItemInMainHand(currentItem);
+                    } else {
+                        player.getInventory().setItemInOffHand(currentItem);
+                    }
 
-                updatedItem = interactiveItem.getItemStack();
-                updatedItem.setAmount(1);
+                    // Add back one item with updated uses if needed
+                    ItemStack returnItem = interactiveItem.getItemStack();
+                    returnItem.setAmount(1);
 
-                if (hand == EquipmentSlot.HAND) {
-                    player.getInventory().setItemInMainHand(updatedItem);
-                } else if (hand == EquipmentSlot.OFF_HAND) {
-                    player.getInventory().setItemInOffHand(updatedItem);
+                    interactiveItem.placeholderPlayer(player);
+                    interactiveItem.updatePlaceholders(player, null);
+                    returnItem = interactiveItem.getItemStack();
+                    returnItem.setAmount(1);
+
+                    player.getInventory().addItem(returnItem);
+
+                    DebugUtils.logInternalDebug(
+                            "Reduced stack by 1 and added updated item for " + player.getName() +
+                                    " with " + interactiveItem.getCurrentUses() + " uses remaining");
+                } else {
+                    // Single item, update in place
+                    ItemStack updatedItem = interactiveItem.getItemStack();
+                    updatedItem.setAmount(1);
+
+                    interactiveItem.placeholderPlayer(player);
+                    interactiveItem.updatePlaceholders(player, null);
+
+                    updatedItem = interactiveItem.getItemStack();
+                    updatedItem.setAmount(1);
+
+                    if (hand == EquipmentSlot.HAND) {
+                        player.getInventory().setItemInMainHand(updatedItem);
+                    } else if (hand == EquipmentSlot.OFF_HAND) {
+                        player.getInventory().setItemInOffHand(updatedItem);
+                    }
+
+                    DebugUtils.logInternalDebug(
+                            "Updated single item for " + player.getName() +
+                                    " with " + interactiveItem.getCurrentUses() + " uses remaining");
                 }
-
-                DebugUtils.logInternalDebug(
-                        "Returned updated item to inventory for " + player.getName() +
-                                " with " + interactiveItem.getCurrentUses() + " uses remaining");
             } else {
-                if (hand == EquipmentSlot.HAND) {
-                    player.getInventory().setItemInMainHand(null);
-                } else if (hand == EquipmentSlot.OFF_HAND) {
-                    player.getInventory().setItemInOffHand(null);
-                }
+                // Item consumed completely, use the existing removeOrReduceItemByEquipmentSlot method
+                ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
                 MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
                 DebugUtils.logInternalDebug(
                         "Item completely consumed for " + player.getName() + " - removed from inventory");

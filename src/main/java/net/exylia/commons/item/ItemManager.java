@@ -43,6 +43,7 @@ import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
@@ -547,26 +548,56 @@ public class ItemManager implements Listener {
         if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
             DebugUtils.logInternalDebug("Processing projectile trigger type: " + triggerType + " for item: " + interactiveItem.getId());
 
+            // Cancel the vanilla event to prevent double consumption
+            event.setCancelled(true);
+            DebugUtils.logInternalDebug("Cancelled vanilla projectile launch event for item: " + interactiveItem.getId());
+
             ItemClickInfo clickInfo = new ItemClickInfo(player,
                     org.bukkit.event.inventory.ClickType.RIGHT,
                     hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
                     hand == EquipmentSlot.HAND ? mainHand : offHand,
                     ActionSource.ITEM_USE);
 
+            // Process the item interaction first
             interactionHandler.processProjectileLaunch(player, hand == EquipmentSlot.HAND ? mainHand : offHand,
                     interactiveItem, clickInfo, hand);
 
-            if (triggerType == TriggerType.ON_PROJECTILE_HIT) {
-                DebugUtils.logInternalDebug("Setting metadata for ON_PROJECTILE_HIT item: " + interactiveItem.getId());
-                projectile.setMetadata("interactive_item_id", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.getId()));
-                projectile.setMetadata("interactive_item_effective_id", new org.bukkit.metadata.FixedMetadataValue(plugin, effectiveId));
-                projectile.setMetadata("interactive_item_hand", new org.bukkit.metadata.FixedMetadataValue(plugin, hand.name()));
-                projectile.setMetadata("interactive_item_shooter", new org.bukkit.metadata.FixedMetadataValue(plugin, player.getUniqueId().toString()));
-                ItemStack itemClone = hand == EquipmentSlot.HAND ? mainHand.clone() : offHand.clone();
-                projectile.setMetadata("interactive_item_stack", new org.bukkit.metadata.FixedMetadataValue(plugin, itemClone));
-                projectile.setMetadata("interactive_item_object", new org.bukkit.metadata.FixedMetadataValue(plugin, interactiveItem.clone()));
-                DebugUtils.logInternalDebug("Metadata set for projectile hit detection, item: " + interactiveItem.getId());
-            }
+            // Create and launch the projectile manually
+            final Material itemMaterial = (hand == EquipmentSlot.HAND ? mainHand : offHand).getType();
+            final EquipmentSlot finalHand = hand;
+            final String finalItemId = interactiveItem.getId();
+            final String finalEffectiveId = effectiveId;
+            final ItemStack finalItemClone = (hand == EquipmentSlot.HAND ? mainHand : offHand).clone();
+            final InteractiveItem finalInteractiveItem = interactiveItem.clone();
+
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                org.bukkit.Location eyeLocation = player.getEyeLocation();
+                org.bukkit.util.Vector direction = eyeLocation.getDirection().multiply(1.5);
+
+                // Spawn the projectile based on item material
+                org.bukkit.entity.EntityType projectileType = getProjectileTypeFromMaterial(itemMaterial);
+                org.bukkit.entity.Projectile customProjectile = (org.bukkit.entity.Projectile) player.getWorld().spawnEntity(
+                        eyeLocation.add(direction.clone().multiply(0.5)),
+                        projectileType
+                );
+
+                customProjectile.setShooter(player);
+                customProjectile.setVelocity(direction);
+                customProjectile.setMetadata("custom_projectile", new FixedMetadataValue(plugin, true));
+
+                if (triggerType == TriggerType.ON_PROJECTILE_HIT) {
+                    DebugUtils.logInternalDebug("Setting metadata for ON_PROJECTILE_HIT item: " + finalItemId);
+                    customProjectile.setMetadata("interactive_item_id", new FixedMetadataValue(plugin, finalItemId));
+                    customProjectile.setMetadata("interactive_item_effective_id", new FixedMetadataValue(plugin, finalEffectiveId));
+                    customProjectile.setMetadata("interactive_item_hand", new FixedMetadataValue(plugin, finalHand.name()));
+                    customProjectile.setMetadata("interactive_item_shooter", new FixedMetadataValue(plugin, player.getUniqueId().toString()));
+                    customProjectile.setMetadata("interactive_item_stack", new FixedMetadataValue(plugin, finalItemClone));
+                    customProjectile.setMetadata("interactive_item_object", new FixedMetadataValue(plugin, finalInteractiveItem));
+                    DebugUtils.logInternalDebug("Metadata set for projectile hit detection, item: " + finalItemId);
+                }
+
+                DebugUtils.logInternalDebug("Manually spawned projectile of type " + projectileType + " for item: " + finalItemId);
+            });
 
             DebugUtils.logInternalDebug("Completed ProjectileLaunch processing for item: " + interactiveItem.getId());
         }
@@ -1039,7 +1070,7 @@ public class ItemManager implements Listener {
     // Utility method to check and start HOLD sessions for both hands
     private static void checkAndStartHoldSessions(Player player) {
         if (holdHandler == null) return;
-        
+
         // Check main hand
         ItemStack mainHand = player.getInventory().getItemInMainHand();
         if (mainHand != null && mainHand.getType() != Material.AIR) {
@@ -1049,8 +1080,8 @@ public class ItemManager implements Listener {
                 holdHandler.startHoldSession(player, mainItem, EquipmentSlot.HAND);
             }
         }
-        
-        // Check off hand  
+
+        // Check off hand
         ItemStack offHand = player.getInventory().getItemInOffHand();
         if (offHand != null && offHand.getType() != Material.AIR) {
             InteractiveItem offItem = getItemFromStack(offHand);
@@ -1059,5 +1090,18 @@ public class ItemManager implements Listener {
                 holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
             }
         }
+    }
+
+    private static org.bukkit.entity.EntityType getProjectileTypeFromMaterial(Material material) {
+        return switch (material) {
+            case EGG -> org.bukkit.entity.EntityType.EGG;
+            case SNOWBALL -> org.bukkit.entity.EntityType.SNOWBALL;
+            case ENDER_PEARL -> org.bukkit.entity.EntityType.ENDER_PEARL;
+            case EXPERIENCE_BOTTLE -> org.bukkit.entity.EntityType.THROWN_EXP_BOTTLE;
+            case SPLASH_POTION, LINGERING_POTION -> org.bukkit.entity.EntityType.SPLASH_POTION;
+            case TRIDENT -> org.bukkit.entity.EntityType.TRIDENT;
+            case BOW, CROSSBOW -> org.bukkit.entity.EntityType.ARROW;
+            default -> org.bukkit.entity.EntityType.EGG; // Default to egg for other throwable items
+        };
     }
 }

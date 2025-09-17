@@ -5,10 +5,6 @@ import net.exylia.commons.config.ConfigFile;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigValue;
 
-/**
- * Configuración base para config.yml que contiene configuraciones comunes
- * Esta clase debe ser extendida por MainConfig en cada plugin
- */
 @ConfigFile(value = "config", required = true)
 public class MainConfigBase extends ConfigBase {
 
@@ -21,7 +17,6 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "text.force-in-upper-case", defaultValue = "true")
     private boolean textForceInUpperCase;
 
-    // ===== CONFIGURACIONES DATE FORMATTER =====
 
     @ConfigValue(value = "date-formatter.default-pattern", defaultValue = "dd/MM/yyyy HH:mm:ss")
     private String dateFormatterDefaultPattern;
@@ -35,7 +30,6 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "date-formatter.use-iso", defaultValue = "false")
     private boolean dateFormatterUseIso;
 
-    // ===== CONFIGURACIONES TIME FORMATTER =====
 
     @ConfigValue(value = "time-formatter.zero-text", defaultValue = "0s")
     private String timeFormatterZeroText;
@@ -52,7 +46,8 @@ public class MainConfigBase extends ConfigBase {
     @ConfigValue(value = "time-formatter.compact-mode", defaultValue = "false")
     private boolean timeFormatterCompactMode;
 
-    // ===== GETTERS ESTÁTICOS =====
+    @ConfigValue(value = "time-formatter.force-show-zero-decimals", defaultValue = "false")
+    private boolean timeFormatterForceShowZeroDecimals;
 
     public static boolean debug() {
         MainConfigBase instance = getActiveInstance();
@@ -72,7 +67,6 @@ public class MainConfigBase extends ConfigBase {
         return instance.textForceInUpperCase;
     }
 
-    // ===== DATE FORMATTER GETTERS =====
 
     public static String dateFormatterDefaultPattern() {
         MainConfigBase instance = getActiveInstance();
@@ -98,7 +92,6 @@ public class MainConfigBase extends ConfigBase {
         return instance.dateFormatterUseIso;
     }
 
-    // ===== TIME FORMATTER GETTERS =====
 
     public static String timeFormatterZeroText() {
         MainConfigBase instance = getActiveInstance();
@@ -130,11 +123,12 @@ public class MainConfigBase extends ConfigBase {
         return instance.timeFormatterCompactMode;
     }
 
-    // ===== MÉTODOS INTERNOS =====
+    public static boolean timeFormatterForceShowZeroDecimals() {
+        MainConfigBase instance = getActiveInstance();
+        if (instance == null) return false;
+        return instance.timeFormatterForceShowZeroDecimals;
+    }
 
-    /**
-     * Obtiene la instancia activa de MainConfigBase o su extensión
-     */
     private static MainConfigBase getActiveInstance() {
         try {
             for (Class<?> clazz : ConfigManager.getSystem().getConfigInstances().keySet()) {
