@@ -302,6 +302,11 @@ public class ItemInteractionHandler {
         Location hitLocation = clickInfo.getLocation() != null ? clickInfo.getLocation() :
                               (hitPlayer != null ? hitPlayer.getLocation() : player.getLocation());
 
+        if (!ItemRegionHandler.canPlayerUseItemInLocation(hitLocation, config)) {
+            handleRegionDeniedMessage(player, interactiveItem);
+            return;
+        }
+
         boolean actionExecuted;
         if (hitPlayer != null) {
             actionExecuted = executeItemActionsWithHitPlayer(player, hitPlayer, interactiveItem, clickInfo);

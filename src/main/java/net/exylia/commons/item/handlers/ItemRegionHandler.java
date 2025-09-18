@@ -31,6 +31,23 @@ public class ItemRegionHandler {
         return config.canUseWithChecker(playerRegions, player.getWorld(), highestPriorityRegion);
     }
 
+    /**
+     * Verifica si un ítem puede ser usado en una ubicación específica
+     * @param location Ubicación a verificar
+     * @param config Configuración del ítem
+     * @return true si puede usarlo en la ubicación especificada
+     */
+    public static boolean canPlayerUseItemInLocation(org.bukkit.Location location, ItemConfiguration config) {
+        if (!config.hasRegionConfiguration() || !WorldGuardUtils.isWorldGuardAvailable()) {
+            return true;
+        }
+
+        List<String> locationRegions = WorldGuardUtils.getRegionsAtLocation(location);
+        String highestPriorityRegion = WorldGuardUtils.getHighestPriorityRegion(location);
+
+        return config.canUseWithChecker(locationRegions, location.getWorld(), highestPriorityRegion);
+    }
+
 
     /**
      * Obtiene el cooldown apropiado para la ubicación actual del jugador
