@@ -257,10 +257,6 @@ public class ItemManager implements Listener {
 
         DebugUtils.logInternalDebug("Item trigger type: " + triggerType + " for item: " + interactiveItem.getId());
 
-//        if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
-//            DebugUtils.logInternalDebug("Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
-//            return;
-//        }
         
         if (triggerType == TriggerType.HOLD) {
             DebugUtils.logInternalDebug("HOLD trigger type detected for item: " + interactiveItem.getId());
@@ -308,7 +304,7 @@ public class ItemManager implements Listener {
 
         if (interactiveItem.shouldCancelEvent()) {
 //            DebugUtils.logInternalDebug("Cancelling PlayerInteract event for item: " + interactiveItem.getId());
-            event.setCancelled(true);
+            event.setCancelled(triggerType != TriggerType.ON_PROJECTILE_LAUNCH && triggerType != TriggerType.ON_PROJECTILE_HIT);
         }
 
 //        DebugUtils.logInternalDebug("Creating click info and processing interaction for item: " + interactiveItem.getId());
