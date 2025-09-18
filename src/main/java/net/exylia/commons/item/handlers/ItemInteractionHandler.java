@@ -7,8 +7,11 @@ import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.item.vanilla.VanillaItemCooldownManager;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.WorldGuardUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -124,7 +127,7 @@ public class ItemInteractionHandler {
         if (shouldRemoveItem) {
             ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
             if ("no_uses".equals(removalReason)) {
-                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+                handleConsumedMessage(player, interactiveItem);
             }
         } else {
             ItemInventoryHandler.updateItemByEquipmentSlot(player, itemStack, interactiveItem, hand);
@@ -145,7 +148,7 @@ public class ItemInteractionHandler {
         }
 
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(hitPlayer, config)) {
-            handleRegionDeniedMessage(player);
+            handleRegionDeniedMessage(player, interactiveItem);
             return;
         }
 
@@ -268,7 +271,7 @@ public class ItemInteractionHandler {
             } else {
                 // Item consumed completely, use the existing removeOrReduceItemByEquipmentSlot method
                 ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
-                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+                handleConsumedMessage(player, interactiveItem);
                 DebugUtils.logInternalDebug(
                         "Item completely consumed for " + player.getName() + " - removed from inventory");
             }
@@ -284,12 +287,12 @@ public class ItemInteractionHandler {
         }
 
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
-            handleRegionDeniedMessage(player);
+            handleRegionDeniedMessage(player, interactiveItem);
             return;
         }
 
         if (hitPlayer != null && !ItemRegionHandler.canPlayerUseItemInCurrentRegion(hitPlayer, config)) {
-            handleRegionDeniedMessage(player);
+            handleRegionDeniedMessage(player, interactiveItem);
             return;
         }
 
@@ -318,7 +321,7 @@ public class ItemInteractionHandler {
         ItemConfiguration config = interactiveItem.getConfiguration();
 
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
-            handleRegionDeniedMessage(player);
+            handleRegionDeniedMessage(player, interactiveItem);
             return false;
         }
 
@@ -326,13 +329,13 @@ public class ItemInteractionHandler {
             String effectiveId = interactiveItem.getEffectiveId();
             if (!canPlayerUseItem(player, effectiveId)) {
                 double remainingSeconds = getRemainingCooldown(player, effectiveId);
-                handleCooldownMessage(player, remainingSeconds);
+                handleCooldownMessage(player, remainingSeconds, interactiveItem);
                 return false;
             }
         }
 
         if (!interactiveItem.hasUsesRemaining()) {
-            MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.no_uses_remaining"));
+            handleNoUsesRemainingMessage(player, interactiveItem);
             return false;
         }
 
@@ -408,7 +411,7 @@ public class ItemInteractionHandler {
             ItemInventoryHandler.removeOrReduceItemFromInventory(event);
 
             if ("no_uses".equals(removalReason)) {
-                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.consumed"));
+                handleConsumedMessage(player, interactiveItem);
             }
         } else {
             ItemInventoryHandler.updateItemInInventory(event, interactiveItem);
@@ -450,29 +453,67 @@ public class ItemInteractionHandler {
         }
     }
 
-    public void handleCooldownMessage(Player player, double remainingSeconds) {
+    public void handleCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         if (CooldownManager.isInitialized() && CooldownManager.getInstance().hasGlobalCooldown(player.getUniqueId())) {
-            handleGlobalCooldownMessage(player, remainingSeconds);
+            handleGlobalCooldownMessage(player, remainingSeconds, interactiveItem);
         } else {
-            handleItemCooldownMessage(player, remainingSeconds);
+            handleItemCooldownMessage(player, remainingSeconds, interactiveItem);
         }
     }
 
-    public void handleGlobalCooldownMessage(Player player, double remainingSeconds) {
+    public void handleGlobalCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.global_cooldown",
-                "%cooldown_formatted%", formattedTime,
-                "%cooldown_seconds%", String.valueOf(remainingSeconds)));
+        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.global_cooldown", ExyliaContext.of(player)
+                .put("cooldown_formatted", formattedTime)
+                .put("cooldown_seconds", String.valueOf(remainingSeconds))
+                .put("item_display", getItemDisplayName(interactiveItem))
+                .put("item_name", getItemName(interactiveItem))));
     }
 
-    public void handleItemCooldownMessage(Player player, double remainingSeconds) {
+    public void handleItemCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.in_cooldown",
-                "%cooldown_formatted%", formattedTime,
-                "%cooldown_seconds%", String.valueOf(remainingSeconds)));
+        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.in_cooldown", ExyliaContext.of(player)
+                .put("cooldown_formatted", formattedTime)
+                .put("cooldown_seconds", String.valueOf(remainingSeconds))
+                .put("item_display", getItemDisplayName(interactiveItem))
+                .put("item_name", getItemName(interactiveItem))));
     }
 
-    public void handleRegionDeniedMessage(Player player) {
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.region_denied"));
+    public void handleRegionDeniedMessage(Player player, InteractiveItem interactiveItem) {
+        String regionName = WorldGuardUtils.getHighestPriorityRegion(player);
+        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.region_denied", ExyliaContext.of(interactiveItem)
+                .put("item_display", getItemDisplayName(interactiveItem))
+                .put("item_name", getItemName(interactiveItem))
+                .put("region_name", regionName != null ? regionName : "N/A")));
+    }
+
+    public void handleNoUsesRemainingMessage(Player player, InteractiveItem interactiveItem) {
+        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.no_uses_remaining", ExyliaContext.of(interactiveItem)
+                .put("item_display", getItemDisplayName(interactiveItem))
+                .put("item_name", getItemName(interactiveItem))));
+    }
+
+    public void handleConsumedMessage(Player player, InteractiveItem interactiveItem) {
+        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.consumed", ExyliaContext.of(interactiveItem)
+                .put("item_display", getItemDisplayName(interactiveItem))
+                .put("item_name", getItemName(interactiveItem))));
+    }
+
+    private String getItemDisplayName(InteractiveItem interactiveItem) {
+        if (interactiveItem.hasDisplayName()) {
+            String displayName = interactiveItem.getRawDisplayName();
+            return displayName != null ? displayName : "N/A";
+        }
+        return getItemName(interactiveItem);
+    }
+
+    private String getItemName(InteractiveItem interactiveItem) {
+        String name = interactiveItem.getRawName();
+        if (name != null && !name.trim().isEmpty()) {
+            return name;
+        }
+
+        String material = interactiveItem.getRawMaterialString();
+        return material != null ? material : "N/A";
     }
 }

@@ -1,5 +1,6 @@
 package net.exylia.commons.redis;
 
+import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.redis.config.RedisConfig;
 import net.exylia.commons.redis.config.RedisConfigManager;
@@ -13,7 +14,9 @@ import static net.exylia.commons.utils.DebugUtils.logInternalError;
  */
 public class RedisIntegration {
 
+    @Getter
     private static boolean autoInitialized = false;
+    @Getter
     private static RedisConfigManager configManager;
     private static ExyliaPlugin currentPlugin;
 
@@ -179,20 +182,6 @@ public class RedisIntegration {
                 logInternalError("Error al cerrar Redis automáticamente: " + e.getMessage());
             }
         }
-    }
-
-    /**
-     * Verifica si Redis fue inicializado automáticamente
-     */
-    public static boolean isAutoInitialized() {
-        return autoInitialized;
-    }
-
-    /**
-     * Obtiene el gestor de configuración
-     */
-    public static RedisConfigManager getConfigManager() {
-        return configManager;
     }
 
     /**

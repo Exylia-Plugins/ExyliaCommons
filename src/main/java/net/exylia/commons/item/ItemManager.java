@@ -257,10 +257,10 @@ public class ItemManager implements Listener {
 
         DebugUtils.logInternalDebug("Item trigger type: " + triggerType + " for item: " + interactiveItem.getId());
 
-        if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
-            DebugUtils.logInternalDebug("Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
-            return;
-        }
+//        if (triggerType == TriggerType.ON_PROJECTILE_LAUNCH || triggerType == TriggerType.ON_PROJECTILE_HIT) {
+//            DebugUtils.logInternalDebug("Projectile trigger type detected, skipping PlayerInteract processing for item: " + interactiveItem.getId());
+//            return;
+//        }
         
         if (triggerType == TriggerType.HOLD) {
             DebugUtils.logInternalDebug("HOLD trigger type detected for item: " + interactiveItem.getId());
@@ -299,7 +299,7 @@ public class ItemManager implements Listener {
                 event.setCancelled(true);
                 double remainingSeconds = getRemainingCooldown(player, effectiveId);
                 DebugUtils.logInternalDebug("Remaining cooldown: " + remainingSeconds + " seconds for player: " + player.getName());
-                interactionHandler.handleCooldownMessage(player, remainingSeconds);
+                interactionHandler.handleCooldownMessage(player, remainingSeconds, interactiveItem);
                 return;
             }
             DebugUtils.logInternalDebug("AFTER_CONSUME item passed cooldown check, allowing consumption for player: " + player.getName());
@@ -517,7 +517,7 @@ public class ItemManager implements Listener {
         if (!ItemRegionHandler.canPlayerUseItemInCurrentRegion(player, config)) {
             DebugUtils.logInternalDebug("Player " + player.getName() + " cannot use item " + interactiveItem.getId() + " in current region");
             event.setCancelled(true);
-            interactionHandler.handleRegionDeniedMessage(player);
+            interactionHandler.handleRegionDeniedMessage(player, interactiveItem);
             return;
         }
 
@@ -529,7 +529,7 @@ public class ItemManager implements Listener {
             event.setCancelled(true);
             double remainingSeconds = getRemainingCooldown(player, effectiveId);
             DebugUtils.logInternalDebug("Remaining cooldown: " + remainingSeconds + " seconds for projectile launch");
-            interactionHandler.handleCooldownMessage(player, remainingSeconds);
+            interactionHandler.handleCooldownMessage(player, remainingSeconds, interactiveItem);
             return;
         }
 

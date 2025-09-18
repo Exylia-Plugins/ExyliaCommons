@@ -31,10 +31,10 @@ system:
       error: "%prefix% {error}✘ Reload error: %error%"
 
   items:
-    no_uses_remaining: "%prefix% {error}The item has no uses remaining."
-    consumed: "%prefix% {warning}The item has been consumed."
-    region_denied: "%prefix% {error}You are not allowed to use this item in this region."
-    in_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again."
+    no_uses_remaining: "%prefix% {error}The %item_name%{error} has no uses remaining." # %item_display% # %item_name%
+    consumed: "%prefix% {warning}The %item_name%{warning} has been consumed." # %item_display% # %item_name%
+    region_denied: "%prefix% {error}You are not allowed to use %item_name%{error} in this region." # %item_display% # %item_name%
+    in_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again." # %item_display% # %item_name%
     global_cooldown: "%prefix% {warning}You have a global cooldown active, please wait {info}%cooldown_formatted%{warning} before using any item."
     vanilla_cooldown: "%prefix% {warning}This item is in cooldown, please wait {info}%cooldown_formatted%{warning} to use it again." # %item%
     vanilla_region_blocked: "%prefix% {error}You are not allowed to use this item in {info}%region%{error}."

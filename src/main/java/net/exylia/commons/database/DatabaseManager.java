@@ -69,7 +69,7 @@ public class DatabaseManager {
 
     public static DatabaseManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("DatabaseManager has not been initialized. Call initialize() first.");
+            return null;
         }
         return instance;
     }

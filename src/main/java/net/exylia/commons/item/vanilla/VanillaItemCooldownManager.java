@@ -3,6 +3,7 @@ package net.exylia.commons.item.vanilla;
 import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.cooldown.CooldownManager;
+import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.utils.visuals.MessageUtils;
@@ -681,26 +682,33 @@ public class VanillaItemCooldownManager implements Listener {
     private void handleCooldownMessage(Player player, Material material) {
         VanillaItemConfig config = getCooldownConfig(material);
         String itemDisplayName = config != null ? config.getEffectiveDisplayName() : getItemDisplayName(material);
+        String itemName = getItemName(material);
 
         String currentRegion = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
-        
+
         if (config != null && config.hasRegionConfigs() && currentRegion != null) {
             if (config.isBlockedInRegion(currentRegion)) {
-                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_blocked",
-                        "%item%", itemDisplayName,
-                        "%region%", currentRegion));
+                MessageUtils.sendMessageAsync(player,
+                        MessagesBase.getWithContext("system.items.vanilla_region_blocked", ExyliaContext.create()
+                                .put("item_display", itemDisplayName)
+                                .put("item_name", itemName)
+                                .put("item", itemDisplayName)
+                                .put("region", currentRegion)));
                 return;
             }
-            
+
             int maxUses = config.getMaxUsesForRegion(currentRegion);
             if (maxUses > 0) {
                 int currentUsage = VanillaRegionLimitManager.getInstance().getCurrentUsage(player, currentRegion, material);
                 if (currentUsage >= maxUses) {
                     int remaining = maxUses - currentUsage;
-                    MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_limit",
-                            "%item%", itemDisplayName,
-                            "%remaining%", String.valueOf(remaining),
-                            "%region%", currentRegion));
+                    MessageUtils.sendMessageAsync(player,
+                            MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
+                                    .put("item_display", itemDisplayName)
+                                    .put("item_name", itemName)
+                                    .put("item", itemDisplayName)
+                                    .put("remaining", remaining)
+                                    .put("region", currentRegion)));
                     return;
                 }
             }
@@ -708,11 +716,14 @@ public class VanillaItemCooldownManager implements Listener {
             if (!VanillaRegionLimitManager.getInstance().canPlayerUseInRegion(player, material)) {
                 int remaining = VanillaRegionLimitManager.getInstance().getRemainingUses(player, material);
                 String region = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
-                
-                MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_region_limit",
-                        "%item%", itemDisplayName,
-                        "%remaining%", String.valueOf(remaining),
-                        "%region%", region != null ? region : "unknown"));
+
+                MessageUtils.sendMessageAsync(player,
+                        MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
+                                .put("item_display", itemDisplayName)
+                                .put("item_name", itemName)
+                                .put("item", itemDisplayName)
+                                .put("remaining", remaining)
+                                .put("region", region != null ? region : "unknown")));
                 return;
             }
         }
@@ -720,10 +731,13 @@ public class VanillaItemCooldownManager implements Listener {
         double remainingSeconds = getRemainingCooldown(player, material);
         String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
 
-        MessageUtils.sendMessageAsync(player, MessagesBase.get("system.items.vanilla_cooldown",
-                "%item%", itemDisplayName,
-                "%cooldown_formatted%", formattedTime,
-                "%cooldown_seconds%", String.valueOf(remainingSeconds)));
+        MessageUtils.sendMessageAsync(player,
+                MessagesBase.getWithContext("system.items.vanilla_cooldown", ExyliaContext.create()
+                                .put("item_display", itemDisplayName)
+                                .put("item_name", itemName)
+                                .put("item", itemDisplayName)
+                                .put("cooldown_formatted", formattedTime)
+                                .put("cooldown_seconds", String.valueOf(remainingSeconds))));
     }
 
     /**
@@ -731,6 +745,13 @@ public class VanillaItemCooldownManager implements Listener {
      */
     private String getItemDisplayName(Material material) {
         return material.name().toLowerCase().replace("_", " ");
+    }
+
+    /**
+     * Obtiene el nombre del material
+     */
+    private String getItemName(Material material) {
+        return material.name().toLowerCase();
     }
 
     // ===== MÉTODOS PÚBLICOS PARA CONFIGURACIÓN =====

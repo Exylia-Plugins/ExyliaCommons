@@ -420,13 +420,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     private void shutdownExylia() {
-        logInternalInfo("Limpiando recursos globales de Exylia");
-        try {
-            if (DatabaseManager.getInstance() != null) {
-                DatabaseManager.getInstance().shutdown();
-            }
-        } catch (Exception e) {
-            logInternalInfo("Error cerrando sistema de base de datos: " + e.getMessage());
+        if (DatabaseManager.getInstance() != null) {
+            DatabaseManager.getInstance().shutdown();
         }
         RedisIntegration.shutdownRedis();
         ColorUtils.shutdown();
