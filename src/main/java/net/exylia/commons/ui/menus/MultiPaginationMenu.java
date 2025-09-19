@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -64,7 +65,7 @@ public class MultiPaginationMenu extends Menu {
         // Section configuration
         private MenuItem fillerItem;
         private MenuItem selectedItemTemplate;
-        private BiConsumer<MenuClickEvent, Integer> onItemSelect;
+        private BiFunction<MenuClickEvent, Integer, Boolean> onItemSelect;
         private Consumer<Integer> onPageChange;
         private Integer selectedIndex = null;
 
@@ -229,7 +230,7 @@ public class MultiPaginationMenu extends Menu {
 
         // ==================== EVENT HANDLERS ====================
 
-        public PaginationSection setOnItemSelect(BiConsumer<MenuClickEvent, Integer> handler) {
+        public PaginationSection setOnItemSelect(BiFunction<MenuClickEvent, Integer, Boolean> handler) {
             this.onItemSelect = handler;
             return this;
         }
@@ -323,7 +324,7 @@ public class MultiPaginationMenu extends Menu {
         int getNextButtonSlot() { return nextButtonSlot; }
         MenuItem getFillerItem() { return fillerItem; }
         MenuItem getSelectedItemTemplate() { return selectedItemTemplate; }
-        BiConsumer<MenuClickEvent, Integer> getOnItemSelect() { return onItemSelect; }
+        BiFunction<MenuClickEvent, Integer, Boolean> getOnItemSelect() { return onItemSelect; }
         Consumer<Integer> getOnPageChange() { return onPageChange; }
     }
 
@@ -690,12 +691,16 @@ public class MultiPaginationMenu extends Menu {
                     originalHandler.accept(event);
                 }
 
+                boolean shouldSelect = true;
                 if (section.getOnItemSelect() != null) {
-                    section.getOnItemSelect().accept(event, filteredIndex);
+                    shouldSelect = section.getOnItemSelect().apply(event, filteredIndex);
                 }
 
-                Integer oldSelection = section.getSelectedIndex();
-                section.setSelectedIndex(filteredIndex);
+                if (shouldSelect) {
+                    section.setSelectedIndex(filteredIndex);
+                } else {
+                    return;
+                }
 
                 if (viewer != null && isOpen()) {
                     refreshSectionSynchronous(event.getPlayer(), section.getName());

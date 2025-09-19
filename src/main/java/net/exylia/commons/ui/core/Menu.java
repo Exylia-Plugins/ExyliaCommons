@@ -3,6 +3,7 @@
 package net.exylia.commons.ui.core;
 
 import lombok.Getter;
+import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
@@ -62,7 +63,7 @@ public class Menu {
 
     // Update system
     protected boolean dynamicUpdates = false;
-    protected JavaPlugin plugin;
+    protected JavaPlugin plugin = ExyliaPlugin.getInstance();
     protected long updateInterval = 20L;
     protected int updateTaskId = -1;
 
@@ -657,7 +658,6 @@ public class Menu {
      * @param event The click event
      */
     public void handleClick(MenuClickEvent event) {
-        // Handle global click handler first
         if (globalClickHandler != null) {
             globalClickHandler.accept(event);
             if (event.isCancelled()) {
@@ -665,13 +665,13 @@ public class Menu {
             }
         }
 
-        // Handle item-specific click
         MenuItem item = getItem(event.getSlot());
         if (item != null) {
             item.handleClick(event);
         }
 
-        // ✅ NUEVO: Auto-refresh después del click
-        performAutoRefresh(event.getSlot());
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            performAutoRefresh(event.getSlot());
+        }, 1);
     }
 }

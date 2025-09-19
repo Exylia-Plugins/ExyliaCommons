@@ -176,7 +176,7 @@ public class MultiPaginationMenuConfiguration {
         }
 
         // Visual properties
-        if (config.getBoolean("glow", false)) {
+        if ((config.getBoolean("glow", false) || config.getBoolean("glowing", false))) {
             item.setGlowing(true);
         }
 

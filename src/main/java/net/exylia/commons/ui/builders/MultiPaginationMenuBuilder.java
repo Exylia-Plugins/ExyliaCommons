@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Collection;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 /**
@@ -177,7 +178,7 @@ public class MultiPaginationMenuBuilder {
          * @param handler The selection handler
          * @return This section builder for chaining
          */
-        public SectionBuilder onItemSelect(BiConsumer<net.exylia.commons.ui.events.MenuClickEvent, Integer> handler) {
+        public SectionBuilder onItemSelect(BiFunction<net.exylia.commons.ui.events.MenuClickEvent, Integer, Boolean> handler) {
             section.setOnItemSelect(handler);
             return this;
         }

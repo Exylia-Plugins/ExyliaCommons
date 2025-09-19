@@ -1,5 +1,6 @@
 package net.exylia.commons.utils;
 
+import net.exylia.commons.config.base.MainConfigBase;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -44,9 +45,20 @@ public class ColorUtils {
     private static final Cache<String, String> PROCESSED_STRING_CACHE = new Cache<>(1800000, 300, 300000);
     
     // Sistema de transformación de fuentes
-    private static final Map<Character, Character> SMALL_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> SMALL_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> FRAKTUR_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> BOLD_FRAKTUR_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> SCRIPT_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> DOUBLE_STRUCK_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> SQUARED_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> BOLD_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> ITALIC_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> BOLD_ITALIC_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> MONOSPACE_FONT_MAP = new HashMap<>();
+    private static final Map<String, String> NEGATIVE_SQUARED_FONT_MAP = new HashMap<>();
+
     static {
-        initializeSmallFontMap();
+        initializeFontMaps();
     }
 
     /**
@@ -267,9 +279,11 @@ public class ColorUtils {
 
         // Usar cache para evitar reprocesamiento
         return COMPONENT_CACHE.get(message, key -> {
-            String processed = applyColorPresets(key); // Aplicar presets primero
-            processed = preprocessColorCodes(processed); // Aplicar códigos de color
-            processed = applyFontTransformation(processed); // Aplicar transformación de fuente al final
+            String processed = applyColorPresets(key);
+            processed = preprocessColorCodes(processed);
+            String automaticFont = MainConfigBase.textAutomaticFont();
+            boolean forceUpperCase = MainConfigBase.textForceInUpperCase();
+            processed = applyFontTransformation(processed, automaticFont, forceUpperCase);
             return MINI_MESSAGE.deserialize(processed)
                     .decoration(TextDecoration.ITALIC, false);
         });
@@ -317,7 +331,9 @@ public class ColorUtils {
 
         String processed = applyColorPresets(message); // Aplicar presets primero
         processed = preprocessColorCodes(processed); // Aplicar códigos de color
-        return applyFontTransformation(processed); // Aplicar transformación de fuente al final
+        String automaticFont = MainConfigBase.textAutomaticFont();
+        boolean forceUpperCase = MainConfigBase.textForceInUpperCase();
+        return applyFontTransformation(processed, automaticFont, forceUpperCase); // Aplicar transformación de fuente al final
     }
 
     /**
@@ -523,37 +539,110 @@ public class ColorUtils {
         COMPONENT_CACHE.clear();
     }
 
-    private static void initializeSmallFontMap() {
-        String normal = "abcdefghijklmnopqrstuvwxyz";
-        String small = "ᴀʙᴄᴅᴇғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ";
-        
-        for (int i = 0; i < normal.length(); i++) {
-            SMALL_FONT_MAP.put(normal.charAt(i), small.charAt(i));
-            SMALL_FONT_MAP.put(Character.toUpperCase(normal.charAt(i)), small.charAt(i));
+    private static void initializeFontMaps() {
+        String[] normal = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"};
+        String[] normalUpper = {"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"};
+
+        // Small font
+        String[] small = {"ᴀ", "ʙ", "ᴄ", "ᴅ", "ᴇ", "ғ", "ɢ", "ʜ", "ɪ", "ᴊ", "ᴋ", "ʟ", "ᴍ", "ɴ", "ᴏ", "ᴘ", "ǫ", "ʀ", "s", "ᴛ", "ᴜ", "ᴠ", "ᴡ", "x", "ʏ", "ᴢ"};
+
+        // Fraktur
+        String[] fraktur = {"\uD835\uDD1E", "\uD835\uDD1F", "\uD835\uDD20", "\uD835\uDD21", "\uD835\uDD22", "\uD835\uDD23", "\uD835\uDD24", "\uD835\uDD25", "\uD835\uDD26", "\uD835\uDD27", "\uD835\uDD28", "\uD835\uDD29", "\uD835\uDD2A", "\uD835\uDD2B", "\uD835\uDD2C", "\uD835\uDD2D", "\uD835\uDD2E", "\uD835\uDD2F", "\uD835\uDD30", "\uD835\uDD31", "\uD835\uDD32", "\uD835\uDD33", "\uD835\uDD34", "\uD835\uDD35", "\uD835\uDD36", "\uD835\uDD37"};
+
+        // Bold Fraktur
+        String[] boldFraktur = {"𝖆", "𝖇", "𝖈", "𝖉", "𝖊", "𝖋", "𝖌", "𝖍", "𝖎", "𝖏", "𝖐", "𝖑", "𝖒", "𝖓", "𝖔", "𝖕", "𝖖", "𝖗", "𝖘", "𝖙", "𝖚", "𝖛", "𝖜", "𝖝", "𝖞", "𝖟"};
+
+        // Script
+        String[] script = {"𝓪", "𝓫", "𝓬", "𝓭", "𝓮", "𝓯", "𝓰", "𝓱", "𝓲", "𝓳", "𝓴", "𝓵", "𝓶", "𝓷", "𝓸", "𝓹", "𝓺", "𝓻", "𝓼", "𝓽", "𝓾", "𝓿", "𝔀", "𝔁", "𝔂", "𝔃"};
+
+        // Double Struck
+        String[] doubleStruck = {"𝕒", "𝕓", "𝕔", "𝕕", "𝕖", "𝕗", "𝕘", "𝕙", "𝕚", "𝕛", "𝕜", "𝕝", "𝕞", "𝕟", "𝕠", "𝕡", "𝕢", "𝕣", "𝕤", "𝕥", "𝕦", "𝕧", "𝕨", "𝕩", "𝕪", "𝕫"};
+
+        // Squared
+        String[] squared = {"🄰", "🄱", "🄲", "🄳", "🄴", "🄵", "🄶", "🄷", "🄸", "🄹", "🄺", "🄻", "🄼", "🄽", "🄾", "🄿", "🅀", "🅁", "🅂", "🅃", "🅄", "🅅", "🅆", "🅇", "🅈", "🅉"};
+
+        // Bold
+        String[] bold = {"𝐚", "𝐛", "𝐜", "𝐝", "𝐞", "𝐟", "𝐠", "𝐡", "𝐢", "𝐣", "𝐤", "𝐥", "𝐦", "𝐧", "𝐨", "𝐩", "𝐪", "𝐫", "𝐬", "𝐭", "𝐮", "𝐯", "𝐰", "𝐱", "𝐲", "𝐳"};
+
+        // Italic
+        String[] italic = {"𝘢", "𝘣", "𝘤", "𝘥", "𝘦", "𝘧", "𝘨", "𝘩", "𝘪", "𝘫", "𝘬", "𝘭", "𝘮", "𝘯", "𝘰", "𝘱", "𝘲", "𝘳", "𝘴", "𝘵", "𝘶", "𝘷", "𝘸", "𝘹", "𝘺", "𝘻"};
+
+        // Bold Italic
+        String[] boldItalic = {"𝙖", "𝙗", "𝙘", "𝙙", "𝙚", "𝙛", "𝙜", "𝙝", "𝙞", "𝙟", "𝙠", "𝙡", "𝙢", "𝙣", "𝙤", "𝙥", "𝙦", "𝙧", "𝙨", "𝙩", "𝙪", "𝙫", "𝙬", "𝙭", "𝙮", "𝙯"};
+
+        // Monospace
+        String[] monospace = {"𝚊", "𝚋", "𝚌", "𝚍", "𝚎", "𝚏", "𝚐", "𝚑", "𝚒", "𝚓", "𝚔", "𝚕", "𝚖", "𝚗", "𝚘", "𝚙", "𝚚", "𝚛", "𝚜", "𝚝", "𝚞", "𝚟", "𝚠", "𝚡", "𝚢", "𝚣"};
+
+        // Negative Squared
+        String[] negativeSquared = {"🅰", "🅱", "🅲", "🅳", "🅴", "🅵", "🅶", "🅷", "🅸", "🅹", "🅺", "🅻", "🅼", "🅽", "🅾", "🅿", "🆀", "🆁", "🆂", "🆃", "🆄", "🆅", "🆆", "🆇", "🆈", "🆉"};
+
+        for (int i = 0; i < 26; i++) {
+            String normalChar = normal[i];
+            String upperChar = normalUpper[i];
+
+            // Small font
+            SMALL_FONT_MAP.put(normalChar, small[i]);
+            SMALL_FONT_MAP.put(upperChar, small[i]);
+
+            // Fraktur
+            FRAKTUR_FONT_MAP.put(normalChar, fraktur[i]);
+            FRAKTUR_FONT_MAP.put(upperChar, fraktur[i]);
+
+            // Bold Fraktur
+            BOLD_FRAKTUR_FONT_MAP.put(normalChar, boldFraktur[i]);
+            BOLD_FRAKTUR_FONT_MAP.put(upperChar, boldFraktur[i]);
+
+            // Script
+            SCRIPT_FONT_MAP.put(normalChar, script[i]);
+            SCRIPT_FONT_MAP.put(upperChar, script[i]);
+
+            // Double Struck
+            DOUBLE_STRUCK_FONT_MAP.put(normalChar, doubleStruck[i]);
+            DOUBLE_STRUCK_FONT_MAP.put(upperChar, doubleStruck[i]);
+
+            // Bold
+            BOLD_FONT_MAP.put(normalChar, bold[i]);
+            BOLD_FONT_MAP.put(upperChar, bold[i]);
+
+            // Italic
+            ITALIC_FONT_MAP.put(normalChar, italic[i]);
+            ITALIC_FONT_MAP.put(upperChar, italic[i]);
+
+            // Bold Italic
+            BOLD_ITALIC_FONT_MAP.put(normalChar, boldItalic[i]);
+            BOLD_ITALIC_FONT_MAP.put(upperChar, boldItalic[i]);
+
+            // Monospace
+            MONOSPACE_FONT_MAP.put(normalChar, monospace[i]);
+            MONOSPACE_FONT_MAP.put(upperChar, monospace[i]);
+
+            // Squared and Negative Squared
+            SQUARED_FONT_MAP.put(normalChar, squared[i]);
+            SQUARED_FONT_MAP.put(upperChar, squared[i]);
+
+            NEGATIVE_SQUARED_FONT_MAP.put(normalChar, negativeSquared[i]);
+            NEGATIVE_SQUARED_FONT_MAP.put(upperChar, negativeSquared[i]);
         }
     }
 
-    public static String applyFontTransformation(String message) {
+    public static String applyFontTransformation(String message, String font, boolean forceUpperCase) {
         if (message == null || message.isEmpty()) {
             return message;
         }
 
         try {
-            String automaticFont = net.exylia.commons.config.base.MainConfigBase.textAutomaticFont();
-            boolean forceUpperCase = net.exylia.commons.config.base.MainConfigBase.textForceInUpperCase();
-            
-            if (!"small".equals(automaticFont)) {
+            Map<String, String> fontMap = getFontMap(font);
+            if (fontMap == null) {
                 return message;
             }
 
-            int len = message.length();
-            StringBuilder result = new StringBuilder(len);
+            StringBuilder result = new StringBuilder();
             boolean insideTag = false;
             int tagDepth = 0;
-            
-            for (int i = 0; i < len; i++) {
+
+            for (int i = 0; i < message.length(); i++) {
                 char c = message.charAt(i);
-                
+
                 if (c == '<' && !insideTag) {
                     int closingIndex = findTagEnd(message, i);
                     if (closingIndex != -1) {
@@ -569,8 +658,8 @@ public class ColorUtils {
                         tagDepth = 0;
                     }
                 }
-                
-                if (c == '&' && i + 1 < len && !insideTag) {
+
+                if (c == '&' && i + 1 < message.length() && !insideTag) {
                     char nextChar = message.charAt(i + 1);
                     if (isColorCode(nextChar)) {
                         result.append(c);
@@ -579,19 +668,41 @@ public class ColorUtils {
                         continue;
                     }
                 }
-                
+
                 if (insideTag) {
                     result.append(c);
                 } else {
-                    Character transformed = SMALL_FONT_MAP.get(forceUpperCase ? Character.toUpperCase(c) : c);
-                    result.append(transformed != null ? transformed : c);
+                    String targetChar = String.valueOf(forceUpperCase ? Character.toUpperCase(c) : c);
+                    String transformed = fontMap.get(targetChar);
+                    result.append(transformed != null ? transformed : targetChar);
                 }
             }
-            
+
             return result.toString();
         } catch (Exception e) {
             return message;
         }
+    }
+
+    private static Map<String, String> getFontMap(String fontType) {
+        if (fontType == null) {
+            return null;
+        }
+
+        return switch (fontType.toLowerCase()) {
+            case "small" -> SMALL_FONT_MAP;
+            case "fraktur" -> FRAKTUR_FONT_MAP;
+            case "bold_fraktur" -> BOLD_FRAKTUR_FONT_MAP;
+            case "script" -> SCRIPT_FONT_MAP;
+            case "double_struck" -> DOUBLE_STRUCK_FONT_MAP;
+            case "squared" -> SQUARED_FONT_MAP;
+            case "bold" -> BOLD_FONT_MAP;
+            case "italic" -> ITALIC_FONT_MAP;
+            case "bold_italic" -> BOLD_ITALIC_FONT_MAP;
+            case "monospace" -> MONOSPACE_FONT_MAP;
+            case "negative_squared" -> NEGATIVE_SQUARED_FONT_MAP;
+            default -> null;
+        };
     }
     
     private static int findTagEnd(String message, int startIndex) {

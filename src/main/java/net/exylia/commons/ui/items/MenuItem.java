@@ -617,7 +617,7 @@ public class MenuItem {
             }
         }
 
-        if (config.getBoolean("glowing", false)) {
+        if ((config.getBoolean("glow", false) || config.getBoolean("glowing", false))) {
             item.setGlowing(true);
         }
 
