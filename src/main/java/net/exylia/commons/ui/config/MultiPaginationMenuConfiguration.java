@@ -6,6 +6,7 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.MultiPaginationMenu;
 import net.exylia.commons.ui.builders.MultiPaginationMenuBuilder;
+import net.exylia.commons.ui.builders.MenuItemBuilder;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -154,51 +155,7 @@ public class MultiPaginationMenuConfiguration {
     }
 
     private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
-        String material = config.getString("material", "STONE");
-        MenuItem item = new MenuItem(material);
-
-        // Basic properties
-        if (config.contains("name")) {
-            item.setName(config.getString("name"));
-        }
-
-        if (config.contains("lore")) {
-            item.setLoreList(config.getStringList("lore"));
-        }
-
-        if (config.contains("amount")) {
-            Object amount = config.get("amount");
-            if (amount instanceof String) {
-                item.setAmount((String) amount);
-            } else if (amount instanceof Integer) {
-                item.setAmount((Integer) amount);
-            }
-        }
-
-        // Visual properties
-        if ((config.getBoolean("glow", false) || config.getBoolean("glowing", false))) {
-            item.setGlowing(true);
-        }
-
-        if (config.getBoolean("hide_attributes", false)) {
-            item.hideAllAttributes();
-        }
-
-        // Dynamic updates
-        if (config.getBoolean("dynamic_update", false)) {
-            item.setDynamicUpdate(true);
-            if (config.contains("update_interval")) {
-                item.setUpdateInterval(config.getLong("update_interval", 20L));
-            }
-        }
-
-        // Process with context
-        if (context != null) {
-            item.withContext(context);
-            item.process(player);
-        }
-
-        return item;
+        return MenuItemBuilder.fromConfig(config, player, context);
     }
 
     private int[] parseSlots(String slotsString, int rows) {

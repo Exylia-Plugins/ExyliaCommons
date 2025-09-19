@@ -76,7 +76,7 @@ public class MenuItemBuilder {
     }
 
     private static void configureVisualProperties(MenuItem item, ConfigurationSection config) {
-        if (config.getBoolean("glow", false)) {
+        if ((config.getBoolean("glow", false) || config.getBoolean("glowing", false))) {
             item.setGlowing(true);
         }
 
@@ -195,7 +195,7 @@ public class MenuItemBuilder {
         return context;
     }
 
-    private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, Object... context) {
+    private static void configureCommands(MenuItem item, ConfigurationSection config, Player player, ExyliaContext context) {
         if (config.contains("commands")) {
             java.util.List<String> commands = config.getStringList("commands");
             if (!commands.isEmpty()) {
@@ -206,12 +206,12 @@ public class MenuItemBuilder {
         }
     }
 
-    private static void executeCommands(java.util.List<String> commands, Player player, Object... context) {
+    private static void executeCommands(java.util.List<String> commands, Player player, ExyliaContext context) {
         for (String command : commands) {
             String processed = command;
 
             if (context != null) {
-                processed = PlaceholderSystemManager.getInstance().process(processed, player, context);
+                processed = context.processPlaceholders(processed, player);
             }
 
             if (processed.startsWith("player:")) {

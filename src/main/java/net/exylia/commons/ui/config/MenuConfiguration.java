@@ -2,14 +2,11 @@ package net.exylia.commons.ui.config;
 
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.Menu;
-import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.PaginationMenu;
 import net.exylia.commons.ui.menus.EditableMenu;
 import net.exylia.commons.ui.builders.EditableMenuBuilder;
-import net.exylia.commons.actions.ActionContext;
-import net.exylia.commons.actions.ActionSource;
-import net.exylia.commons.actions.GlobalActionManager;
+import net.exylia.commons.ui.builders.MenuItemBuilder;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -18,7 +15,6 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 public class MenuConfiguration {
 
@@ -182,62 +178,9 @@ public class MenuConfiguration {
     }
 
     private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
-        MenuItem item = MenuItem.fromConfig(config, player, context);
-
-        if (config.contains("action")) {
-            String actionString = config.getString("action");
-            item.setClickHandler(event -> {
-                ActionContext actionContext = createActionContextFromMenuClick(event);
-                GlobalActionManager.executeAction(actionString, actionContext);
-            });
-        }
-
-        if (config.contains("commands")) {
-            List<String> commands = config.getStringList("commands");
-            item.setClickHandler(event -> {
-                executeCommands(commands, event.getPlayer(), context);
-            });
-        }
-
-        if (context != null) {
-            item.withContext(context);
-        }
-
-        item.process(player);
-
-        return item;
+        return MenuItemBuilder.fromConfig(config, player, context);
     }
 
-    private ActionContext createActionContextFromMenuClick(MenuClickEvent event) {
-        ActionContext context = new ActionContext(event.getPlayer(), ActionSource.MENU);
-
-        context.withData("menu", event.getMenu());
-        context.withData("item", event.getItem());
-        context.withData("slot", event.getSlot());
-        context.withData("clickType", event.getClickType());
-
-        return context;
-    }
-
-    private void executeCommands(List<String> commands, Player player, ExyliaContext context) {
-        for (String command : commands) {
-            String processed = command;
-
-            if (context != null) {
-                processed = context.processPlaceholders(processed, player);
-            }
-
-            if (processed.startsWith("player:")) {
-                String cmd = processed.substring(7).trim();
-                player.performCommand(cmd);
-            } else if (processed.startsWith("console:")) {
-                String cmd = processed.substring(8).trim();
-                plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), cmd);
-            } else {
-                player.performCommand(processed);
-            }
-        }
-    }
 
     private List<Integer> getItemSlots(ConfigurationSection config, int rows) {
         List<Integer> slots = new ArrayList<>();
