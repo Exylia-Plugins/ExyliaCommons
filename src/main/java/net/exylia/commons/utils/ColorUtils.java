@@ -638,12 +638,19 @@ public class ColorUtils {
 
             StringBuilder result = new StringBuilder();
             boolean insideTag = false;
+            boolean insideBrackets = false;
             int tagDepth = 0;
 
             for (int i = 0; i < message.length(); i++) {
                 char c = message.charAt(i);
 
-                if (c == '<' && !insideTag) {
+                if (c == '[' && !insideTag) {
+                    insideBrackets = true;
+                } else if (c == ']' && !insideTag) {
+                    insideBrackets = false;
+                }
+
+                if (c == '<' && !insideTag && !insideBrackets) {
                     int closingIndex = findTagEnd(message, i);
                     if (closingIndex != -1) {
                         insideTag = true;
@@ -659,7 +666,7 @@ public class ColorUtils {
                     }
                 }
 
-                if (c == '&' && i + 1 < message.length() && !insideTag) {
+                if (c == '&' && i + 1 < message.length() && !insideTag && !insideBrackets) {
                     char nextChar = message.charAt(i + 1);
                     if (isColorCode(nextChar)) {
                         result.append(c);
@@ -669,7 +676,7 @@ public class ColorUtils {
                     }
                 }
 
-                if (insideTag) {
+                if (insideTag || insideBrackets) {
                     result.append(c);
                 } else {
                     String targetChar = String.valueOf(forceUpperCase ? Character.toUpperCase(c) : c);
