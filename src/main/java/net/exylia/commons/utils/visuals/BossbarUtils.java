@@ -122,7 +122,21 @@ public class BossbarUtils {
     private static BukkitTask executeCountdownBossBar(Player player, CountdownBossBarInstance instance) {
         BossBarConfig config = instance.getConfig();
 
-        String processedText = processPlaceholders(config.getText(), player, instance.getContext());
+        // Initialize countdown values at maximum
+        long totalTicks = instance.getDurationTicks();
+        long initialSecondsRemaining = (totalTicks + 19) / 20;
+        long initialMillisRemaining = totalTicks * 50;
+
+        ExyliaContext initialContext = instance.getContext().copy()
+                .put("time", initialSecondsRemaining)
+                .put("time_formatted", timeFormatter.format(initialMillisRemaining))
+                .put("ticks_remaining", totalTicks)
+                .put("progress", 1.0)
+                .put("update_count", 0L)
+                .put("countdown_active", true)
+                .withCurrentTime();
+
+        String processedText = processPlaceholders(config.getText(), player, initialContext);
         BossBar bossBar = MessageUtils.createBossBar(processedText, parseColor(config.getColor()), parseOverlay(config.getStyle()));
 
         if (bossBar == null) {

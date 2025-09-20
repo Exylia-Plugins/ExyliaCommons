@@ -40,6 +40,12 @@ import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
+import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
+import org.bukkit.event.inventory.PrepareSmithingEvent;
+import org.bukkit.event.enchantment.EnchantItemEvent;
+import org.bukkit.event.enchantment.PrepareItemEnchantEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -55,10 +61,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 
-/**
- * Manager principal del sistema de items - MODULARIZADO
- * CORREGIDO: Problemas con items lanzables
- */
 public class ItemManager implements Listener {
 
     @Getter
@@ -70,7 +72,9 @@ public class ItemManager implements Listener {
     private static boolean initialized = false;
 
     private static final Map<UUID, Long> lastClickTime = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> lastDropTime = new ConcurrentHashMap<>();
     private static final long DOUBLE_CLICK_PREVENTION_MS = 150;
+    private static final long DROP_INTERACTION_PREVENTION_MS = 100;
 
     public static void initialize(JavaPlugin javaPlugin) {
         initialize(javaPlugin, CooldownConfiguration.getDefault());
@@ -282,6 +286,11 @@ public class ItemManager implements Listener {
 
         if (!canPlayerClick(player.getUniqueId())) {
             DebugUtils.logInternalDebug("Player " + player.getName() + " cannot click (spam protection or other restriction)");
+            return;
+        }
+
+        if (isRecentlyDropped(player.getUniqueId())) {
+            DebugUtils.logInternalDebug("Player " + player.getName() + " recently dropped an item, ignoring interaction to prevent consumption bug");
             return;
         }
 
@@ -787,6 +796,8 @@ public class ItemManager implements Listener {
         Player player = event.getPlayer();
         ItemStack droppedItem = event.getItemDrop().getItemStack();
 
+        lastDropTime.put(player.getUniqueId(), System.currentTimeMillis());
+
         InteractiveItem interactiveItem = getItemFromStack(droppedItem);
         if (interactiveItem == null) {
             return;
@@ -968,10 +979,18 @@ public class ItemManager implements Listener {
         return true;
     }
 
+    private static boolean isRecentlyDropped(UUID playerId) {
+        long currentTime = System.currentTimeMillis();
+        Long lastTime = lastDropTime.get(playerId);
+
+        return lastTime != null && (currentTime - lastTime) < DROP_INTERACTION_PREVENTION_MS;
+    }
+
     private static void startClickTimeCleanupTask() {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             long currentTime = System.currentTimeMillis();
             lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);
+            lastDropTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DROP_INTERACTION_PREVENTION_MS);
         }, 20L * 60, 20L * 60);
     }
 
@@ -1085,6 +1104,66 @@ public class ItemManager implements Listener {
                 DebugUtils.logInternalDebug("Auto-starting HOLD session for off hand: " + offItem.getId());
                 holdHandler.startHoldSession(player, offItem, EquipmentSlot.OFF_HAND);
             }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPrepareItemCraft(PrepareItemCraftEvent event) {
+        for (ItemStack ingredient : event.getInventory().getMatrix()) {
+            if (ingredient != null && isInteractiveItem(ingredient)) {
+                DebugUtils.logInternalDebug("Interactive item found in crafting matrix, cancelling craft preparation");
+                event.getInventory().setResult(null);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onCraftItem(CraftItemEvent event) {
+        for (ItemStack ingredient : event.getInventory().getMatrix()) {
+            if (ingredient != null && isInteractiveItem(ingredient)) {
+                DebugUtils.logInternalDebug("Interactive item found in crafting matrix, cancelling craft event");
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPrepareAnvil(PrepareAnvilEvent event) {
+        ItemStack first = event.getInventory().getItem(0);
+        ItemStack second = event.getInventory().getItem(1);
+
+        if ((first != null && isInteractiveItem(first)) || (second != null && isInteractiveItem(second))) {
+            DebugUtils.logInternalDebug("Interactive item found in anvil, cancelling anvil preparation");
+            event.setResult(null);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPrepareSmithing(PrepareSmithingEvent event) {
+        for (ItemStack ingredient : event.getInventory().getContents()) {
+            if (ingredient != null && isInteractiveItem(ingredient)) {
+                DebugUtils.logInternalDebug("Interactive item found in smithing table, cancelling smithing preparation");
+                event.setResult(null);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onPrepareItemEnchant(PrepareItemEnchantEvent event) {
+        if (isInteractiveItem(event.getItem())) {
+            DebugUtils.logInternalDebug("Interactive item found in enchanting table, cancelling enchant preparation");
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEnchantItem(EnchantItemEvent event) {
+        if (isInteractiveItem(event.getItem())) {
+            DebugUtils.logInternalDebug("Interactive item found in enchanting table, cancelling enchant event");
+            event.setCancelled(true);
         }
     }
 
