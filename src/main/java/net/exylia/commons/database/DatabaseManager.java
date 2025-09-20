@@ -371,7 +371,15 @@ public class DatabaseManager {
                 tablesInitialized = false;
             }
 
-            // 2. Reconnect
+            // 2. Wait for pending async operations to complete
+            logInternalDebug("Waiting for pending async operations...");
+            try {
+                Thread.sleep(2000); // Give time for async operations to complete
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // 3. Reconnect
             logInternalDebug("Reconnecting to database...");
             reconnect();
 
@@ -380,7 +388,7 @@ public class DatabaseManager {
                         "Failed to establish database connection during reload", null);
             }
 
-            // 3. Initialize tables synchronously
+            // 4. Initialize tables synchronously
             logInternalDebug("Initializing tables synchronously...");
             CompletableFuture<Void> initFuture = initializeAllTables();
 
@@ -391,7 +399,7 @@ public class DatabaseManager {
                         "Failed during table initialization in reload", e);
             }
 
-            // 4. Recreate repositories
+            // 5. Recreate repositories
             logInternalDebug("Recreating all repositories...");
             recreateAllRepositories();
             return true;

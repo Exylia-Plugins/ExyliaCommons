@@ -247,12 +247,43 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     /**
+     * Realiza un reload completo de todos los sistemas con mensaje automático al sender
+     * @param sender CommandSender que recibirá los mensajes de progreso
+     * @return CompletableFuture con el resultado del reload
+     */
+    public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender) {
+        ReloadResult.sendStartMessage(sender);
+        return reloadManager.reloadAllAsync()
+                .thenApply(result -> {
+                    org.bukkit.Bukkit.getScheduler().runTask(this, () ->
+                        ReloadResult.sendDetailedReloadResult(sender, result));
+                    return result;
+                });
+    }
+
+    /**
      * Realiza un reload completo con timeout
      * @param timeoutSeconds Timeout en segundos
      * @return CompletableFuture con el resultado del reload
      */
     public final CompletableFuture<ReloadResult> reloadAllAsync(long timeoutSeconds) {
         return reloadManager.reloadAllAsync(timeoutSeconds);
+    }
+
+    /**
+     * Realiza un reload completo con timeout y mensaje automático al sender
+     * @param sender CommandSender que recibirá los mensajes de progreso
+     * @param timeoutSeconds Timeout en segundos
+     * @return CompletableFuture con el resultado del reload
+     */
+    public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender, long timeoutSeconds) {
+        ReloadResult.sendStartMessage(sender);
+        return reloadManager.reloadAllAsync(timeoutSeconds)
+                .thenApply(result -> {
+                    org.bukkit.Bukkit.getScheduler().runTask(this, () ->
+                        ReloadResult.sendDetailedReloadResult(sender, result));
+                    return result;
+                });
     }
 
     /**

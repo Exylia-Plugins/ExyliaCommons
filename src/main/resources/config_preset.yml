@@ -2,7 +2,7 @@
 debug: false
 
 text:
-  automatic-font: "small" # small or none
+  automatic-font: "none" # small or none
   force-in-upper-case: true
 
 date-formatter:

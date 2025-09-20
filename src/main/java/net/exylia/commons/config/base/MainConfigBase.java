@@ -57,7 +57,7 @@ public class MainConfigBase extends ConfigBase {
 
     public static String textAutomaticFont() {
         MainConfigBase instance = getActiveInstance();
-        if (instance == null) return "small";
+        if (instance == null) return "none";
         return instance.textAutomaticFont;
     }
 

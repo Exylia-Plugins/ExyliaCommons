@@ -84,6 +84,12 @@ public class H2Adapter implements DatabaseAdapter {
     public void disconnect() {
         try {
             if (dataSource != null && !dataSource.isClosed()) {
+                // Wait for active connections to finish their operations
+                dataSource.getHikariPoolMXBean().softEvictConnections();
+
+                // Give active connections time to complete
+                Thread.sleep(1000);
+
                 dataSource.close();
                 logInternalInfo("H2 connection pool closed successfully");
             }
@@ -103,8 +109,14 @@ public class H2Adapter implements DatabaseAdapter {
 
     private Connection getConnection() throws SQLException {
         try {
+            if (dataSource == null || dataSource.isClosed()) {
+                throw new ConnectionException("H2", "pool", "DataSource is null or closed", null);
+            }
             return dataSource.getConnection();
         } catch (SQLException e) {
+            if (e.getMessage().contains("has been closed")) {
+                throw new ConnectionException("H2", "pool", "Connection pool is closed - reload in progress", e);
+            }
             throw new ConnectionException("H2", "pool", "Failed to get connection from pool", e);
         }
     }

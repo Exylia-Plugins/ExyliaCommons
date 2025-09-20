@@ -3,6 +3,8 @@ package net.exylia.commons.utils.visuals;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static net.exylia.commons.utils.OldColorUtils.parseOldNormalColors;
+
 public class OldColorUtils {
     private static final Pattern HEX_PATTERN = Pattern.compile("<#([0-9a-fA-F]{6})>");
     private static final Pattern BOLD_PATTERN = Pattern.compile("<bold>");
@@ -12,6 +14,7 @@ public class OldColorUtils {
 
     public static String convertMiniMessageToOLD(String message) {
         String result = message;
+        result = parseOldNormalColors(message);
         result = convertGradientsAndTextToSectionHex(result);
         result = convertHexColors(result);
         result = convertFormatting(result);

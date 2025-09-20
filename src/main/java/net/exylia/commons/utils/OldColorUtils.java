@@ -25,58 +25,7 @@ public class OldColorUtils {
         return LEGACY_CACHE.get(message, key -> {
             String processed = key;
 
-            processed = processed
-                    // Colores
-                    .replace("<black>", "&0")
-                    .replace("<dark_blue>", "&1")
-                    .replace("<dark_green>", "&2")
-                    .replace("<dark_aqua>", "&3")
-                    .replace("<dark_red>", "&4")
-                    .replace("<dark_purple>", "&5")
-                    .replace("<gold>", "&6")
-                    .replace("<gray>", "&7")
-                    .replace("<dark_gray>", "&8")
-                    .replace("<blue>", "&9")
-                    .replace("<green>", "&a")
-                    .replace("<aqua>", "&b")
-                    .replace("<red>", "&c")
-                    .replace("<light_purple>", "&d")
-                    .replace("<yellow>", "&e")
-                    .replace("<white>", "&f")
-
-                    // Formatos
-                    .replace("<obfuscated>", "&k")
-                    .replace("<bold>", "&l")
-                    .replace("<strikethrough>", "&m")
-                    .replace("<underlined>", "&n")
-                    .replace("<italic>", "&o")
-                    .replace("</italic>", "&r")
-                    .replace("<reset>", "&r")
-                    .replace("<!italic>", "");
-
-            // Need to add all the closing tags replacement
-            processed = processed
-                    .replace("</black>", "&r")
-                    .replace("</dark_blue>", "&r")
-                    .replace("</dark_green>", "&r")
-                    .replace("</dark_aqua>", "&r")
-                    .replace("</dark_red>", "&r")
-                    .replace("</dark_purple>", "&r")
-                    .replace("</gold>", "&r")
-                    .replace("</gray>", "&r")
-                    .replace("</dark_gray>", "&r")
-                    .replace("</blue>", "&r")
-                    .replace("</green>", "&r")
-                    .replace("</aqua>", "&r")
-                    .replace("</red>", "&r")
-                    .replace("</light_purple>", "&r")
-                    .replace("</yellow>", "&r")
-                    .replace("</white>", "&r")
-                    .replace("</obfuscated>", "&r")
-                    .replace("</bold>", "&r")
-                    .replace("</strikethrough>", "&r")
-                    .replace("</underlined>", "&r")
-                    .replace("</reset>", "&r");
+            processed = parseOldNormalColors(processed);
 
             processed = processed.replaceAll("<#([0-9a-fA-F]{6})>", "<#$1>");
             processed = processed.replaceAll("</#[0-9a-fA-F]{6}>", "&r");
@@ -117,6 +66,62 @@ public class OldColorUtils {
 
             return ChatColor.translateAlternateColorCodes('&', GradientUtils.applyGradientsAndHex(processed));
         });
+    }
+
+    public static String parseOldNormalColors(String processed){
+        processed = processed
+                // Colores
+                .replace("<black>", "&0")
+                .replace("<dark_blue>", "&1")
+                .replace("<dark_green>", "&2")
+                .replace("<dark_aqua>", "&3")
+                .replace("<dark_red>", "&4")
+                .replace("<dark_purple>", "&5")
+                .replace("<gold>", "&6")
+                .replace("<gray>", "&7")
+                .replace("<dark_gray>", "&8")
+                .replace("<blue>", "&9")
+                .replace("<green>", "&a")
+                .replace("<aqua>", "&b")
+                .replace("<red>", "&c")
+                .replace("<light_purple>", "&d")
+                .replace("<yellow>", "&e")
+                .replace("<white>", "&f")
+
+                // Formatos
+                .replace("<obfuscated>", "&k")
+                .replace("<bold>", "&l")
+                .replace("<strikethrough>", "&m")
+                .replace("<underlined>", "&n")
+                .replace("<italic>", "&o")
+                .replace("</italic>", "&r")
+                .replace("<reset>", "&r")
+                .replace("<!italic>", "");
+
+        // Need to add all the closing tags replacement
+        processed = processed
+                .replace("</black>", "&r")
+                .replace("</dark_blue>", "&r")
+                .replace("</dark_green>", "&r")
+                .replace("</dark_aqua>", "&r")
+                .replace("</dark_red>", "&r")
+                .replace("</dark_purple>", "&r")
+                .replace("</gold>", "&r")
+                .replace("</gray>", "&r")
+                .replace("</dark_gray>", "&r")
+                .replace("</blue>", "&r")
+                .replace("</green>", "&r")
+                .replace("</aqua>", "&r")
+                .replace("</red>", "&r")
+                .replace("</light_purple>", "&r")
+                .replace("</yellow>", "&r")
+                .replace("</white>", "&r")
+                .replace("</obfuscated>", "&r")
+                .replace("</bold>", "&r")
+                .replace("</strikethrough>", "&r")
+                .replace("</underlined>", "&r")
+                .replace("</reset>", "&r");
+        return processed;
     }
 
     public static void clearCache() {

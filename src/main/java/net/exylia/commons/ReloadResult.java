@@ -1,5 +1,10 @@
 package net.exylia.commons;
 
+import net.exylia.commons.config.base.MainConfigBase;
+import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.visuals.MessageUtils;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,5 +61,72 @@ public class ReloadResult {
         }
 
         return sb.toString();
+    }
+
+    public String getTimingBreakdown() {
+        if (componentTimes.isEmpty()) {
+            return "No timing data available";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        // Obtener componentes base
+        long configTime = componentTimes.getOrDefault("Configuración", 0L);
+        long dbTime = componentTimes.getOrDefault("Base de Datos", 0L);
+        long redisTime = componentTimes.getOrDefault("Redis", 0L);
+        long pluginTime = componentTimes.getOrDefault("Plugin Custom", 0L);
+        long totalOverhead = componentTimes.getOrDefault("Total Overhead", 0L);
+
+        long totalComponentTime = configTime + dbTime + redisTime + pluginTime;
+
+        sb.append("Timing Breakdown:\n");
+        sb.append("  Core Components: ").append(totalComponentTime).append("ms\n");
+        sb.append("    ├─ Configuration: ").append(configTime).append("ms\n");
+        sb.append("    ├─ Database: ").append(dbTime).append("ms\n");
+        sb.append("    ├─ Redis: ").append(redisTime).append("ms\n");
+        sb.append("    └─ Plugin Custom: ").append(pluginTime).append("ms\n");
+        sb.append("  System Overhead: ").append(totalOverhead).append("ms\n");
+        sb.append("  Total: ").append(durationMs).append("ms\n");
+
+        // Calcular porcentajes
+        if (durationMs > 0) {
+            double componentPercent = (totalComponentTime * 100.0) / durationMs;
+            double overheadPercent = (totalOverhead * 100.0) / durationMs;
+            sb.append("  Efficiency: ").append(String.format("%.1f%%", componentPercent));
+            sb.append(" core work, ").append(String.format("%.1f%%", overheadPercent)).append(" overhead");
+        }
+
+        return sb.toString();
+    }
+
+    public static void sendReloadResult(org.bukkit.command.CommandSender sender, ReloadResult result) {
+        try {
+            if (result.isSuccess()) {
+                long duration = result.getDurationMs();
+                MessageUtils.sendMessageAsync(sender,
+                    MessagesBase.getWithContext("system.commands.reload.success",
+                        net.exylia.commons.placeholders.ExyliaContext.create().put("time", duration)));
+            } else {
+                String error = result.getErrorMessage();
+                MessageUtils.sendMessageAsync(sender,
+                    MessagesBase.getWithContext("system.commands.reload.error",
+                        net.exylia.commons.placeholders.ExyliaContext.create().put("error", error)));
+            }
+        } catch (Exception e) {
+            DebugUtils.logError("Error processing reload result: " + e.getMessage());
+            MessageUtils.sendMessageAsync(sender, "Reload completed but couldn't determine status.");
+        }
+    }
+
+    public static void sendDetailedReloadResult(org.bukkit.command.CommandSender sender, ReloadResult result) {
+        sendReloadResult(sender, result);
+        if (MainConfigBase.debug()) {
+            sender.sendMessage(result.getTimingBreakdown());
+        }
+    }
+
+    public static void sendStartMessage(org.bukkit.command.CommandSender sender) {
+        MessageUtils.sendMessageAsync(sender,
+            MessagesBase.get("system.commands.reload.starting"));
     }
 }

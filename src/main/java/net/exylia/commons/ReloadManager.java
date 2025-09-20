@@ -38,44 +38,74 @@ public class ReloadManager {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
             Map<String, Long> componentTimes = new HashMap<>();
+            long lastStepTime = startTime;
 
             try {
                 logInternalInfo("=== INICIANDO RELOAD COMPLETO ASÍNCRONO ===");
 
                 // 1. Reload del sistema de configuración
+                long stepStart = System.currentTimeMillis();
                 ReloadResult configResult = reloadConfigurationAsync().join();
+                long stepEnd = System.currentTimeMillis();
                 componentTimes.put("Configuración", configResult.getDurationMs());
+                componentTimes.put("Configuración + Overhead", stepEnd - stepStart);
+                lastStepTime = stepEnd;
+
                 if (!configResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de configuraciones: " + configResult.getErrorMessage());
                 }
 
                 // 2. Reload de base de datos
+                stepStart = System.currentTimeMillis();
                 ReloadResult dbResult = reloadDatabaseAsync().join();
+                stepEnd = System.currentTimeMillis();
                 componentTimes.put("Base de Datos", dbResult.getDurationMs());
+                componentTimes.put("Base de Datos + Overhead", stepEnd - stepStart);
+                lastStepTime = stepEnd;
+
                 if (!dbResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de base de datos: " + dbResult.getErrorMessage());
                 }
 
                 // 3. Reload de Redis
+                stepStart = System.currentTimeMillis();
                 ReloadResult redisResult = reloadRedisAsync().join();
+                stepEnd = System.currentTimeMillis();
                 componentTimes.put("Redis", redisResult.getDurationMs());
+                componentTimes.put("Redis + Overhead", stepEnd - stepStart);
+                lastStepTime = stepEnd;
+
                 if (!redisResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de Redis: " + redisResult.getErrorMessage());
                 }
 
                 // 4. Reload personalizado del plugin
+                stepStart = System.currentTimeMillis();
                 ReloadResult pluginResult = reloadPluginAsync().join();
+                stepEnd = System.currentTimeMillis();
                 componentTimes.put("Plugin Custom", pluginResult.getDurationMs());
+                componentTimes.put("Plugin Custom + Overhead", stepEnd - stepStart);
+                lastStepTime = stepEnd;
+
                 if (!pluginResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload personalizado: " + pluginResult.getErrorMessage());
                 }
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                logInternalSuccess("=== RELOAD COMPLETED IN " + totalTime + "ms ===");
+
+                // Calcular overhead total
+                long totalComponentTime = componentTimes.get("Configuración") +
+                                        componentTimes.get("Base de Datos") +
+                                        componentTimes.get("Redis") +
+                                        componentTimes.get("Plugin Custom");
+                long totalOverhead = totalTime - totalComponentTime;
+                componentTimes.put("Total Overhead", totalOverhead);
+
+                logInternalSuccess("=== RELOAD COMPLETED IN " + totalTime + "ms (Components: " + totalComponentTime + "ms, Overhead: " + totalOverhead + "ms) ===");
 
                 return new ReloadResult(true, totalTime, componentTimes, null);
             } catch (Exception e) {

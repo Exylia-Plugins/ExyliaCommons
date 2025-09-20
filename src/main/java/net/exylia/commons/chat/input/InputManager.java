@@ -6,6 +6,7 @@ import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -114,7 +115,7 @@ public final class InputManager implements Listener {
 
     // ===== EVENT HANDLERS =====
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
         Player player = event.getPlayer();
         InputSession session = activeSessions.get(player.getUniqueId());
@@ -159,7 +160,7 @@ public final class InputManager implements Listener {
 
                 case INVALID:
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        sendResultMessage(player, result);
                     }
                     TitleUtils.cancelTitle(player, "input_timeout");
                     break;
@@ -168,7 +169,7 @@ public final class InputManager implements Listener {
                     activeSessions.remove(player.getUniqueId());
                     session.cancel();
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        sendResultMessage(player, result);
                     }
                     TitleUtils.cancelTitle(player, "input_timeout");
                     break;
@@ -176,6 +177,17 @@ public final class InputManager implements Listener {
         } catch (Exception e) {
             activeSessions.remove(player.getUniqueId());
             session.completeExceptionally(e);
+        }
+    }
+
+    /**
+     * Send message from InputResult to player (handles both String and Component)
+     */
+    private static void sendResultMessage(Player player, InputResult result) {
+        if (result.hasStringMessage()) {
+            MessageUtils.sendMessageAsync(player, result.getMessageAsString());
+        } else if (result.hasComponentMessage()) {
+            MessageUtils.sendMessageAsync(player, result.getMessageAsComponent());
         }
     }
 

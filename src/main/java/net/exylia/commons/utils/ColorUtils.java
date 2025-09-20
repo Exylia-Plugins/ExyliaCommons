@@ -5,6 +5,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -481,6 +482,9 @@ public class ColorUtils {
 
         // Quitar otros códigos MiniMessage comunes
         message = message.replaceAll("</?(?:b|i|u|st|obf|r)>", "");
+
+        // Quitar colores con formato {#ffffff}, {#ffffff>}, {#ffffff<>}, {#ffffff<}
+        message = message.replaceAll("\\{#[0-9a-fA-F]{6}[^}]*}", "");
 
         // Quitar presets sin procesar
         message = message.replaceAll("\\{[a-zA-Z_][a-zA-Z0-9_]*\\}", "");
