@@ -683,7 +683,7 @@ public class ColorUtils {
                 if (insideTag || insideBrackets) {
                     result.append(c);
                 } else {
-                    String targetChar = String.valueOf(forceUpperCase ? Character.toUpperCase(c) : c);
+                    String targetChar = String.valueOf(forceUpperCase && isBasicLetter(c) ? Character.toUpperCase(c) : c);
                     String transformed = fontMap.get(targetChar);
                     result.append(transformed != null ? transformed : targetChar);
                 }
@@ -733,13 +733,17 @@ public class ColorUtils {
     }
 
     private static boolean isColorCode(char c) {
-        return (c >= '0' && c <= '9') || 
-               (c >= 'a' && c <= 'f') || 
+        return (c >= '0' && c <= '9') ||
+               (c >= 'a' && c <= 'f') ||
                (c >= 'A' && c <= 'F') ||
-               c == 'k' || c == 'l' || c == 'm' || c == 'n' || 
-               c == 'o' || c == 'p' || c == 'r' || 
-               c == 'K' || c == 'L' || c == 'M' || c == 'N' || 
+               c == 'k' || c == 'l' || c == 'm' || c == 'n' ||
+               c == 'o' || c == 'p' || c == 'r' ||
+               c == 'K' || c == 'L' || c == 'M' || c == 'N' ||
                c == 'O' || c == 'P' || c == 'R' || c == '#';
+    }
+
+    private static boolean isBasicLetter(char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
     public static void shutdown() {

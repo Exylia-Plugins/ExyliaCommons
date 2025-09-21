@@ -15,9 +15,9 @@ public class OldColorUtils {
     public static String convertMiniMessageToOLD(String message) {
         String result = message;
         result = parseOldNormalColors(message);
+        result = convertFormatting(result);
         result = convertGradientsAndTextToSectionHex(result);
         result = convertHexColors(result);
-        result = convertFormatting(result);
         return result;
     }
 
@@ -108,31 +108,24 @@ public class OldColorUtils {
     private static String extractPlainText(String message) {
         String result = message;
         result = result.replaceAll("<[^>]+>", "");
+        result = result.replaceAll("&[lmnok]", "");
         return result;
     }
 
     private static String extractFormattingTags(String message) {
         StringBuilder tags = new StringBuilder();
-        Pattern tagPattern = Pattern.compile("<([^/>]+)>");
+        Pattern tagPattern = Pattern.compile("(&[lmnok])");
         Matcher matcher = tagPattern.matcher(message);
 
         while (matcher.find()) {
-            String tag = matcher.group(1);
-            if (tag.equals("bold") || tag.equals("italic") || tag.equals("underlined") || tag.equals("strikethrough")) {
-                tags.append("<").append(tag).append(">");
-            }
+            tags.append(matcher.group(1));
         }
 
         return tags.toString();
     }
 
     private static String convertFormattingTagsToCodes(String tags) {
-        String result = tags;
-        result = result.replace("<bold>", "&l");
-        result = result.replace("<italic>", "&o");
-        result = result.replace("<underlined>", "&n");
-        result = result.replace("<strikethrough>", "&m");
-        return result;
+        return tags;
     }
 
     private static String createOLDGradient(String[] colors, String text, String formattingCodes) {
