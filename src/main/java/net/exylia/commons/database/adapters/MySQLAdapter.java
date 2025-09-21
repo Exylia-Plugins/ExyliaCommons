@@ -54,15 +54,15 @@ public class MySQLAdapter implements DatabaseAdapter {
             hikariConfig.setJdbcUrl(url);
             hikariConfig.setUsername(username);
             hikariConfig.setPassword(password);
-            hikariConfig.setMaximumPoolSize(poolSize);
-            hikariConfig.setMinimumIdle(2);
-            hikariConfig.setConnectionTimeout(30000);
-            hikariConfig.setIdleTimeout(600000);
-            hikariConfig.setMaxLifetime(1800000);
-            hikariConfig.setLeakDetectionThreshold(60000);
+            hikariConfig.setMaximumPoolSize(Math.min(poolSize, 5)); // Limit max pool size
+            hikariConfig.setMinimumIdle(Math.min(2, poolSize / 2)); // Reduce minimum idle
+            hikariConfig.setConnectionTimeout(15000); // Reduce timeout
+            hikariConfig.setIdleTimeout(300000); // 5 minutes instead of 10
+            hikariConfig.setMaxLifetime(900000); // 15 minutes instead of 30
+            hikariConfig.setLeakDetectionThreshold(30000); // Reduce leak detection
             hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
-            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
-            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "100"); // Reduce cache size
+            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "1024"); // Reduce SQL limit
             hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
             hikariConfig.addDataSourceProperty("useLocalSessionState", "true");
             hikariConfig.addDataSourceProperty("rewriteBatchedStatements", "true");

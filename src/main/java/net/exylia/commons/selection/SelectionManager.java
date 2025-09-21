@@ -13,6 +13,9 @@ import net.exylia.commons.selection.wand.WandFactory;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -26,7 +29,7 @@ import java.util.function.Consumer;
 /**
  * Manager principal para el sistema de selecciones con visualización de partículas
  */
-public class SelectionManager {
+public class SelectionManager implements Listener {
     private static SelectionManager instance;
     private final JavaPlugin plugin;
     private final Map<UUID, Map<String, Selection>> playerSelections;
@@ -53,6 +56,7 @@ public class SelectionManager {
 
         // Registrar listeners
         plugin.getServer().getPluginManager().registerEvents(new WandListener(plugin, wandFactory, this), plugin);
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -353,6 +357,18 @@ public class SelectionManager {
         if (isVisualizationEnabled(player)) {
             particleVisualizer.updateSelection(player, selection);
         }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+
+        // Clean up all data for disconnected player to prevent memory leaks
+        particleVisualizer.clearAll(event.getPlayer());
+        playerSelections.remove(playerId);
+        activeSelections.remove(playerId);
+        selectionCallbacks.remove(playerId);
+        visualizationEnabled.remove(playerId);
     }
 
     /**

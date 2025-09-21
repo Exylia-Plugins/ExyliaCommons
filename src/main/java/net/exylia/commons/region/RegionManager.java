@@ -16,6 +16,9 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import net.exylia.commons.region.flags.FlagManager;
@@ -35,7 +38,7 @@ import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 /**
  * Manager principal para el sistema de regiones - OPTIMIZADO con spatial index
  */
-public class RegionManager {
+public class RegionManager implements Listener {
     private static RegionManager instance;
 
     private final JavaPlugin plugin;
@@ -90,6 +93,9 @@ public class RegionManager {
 
         // USAR LISTENER UNIFICADO CORREGIDO
         this.unifiedListener = new UnifiedRegionListener(plugin, this);
+
+        // Register this manager as a listener for PlayerQuitEvent
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
         if (asyncMovementChecking) {
             startCleanupTask(); // Solo tarea de limpieza, no batching
@@ -530,6 +536,12 @@ public class RegionManager {
         if (region.getOnMove() != null) {
             region.getOnMove().execute(player, region);
         }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        Player player = event.getPlayer();
+        cleanupPlayer(player);
     }
 
     /**

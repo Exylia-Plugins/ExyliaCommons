@@ -281,7 +281,16 @@ public final class SelectionWizard implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        cancelWizard(event.getPlayer());
+        Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
+
+        // Clean up wizard sessions to prevent memory leaks
+        SelectionWizardSession session = instance.activeSessions.remove(playerId);
+        if (session != null) {
+            clearWizardSelections(player, session);
+            session.cancel();
+            player.resetTitle();
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH)
