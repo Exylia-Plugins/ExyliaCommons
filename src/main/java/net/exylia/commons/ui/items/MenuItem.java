@@ -6,6 +6,7 @@ import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.utils.effects.SoundUtils;
 import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
@@ -57,13 +58,16 @@ public class MenuItem {
     private Consumer<MenuClickEvent> clickHandler;
 
     private final Map<String, Integer> rawEnchantments = new HashMap<>();
-    
+
     // Player skull async loading
     private boolean awaitingPlayerSkull = false;
     private String pendingPlayerName;
 
     // Nueva configuración de pociones
     private PotionConfig potionConfig;
+
+    // Sound configuration
+    private List<String> clickSounds = new ArrayList<>();
 
     public MenuItem(Material material) {
         this(material.name());
@@ -273,6 +277,34 @@ public class MenuItem {
     public MenuItem setUpdateInterval(long interval) {
         this.updateInterval = Math.max(1, interval);
         return this;
+    }
+
+    public MenuItem setClickSounds(List<String> sounds) {
+        this.clickSounds = sounds != null ? new ArrayList<>(sounds) : new ArrayList<>();
+        return this;
+    }
+
+    public MenuItem addClickSound(String sound) {
+        if (sound != null && !sound.trim().isEmpty()) {
+            this.clickSounds.add(sound);
+        }
+        return this;
+    }
+
+    public List<String> getClickSounds() {
+        return new ArrayList<>(clickSounds);
+    }
+
+    public boolean hasClickSounds() {
+        return !clickSounds.isEmpty();
+    }
+
+    public void playClickSounds(Player player) {
+        if (player != null && !clickSounds.isEmpty()) {
+            for (String sound : clickSounds) {
+                SoundUtils.playSound(player, sound);
+            }
+        }
     }
 
     public void process(Player player) {
@@ -566,6 +598,7 @@ public class MenuItem {
         clone.potionConfig = this.potionConfig;
         clone.awaitingPlayerSkull = this.awaitingPlayerSkull;
         clone.pendingPlayerName = this.pendingPlayerName;
+        clone.clickSounds = new ArrayList<>(this.clickSounds);
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -676,6 +709,14 @@ public class MenuItem {
 
             if (config.contains("potion_color")) {
                 item.potionConfig.setPotionColor(config.getString("potion_color"));
+            }
+        }
+
+        if (config.contains("click_sounds")) {
+            if (config.isList("click_sounds")) {
+                item.setClickSounds(config.getStringList("click_sounds"));
+            } else {
+                item.addClickSound(config.getString("click_sounds"));
             }
         }
 

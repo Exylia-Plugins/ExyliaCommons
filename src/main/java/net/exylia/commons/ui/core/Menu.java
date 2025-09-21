@@ -11,6 +11,7 @@ import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.manager.MenuManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.effects.SoundUtils;
 import net.exylia.commons.utils.versions.InventoryAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -72,6 +73,11 @@ public class Menu {
     protected boolean autoRefreshOnClick = true; // Default habilitado
     @Getter
     protected RefreshMode refreshMode = RefreshMode.SMART; // Modo por defecto
+
+    // ✅ SOUND CONFIGURATION
+    protected List<String> openSounds = new ArrayList<>();
+    protected List<String> closeSounds = new ArrayList<>();
+    protected List<String> clickSounds = new ArrayList<>();
 
     // Inventory adapter
     protected static final InventoryAdapter inventoryAdapter = AdapterFactory.getInventoryAdapter();
@@ -155,6 +161,98 @@ public class Menu {
         return this;
     }
 
+    // ==================== SOUND CONFIGURATION ====================
+
+    /**
+     * Sets the open sounds for this menu
+     * @param sounds List of sound strings
+     * @return This menu for chaining
+     */
+    public Menu setOpenSounds(List<String> sounds) {
+        this.openSounds = sounds != null ? new ArrayList<>(sounds) : new ArrayList<>();
+        return this;
+    }
+
+    /**
+     * Adds an open sound to this menu
+     * @param sound Sound string
+     * @return This menu for chaining
+     */
+    public Menu addOpenSound(String sound) {
+        if (sound != null && !sound.trim().isEmpty()) {
+            this.openSounds.add(sound);
+        }
+        return this;
+    }
+
+    /**
+     * Sets the close sounds for this menu
+     * @param sounds List of sound strings
+     * @return This menu for chaining
+     */
+    public Menu setCloseSounds(List<String> sounds) {
+        this.closeSounds = sounds != null ? new ArrayList<>(sounds) : new ArrayList<>();
+        return this;
+    }
+
+    /**
+     * Adds a close sound to this menu
+     * @param sound Sound string
+     * @return This menu for chaining
+     */
+    public Menu addCloseSound(String sound) {
+        if (sound != null && !sound.trim().isEmpty()) {
+            this.closeSounds.add(sound);
+        }
+        return this;
+    }
+
+    /**
+     * Sets the click sounds for this menu
+     * @param sounds List of sound strings
+     * @return This menu for chaining
+     */
+    public Menu setClickSounds(List<String> sounds) {
+        this.clickSounds = sounds != null ? new ArrayList<>(sounds) : new ArrayList<>();
+        return this;
+    }
+
+    /**
+     * Adds a click sound to this menu
+     * @param sound Sound string
+     * @return This menu for chaining
+     */
+    public Menu addClickSound(String sound) {
+        if (sound != null && !sound.trim().isEmpty()) {
+            this.clickSounds.add(sound);
+        }
+        return this;
+    }
+
+    /**
+     * Gets the open sounds
+     * @return List of open sounds
+     */
+    public List<String> getOpenSounds() {
+        return new ArrayList<>(openSounds);
+    }
+
+    /**
+     * Gets the close sounds
+     * @return List of close sounds
+     */
+    public List<String> getCloseSounds() {
+        return new ArrayList<>(closeSounds);
+    }
+
+    /**
+     * Gets the click sounds
+     * @return List of click sounds
+     */
+    public List<String> getClickSounds() {
+        return new ArrayList<>(clickSounds);
+    }
+
     // ==================== CORE FUNCTIONALITY ====================
 
     /**
@@ -195,6 +293,9 @@ public class Menu {
         player.openInventory(inventory);
         this.isOpen = true;
 
+        // Play open sounds
+        playOpenSounds(player);
+
         // Register with manager
         MenuManager.registerMenu(player, this);
 
@@ -219,6 +320,11 @@ public class Menu {
 
         // Guardar referencia del player ANTES de establecerlo como null
         Player currentPlayer = this.viewer;
+
+        // Play close sounds
+        if (currentPlayer != null) {
+            playCloseSounds(currentPlayer);
+        }
 
         // Llamar el handler de cierre CON el player aún disponible
         if (closeHandler != null && currentPlayer != null) {
@@ -673,5 +779,43 @@ public class Menu {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             performAutoRefresh(event.getSlot());
         }, 1);
+    }
+
+    // ==================== SOUND METHODS ====================
+
+    /**
+     * Plays open sounds for the given player
+     * @param player The player to play sounds for
+     */
+    protected void playOpenSounds(Player player) {
+        if (player != null && !openSounds.isEmpty()) {
+            for (String sound : openSounds) {
+                SoundUtils.playSound(player, sound);
+            }
+        }
+    }
+
+    /**
+     * Plays close sounds for the given player
+     * @param player The player to play sounds for
+     */
+    protected void playCloseSounds(Player player) {
+        if (player != null && !closeSounds.isEmpty()) {
+            for (String sound : closeSounds) {
+                SoundUtils.playSound(player, sound);
+            }
+        }
+    }
+
+    /**
+     * Plays click sounds for the given player
+     * @param player The player to play sounds for
+     */
+    public void playClickSounds(Player player) {
+        if (player != null && !clickSounds.isEmpty()) {
+            for (String sound : clickSounds) {
+                SoundUtils.playSound(player, sound);
+            }
+        }
     }
 }

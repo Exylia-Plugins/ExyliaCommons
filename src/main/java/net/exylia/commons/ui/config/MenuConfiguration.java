@@ -51,6 +51,8 @@ public class MenuConfiguration {
         configureFiller(menu, config.getConfigurationSection("global_filler"), "global", player, context);
         configureFiller(menu, config.getConfigurationSection("border_filler"), "border", player, context);
 
+        configureSounds(menu, config);
+
         ConfigurationSection itemsSection = config.getConfigurationSection("items");
         if (itemsSection != null) {
             loadItems(menu, itemsSection, player, rows, context);
@@ -158,6 +160,32 @@ public class MenuConfiguration {
         switch (type) {
             case "global" -> menu.setGlobalFiller(filler);
             case "border" -> menu.setBorderFiller(filler);
+        }
+    }
+
+    private void configureSounds(Menu menu, ConfigurationSection config) {
+        if (config.contains("open_sounds")) {
+            if (config.isList("open_sounds")) {
+                menu.setOpenSounds(config.getStringList("open_sounds"));
+            } else {
+                menu.addOpenSound(config.getString("open_sounds"));
+            }
+        }
+
+        if (config.contains("close_sounds")) {
+            if (config.isList("close_sounds")) {
+                menu.setCloseSounds(config.getStringList("close_sounds"));
+            } else {
+                menu.addCloseSound(config.getString("close_sounds"));
+            }
+        }
+
+        if (config.contains("click_sounds")) {
+            if (config.isList("click_sounds")) {
+                menu.setClickSounds(config.getStringList("click_sounds"));
+            } else {
+                menu.addClickSound(config.getString("click_sounds"));
+            }
         }
     }
 

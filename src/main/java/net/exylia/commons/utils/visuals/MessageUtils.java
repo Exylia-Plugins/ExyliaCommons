@@ -2,11 +2,16 @@ package net.exylia.commons.utils.visuals;
 
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.effects.FireworkUtils;
+import net.exylia.commons.utils.effects.ParticleUtils;
+import net.exylia.commons.utils.effects.SoundUtils;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -37,14 +42,33 @@ public class MessageUtils {
 
     public static void sendMessage(Player player, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
+
+        // Process effects if message starts with special prefix
+        String cleanMessage = processEffectsAndGetMessage(player, message);
+        if (cleanMessage == null || cleanMessage.trim().isEmpty()) return;
+
+        Component component = ColorUtils.parse(cleanMessage);
         sendMessage(player, component);
     }
 
     public static void sendMessage(CommandSender sender, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
-        sendMessage(sender, component);
+
+        if (sender instanceof Player player) {
+            // For players, process effects
+            sendMessage(player, message);
+        } else {
+            // For non-players, remove effects and send clean message
+            String cleanMessage = message;
+            if (message.startsWith("[")) {
+                int effectsEnd = message.indexOf(']');
+                if (effectsEnd != -1) {
+                    cleanMessage = message.substring(effectsEnd + 1);
+                }
+            }
+            Component component = ColorUtils.parse(cleanMessage);
+            sendMessage(sender, component);
+        }
     }
 
     public static void sendMessage(UUID playerUUID, Component component) {
@@ -56,8 +80,10 @@ public class MessageUtils {
 
     public static void sendMessage(UUID playerUUID, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
-        sendMessage(playerUUID, component);
+        Player player = Bukkit.getPlayer(playerUUID);
+        if (player != null) {
+            sendMessage(player, message);
+        }
     }
 
     public static CompletableFuture<Void> sendMessageAsync(Player player, String message) {
@@ -78,8 +104,9 @@ public class MessageUtils {
 
     public static void broadcastMessage(String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
-        broadcastMessage(component);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            sendMessage(player, message);
+        }
     }
 
     public static void broadcastMessage(Component component) {
@@ -101,9 +128,8 @@ public class MessageUtils {
 
     public static void sendMessage(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
         for (Player player : players) {
-            sendMessage(player, component);
+            sendMessage(player, message);
         }
     }
 
@@ -124,14 +150,20 @@ public class MessageUtils {
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
-        broadcastMessageExcluding(excludePlayers, component);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!excludePlayers.contains(player)) {
+                sendMessage(player, message);
+            }
+        }
     }
 
     public static void broadcastMessageExcluding(Player excludePlayer, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
-        broadcastMessageExcluding(excludePlayer, component);
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!player.equals(excludePlayer)) {
+                sendMessage(player, message);
+            }
+        }
     }
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, Component component) {
@@ -176,20 +208,18 @@ public class MessageUtils {
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
-                sendMessage(player, component);
+                sendMessage(player, message);
             }
         }
     }
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
-                sendMessage(player, component);
+                sendMessage(player, message);
             }
         }
     }
@@ -694,10 +724,9 @@ public class MessageUtils {
 
     public static void sendMessageToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
-        Component component = ColorUtils.parse(message);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (condition.test(player)) {
-                sendMessage(player, component);
+                sendMessage(player, message);
             }
         }
     }
@@ -952,13 +981,12 @@ public class MessageUtils {
 
     public static void sendMessageInRadius(org.bukkit.Location origin, double radius, String message) {
         if (message == null || message.trim().isEmpty() || origin == null) return;
-        Component component = ColorUtils.parse(message);
         double radiusSquared = radius * radius;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (player.getWorld() == origin.getWorld() &&
                     player.getLocation().distanceSquared(origin) <= radiusSquared) {
-                sendMessage(player, component);
+                sendMessage(player, message);
             }
         }
     }
@@ -975,5 +1003,195 @@ public class MessageUtils {
                 sendTitle(player, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
             }
         }
+    }
+
+    // ==================== SPECIAL EFFECTS SYSTEM ====================
+
+    /**
+     * Processes a message with special effects prefix and returns the clean message.
+     * Format: [sounds:sound1|1|1,sound2|1|2;particles:particle1;fireworks:firework1]%prefix% message
+     *
+     * @param player The player receiving the message
+     * @param message The raw message with potential effects
+     * @return The clean message without effects prefix
+     */
+    public static String processEffectsAndGetMessage(Player player, String message) {
+        if (message == null || !message.startsWith("[")) {
+            return message;
+        }
+
+        int effectsEnd = message.indexOf(']');
+        if (effectsEnd == -1) {
+            return message;
+        }
+
+        String effectsSection = message.substring(1, effectsEnd);
+        String cleanMessage = message.substring(effectsEnd + 1);
+
+        processEffects(player, effectsSection);
+        return cleanMessage;
+    }
+
+    /**
+     * Processes special effects for a player
+     *
+     * @param player The player to apply effects to
+     * @param effectsSection The effects configuration string
+     */
+    private static void processEffects(Player player, String effectsSection) {
+        if (effectsSection == null || effectsSection.trim().isEmpty() || player == null) {
+            return;
+        }
+
+        String[] effectTypes = effectsSection.split(";");
+
+        for (String effectType : effectTypes) {
+            String[] parts = effectType.split(":", 2);
+            if (parts.length != 2) continue;
+
+            String type = parts[0].toLowerCase().trim();
+            String config = parts[1].trim();
+
+            switch (type) {
+                case "sounds":
+                case "sound":
+                    processSounds(player, config);
+                    break;
+                case "particles":
+                case "particle":
+                    processParticles(player, config);
+                    break;
+                case "fireworks":
+                case "firework":
+                    processFireworks(player, config);
+                    break;
+            }
+        }
+    }
+
+    /**
+     * Processes sound effects from configuration
+     * Format: sound1|volume|pitch,sound2|volume|pitch
+     */
+    private static void processSounds(Player player, String soundsConfig) {
+        if (soundsConfig == null || soundsConfig.trim().isEmpty()) return;
+
+        String[] sounds = soundsConfig.split(",");
+        for (String sound : sounds) {
+            sound = sound.trim();
+            if (!sound.isEmpty()) {
+                SoundUtils.playSound(player, sound);
+            }
+        }
+    }
+
+    /**
+     * Processes particle effects from configuration
+     * Format: particle1|count|offsetX|offsetY|offsetZ|extra,particle2...
+     */
+    private static void processParticles(Player player, String particlesConfig) {
+        if (particlesConfig == null || particlesConfig.trim().isEmpty()) return;
+
+        String[] particles = particlesConfig.split(",");
+        for (String particle : particles) {
+            particle = particle.trim();
+            if (!particle.isEmpty()) {
+                ParticleUtils.spawnParticles(player, player.getLocation().add(0, 1, 0), particle);
+            }
+        }
+    }
+
+    /**
+     * Processes firework effects from configuration
+     * Format: firework1|type|colors|fade|flicker|trail|power,firework2...
+     */
+    private static void processFireworks(Player player, String fireworksConfig) {
+        if (fireworksConfig == null || fireworksConfig.trim().isEmpty()) return;
+
+        String[] fireworks = fireworksConfig.split(",");
+        for (String firework : fireworks) {
+            firework = firework.trim();
+            if (!firework.isEmpty()) {
+                FireworkUtils.launchFireworkForPlayer(player, firework);
+            }
+        }
+    }
+
+    // ==================== ENHANCED MESSAGE METHODS ====================
+
+    /**
+     * Enhanced sendMessage that processes special effects
+     */
+    public static void sendEnhancedMessage(Player player, String message) {
+        if (message == null || message.trim().isEmpty()) return;
+
+        String cleanMessage = processEffectsAndGetMessage(player, message);
+        if (cleanMessage != null && !cleanMessage.trim().isEmpty()) {
+            sendMessage(player, cleanMessage);
+        }
+    }
+
+    /**
+     * Enhanced sendMessage for CommandSender (effects only work for Players)
+     */
+    public static void sendEnhancedMessage(CommandSender sender, String message) {
+        if (message == null || message.trim().isEmpty()) return;
+
+        if (sender instanceof Player player) {
+            sendEnhancedMessage(player, message);
+        } else {
+            // For non-players, remove effects and send clean message
+            String cleanMessage = message;
+            if (message.startsWith("[")) {
+                int effectsEnd = message.indexOf(']');
+                if (effectsEnd != -1) {
+                    cleanMessage = message.substring(effectsEnd + 1);
+                }
+            }
+            sendMessage(sender, cleanMessage);
+        }
+    }
+
+    /**
+     * Enhanced broadcast that processes effects for all players
+     */
+    public static void broadcastEnhancedMessage(String message) {
+        if (message == null || message.trim().isEmpty()) return;
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            sendEnhancedMessage(player, message);
+        }
+    }
+
+    /**
+     * Enhanced collection message that processes effects
+     */
+    public static void sendEnhancedMessage(Collection<Player> players, String message) {
+        if (message == null || message.trim().isEmpty() || players == null) return;
+
+        for (Player player : players) {
+            sendEnhancedMessage(player, message);
+        }
+    }
+
+    /**
+     * Async enhanced message processing
+     */
+    public static CompletableFuture<Void> sendEnhancedMessageAsync(Player player, String message) {
+        return CompletableFuture.runAsync(() -> sendEnhancedMessage(player, message));
+    }
+
+    /**
+     * Async enhanced message processing for collections
+     */
+    public static CompletableFuture<Void> sendEnhancedMessageAsync(Collection<Player> players, String message) {
+        return CompletableFuture.runAsync(() -> sendEnhancedMessage(players, message));
+    }
+
+    /**
+     * Async enhanced broadcast
+     */
+    public static CompletableFuture<Void> broadcastEnhancedMessageAsync(String message) {
+        return CompletableFuture.runAsync(() -> broadcastEnhancedMessage(message));
     }
 }

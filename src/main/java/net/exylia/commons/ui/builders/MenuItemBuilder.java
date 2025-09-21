@@ -204,6 +204,14 @@ public class MenuItemBuilder {
                 });
             }
         }
+
+        if (config.contains("click_sounds")) {
+            if (config.isList("click_sounds")) {
+                item.setClickSounds(config.getStringList("click_sounds"));
+            } else {
+                item.addClickSound(config.getString("click_sounds"));
+            }
+        }
     }
 
     private static void executeCommands(java.util.List<String> commands, Player player, ExyliaContext context) {
@@ -414,6 +422,23 @@ public class MenuItemBuilder {
 
         public FluentMenuItemBuilder backOnClick() {
             item.setClickHandler(event -> event.openParentMenu());
+            return this;
+        }
+
+        public FluentMenuItemBuilder clickSounds(List<String> sounds) {
+            item.setClickSounds(sounds);
+            return this;
+        }
+
+        public FluentMenuItemBuilder clickSound(String sound) {
+            item.addClickSound(sound);
+            return this;
+        }
+
+        public FluentMenuItemBuilder clickSounds(String... sounds) {
+            for (String sound : sounds) {
+                item.addClickSound(sound);
+            }
             return this;
         }
 

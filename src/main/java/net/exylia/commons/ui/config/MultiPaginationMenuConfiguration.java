@@ -85,15 +85,17 @@ public class MultiPaginationMenuConfiguration {
             }
         }
 
+        // Build menu first to configure sounds
+        MultiPaginationMenu menu = builder.build();
+        configureSounds(menu, config);
+
         // Configure static items (non-paginated)
         ConfigurationSection itemsConfig = config.getConfigurationSection("items");
         if (itemsConfig != null) {
-            MultiPaginationMenu menu = builder.build();
             loadStaticItems(menu, itemsConfig, player, context, rows);
-            return menu;
         }
 
-        return builder.build();
+        return menu;
     }
 
     private void configureSection(MultiPaginationMenuBuilder builder, String sectionName,
@@ -156,6 +158,32 @@ public class MultiPaginationMenuConfiguration {
 
     private MenuItem buildMenuItem(ConfigurationSection config, Player player, ExyliaContext context) {
         return MenuItemBuilder.fromConfig(config, player, context);
+    }
+
+    private void configureSounds(MultiPaginationMenu menu, ConfigurationSection config) {
+        if (config.contains("open_sounds")) {
+            if (config.isList("open_sounds")) {
+                menu.setOpenSounds(config.getStringList("open_sounds"));
+            } else {
+                menu.addOpenSound(config.getString("open_sounds"));
+            }
+        }
+
+        if (config.contains("close_sounds")) {
+            if (config.isList("close_sounds")) {
+                menu.setCloseSounds(config.getStringList("close_sounds"));
+            } else {
+                menu.addCloseSound(config.getString("close_sounds"));
+            }
+        }
+
+        if (config.contains("click_sounds")) {
+            if (config.isList("click_sounds")) {
+                menu.setClickSounds(config.getStringList("click_sounds"));
+            } else {
+                menu.addClickSound(config.getString("click_sounds"));
+            }
+        }
     }
 
     private int[] parseSlots(String slotsString, int rows) {
