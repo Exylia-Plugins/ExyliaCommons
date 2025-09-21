@@ -361,10 +361,6 @@ public class UnifiedRegionListener implements Listener {
             // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
-                logInternalDebug(String.format(
-                        "Explosión sin romper bloques: %s en región %s - BREAK deshabilitado",
-                        event.getEntityType().name(), region.getId()
-                ));
             } else if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
                 filterExplosionBlocks(event, region);
             }

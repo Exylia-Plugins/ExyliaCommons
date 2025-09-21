@@ -80,7 +80,7 @@ public class MenuItemBuilder {
             item.setGlowing(true);
         }
 
-        if (config.getBoolean("hide_attributes", false)) {
+        if ((config.getBoolean("hide_attributes", false)) || (config.getBoolean("hide-attributes", false))) {
             item.hideAllAttributes();
         }
     }

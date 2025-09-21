@@ -243,8 +243,6 @@ public class H2Adapter implements DatabaseAdapter {
                     if (result >= 0) processed++; // MERGE can return different values
                 }
 
-                logInternalDebug("saveOrUpdateAll completed for " + processed + " of " + entities.size() + " entities");
-
                 if (failureCount > 0) {
                     errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));

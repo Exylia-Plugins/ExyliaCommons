@@ -254,14 +254,9 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " for player: " + player.getName());
-
         ItemConfiguration config = interactiveItem.getConfiguration();
         TriggerType triggerType = config.getTriggerType();
 
-        DebugUtils.logInternalDebug("Item trigger type: " + triggerType + " for item: " + interactiveItem.getId());
-
-        
         if (triggerType == TriggerType.HOLD) {
             DebugUtils.logInternalDebug("HOLD trigger type detected for item: " + interactiveItem.getId());
             
@@ -338,8 +333,6 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " in inventory for player: " + player.getName());
-
         if (player.getGameMode() == GameMode.CREATIVE &&
                 event.getClickedInventory() == player.getInventory()) {
             DebugUtils.logInternalDebug("Player " + player.getName() + " is in creative mode and clicking own inventory, allowing movement");
@@ -379,8 +372,6 @@ public class ItemManager implements Listener {
         if (interactiveItem == null) {
             return;
         }
-
-        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " for consumption by player: " + player.getName());
 
         if (interactiveItem.getConfiguration().getTriggerType() != TriggerType.AFTER_CONSUME) {
             DebugUtils.logInternalDebug("Item " + interactiveItem.getId() + " is not AFTER_CONSUME type, ignoring consumption");
@@ -429,11 +420,9 @@ public class ItemManager implements Listener {
         EquipmentSlot hand = null;
 
         if (isInteractiveItem(mainHand)) {
-            DebugUtils.logInternalDebug("Found interactive item in main hand for player: " + player.getName());
             interactiveItem = getItemFromStack(mainHand);
             hand = EquipmentSlot.HAND;
         } else if (isInteractiveItem(offHand)) {
-            DebugUtils.logInternalDebug("Found interactive item in off hand for player: " + player.getName());
             interactiveItem = getItemFromStack(offHand);
             hand = EquipmentSlot.OFF_HAND;
         }
@@ -739,7 +728,6 @@ public class ItemManager implements Listener {
             if (item != null) {
                 InteractiveItem interactiveItem = getItemFromStack(item);
                 if (interactiveItem != null && interactiveItem.getId().equals(itemId)) {
-                    DebugUtils.logInternalDebug("Found interactive item " + itemId + " in inventory for player: " + player.getName());
                     return interactiveItem;
                 }
             }
@@ -762,8 +750,6 @@ public class ItemManager implements Listener {
         if (interactiveItem == null) {
             return;
         }
-
-        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " being dragged by player: " + player.getName());
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
@@ -803,8 +789,6 @@ public class ItemManager implements Listener {
             return;
         }
 
-        DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " being dropped by player: " + player.getName());
-
         ItemConfiguration config = interactiveItem.getConfiguration();
 
         if (player.getGameMode() == GameMode.CREATIVE) {
@@ -825,15 +809,9 @@ public class ItemManager implements Listener {
         Player player = event.getPlayer();
         ItemStack mainHand = event.getMainHandItem();
         ItemStack offHand = event.getOffHandItem();
-
-        DebugUtils.logInternalDebug("PlayerSwapHandItems event triggered for player: " + player.getName());
-        DebugUtils.logInternalDebug("Swapping - MainHand: " + (mainHand != null ? mainHand.getType() : "null") +
-                ", OffHand: " + (offHand != null ? offHand.getType() : "null"));
-
         if (mainHand != null) {
             InteractiveItem mainInteractiveItem = getItemFromStack(mainHand);
             if (mainInteractiveItem != null) {
-                DebugUtils.logInternalDebug("Found interactive item in main hand: " + mainInteractiveItem.getId());
                 ItemConfiguration config = mainInteractiveItem.getConfiguration();
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
                     DebugUtils.logInternalDebug("Item " + mainInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
@@ -848,7 +826,6 @@ public class ItemManager implements Listener {
         if (offHand != null) {
             InteractiveItem offInteractiveItem = getItemFromStack(offHand);
             if (offInteractiveItem != null) {
-                DebugUtils.logInternalDebug("Found interactive item in off hand: " + offInteractiveItem.getId());
                 ItemConfiguration config = offInteractiveItem.getConfiguration();
                 if (player.getGameMode() != GameMode.CREATIVE && !config.isAllowSwapToOffhand()) {
                     DebugUtils.logInternalDebug("Item " + offInteractiveItem.getId() + " does not allow swap to offhand, cancelling swap");
@@ -859,12 +836,8 @@ public class ItemManager implements Listener {
             }
         }
 
-        // Handle HOLD sessions when swapping items
         if (!event.isCancelled()) {
-            // Stop existing sessions
             holdHandler.stopAllSessionsForPlayer(player);
-            
-            // Start new sessions after a delay if needed
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 ItemStack newMainHand = player.getInventory().getItemInMainHand();
                 ItemStack newOffHand = player.getInventory().getItemInOffHand();
@@ -886,8 +859,6 @@ public class ItemManager implements Listener {
                 }
             }, 1L);
         }
-        
-        DebugUtils.logInternalDebug("Completed PlayerSwapHandItems processing for player: " + player.getName());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -941,7 +912,6 @@ public class ItemManager implements Listener {
         ItemStack itemStack = event.getItemInHand();
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
         if (interactiveItem != null) {
-            DebugUtils.logInternalDebug("Found interactive item: " + interactiveItem.getId() + " in block place event, cancelling placement");
             event.setCancelled(true);
         }
     }

@@ -200,27 +200,14 @@ public class SkullManager {
 
     public ItemStack createPlayerSkull(String playerName) {
         if (playerName == null || playerName.isEmpty() || playerName.contains("%")) {
-            DebugUtils.logInternalDebug("createPlayerSkull: Invalid player name - " + playerName);
             return createDefaultSkull();
         }
         
         String key = playerName.toLowerCase();
         CachedSkull cached = playerCache.get(key);
         if (cached != null && !cached.isExpired()) {
-            DebugUtils.logInternalDebug("createPlayerSkull: Found cached skull for - " + playerName);
-            ItemStack skull = cached.getSkull().clone();
-            
-            // Debug the skull contents
-            if (skull.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta skullMeta) {
-                DebugUtils.logInternalDebug("createPlayerSkull: Skull hasOwner=" + skullMeta.hasOwner());
-                DebugUtils.logInternalDebug("createPlayerSkull: Skull owner=" + skullMeta.getOwner());
-                DebugUtils.logInternalDebug("createPlayerSkull: Skull profile=" + (skullMeta.getOwnerProfile() != null));
-            }
-            
-            return skull;
+            return cached.getSkull().clone();
         }
-        
-        DebugUtils.logInternalDebug("createPlayerSkull: No cached skull found for - " + playerName + ", returning default");
         return createDefaultSkull();
     }
 
@@ -487,12 +474,9 @@ public class SkullManager {
         if (playerName == null || playerName.isEmpty()) {
             return false;
         }
-        
         String key = playerName.toLowerCase();
         CachedSkull cached = playerCache.get(key);
         boolean isCached = cached != null && !cached.isExpired();
-        
-        DebugUtils.logInternalDebug("isPlayerCached: " + playerName + " = " + isCached);
         return isCached;
     }
 

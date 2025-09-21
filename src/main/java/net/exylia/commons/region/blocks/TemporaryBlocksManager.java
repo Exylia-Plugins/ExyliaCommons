@@ -275,21 +275,8 @@ public class TemporaryBlocksManager {
                 // Marcar que no debe devolver el bloque (modificar in-place)
                 tempBlock.cancelReGive();
                 canceledCount++;
-
-                logInternalDebug(String.format(
-                        "Re-give cancelado para bloque: %s de jugador %s en %s",
-                        tempBlock.getMaterial().name(),
-                        playerId.toString(),
-                        tempBlock.getLocation()
-                ));
             }
         }
-
-        logInternalDebug(String.format(
-                "Cancelados %d re-gives para jugador %s (bloques seguirán desapareciendo)",
-                canceledCount, playerId.toString()
-        ));
-
         return canceledCount;
     }
 

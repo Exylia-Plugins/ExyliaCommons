@@ -271,8 +271,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
 
                 stmt.executeUpdate();
-                logInternalDebug("saveOrUpdateAll completed for " + successCount + " entities");
-
                 if (failureCount > 0) {
                     errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));

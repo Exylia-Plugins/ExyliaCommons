@@ -144,9 +144,6 @@ public class Region {
     public void setFlags(Map<RegionFlag, RegionFlagType> flags) {
         flagStates.clear();
         flagStates.putAll(flags);
-        for (RegionFlag flag : flags.keySet()) {
-            DebugUtils.logInternalDebug("Set flag " + flag + " to " + flags.get(flag));
-        }
     }
 
     public boolean isOwner(UUID playerId) {

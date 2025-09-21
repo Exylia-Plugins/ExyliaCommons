@@ -493,16 +493,13 @@ public class InteractiveItem {
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            DebugUtils.logInternalDebug("Creating player skull for: " + playerName);
             ItemStack cachedSkull = createPlayerSkull(playerName);
             if (isRealPlayerSkull(cachedSkull, playerName)) {
-                DebugUtils.logInternalDebug("Real player skull found for: " + playerName);
                 this.awaitingPlayerSkull = false;
                 this.pendingPlayerName = null;
                 this.dynamicSkullUpdate = false;
                 return cachedSkull;
             }
-            DebugUtils.logInternalDebug("No real player skull found for: " + playerName + ", starting async loading");
             this.awaitingPlayerSkull = true;
             this.pendingPlayerName = playerName;
             this.dynamicSkullUpdate = true;

@@ -14,6 +14,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
@@ -68,6 +70,9 @@ public class MenuItem {
 
     // Sound configuration
     private List<String> clickSounds = new ArrayList<>();
+
+    // Flag to remember if attributes should be hidden
+    private boolean shouldHideAttributes = false;
 
     public MenuItem(Material material) {
         this(material.name());
@@ -256,12 +261,23 @@ public class MenuItem {
     }
 
     public MenuItem hideAllAttributes() {
+        this.shouldHideAttributes = true;
+        applyHideAttributes();
+        return this;
+    }
+
+    private void applyHideAttributes() {
+        if (!shouldHideAttributes) return;
+
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
+            meta.addAttributeModifier(
+                    Attribute.GENERIC_LUCK,
+                    new AttributeModifier(UUID.randomUUID(), "luck_boost", 0.0, AttributeModifier.Operation.ADD_NUMBER)
+            );
             meta.addItemFlags(ItemFlag.values());
             itemStack.setItemMeta(meta);
         }
-        return this;
     }
 
     public MenuItem setClickHandler(Consumer<MenuClickEvent> handler) {
@@ -342,6 +358,9 @@ public class MenuItem {
 
         processEnchantments(player);
         processPotionConfig(player);
+
+        // Re-apply hide attributes after all processing
+        applyHideAttributes();
     }
 
     public void process() {
@@ -488,15 +507,12 @@ public class MenuItem {
 
         if (materialString.startsWith("playerhead-")) {
             String playerName = materialString.substring(11);
-            DebugUtils.logInternalDebug("Creating player skull for: " + playerName);
             ItemStack cachedSkull = createPlayerSkull(playerName);
             if (isRealPlayerSkull(cachedSkull, playerName)) {
-                DebugUtils.logInternalDebug("Real player skull found for: " + playerName);
                 this.awaitingPlayerSkull = false;
                 this.pendingPlayerName = null;
                 return cachedSkull;
             }
-            DebugUtils.logInternalDebug("No real player skull found for: " + playerName + ", starting async loading");
             this.awaitingPlayerSkull = true;
             this.pendingPlayerName = playerName;
             this.dynamicUpdate = true;
@@ -599,6 +615,7 @@ public class MenuItem {
         clone.awaitingPlayerSkull = this.awaitingPlayerSkull;
         clone.pendingPlayerName = this.pendingPlayerName;
         clone.clickSounds = new ArrayList<>(this.clickSounds);
+        clone.shouldHideAttributes = this.shouldHideAttributes;
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -654,8 +671,9 @@ public class MenuItem {
             item.setGlowing(true);
         }
 
-        if (config.getBoolean("hide_attributes", false)) {
-            item.hideAllAttributes();
+        boolean configHideAttributes = (config.getBoolean("hide_attributes", false)) || (config.getBoolean("hide-attributes", false));
+        if (configHideAttributes) {
+            item.shouldHideAttributes = true;
         }
 
         if (config.getBoolean("dynamic_update", false)) {
@@ -723,6 +741,10 @@ public class MenuItem {
         if (context != null) {
             item.withContext(context);
             item.process(player);
+        }
+
+        if (configHideAttributes) {
+            item.applyHideAttributes();
         }
 
         return item;
