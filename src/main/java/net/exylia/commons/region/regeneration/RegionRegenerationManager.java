@@ -39,6 +39,8 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Queue;
 import java.util.LinkedList;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
@@ -56,16 +58,21 @@ public class RegionRegenerationManager {
     private final AtomicInteger activePasteOperations;
     private final Queue<PendingPasteOperation> pendingPasteQueue;
     private BukkitRunnable pasteProcessor;
+    private BukkitRunnable cacheCleanupTask;
 
     private static final int MAX_CACHE_SIZE = 30;
     private static final boolean CACHE_ENABLED = true;
-    private static final int MAX_CONCURRENT_PASTES = 2; // Máximo 2 paste operations simultáneas
-    private static final int PASTE_DELAY_TICKS = 3; // 3 ticks entre pastes
+    private static final int MAX_CONCURRENT_PASTES = 4;
+    private static final int PASTE_DELAY_TICKS = 3;
+    private static final int CACHE_CLEANUP_INTERVAL_MINUTES = 10;
+    private static final long CLIPBOARD_MAX_AGE_MINUTES = 30;
+    private final ConcurrentMap<String, Long> clipboardCacheTimestamps;
 
     private RegionRegenerationManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.schemsFolder = new File(plugin.getDataFolder(), "schematics");
         this.clipboardCache = new ConcurrentHashMap<>();
+        this.clipboardCacheTimestamps = new ConcurrentHashMap<>();
         this.regeneratingRegions = new ConcurrentHashMap<>();
 
         // Inicializar rate limiting para paste operations
@@ -79,9 +86,8 @@ public class RegionRegenerationManager {
                 logInternalDebug("Directorio de schematics de regiones creado: " + schemsFolder.getPath());
             }
         }
-
-        // Iniciar procesador de paste operations
         startPasteProcessor();
+        startCacheCleanupTask();
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -97,9 +103,6 @@ public class RegionRegenerationManager {
         return instance;
     }
 
-    /**
-     * OPTIMIZADO: Procesador de paste operations con rate limiting
-     */
     private void startPasteProcessor() {
         pasteProcessor = new BukkitRunnable() {
             @Override
@@ -108,6 +111,45 @@ public class RegionRegenerationManager {
             }
         };
         pasteProcessor.runTaskTimer(plugin, 1L, PASTE_DELAY_TICKS);
+    }
+
+    private void startCacheCleanupTask() {
+        cacheCleanupTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                cleanupExpiredClipboards();
+            }
+        };
+        cacheCleanupTask.runTaskTimerAsynchronously(plugin,
+                20L * 60 * CACHE_CLEANUP_INTERVAL_MINUTES,
+                20L * 60 * CACHE_CLEANUP_INTERVAL_MINUTES);
+    }
+
+    private void cleanupExpiredClipboards() {
+        long currentTime = System.currentTimeMillis();
+        long maxAge = CLIPBOARD_MAX_AGE_MINUTES * 60 * 1000;
+
+        clipboardCacheTimestamps.entrySet().removeIf(entry -> {
+            boolean expired = (currentTime - entry.getValue()) > maxAge;
+            if (expired) {
+                String regionId = entry.getKey();
+                Clipboard removed = clipboardCache.remove(regionId);
+                if (removed != null) {
+                    logInternalDebug("Removed expired clipboard from cache: " + regionId);
+                    try {
+                        removed = null;
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
+                    }
+                }
+            }
+            return expired;
+        });
+
+        // Ejecutar garbage collection si se limpiaron clipboards
+        if (clipboardCache.size() < clipboardCacheTimestamps.size()) {
+            System.gc();
+        }
     }
 
     private void processNextPasteOperation() {
@@ -133,10 +175,8 @@ public class RegionRegenerationManager {
         }
     }
 
-    /**
-     * OPTIMIZADO: Paste completamente asíncrono con chunked loading
-     */
     private boolean executePasteOperation(PendingPasteOperation operation) {
+        EditSession editSession = null;
         try {
             com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(operation.targetLocation.getWorld());
             BlockVector3 pastePosition = BlockVector3.at(
@@ -145,40 +185,43 @@ public class RegionRegenerationManager {
                     operation.targetLocation.getBlockZ()
             );
 
-            // Crear EditSession en thread asíncrono
-            try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
-                editSession.setFastMode(true);
+            editSession = WorldEdit.getInstance().newEditSession(weWorld);
+            editSession.setFastMode(true);
+            editSession.setTickingWatchdog(false);
 
-                // Configurar para operaciones grandes sin bloquear el main thread
-                editSession.setTickingWatchdog(false);
+            ClipboardHolder holder = new ClipboardHolder(operation.clipboard);
+            Operation pasteOperation = holder
+                    .createPaste(editSession)
+                    .to(pastePosition)
+                    .ignoreAirBlocks(false)
+                    .build();
 
-                ClipboardHolder holder = new ClipboardHolder(operation.clipboard);
-                Operation pasteOperation = holder
-                        .createPaste(editSession)
-                        .to(pastePosition)
-                        .ignoreAirBlocks(false)
-                        .build();
+            Operations.complete(pasteOperation);
 
-                // CLAVE: Ejecutar operations fuera del main thread
-                Operations.complete(pasteOperation);
+            logInternalDebug("Paste operation completed successfully for: " + operation.operationId);
+            return true;
 
-                logInternalDebug("Paste operation completed successfully for: " + operation.operationId);
-                return true;
-
-            } catch (WorldEditException e) {
-                DebugUtils.logInternalError("WorldEdit error in paste operation " + operation.operationId + ": " + e.getMessage());
-                return false;
-            }
-
+        } catch (WorldEditException e) {
+            DebugUtils.logInternalError("WorldEdit error in paste operation " + operation.operationId + ": " + e.getMessage());
+            return false;
         } catch (Exception e) {
             DebugUtils.logInternalError("Unexpected error in paste operation " + operation.operationId + ": " + e.getMessage());
             return false;
+        } finally {
+            if (editSession != null) {
+                try {
+                    editSession.close();
+                    editSession = null;
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error closing EditSession: " + e.getMessage());
+                }
+            }
+            if (System.currentTimeMillis() % 10000 < 1000) {
+                System.gc();
+            }
         }
     }
 
-    /**
-     * OPTIMIZADO: Paste asíncrono que no bloquea el main thread
-     */
     public CompletableFuture<Boolean> pasteRegionSchematicAt(Region sourceRegion, Location targetLocation) {
         if (!sourceRegion.isValid()) {
             return CompletableFuture.completedFuture(false);
@@ -203,8 +246,6 @@ public class RegionRegenerationManager {
                         cacheClipboard(sourceRegion, clipboard);
                     }
                 }
-
-                // Crear operación pendiente
                 CompletableFuture<Boolean> operationFuture = new CompletableFuture<>();
                 PendingPasteOperation operation = new PendingPasteOperation(
                         "paste_" + sourceRegion.getId() + "_" + System.currentTimeMillis(),
@@ -212,13 +253,9 @@ public class RegionRegenerationManager {
                         targetLocation.clone(),
                         operationFuture
                 );
-
-                // Encolar operación para procesamiento con rate limiting
                 synchronized (pendingPasteQueue) {
                     pendingPasteQueue.offer(operation);
                 }
-
-                // Esperar resultado
                 return operationFuture.join();
 
             } catch (Exception e) {
@@ -228,9 +265,6 @@ public class RegionRegenerationManager {
         });
     }
 
-    /**
-     * OPTIMIZADO: Regeneración con mejor control de concurrencia
-     */
     public CompletableFuture<Boolean> regenerateRegion(Region region) {
         String regionId = region.getId();
 
@@ -273,25 +307,15 @@ public class RegionRegenerationManager {
         });
     }
 
-    /**
-     * OPTIMIZADO: Regeneración sin bloquear main thread
-     */
     private boolean executeRegenerationOptimized(Region region, Clipboard clipboard) {
         try {
-            // Limpiar entidades primero
             cleanRegionEntities(region).join();
-
-            // Limpiar bloques de jugador
             PlayerBlockTracker.getInstance().clearRegionBlocks(region.getId());
-
-            // Pequeña pausa para permitir que se procesen los cambios
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-
-            // Usar el sistema de paste optimizado
             Location targetLocation = region.getMinimumPoint();
             CompletableFuture<Boolean> pasteResult = pasteRegionSchematicAt(region, targetLocation);
 
@@ -309,10 +333,6 @@ public class RegionRegenerationManager {
             return false;
         }
     }
-
-    /**
-     * OPTIMIZADO: Limpieza de entidades asíncrona
-     */
     public CompletableFuture<Integer> cleanRegionEntities(Region region) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -354,7 +374,6 @@ public class RegionRegenerationManager {
         });
     }
 
-    // Clase para operaciones de paste pendientes
     private static class PendingPasteOperation {
         final String operationId;
         final Clipboard clipboard;
@@ -369,13 +388,14 @@ public class RegionRegenerationManager {
         }
     }
 
-    // Resto de métodos sin cambios significativos...
     public CompletableFuture<Boolean> saveRegionSchematic(Region region) {
         if (!region.isValid()) {
             return CompletableFuture.completedFuture(false);
         }
 
         return CompletableFuture.supplyAsync(() -> {
+            EditSession editSession = null;
+            Clipboard clipboard = null;
             try {
                 logInternalDebug("Guardando schematic para región: " + region.getId());
 
@@ -388,32 +408,40 @@ public class RegionRegenerationManager {
 
                 CuboidRegion worldEditRegion = new CuboidRegion(weWorld, minVec, maxVec);
 
-                try (EditSession editSession = WorldEdit.getInstance().newEditSession(weWorld)) {
-                    editSession.setFastMode(true);
+                editSession = WorldEdit.getInstance().newEditSession(weWorld);
+                editSession.setFastMode(true);
 
-                    Clipboard clipboard = new BlockArrayClipboard(worldEditRegion);
-                    ForwardExtentCopy copy = new ForwardExtentCopy(editSession, worldEditRegion, clipboard, minVec);
-                    copy.setCopyingEntities(false);
-                    Operations.complete(copy);
+                clipboard = new BlockArrayClipboard(worldEditRegion);
+                ForwardExtentCopy copy = new ForwardExtentCopy(editSession, worldEditRegion, clipboard, minVec);
+                copy.setCopyingEntities(false);
+                Operations.complete(copy);
 
-                    File schematicFile = getSchematicFile(region);
-                    try (FileOutputStream fos = new FileOutputStream(schematicFile);
-                         ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
+                File schematicFile = getSchematicFile(region);
+                try (FileOutputStream fos = new FileOutputStream(schematicFile);
+                     ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
 
-                        writer.write(clipboard);
+                    writer.write(clipboard);
 
-                        if (CACHE_ENABLED) {
-                            cacheClipboard(region, clipboard);
-                        }
-
-                        logInternalDebug("Schematic guardado: " + schematicFile.getName());
-                        return true;
+                    if (CACHE_ENABLED) {
+                        cacheClipboard(region, clipboard);
                     }
+
+                    logInternalDebug("Schematic guardado: " + schematicFile.getName());
+                    return true;
                 }
 
             } catch (Exception e) {
                 DebugUtils.logInternalError("Error guardando schematic para región " + region.getId() + ": " + e.getMessage());
                 return false;
+            } finally {
+                if (editSession != null) {
+                    try {
+                        editSession.close();
+                        editSession = null;
+                    } catch (Exception e) {
+                        DebugUtils.logInternalError("Error closing EditSession in save: " + e.getMessage());
+                    }
+                }
             }
         });
     }
@@ -457,7 +485,17 @@ public class RegionRegenerationManager {
 
     public void clearCache() {
         int size = clipboardCache.size();
+        for (Clipboard clipboard : clipboardCache.values()) {
+            try {
+                clipboard = null;
+            } catch (Exception e) {
+                DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
+            }
+        }
         clipboardCache.clear();
+        clipboardCacheTimestamps.clear();
+        System.gc();
+
         logInternalDebug("Cache de clipboards limpiado: " + size + " elementos");
     }
 
@@ -480,8 +518,8 @@ public class RegionRegenerationManager {
             String oldestKey = clipboardCache.keySet().iterator().next();
             clipboardCache.remove(oldestKey);
         }
-
         clipboardCache.put(regionId, clipboard);
+        clipboardCacheTimestamps.put(regionId, System.currentTimeMillis());
         logInternalDebug("Clipboard cacheado para región: " + region.getId());
     }
 
@@ -509,11 +547,12 @@ public class RegionRegenerationManager {
     }
 
     public void shutdown() {
-        // Parar el procesador de paste operations
         if (pasteProcessor != null) {
             pasteProcessor.cancel();
         }
-
+        if (cacheCleanupTask != null) {
+            cacheCleanupTask.cancel();
+        }
         if (!regeneratingRegions.isEmpty()) {
             DebugUtils.logInternalInfo("Esperando " + regeneratingRegions.size() + " regeneraciones...");
             int attempts = 0;
@@ -527,10 +566,17 @@ public class RegionRegenerationManager {
                 }
             }
         }
-
+        for (PendingPasteOperation operation : pendingPasteQueue) {
+            try {
+                operation.future.cancel(true);
+            } catch (Exception e) {
+                DebugUtils.logInternalError("Error canceling paste operation: " + e.getMessage());
+            }
+        }
         clearCache();
         regeneratingRegions.clear();
         pendingPasteQueue.clear();
+        System.gc();
     }
 
     @Getter
@@ -550,8 +596,6 @@ public class RegionRegenerationManager {
             this.pendingPasteOperations = pendingPasteOperations;
         }
     }
-
-    // Métodos de copia directa y otros... (mantener implementación existente)
     public CompletableFuture<Boolean> copyRegionStructure(Region sourceRegion, Location targetCenter) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -578,6 +622,9 @@ public class RegionRegenerationManager {
     }
 
     private boolean copyAreaDirectly(Location sourceMin, Location sourceMax, Location targetMin) {
+        EditSession sourceSession = null;
+        EditSession targetSession = null;
+        Clipboard clipboard = null;
         try {
             com.sk89q.worldedit.world.World sourceWorld = BukkitAdapter.adapt(sourceMin.getWorld());
             com.sk89q.worldedit.world.World targetWorld = BukkitAdapter.adapt(targetMin.getWorld());
@@ -588,36 +635,55 @@ public class RegionRegenerationManager {
 
             CuboidRegion sourceRegion = new CuboidRegion(sourceWorld, sourceMinVec, sourceMaxVec);
 
-            // OPTIMIZADO: No usar runTask, ejecutar directamente en async
-            try (EditSession sourceSession = WorldEdit.getInstance().newEditSession(sourceWorld);
-                 EditSession targetSession = WorldEdit.getInstance().newEditSession(targetWorld)) {
+            sourceSession = WorldEdit.getInstance().newEditSession(sourceWorld);
+            targetSession = WorldEdit.getInstance().newEditSession(targetWorld);
 
-                sourceSession.setFastMode(true);
-                targetSession.setFastMode(true);
+            sourceSession.setFastMode(true);
+            targetSession.setFastMode(true);
 
-                Clipboard clipboard = new BlockArrayClipboard(sourceRegion);
-                ForwardExtentCopy copy = new ForwardExtentCopy(sourceSession, sourceRegion, clipboard, sourceMinVec);
-                copy.setCopyingEntities(false);
-                Operations.complete(copy);
+            clipboard = new BlockArrayClipboard(sourceRegion);
+            ForwardExtentCopy copy = new ForwardExtentCopy(sourceSession, sourceRegion, clipboard, sourceMinVec);
+            copy.setCopyingEntities(false);
+            Operations.complete(copy);
 
-                ClipboardHolder holder = new ClipboardHolder(clipboard);
-                Operation pasteOperation = holder
-                        .createPaste(targetSession)
-                        .to(targetMinVec)
-                        .ignoreAirBlocks(false)
-                        .build();
+            ClipboardHolder holder = new ClipboardHolder(clipboard);
+            Operation pasteOperation = holder
+                    .createPaste(targetSession)
+                    .to(targetMinVec)
+                    .ignoreAirBlocks(false)
+                    .build();
 
-                Operations.complete(pasteOperation);
-                return true;
-
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error in direct area copy: " + e.getMessage());
-                return false;
-            }
+            Operations.complete(pasteOperation);
+            return true;
 
         } catch (Exception e) {
             DebugUtils.logInternalError("Unexpected error in direct copy: " + e.getMessage());
             return false;
+        } finally {
+            if (sourceSession != null) {
+                try {
+                    sourceSession.close();
+                    sourceSession = null;
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error closing source EditSession: " + e.getMessage());
+                }
+            }
+            if (targetSession != null) {
+                try {
+                    targetSession.close();
+                    targetSession = null;
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error closing target EditSession: " + e.getMessage());
+                }
+            }
+            if (clipboard != null) {
+                try {
+                    clipboard = null;
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
+                }
+            }
+            System.gc();
         }
     }
 }

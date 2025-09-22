@@ -240,7 +240,7 @@ public class ItemManager implements Listener {
         ItemInteractionHandler.removeCooldown(player, itemId);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOW)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         ItemStack itemStack = event.getItem();
@@ -317,7 +317,7 @@ public class ItemManager implements Listener {
 //        DebugUtils.logInternalDebug("Completed PlayerInteract processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             return;
@@ -363,7 +363,7 @@ public class ItemManager implements Listener {
         DebugUtils.logInternalDebug("Completed InventoryClick processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
         Player player = event.getPlayer();
         ItemStack itemStack = event.getItem();
@@ -404,7 +404,7 @@ public class ItemManager implements Listener {
         DebugUtils.logInternalDebug("Completed PlayerItemConsume processing for item: " + interactiveItem.getId() + " and player: " + player.getName());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)) {
             return;
@@ -455,7 +455,7 @@ public class ItemManager implements Listener {
         DebugUtils.logInternalDebug("Completed EntityDamageByEntity processing for item: " + interactiveItem.getId());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
         Projectile projectile = event.getEntity();
         if (!(projectile.getShooter() instanceof Player player)) {
@@ -597,7 +597,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onProjectileHit(ProjectileHitEvent event) {
         Projectile projectile = event.getEntity();
         if (!projectile.hasMetadata("interactive_item_id")) {
@@ -736,7 +736,7 @@ public class ItemManager implements Listener {
         return null;
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) {
             DebugUtils.logInternalDebug("InventoryDrag event not triggered by player, ignoring");
@@ -777,7 +777,7 @@ public class ItemManager implements Listener {
         DebugUtils.logInternalDebug("Completed InventoryDrag processing for item: " + interactiveItem.getId());
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         Player player = event.getPlayer();
         ItemStack droppedItem = event.getItemDrop().getItemStack();
@@ -804,7 +804,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
         ItemStack mainHand = event.getMainHandItem();
@@ -861,7 +861,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         
@@ -887,7 +887,7 @@ public class ItemManager implements Listener {
         holdHandler.stopAllSessionsForPlayer(player);
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInventoryClickForHold(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
         
@@ -899,7 +899,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerPickupItem(PlayerPickupItemEvent event) {
         Player player = event.getPlayer();
         
@@ -907,7 +907,7 @@ public class ItemManager implements Listener {
         Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 2L);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         ItemStack itemStack = event.getItemInHand();
         InteractiveItem interactiveItem = getItemFromStack(itemStack);
@@ -1077,7 +1077,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPrepareItemCraft(PrepareItemCraftEvent event) {
         for (ItemStack ingredient : event.getInventory().getMatrix()) {
             if (ingredient != null && isInteractiveItem(ingredient)) {
@@ -1088,7 +1088,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCraftItem(CraftItemEvent event) {
         for (ItemStack ingredient : event.getInventory().getMatrix()) {
             if (ingredient != null && isInteractiveItem(ingredient)) {
@@ -1099,7 +1099,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPrepareAnvil(PrepareAnvilEvent event) {
         ItemStack first = event.getInventory().getItem(0);
         ItemStack second = event.getInventory().getItem(1);
@@ -1110,7 +1110,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPrepareSmithing(PrepareSmithingEvent event) {
         for (ItemStack ingredient : event.getInventory().getContents()) {
             if (ingredient != null && isInteractiveItem(ingredient)) {
@@ -1121,7 +1121,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPrepareItemEnchant(PrepareItemEnchantEvent event) {
         if (isInteractiveItem(event.getItem())) {
             DebugUtils.logInternalDebug("Interactive item found in enchanting table, cancelling enchant preparation");
@@ -1129,7 +1129,7 @@ public class ItemManager implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onEnchantItem(EnchantItemEvent event) {
         if (isInteractiveItem(event.getItem())) {
             DebugUtils.logInternalDebug("Interactive item found in enchanting table, cancelling enchant event");

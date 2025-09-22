@@ -5,7 +5,7 @@ import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.TemporaryBlocksManager;
 import net.exylia.commons.region.cloning.RegionCloner;
 import net.exylia.commons.region.events.*;
-import net.exylia.commons.region.listener.UnifiedRegionListener;
+import net.exylia.commons.region.listener.RegionListener;
 import net.exylia.commons.region.model.*;
 import net.exylia.commons.region.optimization.RegionPositionTracker;
 import net.exylia.commons.region.optimization.RegionSpatialIndex;
@@ -31,7 +31,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
@@ -67,7 +66,7 @@ public class RegionManager implements Listener {
     private FlagManager flagManager;
 
     // LISTENER UNIFICADO
-    private UnifiedRegionListener unifiedListener;
+    private RegionListener unifiedListener;
 
     private BukkitRunnable cleanupTask;
 
@@ -92,7 +91,7 @@ public class RegionManager implements Listener {
         PlayerBlockTracker.initialize(plugin);
 
         // USAR LISTENER UNIFICADO CORREGIDO
-        this.unifiedListener = new UnifiedRegionListener(plugin, this);
+        this.unifiedListener = new RegionListener(plugin, this);
 
         // Register this manager as a listener for PlayerQuitEvent
         plugin.getServer().getPluginManager().registerEvents(this, plugin);

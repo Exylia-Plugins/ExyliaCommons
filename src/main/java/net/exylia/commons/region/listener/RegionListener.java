@@ -9,7 +9,6 @@ import net.exylia.commons.region.events.TemporaryBlockRemovedEvent;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -32,14 +31,9 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
-/**
- * Listener unificado CORREGIDO - Procesamiento inmediato de movimientos
- * Elimina el batching agresivo que causaba detección tardía
- */
-public class UnifiedRegionListener implements Listener {
+public class RegionListener implements Listener {
 
     private final JavaPlugin plugin;
     private final RegionManager regionManager;
@@ -57,7 +51,7 @@ public class UnifiedRegionListener implements Listener {
     private volatile long cachedValidations = 0;
     private volatile long immediateMovements = 0;
 
-    public UnifiedRegionListener(JavaPlugin plugin, RegionManager regionManager) {
+    public RegionListener(JavaPlugin plugin, RegionManager regionManager) {
         this.plugin = plugin;
         this.regionManager = regionManager;
         this.flagManager = FlagManager.getInstance();
@@ -79,7 +73,7 @@ public class UnifiedRegionListener implements Listener {
 
     // ===== EVENTOS DE CONSTRUCCIÓN (sin cambios significativos) =====
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onBlockPlace(BlockPlaceEvent event) {
         totalEvents++;
 
@@ -128,7 +122,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         totalEvents++;
 
@@ -194,7 +188,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getClickedBlock() == null) return;
 
@@ -237,7 +231,7 @@ public class UnifiedRegionListener implements Listener {
 
     // ===== EVENTOS DE COMBATE (sin cambios) =====
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player target)) return;
         if (!(event.getDamager() instanceof Player attacker)) return;
@@ -267,7 +261,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
@@ -292,7 +286,7 @@ public class UnifiedRegionListener implements Listener {
 
     // ===== EVENTOS DE MOVIMIENTO CORREGIDOS =====
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerMove(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
@@ -321,7 +315,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
         // Los teleports siempre se procesan inmediatamente
         Location from = event.getFrom();
@@ -338,7 +332,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onEntityExplode(EntityExplodeEvent event) {
         totalEvents++;
 
@@ -367,7 +361,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onBlockExplode(BlockExplodeEvent event) {
         totalEvents++;
 
@@ -400,7 +394,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
@@ -423,7 +417,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         totalEvents++;
 
@@ -462,7 +456,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onEntityPickupItem(EntityPickupItemEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
 
@@ -502,7 +496,7 @@ public class UnifiedRegionListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onBlockForm(BlockFormEvent event) {
         totalEvents++;
 
@@ -545,7 +539,7 @@ public class UnifiedRegionListener implements Listener {
     /**
      * Maneja la propagación de bloques (como fuego)
      */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onBlockSpread(BlockSpreadEvent event) {
         totalEvents++;
 
