@@ -71,9 +71,6 @@ public class PlayerBlockTracker {
 
     // ===== MÉTODOS PRINCIPALES MEJORADOS =====
 
-    /**
-     * MEJORADO: Añade un bloque con cache inteligente
-     */
     public void addPlayerBlock(String regionKey, Location location, Material material, UUID playerId, String playerName) {
         String worldName = location.getWorld().getName();
         BlockPosition blockPos = new BlockPosition(
@@ -95,8 +92,7 @@ public class PlayerBlockTracker {
 
         markDirty();
 
-        // Auto-guardado si es necesario
-        checkAutoSave();
+//        checkAutoSave();
 
 //        logInternalDebug(String.format(
 //                "Bloque registrado con cache inteligente: %s colocó %s en región %s en %s",
@@ -104,9 +100,6 @@ public class PlayerBlockTracker {
 //        ));
     }
 
-    /**
-     * OPTIMIZADO: Verifica si un bloque fue colocado por un jugador - MÁXIMO RENDIMIENTO
-     */
     public boolean isPlayerPlacedBlock(String regionKey, Location location) {
         String cacheKey = getCacheKey(regionKey, location);
 
@@ -450,12 +443,7 @@ public class PlayerBlockTracker {
     }
 
     private void saveData() {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(dataFile))) {
-            oos.writeObject(regionPlayerBlocks);
-            logInternalDebug("Datos guardados: " + regionPlayerBlocks.size() + " regiones");
-        } catch (IOException e) {
-            plugin.getLogger().severe("Error guardando datos: " + e.getMessage());
-        }
+        // ??
     }
 
     @SuppressWarnings("unchecked")
