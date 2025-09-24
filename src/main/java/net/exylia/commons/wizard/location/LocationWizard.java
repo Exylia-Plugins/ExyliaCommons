@@ -163,7 +163,7 @@ public final class LocationWizard implements Listener {
             switch (result.getType()) {
                 case CONTINUE:
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     sendInstructions(player, session);
                     break;
@@ -173,7 +173,7 @@ public final class LocationWizard implements Listener {
                     player.resetTitle();
                     session.complete(result.getValue());
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     break;
 
@@ -182,7 +182,7 @@ public final class LocationWizard implements Listener {
                     player.resetTitle();
                     session.cancel();
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     break;
             }

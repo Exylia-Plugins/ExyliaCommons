@@ -468,7 +468,7 @@ public class ItemInteractionHandler {
 
     public void handleGlobalCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.global_cooldown", ExyliaContext.of(player)
+        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.global_cooldown", ExyliaContext.of(player)
                 .put("cooldown_formatted", formattedTime)
                 .put("cooldown_seconds", String.valueOf(remainingSeconds))
                 .put("item_display", getItemDisplayName(interactiveItem))
@@ -477,7 +477,7 @@ public class ItemInteractionHandler {
 
     public void handleItemCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.in_cooldown", ExyliaContext.of(player)
+        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.in_cooldown", ExyliaContext.of(player)
                 .put("cooldown_formatted", formattedTime)
                 .put("cooldown_seconds", String.valueOf(remainingSeconds))
                 .put("item_display", getItemDisplayName(interactiveItem))
@@ -486,20 +486,20 @@ public class ItemInteractionHandler {
 
     public void handleRegionDeniedMessage(Player player, InteractiveItem interactiveItem) {
         String regionName = WorldGuardUtils.getHighestPriorityRegion(player);
-        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.region_denied", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.region_denied", ExyliaContext.of(interactiveItem)
                 .put("item_display", getItemDisplayName(interactiveItem))
                 .put("item_name", getItemName(interactiveItem))
                 .put("region_name", regionName != null ? regionName : "N/A")));
     }
 
     public void handleNoUsesRemainingMessage(Player player, InteractiveItem interactiveItem) {
-        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.no_uses_remaining", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.no_uses_remaining", ExyliaContext.of(interactiveItem)
                 .put("item_display", getItemDisplayName(interactiveItem))
                 .put("item_name", getItemName(interactiveItem))));
     }
 
     public void handleConsumedMessage(Player player, InteractiveItem interactiveItem) {
-        MessageUtils.sendMessageAsync(player, MessagesBase.getWithContext("system.items.consumed", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.consumed", ExyliaContext.of(interactiveItem)
                 .put("item_display", getItemDisplayName(interactiveItem))
                 .put("item_name", getItemName(interactiveItem))));
     }

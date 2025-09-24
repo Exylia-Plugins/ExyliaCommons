@@ -235,6 +235,10 @@ public class ConfigurationSystem {
             return buildInternal().toString();
         }
 
+        public String buildRawString() {
+            return buildRawStringInternal();
+        }
+
         private Component buildInternal() {
             // Generar clave de cache para mensajes estáticos
             String cacheKey = generateCacheKey();
@@ -286,6 +290,33 @@ public class ConfigurationSystem {
             }
 
             return component;
+        }
+
+        private String buildRawStringInternal() {
+            // Obtener mensaje base
+            String message = getMessageFile().getString(path, "{error}" + path + " not found");
+
+            // Aplicar prefix
+            if (usePrefix) {
+                if (customPrefix != null) {
+                    message = customPrefix + message;
+                } else {
+                    message = message.replace("%prefix%", globalPrefix);
+                }
+            }
+
+            // Procesar con ExyliaContext
+            message = context.processPlaceholders(message, player);
+
+            // Aplicar reemplazos manuales (no-Component)
+            for (Map.Entry<String, Object> entry : replacements.entrySet()) {
+                if (!(entry.getValue() instanceof Component)) {
+                    message = message.replace(entry.getKey(), entry.getValue().toString());
+                }
+            }
+
+            // Retornar el String RAW antes de ColorUtils.parse()
+            return message;
         }
 
         private String generateCacheKey() {

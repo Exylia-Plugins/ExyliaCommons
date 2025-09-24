@@ -91,7 +91,7 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPlayerOnly(CommandSender sender) {
-        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.player_only"));
+        MessageUtils.sendMessage(sender, MessagesBase.get("system.player_only"));
     }
 
     /**
@@ -100,6 +100,6 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPermissionDenied(CommandSender sender) {
-        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.no_permission"));
+        MessageUtils.sendMessage(sender, MessagesBase.get("system.no_permission"));
     }
 }

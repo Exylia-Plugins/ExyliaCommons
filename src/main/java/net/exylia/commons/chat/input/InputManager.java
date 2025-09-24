@@ -185,9 +185,9 @@ public final class InputManager implements Listener {
      */
     private static void sendResultMessage(Player player, InputResult result) {
         if (result.hasStringMessage()) {
-            MessageUtils.sendMessageAsync(player, result.getMessageAsString());
+            MessageUtils.sendMessage(player, result.getMessageAsString());
         } else if (result.hasComponentMessage()) {
-            MessageUtils.sendMessageAsync(player, result.getMessageAsComponent());
+            MessageUtils.sendMessage(player, result.getMessageAsComponent());
         }
     }
 

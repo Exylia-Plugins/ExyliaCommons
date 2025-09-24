@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
 public class MessageUtils {
@@ -86,21 +85,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageAsync(Player player, String message) {
-        return CompletableFuture.runAsync(() -> sendMessage(player, message));
-    }
-
-    public static CompletableFuture<Void> sendMessageAsync(CommandSender sender, String message) {
-        return CompletableFuture.runAsync(() -> sendMessage(sender, message));
-    }
-
-    public static CompletableFuture<Void> sendMessageAsync(Player player, Component component) {
-        return CompletableFuture.runAsync(() -> sendMessage(player, component));
-    }
-
-    public static CompletableFuture<Void> sendMessageAsync(CommandSender sender, Component component) {
-        return CompletableFuture.runAsync(() -> sendMessage(sender, component));
-    }
 
     public static void broadcastMessage(String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -118,13 +102,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> broadcastMessageAsync(String message) {
-        return CompletableFuture.runAsync(() -> broadcastMessage(message));
-    }
-
-    public static CompletableFuture<Void> broadcastMessageAsync(Component component) {
-        return CompletableFuture.runAsync(() -> broadcastMessage(component));
-    }
 
     public static void sendMessage(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -140,13 +117,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageAsync(Collection<Player> players, String message) {
-        return CompletableFuture.runAsync(() -> sendMessage(players, message));
-    }
-
-    public static CompletableFuture<Void> sendMessageAsync(Collection<Player> players, Component component) {
-        return CompletableFuture.runAsync(() -> sendMessage(players, component));
-    }
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -190,21 +160,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Collection<Player> excludePlayers, String message) {
-        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayers, message));
-    }
-
-    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Player excludePlayer, String message) {
-        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayer, message));
-    }
-
-    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Collection<Player> excludePlayers, Component component) {
-        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayers, component));
-    }
-
-    public static CompletableFuture<Void> broadcastMessageExcludingAsync(Player excludePlayer, Component component) {
-        return CompletableFuture.runAsync(() -> broadcastMessageExcluding(excludePlayer, component));
-    }
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -242,21 +197,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
-        return CompletableFuture.runAsync(() -> sendMessageToCollectionExcluding(recipients, excludePlayers, message));
-    }
-
-    public static CompletableFuture<Void> sendMessageToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, String message) {
-        return CompletableFuture.runAsync(() -> sendMessageToCollectionExcluding(recipients, excludePlayer, message));
-    }
-
-    public static CompletableFuture<Void> sendMessageToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, Component component) {
-        return CompletableFuture.runAsync(() -> sendMessageToCollectionExcluding(recipients, excludePlayers, component));
-    }
-
-    public static CompletableFuture<Void> sendMessageToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, Component component) {
-        return CompletableFuture.runAsync(() -> sendMessageToCollectionExcluding(recipients, excludePlayer, component));
-    }
 
     public static void sendTitleToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
@@ -298,21 +238,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendTitleToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitleToCollectionExcluding(recipients, excludePlayers, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitleToCollectionExcluding(recipients, excludePlayer, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitleToCollectionExcluding(recipients, excludePlayers, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitleToCollectionExcluding(recipients, excludePlayer, title, subtitle, fadeIn, stay, fadeOut));
-    }
 
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -352,21 +277,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendActionBarToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
-        return CompletableFuture.runAsync(() -> sendActionBarToCollectionExcluding(recipients, excludePlayers, message));
-    }
-
-    public static CompletableFuture<Void> sendActionBarToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, String message) {
-        return CompletableFuture.runAsync(() -> sendActionBarToCollectionExcluding(recipients, excludePlayer, message));
-    }
-
-    public static CompletableFuture<Void> sendActionBarToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, Component component) {
-        return CompletableFuture.runAsync(() -> sendActionBarToCollectionExcluding(recipients, excludePlayers, component));
-    }
-
-    public static CompletableFuture<Void> sendActionBarToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, Component component) {
-        return CompletableFuture.runAsync(() -> sendActionBarToCollectionExcluding(recipients, excludePlayer, component));
-    }
 
     public static void showBossBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, BossBar bossBar) {
         if (bossBar == null) return;
@@ -404,21 +314,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> showBossBarToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> showBossBarToCollectionExcluding(recipients, excludePlayers, bossBar));
-    }
-
-    public static CompletableFuture<Void> showBossBarToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> showBossBarToCollectionExcluding(recipients, excludePlayer, bossBar));
-    }
-
-    public static CompletableFuture<Void> hideBossBarToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> hideBossBarToCollectionExcluding(recipients, excludePlayers, bossBar));
-    }
-
-    public static CompletableFuture<Void> hideBossBarToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> hideBossBarToCollectionExcluding(recipients, excludePlayer, bossBar));
-    }
 
     public static void playSoundToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, Sound sound, float volume, float pitch) {
         if (sound == null) return;
@@ -438,13 +333,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> playSoundToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, Sound sound, float volume, float pitch) {
-        return CompletableFuture.runAsync(() -> playSoundToCollectionExcluding(recipients, excludePlayers, sound, volume, pitch));
-    }
-
-    public static CompletableFuture<Void> playSoundToCollectionExcludingAsync(Collection<Player> recipients, Player excludePlayer, Sound sound, float volume, float pitch) {
-        return CompletableFuture.runAsync(() -> playSoundToCollectionExcluding(recipients, excludePlayer, sound, volume, pitch));
-    }
 
     public static void sendMessageWithSoundToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message, Sound sound, float volume, float pitch) {
         if (message == null || message.trim().isEmpty() || sound == null) return;
@@ -464,9 +352,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageWithSoundToCollectionExcludingAsync(Collection<Player> recipients, Collection<Player> excludePlayers, String message, Sound sound, float volume, float pitch) {
-        return CompletableFuture.runAsync(() -> sendMessageWithSoundToCollectionExcluding(recipients, excludePlayers, message, sound, volume, pitch));
-    }
 
     public static void sendTitle(Player player, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
         if (title == null && subtitle == null) return;
@@ -516,29 +401,6 @@ public class MessageUtils {
         sendTitle(players, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
     }
 
-    public static CompletableFuture<Void> sendTitleAsync(Player player, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitle(player, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleAsync(Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitle(player, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> broadcastTitleAsync(Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> broadcastTitle(title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> broadcastTitleAsync(String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> broadcastTitle(title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleAsync(Collection<Player> players, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitle(players, title, subtitle, fadeIn, stay, fadeOut));
-    }
-
-    public static CompletableFuture<Void> sendTitleAsync(Collection<Player> players, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitle(players, title, subtitle, fadeIn, stay, fadeOut));
-    }
 
     public static void sendActionBar(Player player, Component message) {
         if (message == null) return;
@@ -577,29 +439,6 @@ public class MessageUtils {
         sendActionBar(players, component);
     }
 
-    public static CompletableFuture<Void> sendActionBarAsync(Player player, Component message) {
-        return CompletableFuture.runAsync(() -> sendActionBar(player, message));
-    }
-
-    public static CompletableFuture<Void> sendActionBarAsync(Player player, String message) {
-        return CompletableFuture.runAsync(() -> sendActionBar(player, message));
-    }
-
-    public static CompletableFuture<Void> broadcastActionBarAsync(Component message) {
-        return CompletableFuture.runAsync(() -> broadcastActionBar(message));
-    }
-
-    public static CompletableFuture<Void> broadcastActionBarAsync(String message) {
-        return CompletableFuture.runAsync(() -> broadcastActionBar(message));
-    }
-
-    public static CompletableFuture<Void> sendActionBarAsync(Collection<Player> players, Component message) {
-        return CompletableFuture.runAsync(() -> sendActionBar(players, message));
-    }
-
-    public static CompletableFuture<Void> sendActionBarAsync(Collection<Player> players, String message) {
-        return CompletableFuture.runAsync(() -> sendActionBar(players, message));
-    }
 
     public static void showPlayerBossBar(Player player, BossBar bossBar) {
         if (bossBar == null) return;
@@ -620,21 +459,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> showPlayerBossBarAsync(Player player, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> showPlayerBossBar(player, bossBar));
-    }
-
-    public static CompletableFuture<Void> showPlayersBossBarAsync(BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> {
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                player.showBossBar(bossBar);
-            }
-        });
-    }
-
-    public static CompletableFuture<Void> showPlayersBossBarAsync(Collection<Player> players, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> showPlayersBossBar(players, bossBar));
-    }
 
     public static void hidePlayerBossBar(Player player, BossBar bossBar) {
         if (bossBar == null) return;
@@ -655,21 +479,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> hidePlayerBossBarAsync(Player player, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> hidePlayerBossBar(player, bossBar));
-    }
-
-    public static CompletableFuture<Void> hidePlayersBossBarAsync(BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> {
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                player.hideBossBar(bossBar);
-            }
-        });
-    }
-
-    public static CompletableFuture<Void> hidePlayersBossBarAsync(Collection<Player> players, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> hidePlayersBossBar(players, bossBar));
-    }
 
     public static BossBar createBossBar(String text, BossBar.Color color, BossBar.Overlay style, BossBar.Flag... flags) {
         if (text == null || text.trim().isEmpty()) return null;
@@ -684,7 +493,7 @@ public class MessageUtils {
         if (bossBar == null) return null;
         showPlayerBossBar(player, bossBar);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(
+        Bukkit.getScheduler().runTaskLater(
                 Bukkit.getPluginManager().getPlugins()[0],
                 () -> hidePlayerBossBar(player, bossBar),
                 seconds * 20L
@@ -699,7 +508,7 @@ public class MessageUtils {
         if (bossBar == null) return null;
         showPlayersBossBar(bossBar);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(
+        Bukkit.getScheduler().runTaskLater(
                 Bukkit.getPluginManager().getPlugins()[0],
                 () -> hidePlayersBossBar(bossBar),
                 seconds * 20L
@@ -718,9 +527,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageWithSoundAsync(Player player, String message, Sound sound, float volume, float pitch) {
-        return CompletableFuture.runAsync(() -> sendMessageWithSound(player, message, sound, volume, pitch));
-    }
 
     public static void sendMessageToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -731,9 +537,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMessageToFilteredAsync(Predicate<Player> condition, String message) {
-        return CompletableFuture.runAsync(() -> sendMessageToFiltered(condition, message));
-    }
 
     public static void sendTitleToFiltered(Predicate<Player> condition, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
@@ -747,9 +550,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendTitleToFilteredAsync(Predicate<Player> condition, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        return CompletableFuture.runAsync(() -> sendTitleToFiltered(condition, title, subtitle, fadeIn, stay, fadeOut));
-    }
 
     public static void showBossBarToFiltered(Predicate<Player> condition, BossBar bossBar) {
         if (bossBar == null) return;
@@ -760,9 +560,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> showBossBarToFilteredAsync(Predicate<Player> condition, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> showBossBarToFiltered(condition, bossBar));
-    }
 
     public static void hideBossBarToFiltered(Predicate<Player> condition, BossBar bossBar) {
         if (bossBar == null) return;
@@ -773,9 +570,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> hideBossBarToFilteredAsync(Predicate<Player> condition, BossBar bossBar) {
-        return CompletableFuture.runAsync(() -> hideBossBarToFiltered(condition, bossBar));
-    }
 
     public static void sendActionBarToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -788,9 +582,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendActionBarToFilteredAsync(Predicate<Player> condition, String message) {
-        return CompletableFuture.runAsync(() -> sendActionBarToFiltered(condition, message));
-    }
 
     public static void sendPaginatedMessage(Player player, Component header, Component footer, int pageNumber, int itemsPerPage, List<Component> items) {
         if (items == null || items.isEmpty()) return;
@@ -833,13 +624,6 @@ public class MessageUtils {
         sendPaginatedMessage(player, headerComponent, footerComponent, pageNumber, itemsPerPage, components);
     }
 
-    public static CompletableFuture<Void> sendPaginatedMessageAsync(Player player, Component header, Component footer, int pageNumber, int itemsPerPage, List<Component> items) {
-        return CompletableFuture.runAsync(() -> sendPaginatedMessage(player, header, footer, pageNumber, itemsPerPage, items));
-    }
-
-    public static CompletableFuture<Void> sendPaginatedMessageAsync(Player player, String header, String footer, int pageNumber, int itemsPerPage, List<String> items) {
-        return CompletableFuture.runAsync(() -> sendPaginatedMessage(player, header, footer, pageNumber, itemsPerPage, items));
-    }
 
     public static void sendRepeatedMessage(Player player, String message, long intervalTicks, long durationTicks) {
         if (message == null || message.trim().isEmpty()) return;
@@ -913,9 +697,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> broadcastSoundAsync(Sound sound, float volume, float pitch) {
-        return CompletableFuture.runAsync(() -> broadcastSound(sound, volume, pitch));
-    }
 
     public static void sendSequence(Player player, List<String> messages, long delayBetweenMessages) {
         if (messages == null || messages.isEmpty()) return;
@@ -975,9 +756,6 @@ public class MessageUtils {
         }
     }
 
-    public static CompletableFuture<Void> sendMultiLineMessageAsync(Player player, List<String> messages) {
-        return CompletableFuture.runAsync(() -> sendMultiLineMessage(player, messages));
-    }
 
     public static void sendMessageInRadius(org.bukkit.Location origin, double radius, String message) {
         if (message == null || message.trim().isEmpty() || origin == null) return;
@@ -1033,7 +811,7 @@ public class MessageUtils {
     }
 
     /**
-     * Processes special effects for a player
+     * Processes special effects for a player (must be called from main thread)
      *
      * @param player The player to apply effects to
      * @param effectsSection The effects configuration string
@@ -1042,7 +820,6 @@ public class MessageUtils {
         if (effectsSection == null || effectsSection.trim().isEmpty() || player == null) {
             return;
         }
-
         String[] effectTypes = effectsSection.split(";");
 
         for (String effectType : effectTypes) {
@@ -1174,24 +951,4 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Async enhanced message processing
-     */
-    public static CompletableFuture<Void> sendEnhancedMessageAsync(Player player, String message) {
-        return CompletableFuture.runAsync(() -> sendEnhancedMessage(player, message));
-    }
-
-    /**
-     * Async enhanced message processing for collections
-     */
-    public static CompletableFuture<Void> sendEnhancedMessageAsync(Collection<Player> players, String message) {
-        return CompletableFuture.runAsync(() -> sendEnhancedMessage(players, message));
-    }
-
-    /**
-     * Async enhanced broadcast
-     */
-    public static CompletableFuture<Void> broadcastEnhancedMessageAsync(String message) {
-        return CompletableFuture.runAsync(() -> broadcastEnhancedMessage(message));
-    }
 }

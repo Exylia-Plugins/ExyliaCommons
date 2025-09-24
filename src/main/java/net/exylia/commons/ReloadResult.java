@@ -103,18 +103,18 @@ public class ReloadResult {
         try {
             if (result.isSuccess()) {
                 long duration = result.getDurationMs();
-                MessageUtils.sendMessageAsync(sender,
+                MessageUtils.sendMessage(sender,
                     MessagesBase.getWithContext("system.commands.reload.success",
                         net.exylia.commons.placeholders.ExyliaContext.create().put("time", duration)));
             } else {
                 String error = result.getErrorMessage();
-                MessageUtils.sendMessageAsync(sender,
+                MessageUtils.sendMessage(sender,
                     MessagesBase.getWithContext("system.commands.reload.error",
                         net.exylia.commons.placeholders.ExyliaContext.create().put("error", error)));
             }
         } catch (Exception e) {
             DebugUtils.logError("Error processing reload result: " + e.getMessage());
-            MessageUtils.sendMessageAsync(sender, "Reload completed but couldn't determine status.");
+            MessageUtils.sendMessage(sender, "Reload completed but couldn't determine status.");
         }
     }
 
@@ -126,7 +126,7 @@ public class ReloadResult {
     }
 
     public static void sendStartMessage(org.bukkit.command.CommandSender sender) {
-        MessageUtils.sendMessageAsync(sender,
+        MessageUtils.sendMessage(sender,
             MessagesBase.get("system.commands.reload.starting"));
     }
 }

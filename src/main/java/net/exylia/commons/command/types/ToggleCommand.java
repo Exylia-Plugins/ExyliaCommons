@@ -177,7 +177,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param name Nombre del jugador no encontrado
      */
     protected void onPlayerNotFound(CommandSender sender, String name) {
-        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.player_not_found"));
+        MessageUtils.sendMessage(sender, MessagesBase.get("system.player_not_found"));
     }
 
     /**
@@ -186,7 +186,7 @@ public abstract class ToggleCommand extends PermissionCommand {
      * @param sender A quien mostrar
      */
     protected void showUsage(CommandSender sender) {
-        MessageUtils.sendMessageAsync(sender, MessagesBase.get("system.commands.usage", "%usage%", getName() + " [on|off|toggle] [player]"));
+        MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.usage", "%usage%", getName() + " [on|off|toggle] [player]"));
     }
 
     /**

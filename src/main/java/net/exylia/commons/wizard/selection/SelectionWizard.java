@@ -125,7 +125,7 @@ public final class SelectionWizard implements Listener {
         ItemStack wand = selectionManager.createWand(selectionId);
 
         player.getInventory().setItemInMainHand(wand);
-        MessageUtils.sendMessageAsync(player, "{primary}You have been given a selection wand!");
+        MessageUtils.sendMessage(player, "{primary}You have been given a selection wand!");
     }
 
     /**
@@ -204,7 +204,7 @@ public final class SelectionWizard implements Listener {
     public static void confirmCurrentSelection(Player player, SelectionWizardSession session) {
         Selection currentSelection = session.getCurrentSelection();
         if (currentSelection == null || !currentSelection.isComplete()) {
-            MessageUtils.sendMessageAsync(player, "{error}No selection ready to confirm!");
+            MessageUtils.sendMessage(player, "{error}No selection ready to confirm!");
             return;
         }
 
@@ -229,7 +229,7 @@ public final class SelectionWizard implements Listener {
             switch (result.getType()) {
                 case CONTINUE:
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     continueToNextSelection(player, session);
                     break;
@@ -238,7 +238,7 @@ public final class SelectionWizard implements Listener {
                     instance.activeSessions.remove(player.getUniqueId());
                     session.complete(result.getValue());
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     break;
 
@@ -247,7 +247,7 @@ public final class SelectionWizard implements Listener {
                     clearWizardSelections(player, session);
                     session.cancel();
                     if (result.getMessage() != null) {
-                        MessageUtils.sendMessageAsync(player, result.getMessage());
+                        MessageUtils.sendMessage(player, result.getMessage());
                     }
                     break;
             }
@@ -402,8 +402,8 @@ public final class SelectionWizard implements Listener {
                 ExyliaContext.create());
 
         // Optional: Send chat message with selection info
-        MessageUtils.sendMessageAsync(player, "{success}Selection completed! Volume: {info}" + selection.getVolume() + " blocks");
-        MessageUtils.sendMessageAsync(player, "{warning}Use SHIFT + LEFT CLICK to confirm and continue");
+        MessageUtils.sendMessage(player, "{success}Selection completed! Volume: {info}" + selection.getVolume() + " blocks");
+        MessageUtils.sendMessage(player, "{warning}Use SHIFT + LEFT CLICK to confirm and continue");
     }
 
     private static void clearWizardSelections(Player player, SelectionWizardSession session) {

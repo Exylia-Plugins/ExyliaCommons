@@ -688,7 +688,7 @@ public class VanillaItemCooldownManager implements Listener {
 
         if (config != null && config.hasRegionConfigs() && currentRegion != null) {
             if (config.isBlockedInRegion(currentRegion)) {
-                MessageUtils.sendMessageAsync(player,
+                MessageUtils.sendMessage(player,
                         MessagesBase.getWithContext("system.items.vanilla_region_blocked", ExyliaContext.create()
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)
@@ -702,7 +702,7 @@ public class VanillaItemCooldownManager implements Listener {
                 int currentUsage = VanillaRegionLimitManager.getInstance().getCurrentUsage(player, currentRegion, material);
                 if (currentUsage >= maxUses) {
                     int remaining = maxUses - currentUsage;
-                    MessageUtils.sendMessageAsync(player,
+                    MessageUtils.sendMessage(player,
                             MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
                                     .put("item_display", itemDisplayName)
                                     .put("item_name", itemName)
@@ -717,7 +717,7 @@ public class VanillaItemCooldownManager implements Listener {
                 int remaining = VanillaRegionLimitManager.getInstance().getRemainingUses(player, material);
                 String region = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
 
-                MessageUtils.sendMessageAsync(player,
+                MessageUtils.sendMessage(player,
                         MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)
@@ -731,7 +731,7 @@ public class VanillaItemCooldownManager implements Listener {
         double remainingSeconds = getRemainingCooldown(player, material);
         String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
 
-        MessageUtils.sendMessageAsync(player,
+        MessageUtils.sendMessage(player,
                 MessagesBase.getWithContext("system.items.vanilla_cooldown", ExyliaContext.create()
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)

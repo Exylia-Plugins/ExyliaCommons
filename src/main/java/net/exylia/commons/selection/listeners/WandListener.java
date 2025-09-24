@@ -142,20 +142,20 @@ public class WandListener implements Listener {
     private void handlePos1Selection(Player player, Selection selection, Location location, ItemStack wand) {
         selectionManager.setPos1(player, selection.getSelectionId(), location);
 
-        MessageUtils.sendMessageAsync(player, "{primary}Position 1 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
+        MessageUtils.sendMessage(player, "{primary}Position 1 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
     }
 
     private void handlePos2Selection(Player player, Selection selection, Location location, ItemStack wand) {
         selectionManager.setPos2(player, selection.getSelectionId(), location);
 
-        MessageUtils.sendMessageAsync(player, "{primary}Position 2 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
+        MessageUtils.sendMessage(player, "{primary}Position 2 has been set to: {info}X: " + location.getBlockX() + ", Y: " + location.getBlockY() + ", Z: " + location.getBlockZ());
     }
 
     private void handleSelectionInfo(Player player, Selection selection) {
         if (!selection.isComplete()) {
-            MessageUtils.sendMessageAsync(player, "{primary}Selection is incomplete.");
-            MessageUtils.sendMessageAsync(player, "{primary}Pos1: {info}" + (selection.getPos1() != null ? "✓" : "✗"));
-            MessageUtils.sendMessageAsync(player, "{primary}Pos2: {info}" + (selection.getPos2() != null ? "✓" : "✗"));
+            MessageUtils.sendMessage(player, "{primary}Selection is incomplete.");
+            MessageUtils.sendMessage(player, "{primary}Pos1: {info}" + (selection.getPos1() != null ? "✓" : "✗"));
+            MessageUtils.sendMessage(player, "{primary}Pos2: {info}" + (selection.getPos2() != null ? "✓" : "✗"));
             return;
         }
 
@@ -166,7 +166,7 @@ public class WandListener implements Listener {
         boolean visualEnabled = selectionManager.isVisualizationEnabled(player);
         boolean isVisible = selectionManager.getParticleVisualizer().isSelectionVisible(player, selection.getSelectionId());
 
-        MessageUtils.sendMessageAsync(player,
+        MessageUtils.sendMessage(player,
                 "{secondary}&m                                    \n" +
                         "&r{primary}Selection information:\n" +
                         "{primary}ID: {info}" + selection.getSelectionId() + "\n" +
@@ -185,9 +185,9 @@ public class WandListener implements Listener {
         boolean cleared = selectionManager.clearSelection(player, selection.getSelectionId());
 
         if (cleared) {
-            MessageUtils.sendMessageAsync(player, "{primary}Selection has been cleared.");
+            MessageUtils.sendMessage(player, "{primary}Selection has been cleared.");
         } else {
-            MessageUtils.sendMessageAsync(player, "{error}Error clearing selection.");
+            MessageUtils.sendMessage(player, "{error}Error clearing selection.");
         }
     }
 }

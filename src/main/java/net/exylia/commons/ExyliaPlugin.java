@@ -50,13 +50,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     private SunLicenseAPI api;
 
     // ===== CONSTRUCTOR =====
-    protected ExyliaPlugin() {
-            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
-
-            if (!licenseManager.initializeLicense()) {
-                getServer().getPluginManager().disablePlugin(this);
-            }
-    }
 
     public abstract int getProductID();
 
@@ -64,6 +57,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onEnable() {
         try {
+            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
+
+            if (!licenseManager.initializeLicense()) {
+                getServer().getPluginManager().disablePlugin(this);
+            }
             if (api == null) {
                 getServer().getPluginManager().disablePlugin(this);
                 return;
