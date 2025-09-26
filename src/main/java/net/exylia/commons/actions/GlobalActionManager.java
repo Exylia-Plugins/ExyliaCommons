@@ -11,16 +11,8 @@ import java.util.function.BiConsumer;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Gestor global de acciones personalizadas
- * Permite a los plugins registrar acciones específicas que pueden ser ejecutadas desde cualquier contexto
- */
 public class GlobalActionManager {
-
-    // Mapa de acciones registradas: acción -> handler
     private static final Map<String, BiConsumer<ActionContext, String[]>> actions = new HashMap<>();
-
-    // Mapa de plugins que registraron cada acción (para debugging)
     private static final Map<String, JavaPlugin> actionOwners = new HashMap<>();
 
     /**
@@ -154,27 +146,11 @@ public class GlobalActionManager {
         return count;
     }
 
-    /**
-     * Obtiene todas las acciones registradas
-     * @return Mapa de acciones disponibles
-     */
     public static Map<String, JavaPlugin> getRegisteredActions() {
         return new HashMap<>(actionOwners);
     }
-
-    /**
-     * Limpia todas las acciones registradas (usar solo para testing o shutdown)
-     */
     public static void clearAllActions() {
         actions.clear();
         actionOwners.clear();
     }
 }
-
-// ActionContext.java
-
-
-// ActionSource.java
-
-
-// MenuActionAdapter.java (Adaptador para el sistema de menús existente)
