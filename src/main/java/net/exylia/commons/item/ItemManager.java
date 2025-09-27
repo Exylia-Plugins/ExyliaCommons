@@ -96,8 +96,13 @@ public class ItemManager implements Listener {
         initialized = true;
 
         if (WorldGuardUtils.isWorldGuardAvailable()) {
-            DebugUtils.logInternalInfo("WorldGuard detectado - Soporte de regiones habilitado");
+            DebugUtils.logInternalInfo("WorldGuard detectado - Soporte de regiones habilitado para cooldowns");
         }
+    }
+
+    public static void initialize(JavaPlugin javaPlugin, org.bukkit.configuration.ConfigurationSection cooldownConfig) {
+        CooldownConfiguration configuration = CooldownConfiguration.fromConfiguration(cooldownConfig);
+        initialize(javaPlugin, configuration);
     }
 
     public static void registerItemConfiguration(String id, ItemConfiguration config) {

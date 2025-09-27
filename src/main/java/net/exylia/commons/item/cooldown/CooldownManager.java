@@ -107,9 +107,16 @@ public class CooldownManager {
                 .put(itemId.toLowerCase(), expirationTime);
 
         if (configuration.hasGlobalCooldown()) {
-            long globalExpirationTime = System.currentTimeMillis() + (long)(configuration.getGlobalCooldownSeconds() * 1000.0);
-            playerGlobalCooldowns.put(playerId, globalExpirationTime);
-            logInternalDebug("Global cooldown set for player " + playerId + " for " + configuration.getGlobalCooldownSeconds() + "s");
+            Player player = Bukkit.getPlayer(playerId);
+            double effectiveGlobalCooldown = player != null ?
+                configuration.getEffectiveGlobalCooldown(player) :
+                configuration.getGlobalCooldownSeconds();
+
+            if (effectiveGlobalCooldown > 0) {
+                long globalExpirationTime = System.currentTimeMillis() + (long)(effectiveGlobalCooldown * 1000.0);
+                playerGlobalCooldowns.put(playerId, globalExpirationTime);
+                logInternalDebug("Global cooldown set for player " + playerId + " for " + effectiveGlobalCooldown + "s");
+            }
         }
 
         triggerCooldownEvent(CooldownEventType.SET, playerId, itemId, cooldownSeconds);
@@ -464,7 +471,7 @@ public class CooldownManager {
         String maxItemsInfo = configuration.hasMaxItemsLimit() ?
                 ", Max items per player: " + configuration.getMaxItemsInCooldown() : "";
         String globalInfo = configuration.hasGlobalCooldown() ?
-                ", Global cooldown: " + configuration.getGlobalCooldownSeconds() + "s, Active global: " + globalCooldowns : "";
+                ", Global cooldown configured, Active global: " + globalCooldowns : "";
 
         String stats = String.format("Players with cooldowns: %d, Total active cooldowns: %d%s%s",
                 totalPlayers, totalCooldowns, maxItemsInfo, globalInfo);
