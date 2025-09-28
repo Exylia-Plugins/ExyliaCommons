@@ -460,18 +460,33 @@ public class ConfigManager {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    private static Class<? extends ConfigBase> findConfigClassForMethod(String methodName) {
+        if (configClasses == null || configClasses.length == 0) {
+            return null;
+        }
+
+        for (Class<? extends ConfigBase> configClass : configClasses) {
+            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+            if (annotation != null) {
+                return configClass;
+            }
+        }
+
+        return null;
+    }
+
     public static String getStringFromMethodAuto() {
         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
         String methodName = caller.getMethodName();
 
-        for (Class<?> clazz : staticConfigs.keySet()) {
-            @SuppressWarnings("unchecked")
-            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
-            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        Class<? extends ConfigBase> foundClass = findConfigClassForMethod(methodName);
+        if (foundClass != null) {
+            ConfigValue annotation = findAnnotationInHierarchy(foundClass, methodName);
             if (annotation != null) {
                 String path = annotation.value();
                 String defaultValue = annotation.defaultValue();
-                return getString(configClass, path, defaultValue);
+                return getString(foundClass, path, defaultValue);
             }
         }
 
@@ -482,14 +497,13 @@ public class ConfigManager {
         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
         String methodName = caller.getMethodName();
 
-        for (Class<?> clazz : staticConfigs.keySet()) {
-            @SuppressWarnings("unchecked")
-            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
-            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        Class<? extends ConfigBase> foundClass = findConfigClassForMethod(methodName);
+        if (foundClass != null) {
+            ConfigValue annotation = findAnnotationInHierarchy(foundClass, methodName);
             if (annotation != null) {
                 String path = annotation.value();
                 boolean defaultValue = !annotation.defaultValue().isEmpty() && Boolean.parseBoolean(annotation.defaultValue());
-                return getBoolean(configClass, path, defaultValue);
+                return getBoolean(foundClass, path, defaultValue);
             }
         }
 
@@ -500,14 +514,13 @@ public class ConfigManager {
         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
         String methodName = caller.getMethodName();
 
-        for (Class<?> clazz : staticConfigs.keySet()) {
-            @SuppressWarnings("unchecked")
-            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
-            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        Class<? extends ConfigBase> foundClass = findConfigClassForMethod(methodName);
+        if (foundClass != null) {
+            ConfigValue annotation = findAnnotationInHierarchy(foundClass, methodName);
             if (annotation != null) {
                 String path = annotation.value();
                 int defaultValue = parseIntDefault(annotation.defaultValue());
-                return getInt(configClass, path, defaultValue);
+                return getInt(foundClass, path, defaultValue);
             }
         }
 
@@ -518,14 +531,13 @@ public class ConfigManager {
         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
         String methodName = caller.getMethodName();
 
-        for (Class<?> clazz : staticConfigs.keySet()) {
-            @SuppressWarnings("unchecked")
-            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
-            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        Class<? extends ConfigBase> foundClass = findConfigClassForMethod(methodName);
+        if (foundClass != null) {
+            ConfigValue annotation = findAnnotationInHierarchy(foundClass, methodName);
             if (annotation != null) {
                 String path = annotation.value();
                 double defaultValue = parseDoubleDefault(annotation.defaultValue());
-                return getDouble(configClass, path, defaultValue);
+                return getDouble(foundClass, path, defaultValue);
             }
         }
 
@@ -536,14 +548,13 @@ public class ConfigManager {
         StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
         String methodName = caller.getMethodName();
 
-        for (Class<?> clazz : staticConfigs.keySet()) {
-            @SuppressWarnings("unchecked")
-            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
-            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        Class<? extends ConfigBase> foundClass = findConfigClassForMethod(methodName);
+        if (foundClass != null) {
+            ConfigValue annotation = findAnnotationInHierarchy(foundClass, methodName);
             if (annotation != null) {
                 String path = annotation.value();
                 long defaultValue = parseLongDefault(annotation.defaultValue());
-                return getLong(configClass, path, defaultValue);
+                return getLong(foundClass, path, defaultValue);
             }
         }
 
