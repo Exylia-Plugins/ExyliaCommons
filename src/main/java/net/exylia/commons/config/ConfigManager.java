@@ -1,9 +1,17 @@
 package net.exylia.commons.config;
 
+import net.exylia.commons.config.components.ActionBarConfig;
+import net.exylia.commons.config.components.BossBarConfig;
+import net.exylia.commons.config.components.ScoreboardConfig;
+import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Constructor;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -142,6 +150,263 @@ public class ConfigManager {
         }
 
         return 0L;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T getFromMethod(Class<T> componentClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        for (Class<?> clazz : staticConfigs.keySet()) {
+            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
+            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+            if (annotation != null) {
+                String path = annotation.value();
+                ConfigBase config = get(configClass);
+                if (config == null || config.getConfig() == null) return null;
+
+                ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+                if (section == null) return null;
+
+                try {
+                    Constructor<T> constructor = componentClass.getConstructor(ConfigurationSection.class);
+                    return constructor.newInstance(section);
+                } catch (Exception e) {
+                    try {
+                        Constructor<T> constructor = componentClass.getConstructor(String.class, ConfigurationSection.class);
+                        return constructor.newInstance(path, config.getConfig());
+                    } catch (Exception ex) {
+                        return null;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> List<T> getListFromMethod(Class<T> componentClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        for (Class<?> clazz : staticConfigs.keySet()) {
+            Class<? extends ConfigBase> configClass = (Class<? extends ConfigBase>) clazz;
+            ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+            if (annotation != null) {
+                String path = annotation.value();
+                ConfigBase config = get(configClass);
+                if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+                ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+                if (section == null) return new ArrayList<>();
+
+                List<T> result = new ArrayList<>();
+                for (String key : section.getKeys(false)) {
+                    ConfigurationSection itemSection = section.getConfigurationSection(key);
+                    if (itemSection != null) {
+                        try {
+                            Constructor<T> constructor = componentClass.getConstructor(ConfigurationSection.class);
+                            T instance = constructor.newInstance(itemSection);
+                            result.add(instance);
+                        } catch (Exception e) {
+                            try {
+                                Constructor<T> constructor = componentClass.getConstructor(String.class, ConfigurationSection.class);
+                                T instance = constructor.newInstance(path + "." + key, config.getConfig());
+                                result.add(instance);
+                            } catch (Exception ex) {
+                                continue;
+                            }
+                        }
+                    }
+                }
+                return result;
+            }
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static ActionBarConfig getActionBarFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ActionBarConfig();
+
+            return new ActionBarConfig(path, config.getConfig());
+        }
+
+        return new ActionBarConfig();
+    }
+
+    public static BossBarConfig getBossBarFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new BossBarConfig();
+
+            ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+            if (section != null) {
+                return new BossBarConfig(section);
+            }
+
+            return new BossBarConfig(path, config.getConfig());
+        }
+
+        return new BossBarConfig();
+    }
+
+    public static ScoreboardConfig getScoreboardFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ScoreboardConfig();
+
+            return new ScoreboardConfig(path, config.getConfig());
+        }
+
+        return new ScoreboardConfig();
+    }
+
+    public static TitleConfig getTitleFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new TitleConfig();
+
+            return new TitleConfig(path, config.getConfig());
+        }
+
+        return new TitleConfig();
+    }
+
+    public static List<ActionBarConfig> getActionBarListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+            if (section == null) return new ArrayList<>();
+
+            List<ActionBarConfig> result = new ArrayList<>();
+            for (String key : section.getKeys(false)) {
+                result.add(new ActionBarConfig(path + "." + key, config.getConfig()));
+            }
+            return result;
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static List<BossBarConfig> getBossBarListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+            if (section == null) return new ArrayList<>();
+
+            List<BossBarConfig> result = new ArrayList<>();
+            for (String key : section.getKeys(false)) {
+                ConfigurationSection itemSection = section.getConfigurationSection(key);
+                if (itemSection != null) {
+                    result.add(new BossBarConfig(itemSection));
+                } else {
+                    result.add(new BossBarConfig(path + "." + key, config.getConfig()));
+                }
+            }
+            return result;
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static List<ScoreboardConfig> getScoreboardListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+            if (section == null) return new ArrayList<>();
+
+            List<ScoreboardConfig> result = new ArrayList<>();
+            for (String key : section.getKeys(false)) {
+                result.add(new ScoreboardConfig(path + "." + key, config.getConfig()));
+            }
+            return result;
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static List<TitleConfig> getTitleListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            ConfigurationSection section = config.getConfig().getConfigurationSection(path);
+            if (section == null) return new ArrayList<>();
+
+            List<TitleConfig> result = new ArrayList<>();
+            for (String key : section.getKeys(false)) {
+                result.add(new TitleConfig(path + "." + key, config.getConfig()));
+            }
+            return result;
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static List<String> getStringListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            return config.getConfig().getStringList(path);
+        }
+
+        return new ArrayList<>();
     }
 
     private static int parseIntDefault(String value) {
