@@ -3,12 +3,6 @@ package net.exylia.commons.database.migration;
 import net.exylia.commons.database.adapters.DatabaseAdapter;
 import net.exylia.commons.database.annotations.Table;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.*;
 
 public class MigrationManager {

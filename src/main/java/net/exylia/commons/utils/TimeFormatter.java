@@ -1,6 +1,7 @@
 package net.exylia.commons.utils;
 
 import net.exylia.commons.config.base.MainConfigBase;
+import net.exylia.commons.configSimple.Configs;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -36,12 +37,12 @@ public class TimeFormatter {
     }
 
     public static void reload() {
-        zeroText = MainConfigBase.timeFormatterZeroText();
-        showMilliseconds = MainConfigBase.timeFormatterShowMilliseconds();
-        compactMode = MainConfigBase.timeFormatterCompactMode();
-        precision = MainConfigBase.timeFormatterPrecision();
-        language = MainConfigBase.timeFormatterLanguage();
-        forceShowZeroDecimals = MainConfigBase.timeFormatterForceShowZeroDecimals();
+        zeroText = Configs.string("time-formatter.zero-text");
+        showMilliseconds = Configs.bool("time-formatter.show-milliseconds");
+        compactMode = Configs.bool("time-formatter.compact-mode");
+        precision = Configs.integer("time-formatter.precision");
+        language = Configs.string("time-formatter.language");
+        forceShowZeroDecimals = Configs.bool("time-formatter.force-show-zero-decimals");
     }
 
     public String format(Object input) {

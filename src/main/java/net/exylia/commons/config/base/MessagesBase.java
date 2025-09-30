@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 
+@Deprecated
 @ConfigFile(value = "messages", required = true)
 public class MessagesBase extends ConfigBase {
 

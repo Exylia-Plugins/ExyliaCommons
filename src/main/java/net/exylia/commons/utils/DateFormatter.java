@@ -1,48 +1,28 @@
 package net.exylia.commons.utils;
 
-import net.exylia.commons.config.base.MainConfigBase;
+import net.exylia.commons.configSimple.Configs;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.concurrent.TimeUnit;
 
-/**
- * DateFormatter inteligente con acceso estático y múltiples tipos de entrada
- * Configuración a través de MainConfigBase
- * Uso: DateFormatter.dateFormatter.format(valor)
- */
 public class DateFormatter {
-
-    // Instancia singleton estática
     public static final DateFormatter dateFormatter = new DateFormatter();
-
-    // Formateadores que se configuran dinámicamente
     private static DateTimeFormatter defaultFormatter;
     private static DateTimeFormatter dateOnlyFormatter;
     private static DateTimeFormatter timeOnlyFormatter;
     private static DateTimeFormatter isoFormatter;
-
-    // Constructor privado para singleton
     private DateFormatter() {
         init();
     }
-
-    /**
-     * Inicializa o recarga la configuración desde MainConfigBase
-     */
     public static void init() {
         reload();
     }
-
-    /**
-     * Recarga la configuración desde MainConfigBase
-     */
     public static void reload() {
-        String defaultPattern = MainConfigBase.dateFormatterDefaultPattern();
-        String datePattern = MainConfigBase.dateFormatterDatePattern();
-        String timePattern = MainConfigBase.dateFormatterTimePattern();
-        boolean useIsoDefault = MainConfigBase.dateFormatterUseIso();
+        String defaultPattern = Configs.string("date-formatter.default-pattern");
+        String datePattern = Configs.string("date-formatter.date-pattern");
+        String timePattern = Configs.string("date-formatter.time-pattern");
+        boolean useIsoDefault = Configs.bool("date-formatter.use-iso-default");
 
         try {
             defaultFormatter = DateTimeFormatter.ofPattern(defaultPattern);

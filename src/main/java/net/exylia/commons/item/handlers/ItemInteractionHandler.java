@@ -6,12 +6,10 @@ import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
-import net.exylia.commons.item.vanilla.VanillaItemCooldownManager;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -21,7 +19,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
 public class ItemInteractionHandler {

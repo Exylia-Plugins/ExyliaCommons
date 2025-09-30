@@ -1,7 +1,6 @@
 package net.exylia.commons.region.blocks;
 
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -15,7 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 

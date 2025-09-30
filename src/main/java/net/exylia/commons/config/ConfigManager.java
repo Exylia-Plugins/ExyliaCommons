@@ -7,7 +7,6 @@ import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -16,6 +15,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
+ * This configuration system is deprecated and will be removed in a future version.
+ * The new system provides a simpler API without requiring class creation for each file.
+ */
+@Deprecated
 public class ConfigManager {
     private static ConfigurationSystem internalSystem;
     private static final Map<Class<?>, Object> staticConfigs = new ConcurrentHashMap<>();
@@ -404,6 +409,22 @@ public class ConfigManager {
             if (config == null || config.getConfig() == null) return new ArrayList<>();
 
             return config.getConfig().getStringList(path);
+        }
+
+        return new ArrayList<>();
+    }
+
+    public static List<Integer> getIntListFromMethod(Class<? extends ConfigBase> configClass) {
+        StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        String methodName = caller.getMethodName();
+
+        ConfigValue annotation = findAnnotationInHierarchy(configClass, methodName);
+        if (annotation != null) {
+            String path = annotation.value();
+            ConfigBase config = get(configClass);
+            if (config == null || config.getConfig() == null) return new ArrayList<>();
+
+            return config.getConfig().getIntegerList(path);
         }
 
         return new ArrayList<>();

@@ -39,10 +39,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Queue;
 import java.util.LinkedList;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 public class RegionRegenerationManager {
@@ -179,20 +176,42 @@ public class RegionRegenerationManager {
         EditSession editSession = null;
         try {
             com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(operation.targetLocation.getWorld());
-            BlockVector3 pastePosition = BlockVector3.at(
+
+            Clipboard clipboard = operation.clipboard;
+            BlockVector3 clipboardOrigin = clipboard.getOrigin();
+            BlockVector3 clipboardMin = clipboard.getMinimumPoint();
+            BlockVector3 clipboardMax = clipboard.getMaximumPoint();
+
+            BlockVector3 offset = clipboardMin.subtract(clipboardOrigin);
+
+            BlockVector3 targetPosition = BlockVector3.at(
                     operation.targetLocation.getBlockX(),
                     operation.targetLocation.getBlockY(),
                     operation.targetLocation.getBlockZ()
             );
 
+            BlockVector3 pastePosition = targetPosition.add(offset);
+
+            logInternalDebug("=== PASTE OPERATION DEBUG ===");
+            logInternalDebug("Operation ID: " + operation.operationId);
+            logInternalDebug("Clipboard Origin: " + clipboardOrigin);
+            logInternalDebug("Clipboard Min: " + clipboardMin);
+            logInternalDebug("Clipboard Max: " + clipboardMax);
+            logInternalDebug("Clipboard Size: " + clipboard.getDimensions());
+            logInternalDebug("Offset: " + offset);
+            logInternalDebug("Target Position (input): " + targetPosition);
+            logInternalDebug("Paste Position (calculated): " + pastePosition);
+            logInternalDebug("World: " + weWorld.getName());
+
             editSession = WorldEdit.getInstance().newEditSession(weWorld);
             editSession.setFastMode(true);
             editSession.setTickingWatchdog(false);
 
-            ClipboardHolder holder = new ClipboardHolder(operation.clipboard);
+            ClipboardHolder holder = new ClipboardHolder(clipboard);
             Operation pasteOperation = holder
                     .createPaste(editSession)
                     .to(pastePosition)
+                    .copyEntities(false)
                     .ignoreAirBlocks(false)
                     .build();
 
@@ -416,6 +435,18 @@ public class RegionRegenerationManager {
                 copy.setCopyingEntities(false);
                 Operations.complete(copy);
 
+                clipboard.setOrigin(minVec);
+
+                logInternalDebug("=== SAVE SCHEMATIC DEBUG ===");
+                logInternalDebug("Region: " + region.getId());
+                logInternalDebug("Region Min (input): " + min);
+                logInternalDebug("Region Max (input): " + max);
+                logInternalDebug("MinVec: " + minVec);
+                logInternalDebug("MaxVec: " + maxVec);
+                logInternalDebug("Clipboard Origin (after set): " + clipboard.getOrigin());
+                logInternalDebug("Clipboard Min: " + clipboard.getMinimumPoint());
+                logInternalDebug("Clipboard Max: " + clipboard.getMaximumPoint());
+
                 File schematicFile = getSchematicFile(region);
                 try (FileOutputStream fos = new FileOutputStream(schematicFile);
                      ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
@@ -426,7 +457,7 @@ public class RegionRegenerationManager {
                         cacheClipboard(region, clipboard);
                     }
 
-                    logInternalDebug("Schematic guardado: " + schematicFile.getName());
+                    logInternalDebug("Schematic guardado: " + schematicFile.getName() + " con origin: " + clipboard.getOrigin());
                     return true;
                 }
 

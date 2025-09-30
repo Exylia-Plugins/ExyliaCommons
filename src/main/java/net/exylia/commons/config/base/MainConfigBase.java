@@ -5,6 +5,7 @@ import net.exylia.commons.config.ConfigFile;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigValue;
 
+@Deprecated
 @ConfigFile(value = "config", required = true)
 public class MainConfigBase extends ConfigBase {
 

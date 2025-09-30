@@ -10,7 +10,6 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**

@@ -9,7 +9,6 @@ import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
-import net.exylia.commons.item.exceptions.ItemException;
 import net.exylia.commons.item.exceptions.ItemHoldSessionException;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
@@ -22,9 +21,6 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 
 public class ItemHoldHandler {
     

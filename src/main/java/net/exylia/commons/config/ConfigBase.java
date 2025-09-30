@@ -14,14 +14,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 /**
- * Clase base abstracta para todas las configuraciones
- * Proporciona métodos de utilidad y manejo automático de valores
+ * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
+ * This configuration system is deprecated and will be removed in a future version.
+ * The new system provides a simpler API without requiring class creation for each file.
  */
+@Deprecated
 public abstract class ConfigBase {
     protected ConfigurationSystem system;
     protected FileConfiguration config;

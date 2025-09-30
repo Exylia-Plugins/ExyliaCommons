@@ -1,5 +1,3 @@
-// ==================== CONFIGURATION SYSTEM MODERNIZADO ====================
-
 package net.exylia.commons.config;
 
 import lombok.Getter;
@@ -18,16 +16,15 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
 /**
- * Sistema de configuración modernizado que usa el sistema unificado de placeholders
- * Elimina la dependencia del sistema de placeholders interno
+ * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
+ * This configuration system is deprecated and will be removed in a future version.
+ * The new system provides a simpler API without requiring class creation for each file.
  */
+@Deprecated
 public class ConfigurationSystem {
 
     @Getter

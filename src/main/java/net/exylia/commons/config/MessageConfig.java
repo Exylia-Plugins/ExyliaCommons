@@ -5,10 +5,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 
-/**
- * Interface que proporciona automáticamente todos los métodos de mensajería
- * a cualquier configuración que la implemente
- */
+@Deprecated
 public interface MessageConfig {
 
     // Métodos que debe implementar la clase

@@ -5,7 +5,6 @@ import net.exylia.commons.region.model.Region;
 import net.exylia.commons.region.model.RegionFlag;
 import net.exylia.commons.region.model.RegionFlagType;
 import net.exylia.commons.region.RegionManager;
-import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -16,7 +15,6 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 /**

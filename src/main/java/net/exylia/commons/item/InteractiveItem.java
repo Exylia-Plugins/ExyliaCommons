@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 import static net.exylia.commons.utils.skull.SkullUtils.*;
 

@@ -26,8 +26,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
-
 /**
  * Registrador de cooldowns para items vanilla
  * Soporte para diferentes triggers según el tipo de item

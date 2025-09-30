@@ -2,6 +2,7 @@ package net.exylia.commons;
 
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.Configs;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 
@@ -113,14 +114,14 @@ public class ReloadResult {
                         net.exylia.commons.placeholders.ExyliaContext.create().put("error", error)));
             }
         } catch (Exception e) {
-            DebugUtils.logError("Error processing reload result: " + e.getMessage());
+            DebugUtils.logInternalError("Error processing reload result: " + e.getMessage());
             MessageUtils.sendMessage(sender, "Reload completed but couldn't determine status.");
         }
     }
 
     public static void sendDetailedReloadResult(org.bukkit.command.CommandSender sender, ReloadResult result) {
         sendReloadResult(sender, result);
-        if (MainConfigBase.debug()) {
+        if (Configs.debug()) {
             sender.sendMessage(result.getTimingBreakdown());
         }
     }

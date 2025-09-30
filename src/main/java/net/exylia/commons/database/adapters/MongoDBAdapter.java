@@ -25,7 +25,6 @@ import org.bukkit.configuration.file.FileConfiguration;
 import java.lang.reflect.Field;
 import java.util.*;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 

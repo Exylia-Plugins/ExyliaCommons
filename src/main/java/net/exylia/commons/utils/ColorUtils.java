@@ -1,6 +1,7 @@
 package net.exylia.commons.utils;
 
 import net.exylia.commons.config.base.MainConfigBase;
+import net.exylia.commons.configSimple.Configs;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -282,8 +283,8 @@ public class ColorUtils {
         return COMPONENT_CACHE.get(message, key -> {
             String processed = applyColorPresets(key);
             processed = preprocessColorCodes(processed);
-            String automaticFont = MainConfigBase.textAutomaticFont();
-            boolean forceUpperCase = MainConfigBase.textForceInUpperCase();
+            String automaticFont = Configs.string("text.automatic-font");
+            boolean forceUpperCase = Configs.bool("text.force-in-upper-case");
             processed = applyFontTransformation(processed, automaticFont, forceUpperCase);
             return MINI_MESSAGE.deserialize(processed)
                     .decoration(TextDecoration.ITALIC, false);
@@ -332,8 +333,8 @@ public class ColorUtils {
 
         String processed = applyColorPresets(message); // Aplicar presets primero
         processed = preprocessColorCodes(processed); // Aplicar códigos de color
-        String automaticFont = MainConfigBase.textAutomaticFont();
-        boolean forceUpperCase = MainConfigBase.textForceInUpperCase();
+        String automaticFont = Configs.string("text.automatic-font");
+        boolean forceUpperCase = Configs.bool("text.force-in-upper-case");
         return applyFontTransformation(processed, automaticFont, forceUpperCase); // Aplicar transformación de fuente al final
     }
 

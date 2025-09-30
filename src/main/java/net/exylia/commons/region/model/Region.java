@@ -21,8 +21,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static net.exylia.commons.config.base.MainConfigBase.debug;
-
 @Getter
 @Setter
 public class Region {

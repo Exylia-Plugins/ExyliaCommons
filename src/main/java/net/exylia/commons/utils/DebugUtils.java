@@ -1,19 +1,12 @@
 package net.exylia.commons.utils;
 
 import com.github.lalyos.jfiglet.FigletFont;
-import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.configSimple.Configs;
 import org.bukkit.Bukkit;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static net.exylia.commons.config.base.MainConfigBase.debug;
 import static net.exylia.commons.utils.AnsiComponentLogger.convertHexColors;
 
-/**
- * Utilidades para mostrar mensajes de depuración en la consola
- */
 public class DebugUtils {
     private static String prefix = "";
     private static final String internalPrefix = "<#696969>[<#c995fc>ExyliaLib<#696969>] ";
@@ -24,7 +17,7 @@ public class DebugUtils {
     }
 
     public static void logDebug(String message){
-        if (!debug()) return;
+        if (!Configs.debug()) return;
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#e7cfff>[DEBUG] " + message)));
     }
 
@@ -49,7 +42,7 @@ public class DebugUtils {
     }
     
     public static void logInternalDebug(String message){
-        if (!debug()) return;
+        if (!Configs.debug()) return;
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff>[DEBUG] " + message)));
     }
     
