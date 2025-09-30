@@ -158,6 +158,8 @@ public class ReloadManager {
                 long configTime = System.currentTimeMillis() - configStart;
                 componentTimes.put("ConfigManager", configTime);
 
+                Configs.reloadAll();
+
                 if (!success) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Fallo en reload de ConfigManager");
