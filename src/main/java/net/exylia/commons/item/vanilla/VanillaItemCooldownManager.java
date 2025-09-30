@@ -1,9 +1,8 @@
 package net.exylia.commons.item.vanilla;
 
-import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.cooldown.CooldownManager;
-import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.utils.visuals.MessageUtils;
@@ -687,11 +686,12 @@ public class VanillaItemCooldownManager implements Listener {
         if (config != null && config.hasRegionConfigs() && currentRegion != null) {
             if (config.isBlockedInRegion(currentRegion)) {
                 MessageUtils.sendMessage(player,
-                        MessagesBase.getWithContext("system.items.vanilla_region_blocked", ExyliaContext.create()
+                        Messages.message("system.items.vanilla_region_blocked")
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)
                                 .put("item", itemDisplayName)
-                                .put("region", currentRegion)));
+                                .put("region", currentRegion)
+                                .raw());
                 return;
             }
 
@@ -701,12 +701,13 @@ public class VanillaItemCooldownManager implements Listener {
                 if (currentUsage >= maxUses) {
                     int remaining = maxUses - currentUsage;
                     MessageUtils.sendMessage(player,
-                            MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
+                            Messages.message("system.items.vanilla_region_limit")
                                     .put("item_display", itemDisplayName)
                                     .put("item_name", itemName)
                                     .put("item", itemDisplayName)
                                     .put("remaining", remaining)
-                                    .put("region", currentRegion)));
+                                    .put("region", currentRegion)
+                                    .raw());
                     return;
                 }
             }
@@ -716,12 +717,13 @@ public class VanillaItemCooldownManager implements Listener {
                 String region = VanillaRegionLimitManager.getInstance().getCurrentRegion(player);
 
                 MessageUtils.sendMessage(player,
-                        MessagesBase.getWithContext("system.items.vanilla_region_limit", ExyliaContext.create()
+                        Messages.message("system.items.vanilla_region_limit")
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)
                                 .put("item", itemDisplayName)
                                 .put("remaining", remaining)
-                                .put("region", region != null ? region : "unknown")));
+                                .put("region", region != null ? region : "unknown")
+                                .raw());
                 return;
             }
         }
@@ -730,12 +732,13 @@ public class VanillaItemCooldownManager implements Listener {
         String formattedTime = TimeFormatter.timeFormatter.format(remainingSeconds);
 
         MessageUtils.sendMessage(player,
-                MessagesBase.getWithContext("system.items.vanilla_cooldown", ExyliaContext.create()
+                Messages.message("system.items.vanilla_cooldown")
                                 .put("item_display", itemDisplayName)
                                 .put("item_name", itemName)
                                 .put("item", itemDisplayName)
                                 .put("cooldown_formatted", formattedTime)
-                                .put("cooldown_seconds", String.valueOf(remainingSeconds))));
+                                .put("cooldown_seconds", String.valueOf(remainingSeconds))
+                                .raw());
     }
 
     /**

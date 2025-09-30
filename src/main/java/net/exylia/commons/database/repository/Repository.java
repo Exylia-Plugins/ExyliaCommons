@@ -6,39 +6,30 @@ import java.util.concurrent.CompletableFuture;
 
 public interface Repository<T> {
 
-    // Operaciones síncronas
-    void save(T entity);
-    void update(T entity);
+    void saveOrUpdate(T entity);
+    void saveOrUpdateAll(List<T> entities);
     void delete(T entity);
+    void deleteAll(List<T> entities);
+
     Optional<T> findById(Object id);
     List<T> findAll();
     List<T> findBy(String field, Object value);
     boolean exists(Object id);
     long count();
 
-    // Operaciones asíncronas
-    CompletableFuture<Void> saveAsync(T entity);
-    CompletableFuture<Void> updateAsync(T entity);
+    CompletableFuture<Void> saveOrUpdateAsync(T entity);
+    CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities);
     CompletableFuture<Void> deleteAsync(T entity);
+    CompletableFuture<Void> deleteAllAsync(List<T> entities);
+
     CompletableFuture<Optional<T>> findByIdAsync(Object id);
     CompletableFuture<List<T>> findAllAsync();
     CompletableFuture<List<T>> findByAsync(String field, Object value);
     CompletableFuture<Boolean> existsAsync(Object id);
     CompletableFuture<Long> countAsync();
 
-    // Consultas personalizadas
     List<T> query(String query, Object... params);
     CompletableFuture<List<T>> queryAsync(String query, Object... params);
-
-    // Operaciones por lotes
-    void saveAll(List<T> entities);
-    void saveOrUpdate(T entity);
-    void saveOrUpdateAll(List<T> entities);
-    CompletableFuture<Void> saveOrUpdateAsync(T entity);
-    CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities);
-    void deleteAll(List<T> entities);
-    CompletableFuture<Void> saveAllAsync(List<T> entities);
-    CompletableFuture<Void> deleteAllAsync(List<T> entities);
 
     // Métodos de ordenamiento y ranking
     List<T> findAllOrderedBy(String field, SortOrder order);

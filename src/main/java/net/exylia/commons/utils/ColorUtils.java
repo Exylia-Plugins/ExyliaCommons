@@ -279,7 +279,6 @@ public class ColorUtils {
             return Component.empty();
         }
 
-        // Usar cache para evitar reprocesamiento
         return COMPONENT_CACHE.get(message, key -> {
             String processed = applyColorPresets(key);
             processed = preprocessColorCodes(processed);

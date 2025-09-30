@@ -9,6 +9,7 @@ import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.ConfigInitializer;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.SunLicenseUtil;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
@@ -402,6 +403,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     // ===== PRIVATE INITIALIZATION METHODS =====
     private void initializeExylia() {
         try {
+            ConfigInitializer.init(this);
             PlaceholderSystemManager.initialize(this);
             AdapterFactory.initialize(this);
             ActionBarUtils.init(this);

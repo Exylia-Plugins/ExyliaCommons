@@ -3,6 +3,7 @@ package net.exylia.commons;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.ReloadResult;
 import net.exylia.commons.config.ConfigManager;
+import net.exylia.commons.configSimple.Configs;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.DateFormatter;
@@ -50,10 +51,14 @@ public class ReloadManager {
                 componentTimes.put("Configuración + Overhead", stepEnd - stepStart);
                 lastStepTime = stepEnd;
 
+                Configs.reloadAll();
+
                 if (!configResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de configuraciones: " + configResult.getErrorMessage());
                 }
+
+
 
                 // 2. Reload de base de datos
                 stepStart = System.currentTimeMillis();

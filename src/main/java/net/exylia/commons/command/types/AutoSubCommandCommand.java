@@ -5,7 +5,7 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
 import net.exylia.commons.command.annotation.SubCommandInfo;
 import net.exylia.commons.command.annotation.DefaultAction;
-import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -317,11 +317,11 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
     }
 
     protected final void showHelp(CommandSender sender, String label) {
-        MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.header", "%plugin_name%", plugin.getName()));
+        MessageUtils.sendMessage(sender, Messages.get("system.commands.help.header", "%plugin_name%", plugin.getName()));
 
         // Mostrar uso del comando principal si existe
         if (mainCommandInfo != null && !mainCommandInfo.usage().isEmpty()) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
+            MessageUtils.sendMessage(sender, Messages.get("system.commands.help.usage", "%label%", label, "%usage%", mainCommandInfo.usage()));
         }
 
         // Mostrar comandos disponibles
@@ -342,7 +342,7 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
         }
 
         if (availableCommands.isEmpty()) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.no_subcommands"));
+            MessageUtils.sendMessage(sender, Messages.get("system.commands.no_subcommands"));
             return;
         }
 
@@ -353,7 +353,7 @@ public abstract class AutoSubCommandCommand extends PermissionCommand {
 
         // Mostrar subcomandos
         for (CommandNode node : availableCommands) {
-            MessageUtils.sendMessage(sender, MessagesBase.get("system.commands.help.usage", "%label%", label, "%usage%", node.getCommandInfo().usage()));
+            MessageUtils.sendMessage(sender, Messages.get("system.commands.help.usage", "%label%", label, "%usage%", node.getCommandInfo().usage()));
         }
         sender.sendMessage("");
     }

@@ -25,26 +25,49 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public void save(T entity) {
+    public void saveOrUpdate(T entity) {
         try {
-            adapter.save(entity);
+            adapter.saveOrUpdateAll(Collections.singletonList(entity));
         } catch (Exception e) {
-            RepositoryException repoException = new RepositoryException("save", entityClass.getSimpleName(),
-                    "Failed to save entity to database", e);
+            RepositoryException repoException = new RepositoryException("saveOrUpdate", entityClass.getSimpleName(),
+                    "Failed to perform saveOrUpdate operation", e);
             errorHandler.handleError(repoException);
             throw repoException;
         }
     }
 
     @Override
-    public void update(T entity) {
+    public void saveOrUpdateAll(List<T> entities) {
+        if (entities == null || entities.isEmpty()) {
+            return;
+        }
+
         try {
-            adapter.update(entity);
+            adapter.saveOrUpdateAll(entities);
         } catch (Exception e) {
-            RepositoryException repoException = new RepositoryException("update", entityClass.getSimpleName(),
-                    "Failed to update entity in database", e);
-            errorHandler.handleError(repoException);
-            throw repoException;
+            errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+                    "Adapter doesn't support bulk saveOrUpdate, executing individually: " + e.getMessage());
+
+            int successCount = 0;
+            int failureCount = 0;
+
+            for (T entity : entities) {
+                try {
+                    saveOrUpdate(entity);
+                    successCount++;
+                } catch (Exception entityException) {
+                    failureCount++;
+                    errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+                            String.format("Failed to saveOrUpdate entity %d of %d: %s",
+                                    successCount + failureCount, entities.size(), entityException.getMessage()));
+                }
+            }
+
+            if (failureCount > 0) {
+                String message = String.format("saveOrUpdateAll completed with %d successes and %d failures out of %d total entities",
+                        successCount, failureCount, entities.size());
+                errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
+            }
         }
     }
 
@@ -121,25 +144,25 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public CompletableFuture<Void> saveAsync(T entity) {
+    public CompletableFuture<Void> saveOrUpdateAsync(T entity) {
         return CompletableFuture.runAsync(() -> {
             try {
-                save(entity);
+                saveOrUpdate(entity);
             } catch (Exception e) {
-                throw new RepositoryException("saveAsync", entityClass.getSimpleName(),
-                        "Failed in async save operation", e);
+                throw new RepositoryException("saveOrUpdateAsync", entityClass.getSimpleName(),
+                        "Failed in async saveOrUpdate operation", e);
             }
         }, executor);
     }
 
     @Override
-    public CompletableFuture<Void> updateAsync(T entity) {
+    public CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities) {
         return CompletableFuture.runAsync(() -> {
             try {
-                update(entity);
+                saveOrUpdateAll(entities);
             } catch (Exception e) {
-                throw new RepositoryException("updateAsync", entityClass.getSimpleName(),
-                        "Failed in async update operation", e);
+                throw new RepositoryException("saveOrUpdateAllAsync", entityClass.getSimpleName(),
+                        "Failed in async saveOrUpdateAll operation", e);
             }
         }, executor);
     }
@@ -247,34 +270,6 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public void saveAll(List<T> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return;
-        }
-
-        int successCount = 0;
-        int failureCount = 0;
-
-        for (T entity : entities) {
-            try {
-                save(entity);
-                successCount++;
-            } catch (Exception e) {
-                failureCount++;
-                errorHandler.logWarning("saveAll", entityClass.getSimpleName(),
-                        String.format("Failed to save entity %d of %d: %s",
-                                successCount + failureCount, entities.size(), e.getMessage()));
-            }
-        }
-
-        if (failureCount > 0) {
-            String message = String.format("saveAll completed with %d successes and %d failures out of %d total entities",
-                    successCount, failureCount, entities.size());
-            errorHandler.logWarning("saveAll", entityClass.getSimpleName(), message);
-        }
-    }
-
-    @Override
     public void deleteAll(List<T> entities) {
         if (entities == null || entities.isEmpty()) {
             return;
@@ -300,84 +295,6 @@ public class RepositoryImpl<T> implements Repository<T> {
                     successCount, failureCount, entities.size());
             errorHandler.logWarning("deleteAll", entityClass.getSimpleName(), message);
         }
-    }
-
-    @Override
-    public void saveOrUpdate(T entity) {
-        try {
-            adapter.saveOrUpdateAll(Collections.singletonList(entity));
-        } catch (Exception e) {
-            RepositoryException repoException = new RepositoryException("saveOrUpdate", entityClass.getSimpleName(),
-                    "Failed to perform saveOrUpdate operation", e);
-            errorHandler.handleError(repoException);
-            throw repoException;
-        }
-    }
-
-
-    @Override
-    public void saveOrUpdateAll(List<T> entities) {
-        if (entities == null || entities.isEmpty()) {
-            return;
-        }
-
-        try {
-            adapter.saveOrUpdateAll(entities);
-        } catch (Exception e) {
-            // If adapter doesn't support bulk operations, do it individually
-            errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
-                    "Adapter doesn't support bulk saveOrUpdate, executing individually: " + e.getMessage());
-
-            int successCount = 0;
-            int failureCount = 0;
-
-            for (T entity : entities) {
-                try {
-                    saveOrUpdate(entity);
-                    successCount++;
-                } catch (Exception entityException) {
-                    failureCount++;
-                    errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
-                            String.format("Failed to saveOrUpdate entity %d of %d: %s",
-                                    successCount + failureCount, entities.size(), entityException.getMessage()));
-                }
-            }
-
-            if (failureCount > 0) {
-                String message = String.format("saveOrUpdateAll completed with %d successes and %d failures out of %d total entities",
-                        successCount, failureCount, entities.size());
-                errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
-            }
-        }
-    }
-
-    @Override
-    public CompletableFuture<Void> saveOrUpdateAsync(T entity) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                saveOrUpdate(entity);
-            } catch (Exception e) {
-                throw new RepositoryException("saveOrUpdateAsync", entityClass.getSimpleName(),
-                        "Failed in async saveOrUpdate operation", e);
-            }
-        }, executor);
-    }
-
-    @Override
-    public CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                saveOrUpdateAll(entities);
-            } catch (Exception e) {
-                throw new RepositoryException("saveOrUpdateAllAsync", entityClass.getSimpleName(),
-                        "Failed in async saveOrUpdateAll operation", e);
-            }
-        }, executor);
-    }
-
-    @Override
-    public CompletableFuture<Void> saveAllAsync(List<T> entities) {
-        return CompletableFuture.runAsync(() -> saveAll(entities), executor);
     }
 
     @Override

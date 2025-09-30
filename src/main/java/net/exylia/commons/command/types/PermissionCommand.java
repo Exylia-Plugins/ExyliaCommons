@@ -3,7 +3,7 @@ package net.exylia.commons.command.types;
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
-import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
 
@@ -91,7 +91,7 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPlayerOnly(CommandSender sender) {
-        MessageUtils.sendMessage(sender, MessagesBase.get("system.player_only"));
+        MessageUtils.sendMessage(sender, Messages.get("system.player_only"));
     }
 
     /**
@@ -100,6 +100,6 @@ public abstract class PermissionCommand extends ExyliaCommand {
      * @param sender Quien ejecutó el comando
      */
     protected void onPermissionDenied(CommandSender sender) {
-        MessageUtils.sendMessage(sender, MessagesBase.get("system.no_permission"));
+        MessageUtils.sendMessage(sender, Messages.get("system.no_permission"));
     }
 }

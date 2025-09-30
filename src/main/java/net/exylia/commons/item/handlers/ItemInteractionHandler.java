@@ -1,12 +1,11 @@
 package net.exylia.commons.item.handlers;
 
-import net.exylia.commons.config.base.MessagesBase;
+import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.cooldown.CooldownManager;
-import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
@@ -465,40 +464,47 @@ public class ItemInteractionHandler {
 
     public void handleGlobalCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.global_cooldown", ExyliaContext.of(player)
+        MessageUtils.sendMessage(player, Messages.message("system.items.global_cooldown")
+                .player(player)
                 .put("cooldown_formatted", formattedTime)
                 .put("cooldown_seconds", String.valueOf(remainingSeconds))
                 .put("item_display", getItemDisplayName(interactiveItem))
-                .put("item_name", getItemName(interactiveItem))));
+                .put("item_name", getItemName(interactiveItem))
+                .raw());
     }
 
     public void handleItemCooldownMessage(Player player, double remainingSeconds, InteractiveItem interactiveItem) {
         String formattedTime = timeFormatter.format(remainingSeconds);
-        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.in_cooldown", ExyliaContext.of(player)
+        MessageUtils.sendMessage(player, Messages.message("system.items.in_cooldown")
+                .player(player)
                 .put("cooldown_formatted", formattedTime)
                 .put("cooldown_seconds", String.valueOf(remainingSeconds))
                 .put("item_display", getItemDisplayName(interactiveItem))
-                .put("item_name", getItemName(interactiveItem))));
+                .put("item_name", getItemName(interactiveItem))
+                .raw());
     }
 
     public void handleRegionDeniedMessage(Player player, InteractiveItem interactiveItem) {
         String regionName = WorldGuardUtils.getHighestPriorityRegion(player);
-        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.region_denied", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, Messages.message("system.items.region_denied")
                 .put("item_display", getItemDisplayName(interactiveItem))
                 .put("item_name", getItemName(interactiveItem))
-                .put("region_name", regionName != null ? regionName : "N/A")));
+                .put("region_name", regionName != null ? regionName : "N/A")
+                .raw());
     }
 
     public void handleNoUsesRemainingMessage(Player player, InteractiveItem interactiveItem) {
-        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.no_uses_remaining", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, Messages.message("system.items.no_uses_remaining")
                 .put("item_display", getItemDisplayName(interactiveItem))
-                .put("item_name", getItemName(interactiveItem))));
+                .put("item_name", getItemName(interactiveItem))
+                .raw());
     }
 
     public void handleConsumedMessage(Player player, InteractiveItem interactiveItem) {
-        MessageUtils.sendMessage(player, MessagesBase.getWithContext("system.items.consumed", ExyliaContext.of(interactiveItem)
+        MessageUtils.sendMessage(player, Messages.message("system.items.consumed")
                 .put("item_display", getItemDisplayName(interactiveItem))
-                .put("item_name", getItemName(interactiveItem))));
+                .put("item_name", getItemName(interactiveItem))
+                .raw());
     }
 
     private String getItemDisplayName(InteractiveItem interactiveItem) {

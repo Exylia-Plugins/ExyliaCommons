@@ -1,8 +1,7 @@
 package net.exylia.commons;
 
-import net.exylia.commons.config.base.MainConfigBase;
-import net.exylia.commons.config.base.MessagesBase;
 import net.exylia.commons.configSimple.Configs;
+import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 
@@ -105,13 +104,15 @@ public class ReloadResult {
             if (result.isSuccess()) {
                 long duration = result.getDurationMs();
                 MessageUtils.sendMessage(sender,
-                    MessagesBase.getWithContext("system.commands.reload.success",
-                        net.exylia.commons.placeholders.ExyliaContext.create().put("time", duration)));
+                    Messages.message("system.commands.reload.success")
+                        .put("time", duration)
+                        .raw());
             } else {
                 String error = result.getErrorMessage();
                 MessageUtils.sendMessage(sender,
-                    MessagesBase.getWithContext("system.commands.reload.error",
-                        net.exylia.commons.placeholders.ExyliaContext.create().put("error", error)));
+                    Messages.message("system.commands.reload.error")
+                        .put("error", error)
+                        .raw());
             }
         } catch (Exception e) {
             DebugUtils.logInternalError("Error processing reload result: " + e.getMessage());
@@ -128,6 +129,6 @@ public class ReloadResult {
 
     public static void sendStartMessage(org.bukkit.command.CommandSender sender) {
         MessageUtils.sendMessage(sender,
-            MessagesBase.get("system.commands.reload.starting"));
+            Messages.get("system.commands.reload.starting"));
     }
 }

@@ -179,11 +179,7 @@ public class DatabaseExportImportManager {
                         } else {
                             logInternalInfo("Importing all " + entities.size() + " entities at once to " + tableName + 
                                     " (method: " + (options.isUseUpsert() ? "upsert" : "save") + ")");
-                            if (options.isUseUpsert()) {
-                                repository.saveOrUpdateAll(entities);
-                            } else {
-                                repository.saveAll(entities);
-                            }
+                            repository.saveOrUpdateAll(entities);
                         }
 
                         result.getImportedTables().add(tableName + " (" + entities.size() + " entities)");
@@ -411,13 +407,9 @@ public class DatabaseExportImportManager {
             try {
                 logInternalInfo("Processing batch " + batchNumber + "/" + totalBatches + 
                     " (entities " + (i + 1) + "-" + endIndex + ", method: " + (useUpsert ? "upsert" : "save") + ")");
-                
-                if (useUpsert) {
-                    repository.saveOrUpdateAll(batch);
-                } else {
-                    repository.saveAll(batch);
-                }
-                
+
+                repository.saveOrUpdateAll(batch);
+
                 logInternalInfo("Successfully imported batch " + batchNumber + "/" + totalBatches + ": " + batch.size() + " entities");
                 
             } catch (Exception e) {
