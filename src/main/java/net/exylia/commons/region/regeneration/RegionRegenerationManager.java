@@ -58,7 +58,7 @@ public class RegionRegenerationManager {
     private BukkitRunnable cacheCleanupTask;
 
     private static final int MAX_CACHE_SIZE = 30;
-    private static final boolean CACHE_ENABLED = true;
+    private static final boolean CACHE_ENABLED = false;
     private static final int MAX_CONCURRENT_PASTES = 4;
     private static final int PASTE_DELAY_TICKS = 3;
     private static final int CACHE_CLEANUP_INTERVAL_MINUTES = 10;
