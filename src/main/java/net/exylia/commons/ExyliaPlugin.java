@@ -58,16 +58,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onEnable() {
         try {
-            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
-
-            if (!licenseManager.initializeLicense()) {
-                getServer().getPluginManager().disablePlugin(this);
-            }
-            if (api == null) {
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-            api.validate();
             this.adventure = BukkitAudiences.create(this);
             this.reloadManager = new ReloadManager(this);
             registeredPlugins.add(this);
@@ -78,6 +68,18 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 initialized = true;
             }
             initializeConfigurationSystem();
+
+            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
+
+            if (!licenseManager.initializeLicense()) {
+                getServer().getPluginManager().disablePlugin(this);
+            }
+            if (api == null) {
+                getServer().getPluginManager().disablePlugin(this);
+                return;
+            }
+            api.validate();
+
             Bukkit.getScheduler().runTask(this, this::enablePlugin);
         } catch (Exception e) {
             DebugUtils.logInternalError("License validation failed: " + e.getMessage());

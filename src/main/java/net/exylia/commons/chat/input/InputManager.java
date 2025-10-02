@@ -162,7 +162,13 @@ public final class InputManager implements Listener {
                     if (result.getMessage() != null) {
                         sendResultMessage(player, result);
                     }
-                    TitleUtils.cancelTitle(player, "input_timeout");
+                    break;
+
+                case RETRY:
+                    if (result.getMessage() != null) {
+                        sendResultMessage(player, result);
+                    }
+                    handler.onStart(player);
                     break;
 
                 case CANCEL:

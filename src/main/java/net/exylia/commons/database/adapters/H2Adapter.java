@@ -149,7 +149,7 @@ public class H2Adapter implements DatabaseAdapter {
             sql.append(") ").append(valuePlaceholders).append(")");
 
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+                 PreparedStatement stmt = conn.prepareStatement(sql.toString(), Statement.RETURN_GENERATED_KEYS)) {
 
                 for (int i = 0; i < parameters.size(); i++) {
                     stmt.setObject(i + 1, parameters.get(i));
@@ -159,6 +159,14 @@ public class H2Adapter implements DatabaseAdapter {
                 if (result == 0) {
                     throw new DatabaseException("Save", entityClassName, "H2",
                             "No rows were inserted, save operation failed");
+                }
+
+                // Update entity with generated ID
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int generatedId = generatedKeys.getInt(1);
+                        setPrimaryKeyValue(entity, generatedId);
+                    }
                 }
 
             } catch (SQLException e) {
@@ -191,53 +199,124 @@ public class H2Adapter implements DatabaseAdapter {
             String tableName = getTableName(entities.get(0).getClass());
             String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-            // H2 supports MERGE which is similar to UPSERT
-            Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+            // Separate entities into INSERT (new) and MERGE (update) batches
+            List<T> newEntities = new ArrayList<>();
+            List<T> existingEntities = new ArrayList<>();
 
-            StringBuilder sql = new StringBuilder("MERGE INTO " + tableName + " (");
-            StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
+            for (T entity : entities) {
+                Map<String, Object> entityMap = entityToMap(entity);
+                Object pkValue = getPrimaryKeyValue(entity);
 
-            List<String> columns = new ArrayList<>();
+                // If primary key is 0 or null, it's a new entity (needs INSERT)
+                boolean isNew = pkValue == null ||
+                               (pkValue instanceof Integer && (Integer)pkValue == 0) ||
+                               (pkValue instanceof Long && (Long)pkValue == 0L);
 
-            // Build column part
-            boolean first = true;
-            for (String columnName : firstEntityMap.keySet()) {
-                if (!first) {
-                    sql.append(", ");
-                    valuePlaceholders.append(", ");
+                if (isNew) {
+                    newEntities.add(entity);
+                } else {
+                    existingEntities.add(entity);
                 }
-                sql.append(columnName);
-                valuePlaceholders.append("?");
-                columns.add(columnName);
-                first = false;
             }
 
-            sql.append(") ").append(valuePlaceholders).append(")");
+            int successCount = 0;
+            int failureCount = 0;
 
-            try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+            try (Connection conn = getConnection()) {
+                // Process INSERT for new entities
+                if (!newEntities.isEmpty()) {
+                    Map<String, Object> firstEntityMap = entityToMap(newEntities.get(0));
 
-                int successCount = 0;
-                int failureCount = 0;
+                    StringBuilder insertSql = new StringBuilder("INSERT INTO " + tableName + " (");
+                    StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
+                    List<String> columns = new ArrayList<>();
 
-                for (T entity : entities) {
-                    try {
-                        Map<String, Object> entityMap = entityToMap(entity);
-
-                        for (int i = 0; i < columns.size(); i++) {
-                            stmt.setObject(i + 1, entityMap.get(columns.get(i)));
+                    boolean first = true;
+                    for (String columnName : firstEntityMap.keySet()) {
+                        if (!first) {
+                            insertSql.append(", ");
+                            valuePlaceholders.append(", ");
                         }
+                        insertSql.append(columnName);
+                        valuePlaceholders.append("?");
+                        columns.add(columnName);
+                        first = false;
+                    }
 
-                        stmt.addBatch();
-                        successCount++;
-                    } catch (Exception e) {
-                        failureCount++;
-                        errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
-                                "Failed to prepare entity for batch: " + e.getMessage());
+                    insertSql.append(") ").append(valuePlaceholders).append(")");
+
+                    try (PreparedStatement stmt = conn.prepareStatement(insertSql.toString(), Statement.RETURN_GENERATED_KEYS)) {
+                        for (T entity : newEntities) {
+                            try {
+                                Map<String, Object> entityMap = entityToMap(entity);
+                                for (int i = 0; i < columns.size(); i++) {
+                                    stmt.setObject(i + 1, entityMap.get(columns.get(i)));
+                                }
+                                stmt.addBatch();
+                                successCount++;
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                                        "Failed to prepare new entity for batch: " + e.getMessage());
+                            }
+                        }
+                        stmt.executeBatch();
+
+                        // Update entities with generated IDs
+                        try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                            int index = 0;
+                            while (generatedKeys.next() && index < newEntities.size()) {
+                                T entity = newEntities.get(index);
+                                int generatedId = generatedKeys.getInt(1);
+                                setPrimaryKeyValue(entity, generatedId);
+                                index++;
+                            }
+                        }
                     }
                 }
 
-                int[] results = stmt.executeBatch();
+                // Process MERGE for existing entities
+                if (!existingEntities.isEmpty()) {
+                    Map<String, Object> firstEntityMap = entityToMapWithId(existingEntities.get(0));
+
+                    StringBuilder mergeSql = new StringBuilder("MERGE INTO " + tableName + " (");
+                    StringBuilder valuePlaceholders = new StringBuilder("VALUES (");
+                    List<String> columns = new ArrayList<>();
+
+                    boolean first = true;
+                    for (String columnName : firstEntityMap.keySet()) {
+                        if (!first) {
+                            mergeSql.append(", ");
+                            valuePlaceholders.append(", ");
+                        }
+                        mergeSql.append(columnName);
+                        valuePlaceholders.append("?");
+                        columns.add(columnName);
+                        first = false;
+                    }
+
+                    mergeSql.append(") ").append(valuePlaceholders).append(")");
+
+                    try (PreparedStatement stmt = conn.prepareStatement(mergeSql.toString())) {
+                        for (T entity : existingEntities) {
+                            try {
+                                Map<String, Object> entityMap = entityToMapWithId(entity);
+                                for (int i = 0; i < columns.size(); i++) {
+                                    stmt.setObject(i + 1, entityMap.get(columns.get(i)));
+                                }
+                                stmt.addBatch();
+                                successCount++;
+                            } catch (Exception e) {
+                                failureCount++;
+                                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                                        "Failed to prepare existing entity for batch: " + e.getMessage());
+                            }
+                        }
+                        stmt.executeBatch();
+                    }
+                }
+
+                int[] results = new int[successCount];
                 int processed = 0;
                 for (int result : results) {
                     if (result >= 0) processed++; // MERGE can return different values
@@ -931,6 +1010,14 @@ public class H2Adapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
+                    // Skip autoIncrement fields with value 0 (not yet generated)
+                    if (column.autoIncrement() && value != null) {
+                        if ((value instanceof Integer && (Integer) value == 0) ||
+                            (value instanceof Long && (Long) value == 0L)) {
+                            continue;
+                        }
+                    }
+
                     // Manejo especial para enums
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
@@ -959,6 +1046,96 @@ public class H2Adapter implements DatabaseAdapter {
         }
 
         return map;
+    }
+
+    /**
+     * Similar to entityToMap but includes autoIncrement fields (for MERGE/UPDATE operations)
+     */
+    private Map<String, Object> entityToMapWithId(Object entity) throws Exception {
+        String entityClassName = entity.getClass().getSimpleName();
+        Map<String, Object> map = new HashMap<>();
+        Field[] fields = entity.getClass().getDeclaredFields();
+
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                field.setAccessible(true);
+                Column column = field.getAnnotation(Column.class);
+                String columnName = column.name().isEmpty() ? field.getName() : column.name();
+
+                try {
+                    Object value = field.get(entity);
+
+                    // For MERGE, include all fields including autoIncrement (don't skip)
+
+                    // Manejo especial para enums
+                    if (value != null && value.getClass().isEnum()) {
+                        value = ((Enum<?>) value).name();
+                    } else if (value != null && column.autoSerialize()) {
+                        try {
+                            value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                        } catch (SerializationException e) {
+                            errorHandler.handleError(e);
+                            throw e;
+                        } catch (Exception e) {
+                            SerializationException serException = new SerializationException("Serialize",
+                                    entityClassName, columnName, column.serializationType().toString(), value,
+                                    "Failed to auto-serialize field during entityToMapWithId", e);
+                            errorHandler.handleError(serException);
+                            throw serException;
+                        }
+                    }
+
+                    map.put(columnName, value);
+
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("EntityToMapWithId", entityClassName, "H2",
+                            "Failed to access field: " + columnName, e);
+                }
+            }
+        }
+
+        return map;
+    }
+
+    /**
+     * Get the value of the primary key field from an entity
+     */
+    private Object getPrimaryKeyValue(Object entity) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    field.setAccessible(true);
+                    return field.get(entity);
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Set the value of the primary key field in an entity
+     */
+    private void setPrimaryKeyValue(Object entity, Object value) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    field.setAccessible(true);
+                    // Handle different numeric types
+                    if (field.getType() == int.class || field.getType() == Integer.class) {
+                        field.set(entity, ((Number) value).intValue());
+                    } else if (field.getType() == long.class || field.getType() == Long.class) {
+                        field.set(entity, ((Number) value).longValue());
+                    } else {
+                        field.set(entity, value);
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     @Override

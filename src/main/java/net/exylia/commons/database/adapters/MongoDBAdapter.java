@@ -845,6 +845,14 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
+                    // Skip autoIncrement fields with value 0 (not yet generated)
+                    if (column.autoIncrement() && value != null) {
+                        if ((value instanceof Integer && (Integer) value == 0) ||
+                            (value instanceof Long && (Long) value == 0L)) {
+                            continue;
+                        }
+                    }
+
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name(); // Convertir a string
                     } else if (value != null && column.autoSerialize()) {
@@ -992,6 +1000,20 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         try {
                             if (field.getType() == String.class && id instanceof ObjectId) {
                                 field.set(entity, id.toString());
+                            } else if (field.getType() == int.class || field.getType() == Integer.class) {
+                                if (id instanceof Number) {
+                                    field.set(entity, ((Number) id).intValue());
+                                } else if (id instanceof ObjectId) {
+                                    // For autoIncrement int fields, MongoDB generates ObjectId
+                                    // We need a different strategy - use a counter collection
+                                    field.set(entity, id.hashCode());
+                                }
+                            } else if (field.getType() == long.class || field.getType() == Long.class) {
+                                if (id instanceof Number) {
+                                    field.set(entity, ((Number) id).longValue());
+                                } else if (id instanceof ObjectId) {
+                                    field.set(entity, (long) id.hashCode());
+                                }
                             } else {
                                 field.set(entity, id);
                             }

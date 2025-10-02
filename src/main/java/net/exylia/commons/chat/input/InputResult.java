@@ -83,6 +83,27 @@ public class InputResult {
     }
 
     /**
+     * Retry - continue asking for input (for multi-line inputs)
+     */
+    public static InputResult retry() {
+        return new InputResult(InputResultType.RETRY, null, null);
+    }
+
+    /**
+     * Retry with message
+     */
+    public static InputResult retry(String message) {
+        return new InputResult(InputResultType.RETRY, null, message);
+    }
+
+    /**
+     * Retry with Component message
+     */
+    public static InputResult retry(Component message) {
+        return new InputResult(InputResultType.RETRY, null, message);
+    }
+
+    /**
      * Get message as String (if it's a String)
      */
     public String getMessageAsString() {
@@ -113,6 +134,7 @@ public class InputResult {
     public enum InputResultType {
         SUCCESS,    // Complete the input with value
         INVALID,    // Invalid input, keep waiting
-        CANCEL      // Cancel the input process
+        CANCEL,     // Cancel the input process
+        RETRY       // Continue asking for more input (multi-line support)
     }
 }

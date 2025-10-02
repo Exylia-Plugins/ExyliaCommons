@@ -1,9 +1,11 @@
 package net.exylia.commons.database.adapters;
 
+import com.google.gson.Gson;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
+import net.exylia.commons.database.annotations.SerializationType;
 import net.exylia.commons.database.annotations.Table;
 import net.exylia.commons.database.exceptions.ConnectionException;
 import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
@@ -15,6 +17,8 @@ import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.file.FileConfiguration;
 import net.exylia.commons.database.repository.Repository.SortOrder;
 
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.*;
@@ -141,7 +145,7 @@ public class MySQLAdapter implements DatabaseAdapter {
             sql.append(") ").append(valuePlaceholders).append(")");
 
             try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(sql.toString())) {
+                 PreparedStatement stmt = conn.prepareStatement(sql.toString(), Statement.RETURN_GENERATED_KEYS)) {
 
                 for (int i = 0; i < parameters.size(); i++) {
                     stmt.setObject(i + 1, parameters.get(i));
@@ -151,6 +155,14 @@ public class MySQLAdapter implements DatabaseAdapter {
                 if (result == 0) {
                     throw new DatabaseException("Save", entityClassName, "MySQL",
                             "No rows were inserted, save operation failed");
+                }
+
+                // Update entity with generated ID
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int generatedId = generatedKeys.getInt(1);
+                        setPrimaryKeyValue(entity, generatedId);
+                    }
                 }
 
             } catch (SQLException e) {
@@ -183,40 +195,52 @@ public class MySQLAdapter implements DatabaseAdapter {
             String tableName = getTableName(entities.get(0).getClass());
             String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-            // Use MySQL's ON DUPLICATE KEY UPDATE for better performance
-            Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
+            // Separate entities into INSERT (new) and UPDATE (existing) batches
+            List<T> newEntities = new ArrayList<>();
+            List<T> existingEntities = new ArrayList<>();
 
-            StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
-            StringBuilder valuePlaceholders = new StringBuilder("VALUES ");
-            StringBuilder updateClause = new StringBuilder(" ON DUPLICATE KEY UPDATE ");
-
-            List<String> columns = new ArrayList<>();
-            List<Object> allParameters = new ArrayList<>();
-
-            // Build column part
-            boolean first = true;
-            for (String columnName : firstEntityMap.keySet()) {
-                if (!first) {
-                    sql.append(", ");
+            for (T entity : entities) {
+                Object pkValue = getPrimaryKeyValue(entity);
+                boolean isNew = pkValue == null ||
+                        (pkValue instanceof Integer && (Integer)pkValue == 0) ||
+                        (pkValue instanceof Long && (Long)pkValue == 0L);
+                if (isNew) {
+                    newEntities.add(entity);
+                } else {
+                    existingEntities.add(entity);
                 }
-                sql.append("`").append(columnName).append("`");
-                columns.add(columnName);
-                first = false;
             }
-            sql.append(") ");
 
-            // Build VALUES for all entities
-            int successCount = 0;
-            int failureCount = 0;
+            // Process new entities (INSERT) with generated keys
+            if (!newEntities.isEmpty()) {
+                Map<String, Object> firstEntityMap = entityToMap(newEntities.get(0));
 
-            for (int i = 0; i < entities.size(); i++) {
-                if (i > 0) {
-                    valuePlaceholders.append(", ");
+                StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
+                StringBuilder valuePlaceholders = new StringBuilder("VALUES ");
+
+                List<String> columns = new ArrayList<>();
+                List<Object> allParameters = new ArrayList<>();
+
+                // Build column part
+                boolean first = true;
+                for (String columnName : firstEntityMap.keySet()) {
+                    if (!first) {
+                        sql.append(", ");
+                    }
+                    sql.append("`").append(columnName).append("`");
+                    columns.add(columnName);
+                    first = false;
                 }
-                valuePlaceholders.append("(");
+                sql.append(") ");
 
-                try {
-                    Map<String, Object> entityMap = entityToMap(entities.get(i));
+                // Build VALUES for all new entities
+                for (int i = 0; i < newEntities.size(); i++) {
+                    if (i > 0) {
+                        valuePlaceholders.append(", ");
+                    }
+                    valuePlaceholders.append("(");
+
+                    Map<String, Object> entityMap = entityToMap(newEntities.get(i));
                     boolean firstValue = true;
 
                     for (String column : columns) {
@@ -228,57 +252,106 @@ public class MySQLAdapter implements DatabaseAdapter {
                         firstValue = false;
                     }
                     valuePlaceholders.append(")");
-                    successCount++;
-                } catch (Exception e) {
-                    failureCount++;
-                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
-                            "Failed to prepare entity " + (i + 1) + " for batch: " + e.getMessage());
-                    // Remove the partial entry we just added
-                    if (i > 0) {
-                        // Remove the last ", " we added
-                        valuePlaceholders.setLength(valuePlaceholders.length() - 2);
-                    } else {
-                        // This was the first entity, we need to handle this differently
-                        valuePlaceholders.setLength("VALUES ".length());
+                }
+
+                String finalSql = sql.toString() + valuePlaceholders.toString();
+
+                try (Connection conn = getConnection();
+                     PreparedStatement stmt = conn.prepareStatement(finalSql, Statement.RETURN_GENERATED_KEYS)) {
+
+                    for (int i = 0; i < allParameters.size(); i++) {
+                        stmt.setObject(i + 1, allParameters.get(i));
                     }
+
+                    stmt.executeUpdate();
+
+                    // Update entities with generated IDs
+                    try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                        int index = 0;
+                        while (generatedKeys.next() && index < newEntities.size()) {
+                            int generatedId = generatedKeys.getInt(1);
+                            setPrimaryKeyValue(newEntities.get(index), generatedId);
+                            index++;
+                        }
+                    }
+
+                } catch (SQLException e) {
+                    throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
+                            "SQL error during INSERT batch operation", e);
                 }
             }
 
-            // Build UPDATE clause (exclude primary key)
-            first = true;
-            for (String column : columns) {
-                if (!column.equals(primaryKey)) {
+            // Process existing entities (UPDATE) with ON DUPLICATE KEY UPDATE
+            if (!existingEntities.isEmpty()) {
+                Map<String, Object> firstEntityMap = entityToMapWithId(existingEntities.get(0));
+
+                StringBuilder sql = new StringBuilder("INSERT INTO `" + tableName + "` (");
+                StringBuilder valuePlaceholders = new StringBuilder("VALUES ");
+                StringBuilder updateClause = new StringBuilder(" ON DUPLICATE KEY UPDATE ");
+
+                List<String> columns = new ArrayList<>();
+                List<Object> allParameters = new ArrayList<>();
+
+                // Build column part
+                boolean first = true;
+                for (String columnName : firstEntityMap.keySet()) {
                     if (!first) {
-                        updateClause.append(", ");
+                        sql.append(", ");
                     }
-                    updateClause.append("`").append(column).append("` = VALUES(`").append(column).append("`)");
+                    sql.append("`").append(columnName).append("`");
+                    columns.add(columnName);
                     first = false;
                 }
-            }
+                sql.append(") ");
 
-            if (successCount == 0) {
-                throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
-                        "No entities could be prepared for batch operation");
-            }
+                // Build VALUES for all existing entities
+                for (int i = 0; i < existingEntities.size(); i++) {
+                    if (i > 0) {
+                        valuePlaceholders.append(", ");
+                    }
+                    valuePlaceholders.append("(");
 
-            String finalSql = sql.toString() + valuePlaceholders.toString() + updateClause.toString();
+                    Map<String, Object> entityMap = entityToMapWithId(existingEntities.get(i));
+                    boolean firstValue = true;
 
-            try (Connection conn = getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(finalSql)) {
-
-                for (int i = 0; i < allParameters.size(); i++) {
-                    stmt.setObject(i + 1, allParameters.get(i));
+                    for (String column : columns) {
+                        if (!firstValue) {
+                            valuePlaceholders.append(", ");
+                        }
+                        valuePlaceholders.append("?");
+                        allParameters.add(entityMap.get(column));
+                        firstValue = false;
+                    }
+                    valuePlaceholders.append(")");
                 }
 
-                stmt.executeUpdate();
-                if (failureCount > 0) {
-                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
-                            String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
+                // Build UPDATE clause (exclude primary key)
+                first = true;
+                for (String column : columns) {
+                    if (!column.equals(primaryKey)) {
+                        if (!first) {
+                            updateClause.append(", ");
+                        }
+                        updateClause.append("`").append(column).append("` = VALUES(`").append(column).append("`)");
+                        first = false;
+                    }
                 }
 
-            } catch (SQLException e) {
-                throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
-                        "SQL error during batch saveOrUpdate operation", e);
+                String finalSql = sql.toString() + valuePlaceholders.toString() + updateClause.toString();
+
+                try (Connection conn = getConnection();
+                     PreparedStatement stmt = conn.prepareStatement(finalSql)) {
+
+                    for (int i = 0; i < allParameters.size(); i++) {
+                        stmt.setObject(i + 1, allParameters.get(i));
+                    }
+
+                    stmt.executeUpdate();
+
+                } catch (SQLException e) {
+                    throw new DatabaseException("SaveOrUpdateAll", entityClassName, "MySQL",
+                            "SQL error during UPDATE batch operation", e);
+                }
             }
 
         } catch (Exception e) {
@@ -994,6 +1067,14 @@ public class MySQLAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
+                    // Skip autoIncrement fields with value 0 (not yet generated)
+                    if (column.autoIncrement() && value != null) {
+                        if ((value instanceof Integer && (Integer) value == 0) ||
+                            (value instanceof Long && (Long) value == 0L)) {
+                            continue;
+                        }
+                    }
+
                     // Manejo especial para enums
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name(); // Convertir a string
@@ -1535,6 +1616,75 @@ public class MySQLAdapter implements DatabaseAdapter {
                         "Unexpected error during table drop", e);
                 errorHandler.handleError(dbException);
                 throw dbException;
+            }
+        }
+    }
+
+    private Map<String, Object> entityToMapWithId(Object entity) throws Exception {
+        Map<String, Object> map = new LinkedHashMap<>();
+        Field[] fields = entity.getClass().getDeclaredFields();
+
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                String columnName = column.name().isEmpty() ? field.getName().toLowerCase() : column.name();
+
+                field.setAccessible(true);
+                Object value = field.get(entity);
+
+                if (value != null) {
+                    if (column.autoSerialize()) {
+                        SerializationType serType = column.serializationType();
+                        if (serType == SerializationType.JSON) {
+                            map.put(columnName, new Gson().toJson(value));
+                        } else {
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            ObjectOutputStream oos = new ObjectOutputStream(baos);
+                            oos.writeObject(value);
+                            oos.close();
+                            map.put(columnName, baos.toByteArray());
+                        }
+                    } else {
+                        map.put(columnName, value);
+                    }
+                } else if (!column.nullable()) {
+                    map.put(columnName, null);
+                }
+            }
+        }
+        return map;
+    }
+
+    private Object getPrimaryKeyValue(Object entity) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    field.setAccessible(true);
+                    return field.get(entity);
+                }
+            }
+        }
+        return null;
+    }
+
+    private void setPrimaryKeyValue(Object entity, Object value) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    field.setAccessible(true);
+                    if (field.getType() == int.class || field.getType() == Integer.class) {
+                        field.set(entity, ((Number) value).intValue());
+                    } else if (field.getType() == long.class || field.getType() == Long.class) {
+                        field.set(entity, ((Number) value).longValue());
+                    } else {
+                        field.set(entity, value);
+                    }
+                    return;
+                }
             }
         }
     }
