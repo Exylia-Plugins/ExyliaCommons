@@ -10,6 +10,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class Config {
@@ -111,6 +112,11 @@ public class Config {
 
     public ConfigurationSection section(String path) {
         return config.getConfigurationSection(path);
+    }
+
+    public Set<String> getKeys(String path) {
+        ConfigurationSection section = section(path);
+        return section != null ? section.getKeys(false) : Set.of();
     }
 
     public <T> Map<String, T> map(String path, Function<ConfigurationSection, T> mapper) {

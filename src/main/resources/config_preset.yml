@@ -1,4 +1,8 @@
-# Only for development purposes
+
+
+
+
+# Core
 debug: false
 
 text:
@@ -20,3 +24,12 @@ time-formatter:
   compact-mode: false
   auto-detect-seconds: true
   force-show-zero-decimals: false
+
+price-formatter:
+  currency-symbol: "$"
+  symbol-before: true
+  decimal-separator: "."
+  thousand-separator: ","
+  decimal-places: 2
+  show-decimals: true
+

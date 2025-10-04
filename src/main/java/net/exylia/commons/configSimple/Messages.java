@@ -43,6 +43,10 @@ public class Messages {
         return message(path).replace(replacements).raw();
     }
 
+    public static String get(String path, ExyliaContext context) {
+        return message(path).context(context).raw();
+    }
+
     public static Component getComponent(String path) {
         return message(path).build();
     }

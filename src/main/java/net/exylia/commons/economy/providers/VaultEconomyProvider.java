@@ -10,9 +10,6 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * Implementación de EconomyProvider usando Vault
- */
 public class VaultEconomyProvider implements EconomyProvider {
     private Economy economy;
     private boolean available = false;

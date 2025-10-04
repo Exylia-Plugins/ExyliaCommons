@@ -1,15 +1,35 @@
 package net.exylia.commons.economy;
 
+import lombok.Getter;
+
 import java.math.BigDecimal;
 
-/**
- * Respuesta de operaciones económicas
- */
+@Getter
 public class EconomyResponse {
+    /**
+     * -- GETTER --
+     *  Si la operación fue exitosa
+     */
     private final boolean success;
+    /**
+     * -- GETTER --
+     *  Mensaje descriptivo del resultado
+     */
     private final String message;
+    /**
+     * -- GETTER --
+     *  Cantidad involucrada en la transacción
+     */
     private final BigDecimal amount;
+    /**
+     * -- GETTER --
+     *  Balance resultante después de la operación
+     */
     private final BigDecimal balance;
+    /**
+     * -- GETTER --
+     *  Tipo de respuesta
+     */
     private final ResponseType type;
 
     public EconomyResponse(boolean success, String message, BigDecimal amount, BigDecimal balance, ResponseType type) {
@@ -18,41 +38,6 @@ public class EconomyResponse {
         this.amount = amount;
         this.balance = balance;
         this.type = type;
-    }
-
-    /**
-     * Si la operación fue exitosa
-     */
-    public boolean isSuccess() {
-        return success;
-    }
-
-    /**
-     * Mensaje descriptivo del resultado
-     */
-    public String getMessage() {
-        return message;
-    }
-
-    /**
-     * Cantidad involucrada en la transacción
-     */
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    /**
-     * Balance resultante después de la operación
-     */
-    public BigDecimal getBalance() {
-        return balance;
-    }
-
-    /**
-     * Tipo de respuesta
-     */
-    public ResponseType getType() {
-        return type;
     }
 
     public enum ResponseType {

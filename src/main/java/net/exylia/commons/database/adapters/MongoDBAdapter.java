@@ -4,8 +4,10 @@ import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.*;
 import com.mongodb.client.model.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
@@ -109,6 +111,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
             String collectionName = getTableName(entity.getClass());
             MongoCollection<Document> collection = database.getCollection(collectionName);
 
+            // Generate auto-increment ID if needed
+            setAutoIncrementId(entity, collectionName);
+
             Document document = entityToDocument(entity);
             collection.insertOne(document);
 
@@ -149,6 +154,18 @@ public class MongoDBAdapter implements DatabaseAdapter {
             for (T entity : entities) {
                 try {
                     Object id = getEntityId(entity);
+
+                    // Check if entity is new (id is 0 or null)
+                    boolean isNew = id == null ||
+                            (id instanceof Integer && (Integer) id == 0) ||
+                            (id instanceof Long && (Long) id == 0L);
+
+                    // Generate auto-increment ID if needed
+                    if (isNew) {
+                        setAutoIncrementId(entity, collectionName);
+                        id = getEntityId(entity);
+                    }
+
                     Document document = entityToDocument(entity);
 
                     if (id != null) {
@@ -1376,6 +1393,56 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         "Unexpected error during collection drop", e);
                 errorHandler.handleError(dbException);
                 throw dbException;
+            }
+        }
+    }
+
+    private int getNextSequenceValue(String sequenceName) throws Exception {
+        MongoCollection<Document> counters = database.getCollection("counters");
+
+        Document filter = new Document("_id", sequenceName);
+        Document update = new Document("$inc", new Document("sequence_value", 1));
+        FindOneAndUpdateOptions options = new FindOneAndUpdateOptions()
+                .returnDocument(ReturnDocument.AFTER)
+                .upsert(true);
+
+        Document result = counters.findOneAndUpdate(filter, update, options);
+
+        if (result != null) {
+            Object seqValue = result.get("sequence_value");
+            if (seqValue instanceof Number) {
+                return ((Number) seqValue).intValue();
+            }
+        }
+
+        return 1;
+    }
+
+    private void setAutoIncrementId(Object entity, String collectionName) throws Exception {
+        Field[] fields = entity.getClass().getDeclaredFields();
+
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey() && column.autoIncrement()) {
+                    field.setAccessible(true);
+                    Object currentValue = field.get(entity);
+
+                    // Only generate ID if current value is 0
+                    if (currentValue != null &&
+                        ((currentValue instanceof Integer && (Integer) currentValue == 0) ||
+                         (currentValue instanceof Long && (Long) currentValue == 0L))) {
+
+                        int nextId = getNextSequenceValue(collectionName);
+
+                        if (field.getType() == int.class || field.getType() == Integer.class) {
+                            field.set(entity, nextId);
+                        } else if (field.getType() == long.class || field.getType() == Long.class) {
+                            field.set(entity, (long) nextId);
+                        }
+                    }
+                    break;
+                }
             }
         }
     }

@@ -1,10 +1,12 @@
 package net.exylia.commons.configSimple;
 
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
@@ -27,6 +29,14 @@ public class Configs {
 
     public static Config file(String fileName) {
         return get(fileName);
+    }
+
+    public static FileConfiguration raw(String fileName) {
+        return get(fileName).raw();
+    }
+
+    public static FileConfiguration raw() {
+        return mainConfig.raw();
     }
 
     public static String string(String path) {
@@ -87,6 +97,10 @@ public class Configs {
 
     public static ConfigurationSection section(String path) {
         return mainConfig.section(path);
+    }
+
+    public static Set<String> getKeys(String path) {
+        return mainConfig.getKeys(path);
     }
 
     public static <T> Map<String, T> map(String path, Function<ConfigurationSection, T> mapper) {

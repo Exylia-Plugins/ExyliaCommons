@@ -9,45 +9,25 @@ import org.bukkit.Bukkit;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Registrador centralizado de economía para plugins Exylia
- */
 public class EconomyRegister {
     private static EconomyProvider currentProvider;
     private static final Map<String, EconomyProvider> registeredPlugins = new HashMap<>();
     private static boolean initialized = false;
 
-    /**
-     * Inicializa la economía para un plugin
-     * @param plugin El plugin que solicita economía
-     * @return El proveedor de economía disponible
-     */
     public static EconomyProvider init(ExyliaPlugin plugin) {
         String pluginName = plugin.getName();
-
-        // Si ya está registrado, devolver el mismo proveedor
         if (registeredPlugins.containsKey(pluginName)) {
             DebugUtils.logInternalInfo("Economy already initialized for " + pluginName);
             return registeredPlugins.get(pluginName);
         }
-
-        // Inicializar sistema si es la primera vez
         if (!initialized) {
             initializeEconomySystem();
             initialized = true;
         }
-
-        // Registrar el plugin y devolver el proveedor
         registeredPlugins.put(pluginName, currentProvider);
-
         DebugUtils.logInternalInfo("Economy initialized for " + pluginName + " using provider: " + currentProvider.getProviderName());
-
         return currentProvider;
     }
-
-    /**
-     * Obtiene el proveedor actual sin inicializar
-     */
     public static EconomyProvider getCurrentProvider() {
         if (!initialized) {
             initializeEconomySystem();
@@ -55,32 +35,18 @@ public class EconomyRegister {
         }
         return currentProvider;
     }
-
-    /**
-     * Verifica si hay economía disponible
-     */
     public static boolean isEconomyAvailable() {
         return getCurrentProvider().isAvailable();
     }
-
-    /**
-     * Desregistra un plugin del sistema de economía
-     */
     public static void unregister(ExyliaPlugin plugin) {
         String pluginName = plugin.getName();
         if (registeredPlugins.remove(pluginName) != null) {
             DebugUtils.logInternalInfo("Economy unregistered for " + pluginName);
         }
-
-        // Si no quedan plugins registrados, limpiar sistema
         if (registeredPlugins.isEmpty()) {
             cleanup();
         }
     }
-
-    /**
-     * Fuerza la reinicialización del sistema de economía
-     */
     public static void reinitialize() {
         DebugUtils.logInternalInfo("Reinitializing economy system...");
         initialized = false;

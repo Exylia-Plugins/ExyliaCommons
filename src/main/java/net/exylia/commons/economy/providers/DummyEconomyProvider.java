@@ -7,9 +7,6 @@ import org.bukkit.OfflinePlayer;
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/**
- * Proveedor dummy cuando no hay economía disponible
- */
 public class DummyEconomyProvider implements EconomyProvider {
 
     @Override
