@@ -364,6 +364,11 @@ public class SerializationHelper {
             return SerializationType.JSON;
         }
 
+        // Enums - use STRING for human-readable storage
+        if (type.isEnum()) {
+            return SerializationType.STRING;
+        }
+
         // Bukkit-specific types
         if (type == Location.class || type == Component.class) {
             return SerializationType.STRING;

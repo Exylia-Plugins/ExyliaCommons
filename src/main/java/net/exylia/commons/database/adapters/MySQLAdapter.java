@@ -1634,15 +1634,13 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                 if (value != null) {
                     if (column.autoSerialize()) {
-                        SerializationType serType = column.serializationType();
-                        if (serType == SerializationType.JSON) {
-                            map.put(columnName, new Gson().toJson(value));
-                        } else {
-                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            ObjectOutputStream oos = new ObjectOutputStream(baos);
-                            oos.writeObject(value);
-                            oos.close();
-                            map.put(columnName, baos.toByteArray());
+                        try {
+                            Object serialized = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
+                            map.put(columnName, serialized);
+                        } catch (Exception e) {
+                            throw new SerializationException("Serialize", entity.getClass().getSimpleName(),
+                                    columnName, column.serializationType().toString(), value,
+                                    "Failed to serialize field in entityToMapWithId", e);
                         }
                     } else {
                         map.put(columnName, value);

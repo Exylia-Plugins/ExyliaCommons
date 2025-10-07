@@ -12,16 +12,6 @@ import java.util.List;
 
 public class FireworkUtils {
 
-    /**
-     * Lanza un fuego artificial desde una configuración string.
-     * Format: TYPE|COLORS|FADE_COLORS|FLICKER|TRAIL|POWER
-     * Example: BALL|255,0,0;0,255,0|255,255,255|true|true|1
-     * Example simple: STAR|255,100,0|||false|false|2
-     *
-     * @param location La ubicación donde lanzar el fuego artificial
-     * @param fireworkString La configuración del fuego artificial
-     * @return true si se lanzó correctamente, false en caso contrario
-     */
     public static boolean launchFirework(Location location, String fireworkString) {
         if (fireworkString == null || fireworkString.isEmpty() || location == null) return false;
 
@@ -29,33 +19,28 @@ public class FireworkUtils {
         if (parts.length < 1) return false;
 
         try {
-            // Parsear tipo de efecto
             String typeString = parts[0];
             FireworkEffect.Type type = parseFireworkType(typeString);
             if (type == null) return false;
 
-            // Parsear colores principales
             List<Color> colors = new ArrayList<>();
             if (parts.length > 1 && !parts[1].isEmpty()) {
                 colors = parseColors(parts[1]);
             }
             if (colors.isEmpty()) {
-                colors.add(Color.RED); // Color por defecto
+                colors.add(Color.RED);
             }
 
-            // Parsear colores de desvanecimiento
             List<Color> fadeColors = new ArrayList<>();
             if (parts.length > 2 && !parts[2].isEmpty()) {
                 fadeColors = parseColors(parts[2]);
             }
 
-            // Parsear efectos especiales
             boolean flicker = parts.length > 3 && parseBoolean(parts[3], false);
             boolean trail = parts.length > 4 && parseBoolean(parts[4], false);
 
-            // Parsear poder del fuego artificial
             int power = parts.length > 5 ? parseInt(parts[5], 1) : 1;
-            power = Math.max(0, Math.min(3, power)); // Limitar entre 0-3
+            power = Math.max(0, Math.min(3, power));
 
             return launchFirework(location, type, colors, fadeColors, flicker, trail, power);
 
@@ -108,68 +93,65 @@ public class FireworkUtils {
         }
     }
 
-    /**
-     * Lanza un fuego artificial simple con colores aleatorios
-     *
-     * @param location La ubicación donde lanzar
-     * @return true si se lanzó correctamente
-     */
-    public static boolean launchRandomFirework(Location location) {
-        if (location == null) return false;
-
-        FireworkEffect.Type[] types = FireworkEffect.Type.values();
-        FireworkEffect.Type randomType = types[(int) (Math.random() * types.length)];
-
-        List<Color> randomColors = List.of(
-                Color.fromRGB((int)(Math.random() * 256), (int)(Math.random() * 256), (int)(Math.random() * 256))
-        );
-
-        return launchFirework(location, randomType, randomColors, new ArrayList<>(),
-                Math.random() > 0.5, Math.random() > 0.5, 1);
-    }
-
-    /**
-     * Lanza un fuego artificial para un jugador específico (en su ubicación)
-     *
-     * @param player El jugador
-     * @param fireworkString La configuración del fuego artificial
-     * @return true si se lanzó correctamente
-     */
     public static boolean launchFireworkForPlayer(Player player, String fireworkString) {
-        if (player == null) return false;
-        return launchFirework(player.getLocation().add(0, 2, 0), fireworkString);
+        if (player == null || fireworkString == null || fireworkString.isEmpty()) return false;
+
+        String[] parts = fireworkString.split("\\|");
+        if (parts.length < 1) return false;
+
+        FireworkScope scope = FireworkScope.PLAYER;
+        String typeString = parts[0];
+
+        if (typeString.startsWith("@")) {
+            int spaceIndex = typeString.indexOf(' ');
+            if (spaceIndex != -1) {
+                String scopePart = typeString.substring(0, spaceIndex);
+                typeString = typeString.substring(spaceIndex + 1);
+
+                String scopeType = scopePart.substring(1).toLowerCase();
+                scope = switch (scopeType) {
+                    case "n", "nearby" -> FireworkScope.NEARBY;
+                    default -> FireworkScope.PLAYER;
+                };
+            }
+        }
+
+        try {
+            FireworkEffect.Type type = parseFireworkType(typeString);
+            if (type == null) return false;
+
+            List<Color> colors = new ArrayList<>();
+            if (parts.length > 1 && !parts[1].isEmpty()) {
+                colors = parseColors(parts[1]);
+            }
+            if (colors.isEmpty()) {
+                colors.add(Color.RED);
+            }
+
+            List<Color> fadeColors = new ArrayList<>();
+            if (parts.length > 2 && !parts[2].isEmpty()) {
+                fadeColors = parseColors(parts[2]);
+            }
+
+            boolean flicker = parts.length > 3 && parseBoolean(parts[3], false);
+            boolean trail = parts.length > 4 && parseBoolean(parts[4], false);
+
+            int power = parts.length > 5 ? parseInt(parts[5], 1) : 1;
+            power = Math.max(0, Math.min(3, power));
+
+            Location loc = player.getLocation().add(0, 2, 0);
+
+            return switch (scope) {
+                case PLAYER, NEARBY -> launchFirework(loc, type, colors, fadeColors, flicker, trail, power);
+            };
+
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    /**
-     * Lanza múltiples fuegos artificiales en secuencia
-     *
-     * @param location La ubicación base
-     * @param fireworkString La configuración
-     * @param count Cantidad de fuegos artificiales
-     * @param delayTicks Delay entre cada uno (en ticks)
-     */
-    public static void launchMultipleFireworks(Location location, String fireworkString,
-                                               int count, int delayTicks) {
-        if (location == null || count <= 0) return;
-
-        for (int i = 0; i < count; i++) {
-            final int currentIndex = i;
-
-            // Usar scheduler para el delay
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                    getPlugin(),
-                    () -> {
-                        // Pequeña variación en la posición
-                        Location randomLoc = location.clone().add(
-                                (Math.random() - 0.5) * 2,
-                                Math.random() * 2,
-                                (Math.random() - 0.5) * 2
-                        );
-                        launchFirework(randomLoc, fireworkString);
-                    },
-                    delayTicks * currentIndex
-            );
-        }
+    public enum FireworkScope {
+        PLAYER, NEARBY
     }
 
     // ===== MÉTODOS AUXILIARES =====
@@ -273,41 +255,5 @@ public class FireworkUtils {
         } catch (NumberFormatException e) {
             return defaultValue;
         }
-    }
-
-    private static org.bukkit.plugin.java.JavaPlugin getPlugin() {
-        // Intentar obtener el plugin desde ItemManager o cualquier clase que tenga referencia
-        try {
-            return net.exylia.commons.item.ItemManager.getPlugin();
-        } catch (Exception e) {
-            // Fallback: obtener el plugin que proporciona esta clase
-            return org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FireworkUtils.class);
-        }
-    }
-
-    // ===== MÉTODOS DE CONVENIENCIA =====
-
-    /**
-     * Lanza un fuego artificial simple de un color
-     */
-    public static boolean launchSimpleFirework(Location location, Color color) {
-        return launchFirework(location, FireworkEffect.Type.BALL,
-                List.of(color), new ArrayList<>(), false, false, 1);
-    }
-
-    /**
-     * Lanza una celebración de fuegos artificiales
-     */
-    public static void launchCelebration(Location location, int count) {
-        launchMultipleFireworks(location, "BALL|255,0,0;0,255,0;0,0,255|255,255,0|true|true|2",
-                count, 10);
-    }
-
-    /**
-     * Lanza fuegos artificiales de victoria
-     */
-    public static void launchVictoryFireworks(Player player) {
-        Location loc = player.getLocation().add(0, 3, 0);
-        launchMultipleFireworks(loc, "STAR|255,215,0;255,255,255|255,255,255|true|true|2", 3, 15);
     }
 }
