@@ -1633,7 +1633,10 @@ public class MySQLAdapter implements DatabaseAdapter {
                 Object value = field.get(entity);
 
                 if (value != null) {
-                    if (column.autoSerialize()) {
+                    if (value.getClass().isEnum()) {
+                        value = ((Enum<?>) value).name();
+                        map.put(columnName, value);
+                    } else if (column.autoSerialize()) {
                         try {
                             Object serialized = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
                             map.put(columnName, serialized);
