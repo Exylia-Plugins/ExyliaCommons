@@ -1,5 +1,7 @@
 package net.exylia.commons.database.entity;
 
+import lombok.Getter;
+import lombok.Setter;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.serialization.SerializationUtils;
 import net.kyori.adventure.text.Component;
@@ -13,24 +15,23 @@ import java.util.Map;
 /**
  * Clase base para entidades de base de datos con métodos helper de serialización
  */
+@Setter
+@Getter
 public abstract class DatabaseEntity {
 
     @Column(name = "created_at", defaultValue = "CURRENT_TIMESTAMP")
-    protected String createdAt;
+    protected long createdAt;
 
     @Column(name = "updated_at", defaultValue = "CURRENT_TIMESTAMP")
-    protected String updatedAt;
+    protected long updatedAt;
 
     public DatabaseEntity() {
-        this.createdAt = String.valueOf(System.currentTimeMillis());
-        this.updatedAt = String.valueOf(System.currentTimeMillis());
+        this.createdAt = System.currentTimeMillis();
+        this.updatedAt = System.currentTimeMillis();
     }
 
-    /**
-     * Actualiza el timestamp de modificación
-     */
     public void updateTimestamp() {
-        this.updatedAt = String.valueOf(System.currentTimeMillis());
+        this.updatedAt = System.currentTimeMillis();
     }
 
     // ===== HELPER METHODS FOR SERIALIZATION =====
@@ -135,35 +136,4 @@ public abstract class DatabaseEntity {
 
     // ===== GETTERS Y SETTERS =====
 
-    public String getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public String getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(String updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public long getCreatedAtLong() {
-        try {
-            return Long.parseLong(createdAt);
-        } catch (NumberFormatException e) {
-            return System.currentTimeMillis();
-        }
-    }
-
-    public long getUpdatedAtLong() {
-        try {
-            return Long.parseLong(updatedAt);
-        } catch (NumberFormatException e) {
-            return System.currentTimeMillis();
-        }
-    }
 }
