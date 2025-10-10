@@ -5,11 +5,13 @@ import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.menus.EditableMenu;
+import net.exylia.commons.ui.menus.FullInventoryMenu;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -73,6 +75,11 @@ public class MenuManager implements Listener {
 
         Menu menu = openMenus.get(player.getUniqueId());
         if (menu == null) return;
+
+        if (menu instanceof FullInventoryMenu fullInventoryMenu) {
+            handleFullInventoryMenuClick(event, player, fullInventoryMenu);
+            return;
+        }
 
         if (menu instanceof EditableMenu editableMenu) {
             handleEditableMenuClick(event, player, editableMenu);
@@ -211,6 +218,80 @@ public class MenuManager implements Listener {
         }
     }
 
+    private void handleFullInventoryMenuClick(InventoryClickEvent event, Player player, FullInventoryMenu menu) {
+        Inventory clickedInventory = event.getClickedInventory();
+        Inventory topInventory = event.getView().getTopInventory();
+        int rawSlot = event.getRawSlot();
+        int slot = event.getSlot();
+
+        if (clickedInventory == topInventory) {
+            event.setCancelled(true);
+
+            MenuItem item = menu.getItem(slot);
+            if (item != null) {
+                MenuClickEvent clickEvent = new MenuClickEvent(
+                        player, menu, item, slot, event.getClick()
+                );
+
+                if (item.hasClickSounds()) {
+                    item.playClickSounds(player);
+                } else {
+                    menu.playClickSounds(player);
+                }
+
+                menu.handleClick(clickEvent);
+            }
+        } else if (clickedInventory == player.getInventory()) {
+            handlePlayerInventoryClick(event, player, menu, slot);
+        }
+    }
+
+    private void handlePlayerInventoryClick(InventoryClickEvent event, Player player, FullInventoryMenu menu, int slot) {
+        MenuItem item = menu.getPlayerSlotItem(slot);
+
+        if (menu.isPlayerSlotEditable(slot)) {
+            if (!menu.isAllowPlayerInventoryInteraction()) {
+                event.setCancelled(true);
+            } else {
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    syncFullInventorySlotState(menu, slot);
+                }, 1L);
+            }
+        } else {
+            event.setCancelled(true);
+
+            if (item != null) {
+                MenuClickEvent clickEvent = new MenuClickEvent(
+                        player, menu, item, slot, event.getClick()
+                );
+
+                if (item.hasClickSounds()) {
+                    item.playClickSounds(player);
+                } else {
+                    menu.playClickSounds(player);
+                }
+
+                item.handleClick(clickEvent);
+            }
+        }
+
+        if (!menu.isAllowHotbarSwap() && (event.getClick() == ClickType.NUMBER_KEY || event.getHotbarButton() != -1)) {
+            event.setCancelled(true);
+        }
+    }
+
+    private void syncFullInventorySlotState(FullInventoryMenu menu, int slot) {
+        if (menu.getViewer() == null) return;
+
+        ItemStack currentItem = menu.getViewer().getInventory().getItem(slot);
+
+        if (currentItem == null || currentItem.getType().isAir()) {
+            menu.setEditablePlayerItem(slot, null);
+        } else {
+            menu.setEditablePlayerItem(slot, currentItem.clone());
+        }
+    }
+
     @EventHandler
     public void onInventoryDrag(InventoryDragEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
@@ -218,11 +299,55 @@ public class MenuManager implements Listener {
         Menu menu = openMenus.get(player.getUniqueId());
         if (menu == null) return;
 
+        if (menu instanceof FullInventoryMenu fullInventoryMenu) {
+            handleFullInventoryMenuDrag(event, player, fullInventoryMenu);
+            return;
+        }
+
         if (menu instanceof EditableMenu editableMenu) {
             handleEditableMenuDrag(event, editableMenu);
         } else {
             event.setCancelled(true);
         }
+    }
+
+    private void handleFullInventoryMenuDrag(InventoryDragEvent event, Player player, FullInventoryMenu menu) {
+        if (!menu.isAllowPlayerInventoryInteraction()) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Inventory topInventory = event.getView().getTopInventory();
+        int topSize = topInventory.getSize();
+
+        boolean affectsTopInventory = event.getRawSlots().stream()
+                .anyMatch(slot -> slot < topSize);
+
+        if (affectsTopInventory) {
+            event.setCancelled(true);
+            return;
+        }
+
+        boolean affectsNonEditableSlots = event.getRawSlots().stream()
+                .filter(slot -> slot >= topSize)
+                .map(slot -> menu.convertToPlayerSlot(slot))
+                .anyMatch(slot -> slot != -1 && !menu.isPlayerSlotEditable(slot));
+
+        if (affectsNonEditableSlots) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            for (int rawSlot : event.getRawSlots()) {
+                if (rawSlot >= topSize) {
+                    int playerSlot = menu.convertToPlayerSlot(rawSlot);
+                    if (playerSlot != -1 && menu.isPlayerSlotEditable(playerSlot)) {
+                        syncFullInventorySlotState(menu, playerSlot);
+                    }
+                }
+            }
+        }, 1L);
     }
 
     private void handleEditableMenuDrag(InventoryDragEvent event, EditableMenu menu) {
@@ -255,6 +380,18 @@ public class MenuManager implements Listener {
     }
 
     @EventHandler
+    public void onPlayerDropItem(PlayerDropItemEvent event) {
+        Player player = event.getPlayer();
+        Menu menu = openMenus.get(player.getUniqueId());
+
+        if (menu instanceof FullInventoryMenu fullInventoryMenu) {
+            if (!fullInventoryMenu.isAllowDropItems()) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
+    @EventHandler
     public void onInventoryClose(InventoryCloseEvent event) {
         if (!(event.getPlayer() instanceof Player player)) return;
 
@@ -270,14 +407,16 @@ public class MenuManager implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
 
-        // Clean up open menus to prevent memory leaks
         Menu menu = openMenus.remove(playerId);
         if (menu != null) {
             try {
                 menu.handleClose();
             } catch (Exception e) {
-                // Ignore close errors during quit
             }
+        }
+
+        if (FullInventoryMenu.hasSnapshot(player)) {
+            FullInventoryMenu.clearSnapshot(player);
         }
     }
 
