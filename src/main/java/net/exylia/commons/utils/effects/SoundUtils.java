@@ -2,6 +2,8 @@ package net.exylia.commons.utils.effects;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import net.exylia.commons.ExyliaPlugin;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -14,17 +16,34 @@ public class SoundUtils {
 
         Location loc = player.getLocation();
 
-        switch (soundData.getScope()) {
-            case PLAYER -> player.playSound(loc, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
-            case NEARBY -> loc.getWorld().playSound(loc, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+        Runnable soundTask = () -> {
+            switch (soundData.getScope()) {
+                case PLAYER -> player.playSound(loc, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+                case NEARBY -> loc.getWorld().playSound(loc, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+            }
+        };
+
+        if (Bukkit.isPrimaryThread()) {
+            soundTask.run();
+        } else {
+            Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), soundTask);
         }
+
         return true;
     }
 
     public static boolean playSound(Location location, String soundString) {
         SoundData soundData = parseSound(soundString);
         if (soundData == null) return false;
-        location.getWorld().playSound(location, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+
+        Runnable soundTask = () -> location.getWorld().playSound(location, soundData.getSound(), soundData.getVolume(), soundData.getPitch());
+
+        if (Bukkit.isPrimaryThread()) {
+            soundTask.run();
+        } else {
+            Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), soundTask);
+        }
+
         return true;
     }
 

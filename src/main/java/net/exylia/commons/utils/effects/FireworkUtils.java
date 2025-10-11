@@ -67,25 +67,33 @@ public class FireworkUtils {
         if (location == null || location.getWorld() == null) return false;
 
         try {
-            Firework firework = location.getWorld().spawn(location, Firework.class);
-            FireworkMeta meta = firework.getFireworkMeta();
+            Runnable fireworkTask = () -> {
+                Firework firework = location.getWorld().spawn(location, Firework.class);
+                FireworkMeta meta = firework.getFireworkMeta();
 
-            // Crear el efecto
-            FireworkEffect.Builder effectBuilder = FireworkEffect.builder()
-                    .with(type)
-                    .withColor(colors)
-                    .flicker(flicker)
-                    .trail(trail);
+                FireworkEffect.Builder effectBuilder = FireworkEffect.builder()
+                        .with(type)
+                        .withColor(colors)
+                        .flicker(flicker)
+                        .trail(trail);
 
-            if (!fadeColors.isEmpty()) {
-                effectBuilder.withFade(fadeColors);
+                if (!fadeColors.isEmpty()) {
+                    effectBuilder.withFade(fadeColors);
+                }
+
+                FireworkEffect effect = effectBuilder.build();
+                meta.addEffect(effect);
+                meta.setPower(Math.max(0, Math.min(3, power)));
+
+                firework.setFireworkMeta(meta);
+            };
+
+            if (org.bukkit.Bukkit.isPrimaryThread()) {
+                fireworkTask.run();
+            } else {
+                org.bukkit.Bukkit.getScheduler().runTask(net.exylia.commons.ExyliaPlugin.getInstance(), fireworkTask);
             }
 
-            FireworkEffect effect = effectBuilder.build();
-            meta.addEffect(effect);
-            meta.setPower(Math.max(0, Math.min(3, power)));
-
-            firework.setFireworkMeta(meta);
             return true;
 
         } catch (Exception e) {

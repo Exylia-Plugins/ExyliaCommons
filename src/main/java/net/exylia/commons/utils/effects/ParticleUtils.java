@@ -1,5 +1,7 @@
 package net.exylia.commons.utils.effects;
 
+import net.exylia.commons.ExyliaPlugin;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -28,17 +30,26 @@ public class ParticleUtils {
         try {
             Particle particle = Particle.valueOf(particleName);
 
-            if (parts.length > 6 && (particle == Particle.REDSTONE || particle == Particle.SPELL_MOB)) {
-                Color color = parseColor(parts[6]);
-                if (color != null) {
-                    Particle.DustOptions dustOptions = new Particle.DustOptions(color, 1.0f);
-                    location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, dustOptions);
+            Runnable particleTask = () -> {
+                if (parts.length > 6 && (particle == Particle.REDSTONE || particle == Particle.SPELL_MOB)) {
+                    Color color = parseColor(parts[6]);
+                    if (color != null) {
+                        Particle.DustOptions dustOptions = new Particle.DustOptions(color, 1.0f);
+                        location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, dustOptions);
+                    } else {
+                        location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
+                    }
                 } else {
                     location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
                 }
+            };
+
+            if (Bukkit.isPrimaryThread()) {
+                particleTask.run();
             } else {
-                location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
+                Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), particleTask);
             }
+
             return true;
         } catch (IllegalArgumentException e) {
             return false;
@@ -83,12 +94,22 @@ public class ParticleUtils {
             }
 
             final Color finalColor = color;
+            final ParticleScope finalScope = scope;
 
-            switch (scope) {
-                case PLAYER -> spawnParticleForPlayer(player, location, particle, count, offsetX, offsetY, offsetZ, extra, finalColor);
-                case NEARBY -> location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra,
-                        finalColor != null ? new Particle.DustOptions(finalColor, 1.0f) : null);
+            Runnable particleTask = () -> {
+                switch (finalScope) {
+                    case PLAYER -> spawnParticleForPlayer(player, location, particle, count, offsetX, offsetY, offsetZ, extra, finalColor);
+                    case NEARBY -> location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra,
+                            finalColor != null ? new Particle.DustOptions(finalColor, 1.0f) : null);
+                }
+            };
+
+            if (Bukkit.isPrimaryThread()) {
+                particleTask.run();
+            } else {
+                Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), particleTask);
             }
+
             return true;
         } catch (IllegalArgumentException e) {
             return false;
