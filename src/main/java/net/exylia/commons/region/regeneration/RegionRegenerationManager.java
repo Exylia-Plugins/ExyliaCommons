@@ -57,12 +57,13 @@ public class RegionRegenerationManager {
     private BukkitRunnable pasteProcessor;
     private BukkitRunnable cacheCleanupTask;
 
-    private static final int MAX_CACHE_SIZE = 30;
-    private static final boolean CACHE_ENABLED = false;
-    private static final int MAX_CONCURRENT_PASTES = 4;
-    private static final int PASTE_DELAY_TICKS = 3;
-    private static final int CACHE_CLEANUP_INTERVAL_MINUTES = 10;
-    private static final long CLIPBOARD_MAX_AGE_MINUTES = 30;
+    private static final int MAX_CACHE_SIZE = 5;
+    private static final boolean CACHE_ENABLED = true;
+    private static final int MAX_CONCURRENT_PASTES = 1;
+    private static final int PASTE_DELAY_TICKS = 10;
+    private static final int CACHE_CLEANUP_INTERVAL_MINUTES = 3;
+    private static final long CLIPBOARD_MAX_AGE_MINUTES = 5;
+    private static final int MAX_PENDING_PASTE_QUEUE_SIZE = 10;
     private final ConcurrentMap<String, Long> clipboardCacheTimestamps;
 
     private RegionRegenerationManager(JavaPlugin plugin) {
@@ -158,7 +159,6 @@ public class RegionRegenerationManager {
         if (operation != null) {
             activePasteOperations.incrementAndGet();
 
-            // Ejecutar paste de forma asíncrona
             CompletableFuture.runAsync(() -> {
                 try {
                     boolean success = executePasteOperation(operation);
@@ -166,6 +166,7 @@ public class RegionRegenerationManager {
                 } catch (Exception e) {
                     operation.future.completeExceptionally(e);
                 } finally {
+                    operation.releaseClipboard();
                     activePasteOperations.decrementAndGet();
                 }
             });
@@ -235,9 +236,7 @@ public class RegionRegenerationManager {
                     DebugUtils.logInternalError("Error closing EditSession: " + e.getMessage());
                 }
             }
-            if (System.currentTimeMillis() % 10000 < 1000) {
-                System.gc();
-            }
+            System.gc();
         }
     }
 
@@ -253,6 +252,26 @@ public class RegionRegenerationManager {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
+                synchronized (pendingPasteQueue) {
+                    if (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE) {
+                        logInternalDebug("Paste queue full (" + pendingPasteQueue.size() + "), waiting...");
+                        int waitAttempts = 0;
+                        while (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE / 2 && waitAttempts < 20) {
+                            try {
+                                Thread.sleep(100);
+                                waitAttempts++;
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                return false;
+                            }
+                        }
+                        if (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE) {
+                            DebugUtils.logInternalError("Paste queue still full after waiting, rejecting paste for " + sourceRegion.getId());
+                            return false;
+                        }
+                    }
+                }
+
                 Clipboard clipboard = clipboardCache.get(sourceRegion.getId());
 
                 if (clipboard == null) {
@@ -265,6 +284,7 @@ public class RegionRegenerationManager {
                         cacheClipboard(sourceRegion, clipboard);
                     }
                 }
+
                 CompletableFuture<Boolean> operationFuture = new CompletableFuture<>();
                 PendingPasteOperation operation = new PendingPasteOperation(
                         "paste_" + sourceRegion.getId() + "_" + System.currentTimeMillis(),
@@ -395,7 +415,7 @@ public class RegionRegenerationManager {
 
     private static class PendingPasteOperation {
         final String operationId;
-        final Clipboard clipboard;
+        Clipboard clipboard;
         final Location targetLocation;
         final CompletableFuture<Boolean> future;
 
@@ -404,6 +424,16 @@ public class RegionRegenerationManager {
             this.clipboard = clipboard;
             this.targetLocation = targetLocation;
             this.future = future;
+        }
+
+        void releaseClipboard() {
+            if (clipboard != null) {
+                try {
+                    clipboard = null;
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error releasing clipboard in operation: " + e.getMessage());
+                }
+            }
         }
     }
 

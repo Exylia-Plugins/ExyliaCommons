@@ -418,7 +418,6 @@ public class ItemManager implements Listener {
         }
 
         ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
 
         InteractiveItem interactiveItem = null;
         EquipmentSlot hand = null;
@@ -426,9 +425,6 @@ public class ItemManager implements Listener {
         if (isInteractiveItem(mainHand)) {
             interactiveItem = getItemFromStack(mainHand);
             hand = EquipmentSlot.HAND;
-        } else if (isInteractiveItem(offHand)) {
-            interactiveItem = getItemFromStack(offHand);
-            hand = EquipmentSlot.OFF_HAND;
         }
 
         if (interactiveItem == null) {
@@ -446,15 +442,15 @@ public class ItemManager implements Listener {
 
         ItemClickInfo clickInfo = new ItemClickInfo(player,
                 org.bukkit.event.inventory.ClickType.LEFT,
-                hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
-                hand == EquipmentSlot.HAND ? mainHand : offHand,
+                player.getInventory().getHeldItemSlot(),
+                mainHand,
                 ActionSource.ITEM_CLICK);
 
-        clickInfo.withData("hitPlayer", hitPlayer); // Añadir hitPlayer al contexto
+        clickInfo.withData("hitPlayer", hitPlayer);
 
         DebugUtils.logInternalDebug("Processing hit player interaction for item: " + interactiveItem.getId() +
                 ", attacker: " + player.getName() + ", victim: " + hitPlayer.getName());
-        interactionHandler.processHitPlayer(player, hitPlayer, hand == EquipmentSlot.HAND ? mainHand : offHand,
+        interactionHandler.processHitPlayer(player, hitPlayer, mainHand,
                 interactiveItem, clickInfo, hand);
         DebugUtils.logInternalDebug("Completed EntityDamageByEntity processing for item: " + interactiveItem.getId());
     }

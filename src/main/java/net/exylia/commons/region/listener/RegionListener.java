@@ -790,11 +790,6 @@ public class RegionListener implements Listener {
                 }
             }
         }
-
-        logInternalDebug(String.format(
-                "Explosión filtrada en región %s: %d->%d bloques pueden ser destruidos",
-                region.getId(), originalCount, event.blockList().size()
-        ));
     }
 
     private void filterBlockExplosionBlocks(BlockExplodeEvent event, Region region) {
