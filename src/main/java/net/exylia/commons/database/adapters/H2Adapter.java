@@ -762,7 +762,18 @@ public class H2Adapter implements DatabaseAdapter {
             StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS " + tableName + " (");
 
             Field[] fields = entityClass.getDeclaredFields();
+            List<String> primaryKeyColumns = new ArrayList<>();
             boolean first = true;
+
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    Column column = field.getAnnotation(Column.class);
+                    if (column.primaryKey()) {
+                        String columnName = column.name().isEmpty() ? field.getName() : column.name();
+                        primaryKeyColumns.add(columnName);
+                    }
+                }
+            }
 
             for (Field field : fields) {
                 if (field.isAnnotationPresent(Column.class)) {
@@ -774,7 +785,7 @@ public class H2Adapter implements DatabaseAdapter {
 
                     sql.append(columnName).append(" ").append(sqlType);
 
-                    if (column.primaryKey()) {
+                    if (column.primaryKey() && primaryKeyColumns.size() == 1) {
                         sql.append(" PRIMARY KEY");
                         if (column.autoIncrement()) {
                             sql.append(" AUTO_INCREMENT");
@@ -795,6 +806,15 @@ public class H2Adapter implements DatabaseAdapter {
 
                     first = false;
                 }
+            }
+
+            if (primaryKeyColumns.size() > 1) {
+                sql.append(", PRIMARY KEY (");
+                for (int i = 0; i < primaryKeyColumns.size(); i++) {
+                    if (i > 0) sql.append(", ");
+                    sql.append(primaryKeyColumns.get(i));
+                }
+                sql.append(")");
             }
 
             sql.append(")");
@@ -1606,6 +1626,93 @@ public class H2Adapter implements DatabaseAdapter {
             } else {
                 DatabaseException dbException = new DatabaseException("GetByRank", entityClassName, "H2",
                         "Unexpected error during rank query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> List<T> findByFieldOrderedBy(Class<T> entityClass, String filterField, Object filterValue,
+                                            String orderField, SortOrder order, int limit) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String orderDirection = (order == SortOrder.DESC) ? "DESC" : "ASC";
+            String sql = "SELECT * FROM " + tableName + " WHERE " + filterField + " = ? ORDER BY " + orderField + " " + orderDirection + " LIMIT ?";
+
+            List<T> results = new ArrayList<>();
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setObject(1, filterValue);
+                stmt.setInt(2, limit);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    try {
+                        results.add(mapToEntity(resultSetToMap(rs), entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                                "Failed to map one result to entity: " + e.getMessage());
+                    }
+                }
+
+            } catch (SQLException e) {
+                throw new DatabaseException("FindByFieldOrderedBy", entityClassName, "H2",
+                        String.format("SQL error during filtered ordered query: filter '%s'='%s', order '%s', limit %d",
+                                filterField, filterValue, orderField, limit), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindByFieldOrderedBy", entityClassName, "H2",
+                        "Unexpected error during filtered ordered query operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> long countByField(Class<T> entityClass, String field, Object value) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String tableName = getTableName(entityClass);
+            String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE " + field + " = ?";
+
+            try (Connection conn = getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setObject(1, value);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
+
+                return 0;
+
+            } catch (SQLException e) {
+                throw new DatabaseException("CountByField", entityClassName, "H2",
+                        String.format("SQL error during count for field '%s' with value %s", field, value), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("CountByField", entityClassName, "H2",
+                        "Unexpected error during count operation", e);
                 errorHandler.handleError(dbException);
                 throw dbException;
             }

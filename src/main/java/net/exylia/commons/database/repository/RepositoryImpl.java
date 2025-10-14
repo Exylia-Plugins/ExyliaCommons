@@ -556,6 +556,58 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
+    public List<T> findByFieldOrderedBy(String filterField, Object filterValue, String orderField, SortOrder order, int limit) {
+        try {
+            return adapter.findByFieldOrderedBy(entityClass, filterField, filterValue, orderField, order, limit);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("findByFieldOrderedBy", entityClass.getSimpleName(),
+                    String.format("Failed to find entities by field '%s' with value %s, ordered by '%s' %s with limit %d",
+                            filterField, filterValue, orderField, order, limit), e);
+            errorHandler.handleError(repoException);
+            throw repoException;
+        }
+    }
+
+    @Override
+    public long countByField(String field, Object value) {
+        try {
+            return adapter.countByField(entityClass, field, value);
+        } catch (Exception e) {
+            RepositoryException repoException = new RepositoryException("countByField", entityClass.getSimpleName(),
+                    String.format("Failed to count entities by field '%s' with value %s", field, value), e);
+            errorHandler.handleError(repoException);
+            return 0;
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<T>> findByFieldOrderedByAsync(String filterField, Object filterValue, String orderField, SortOrder order, int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return findByFieldOrderedBy(filterField, filterValue, orderField, order, limit);
+            } catch (Exception e) {
+                throw new RepositoryException("findByFieldOrderedByAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async findByFieldOrderedBy for field '%s' with value %s, ordered by '%s' %s with limit %d",
+                                filterField, filterValue, orderField, order, limit), e);
+            }
+        }, executor);
+    }
+
+    @Override
+    public CompletableFuture<Long> countByFieldAsync(String field, Object value) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return countByField(field, value);
+            } catch (Exception e) {
+                RepositoryException repoException = new RepositoryException("countByFieldAsync", entityClass.getSimpleName(),
+                        String.format("Failed in async countByField for field '%s' with value %s", field, value), e);
+                errorHandler.handleError(repoException);
+                return 0L;
+            }
+        }, executor);
+    }
+
+    @Override
     public void drop() {
         try {
             adapter.dropTable(entityClass);

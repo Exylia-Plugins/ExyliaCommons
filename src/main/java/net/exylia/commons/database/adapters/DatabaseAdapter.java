@@ -45,6 +45,10 @@ public interface DatabaseAdapter {
     <T> long getRankByField(Class<T> entityClass, String field, Object value, SortOrder order) throws Exception;
     <T> Optional<T> getByRank(Class<T> entityClass, String field, long rank, SortOrder order) throws Exception;
 
+    // Métodos optimizados para leaderboards con filtro y ordenamiento
+    <T> List<T> findByFieldOrderedBy(Class<T> entityClass, String filterField, Object filterValue, String orderField, SortOrder order, int limit) throws Exception;
+    <T> long countByField(Class<T> entityClass, String field, Object value) throws Exception;
+
     // Utilidades
     String getTableName(Class<?> entityClass);
     Map<String, Object> entityToMap(Object entity) throws Exception;

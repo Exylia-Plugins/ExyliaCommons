@@ -61,6 +61,12 @@ public interface Repository<T> {
     CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit, SortOrder order);
     CompletableFuture<List<T>> getLeaderboardRangeAsync(String field, int startRank, int endRank, SortOrder order);
 
+    // Métodos optimizados para leaderboards con filtro y ordenamiento
+    List<T> findByFieldOrderedBy(String filterField, Object filterValue, String orderField, SortOrder order, int limit);
+    long countByField(String field, Object value);
+    CompletableFuture<List<T>> findByFieldOrderedByAsync(String filterField, Object filterValue, String orderField, SortOrder order, int limit);
+    CompletableFuture<Long> countByFieldAsync(String field, Object value);
+
     // Operaciones de mantenimiento
     void drop();
     CompletableFuture<Void> dropAsync();

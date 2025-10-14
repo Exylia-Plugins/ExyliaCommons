@@ -1097,4 +1097,69 @@ public class YAMLAdapter implements DatabaseAdapter {
             }
         }
     }
+
+    @Override
+    public <T> List<T> findByFieldOrderedBy(Class<T> entityClass, String filterField, Object filterValue,
+                                              String orderField, SortOrder order, int limit) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            List<T> filtered = findBy(entityClass, filterField, filterValue);
+
+            return filtered.stream()
+                    .sorted((e1, e2) -> {
+                        try {
+                            Object value1 = getFieldValue(e1, orderField);
+                            Object value2 = getFieldValue(e2, orderField);
+
+                            if (value1 == null && value2 == null) return 0;
+                            if (value1 == null) return order == SortOrder.DESC ? 1 : -1;
+                            if (value2 == null) return order == SortOrder.DESC ? -1 : 1;
+
+                            @SuppressWarnings("unchecked")
+                            int comparison = ((Comparable<Object>) value1).compareTo(value2);
+                            return order == SortOrder.DESC ? -comparison : comparison;
+
+                        } catch (Exception e) {
+                            errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                                    "Failed to compare field values during sorting: " + e.getMessage());
+                            return 0;
+                        }
+                    })
+                    .limit(limit)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindByFieldOrderedBy", entityClassName, "YAML",
+                        "Unexpected error during findByFieldOrderedBy operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> long countByField(Class<T> entityClass, String field, Object value) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            List<T> filtered = findBy(entityClass, field, value);
+            return filtered.size();
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("CountByField", entityClassName, "YAML",
+                        "Unexpected error during countByField operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
 }

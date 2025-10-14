@@ -1454,4 +1454,82 @@ public class MongoDBAdapter implements DatabaseAdapter {
             }
         }
     }
+
+    @Override
+    public <T> List<T> findByFieldOrderedBy(Class<T> entityClass, String filterField, Object filterValue,
+                                              String orderField, SortOrder order, int limit) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            List<T> results = new ArrayList<>();
+
+            Document filter = new Document(filterField, filterValue);
+            int sortDirection = (order == SortOrder.DESC) ? -1 : 1;
+
+            try (MongoCursor<Document> cursor = collection.find(filter)
+                    .sort(sortDirection == -1 ? Sorts.descending(orderField) : Sorts.ascending(orderField))
+                    .limit(limit)
+                    .iterator()) {
+                while (cursor.hasNext()) {
+                    try {
+                        Document document = cursor.next();
+                        results.add(documentToEntity(document, entityClass));
+                    } catch (Exception e) {
+                        errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                                "Failed to map one document to entity: " + e.getMessage());
+                    }
+                }
+            } catch (Exception e) {
+                throw new DatabaseException("FindByFieldOrderedBy", entityClassName, "MongoDB",
+                        String.format("MongoDB findByFieldOrderedBy operation failed: filter '%s'=%s, order '%s' %s, limit %d",
+                                filterField, filterValue, orderField, order, limit), e);
+            }
+
+            return results;
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("FindByFieldOrderedBy", entityClassName, "MongoDB",
+                        "Unexpected error during findByFieldOrderedBy operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
+
+    @Override
+    public <T> long countByField(Class<T> entityClass, String field, Object value) throws Exception {
+        String entityClassName = entityClass.getSimpleName();
+
+        try {
+            String collectionName = getTableName(entityClass);
+            MongoCollection<Document> collection = database.getCollection(collectionName);
+
+            Document filter = new Document(field, value);
+
+            try {
+                return collection.countDocuments(filter);
+            } catch (Exception e) {
+                throw new DatabaseException("CountByField", entityClassName, "MongoDB",
+                        String.format("MongoDB countByField operation failed for field '%s' with value %s", field, value), e);
+            }
+
+        } catch (Exception e) {
+            if (e instanceof DatabaseException) {
+                errorHandler.handleError((DatabaseException) e);
+                throw e;
+            } else {
+                DatabaseException dbException = new DatabaseException("CountByField", entityClassName, "MongoDB",
+                        "Unexpected error during countByField operation", e);
+                errorHandler.handleError(dbException);
+                throw dbException;
+            }
+        }
+    }
 }
