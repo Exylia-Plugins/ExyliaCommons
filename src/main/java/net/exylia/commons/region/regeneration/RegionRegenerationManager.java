@@ -22,6 +22,7 @@ import net.exylia.commons.selection.model.Selection;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -32,13 +33,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Semaphore;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.Queue;
-import java.util.LinkedList;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
@@ -47,45 +45,57 @@ public class RegionRegenerationManager {
 
     private final JavaPlugin plugin;
     private final File schemsFolder;
-    private final ConcurrentMap<String, Clipboard> clipboardCache;
+
+    private final LinkedHashMap<String, Clipboard> clipboardCache;
     private final ConcurrentMap<String, Boolean> regeneratingRegions;
+    private final PriorityBlockingQueue<RegenerationTask> taskQueue;
+    private final ExecutorService asyncExecutor;
 
-    // NUEVAS OPTIMIZACIONES PARA PASTE OPERATIONS
-    private final Semaphore pasteOperationSemaphore;
-    private final AtomicInteger activePasteOperations;
-    private final Queue<PendingPasteOperation> pendingPasteQueue;
-    private BukkitRunnable pasteProcessor;
-    private BukkitRunnable cacheCleanupTask;
+    private BukkitRunnable taskProcessor;
+    private BukkitRunnable memoryMonitor;
+    private final AtomicInteger activeTasks;
+    private final AtomicBoolean isShuttingDown;
 
-    private static final int MAX_CACHE_SIZE = 5;
-    private static final boolean CACHE_ENABLED = true;
-    private static final int MAX_CONCURRENT_PASTES = 1;
-    private static final int PASTE_DELAY_TICKS = 10;
-    private static final int CACHE_CLEANUP_INTERVAL_MINUTES = 3;
-    private static final long CLIPBOARD_MAX_AGE_MINUTES = 5;
-    private static final int MAX_PENDING_PASTE_QUEUE_SIZE = 10;
-    private final ConcurrentMap<String, Long> clipboardCacheTimestamps;
+    private static final int MAX_CONCURRENT_OPERATIONS = 4;
+    private static final int TASK_PROCESS_INTERVAL_TICKS = 1;
+    private static final int MEMORY_CHECK_INTERVAL_TICKS = 200;
+    private static final long LOW_MEMORY_THRESHOLD_MB = 512;
+    private static final int MAX_CACHE_SIZE = 50;
+
+    private final RegenerationMetrics metrics;
 
     private RegionRegenerationManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.schemsFolder = new File(plugin.getDataFolder(), "schematics");
-        this.clipboardCache = new ConcurrentHashMap<>();
-        this.clipboardCacheTimestamps = new ConcurrentHashMap<>();
+        this.clipboardCache = new LinkedHashMap<String, Clipboard>(MAX_CACHE_SIZE, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Clipboard> eldest) {
+                return size() > MAX_CACHE_SIZE;
+            }
+        };
         this.regeneratingRegions = new ConcurrentHashMap<>();
+        this.taskQueue = new PriorityBlockingQueue<>(100, Comparator.comparingInt(t -> t.priority));
+        this.activeTasks = new AtomicInteger(0);
+        this.isShuttingDown = new AtomicBoolean(false);
+        this.metrics = new RegenerationMetrics();
 
-        // Inicializar rate limiting para paste operations
-        this.pasteOperationSemaphore = new Semaphore(MAX_CONCURRENT_PASTES);
-        this.activePasteOperations = new AtomicInteger(0);
-        this.pendingPasteQueue = new LinkedList<>();
+        this.asyncExecutor = Executors.newFixedThreadPool(
+            Math.max(4, Runtime.getRuntime().availableProcessors()),
+            r -> {
+                Thread t = new Thread(r, "ExyliaRegionRegen-Async");
+                t.setDaemon(true);
+                t.setPriority(Thread.NORM_PRIORITY - 1);
+                return t;
+            }
+        );
 
         if (!schemsFolder.exists()) {
-            boolean created = schemsFolder.mkdirs();
-            if (created) {
-                logInternalDebug("Directorio de schematics de regiones creado: " + schemsFolder.getPath());
-            }
+            schemsFolder.mkdirs();
+            logInternalDebug("Schematics directory created: " + schemsFolder.getPath());
         }
-        startPasteProcessor();
-        startCacheCleanupTask();
+
+        startTaskProcessor();
+        startMemoryMonitor();
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -96,148 +106,386 @@ public class RegionRegenerationManager {
 
     public static RegionRegenerationManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("RegionRegenerationManager no ha sido inicializado");
+            throw new IllegalStateException("RegionRegenerationManager not initialized");
         }
         return instance;
     }
 
-    private void startPasteProcessor() {
-        pasteProcessor = new BukkitRunnable() {
+    private void startTaskProcessor() {
+        taskProcessor = new BukkitRunnable() {
             @Override
             public void run() {
-                processNextPasteOperation();
-            }
-        };
-        pasteProcessor.runTaskTimer(plugin, 1L, PASTE_DELAY_TICKS);
-    }
-
-    private void startCacheCleanupTask() {
-        cacheCleanupTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                cleanupExpiredClipboards();
-            }
-        };
-        cacheCleanupTask.runTaskTimerAsynchronously(plugin,
-                20L * 60 * CACHE_CLEANUP_INTERVAL_MINUTES,
-                20L * 60 * CACHE_CLEANUP_INTERVAL_MINUTES);
-    }
-
-    private void cleanupExpiredClipboards() {
-        long currentTime = System.currentTimeMillis();
-        long maxAge = CLIPBOARD_MAX_AGE_MINUTES * 60 * 1000;
-
-        clipboardCacheTimestamps.entrySet().removeIf(entry -> {
-            boolean expired = (currentTime - entry.getValue()) > maxAge;
-            if (expired) {
-                String regionId = entry.getKey();
-                Clipboard removed = clipboardCache.remove(regionId);
-                if (removed != null) {
-                    logInternalDebug("Removed expired clipboard from cache: " + regionId);
-                    try {
-                        removed = null;
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
-                    }
+                if (isShuttingDown.get()) {
+                    return;
                 }
+                processNextTask();
             }
-            return expired;
-        });
+        };
+        taskProcessor.runTaskTimer(plugin, TASK_PROCESS_INTERVAL_TICKS, TASK_PROCESS_INTERVAL_TICKS);
+    }
 
-        // Ejecutar garbage collection si se limpiaron clipboards
-        if (clipboardCache.size() < clipboardCacheTimestamps.size()) {
-            System.gc();
+    private void startMemoryMonitor() {
+        memoryMonitor = new BukkitRunnable() {
+            @Override
+            public void run() {
+                checkMemoryAndCleanup();
+            }
+        };
+        memoryMonitor.runTaskTimerAsynchronously(plugin, MEMORY_CHECK_INTERVAL_TICKS, MEMORY_CHECK_INTERVAL_TICKS);
+    }
+
+    private void checkMemoryAndCleanup() {
+        Runtime runtime = Runtime.getRuntime();
+        long freeMemoryMB = (runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory())) / 1024 / 1024;
+
+        if (freeMemoryMB < LOW_MEMORY_THRESHOLD_MB) {
+            logInternalDebug("Low memory detected (" + freeMemoryMB + "MB free), performing cleanup");
+            performAggressiveCleanup();
         }
     }
 
-    private void processNextPasteOperation() {
-        if (pendingPasteQueue.isEmpty() || activePasteOperations.get() >= MAX_CONCURRENT_PASTES) {
+    private void performAggressiveCleanup() {
+        synchronized (clipboardCache) {
+            int cleared = clipboardCache.size();
+            clipboardCache.clear();
+            if (cleared > 0) {
+                logInternalDebug("Aggressively cleared " + cleared + " clipboards from cache");
+                System.gc();
+            }
+        }
+    }
+
+    private void processNextTask() {
+        if (activeTasks.get() >= MAX_CONCURRENT_OPERATIONS) {
             return;
         }
 
-        PendingPasteOperation operation = pendingPasteQueue.poll();
-        if (operation != null) {
-            activePasteOperations.incrementAndGet();
+        RegenerationTask task = taskQueue.poll();
+        if (task == null) {
+            return;
+        }
 
-            CompletableFuture.runAsync(() -> {
-                try {
-                    boolean success = executePasteOperation(operation);
-                    operation.future.complete(success);
-                } catch (Exception e) {
-                    operation.future.completeExceptionally(e);
-                } finally {
-                    operation.releaseClipboard();
-                    activePasteOperations.decrementAndGet();
-                }
-            });
+        activeTasks.incrementAndGet();
+
+        asyncExecutor.submit(() -> {
+            try {
+                executeTask(task);
+            } catch (Exception e) {
+                DebugUtils.logInternalError("Error executing regeneration task: " + e.getMessage());
+                task.future.completeExceptionally(e);
+            } finally {
+                activeTasks.decrementAndGet();
+            }
+        });
+    }
+
+    private void executeTask(RegenerationTask task) {
+        try {
+            switch (task.type) {
+                case REGENERATE:
+                    boolean success = executeRegeneration(task);
+                    task.future.complete(success);
+                    break;
+                case PASTE:
+                    boolean pasteSuccess = executePaste(task);
+                    task.future.complete(pasteSuccess);
+                    break;
+                case SAVE:
+                    boolean saveSuccess = executeSave(task);
+                    task.future.complete(saveSuccess);
+                    break;
+            }
+        } catch (Exception e) {
+            task.future.completeExceptionally(e);
         }
     }
 
-    private boolean executePasteOperation(PendingPasteOperation operation) {
+    private boolean executeRegeneration(RegenerationTask task) {
+        String regionId = task.region.getId();
+        long startTime = System.currentTimeMillis();
+
+        try {
+            logInternalDebug("Starting regeneration for region: " + regionId);
+
+            cleanRegionEntities(task.region).join();
+            PlayerBlockTracker.getInstance().clearRegionBlocks(regionId);
+
+            Clipboard clipboard = loadOrGetClipboard(task.region);
+            if (clipboard == null) {
+                DebugUtils.logInternalError("Failed to load clipboard for region: " + regionId);
+                metrics.recordFailure();
+                return false;
+            }
+
+            Location targetLocation = task.region.getMinimumPoint();
+            boolean success = executePaste(clipboard, targetLocation);
+
+            long duration = System.currentTimeMillis() - startTime;
+            if (success) {
+                logInternalDebug("Region regenerated successfully: " + regionId + " in " + duration + "ms");
+                metrics.recordSuccess(duration);
+            } else {
+                DebugUtils.logInternalError("Regeneration failed for region: " + regionId);
+                metrics.recordFailure();
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error during regeneration of " + regionId + ": " + e.getMessage());
+            metrics.recordFailure();
+            return false;
+        } finally {
+            regeneratingRegions.remove(regionId);
+        }
+    }
+
+    private boolean executePaste(RegenerationTask task) {
+        long startTime = System.currentTimeMillis();
+        try {
+            Clipboard clipboard = loadOrGetClipboard(task.region);
+            if (clipboard == null) {
+                metrics.recordFailure();
+                return false;
+            }
+
+            boolean success = executePaste(clipboard, task.targetLocation);
+            long duration = System.currentTimeMillis() - startTime;
+
+            if (success) {
+                metrics.recordSuccess(duration);
+            } else {
+                metrics.recordFailure();
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error during paste operation: " + e.getMessage());
+            metrics.recordFailure();
+            return false;
+        }
+    }
+
+    private boolean executeSave(RegenerationTask task) {
+        try {
+            logInternalDebug("Saving schematic for region: " + task.region.getId());
+
+            Location min = task.region.getMinimumPoint();
+            Location max = task.region.getMaximumPoint();
+
+            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(min.getWorld());
+            BlockVector3 minVec = BlockVector3.at(min.getBlockX(), min.getBlockY(), min.getBlockZ());
+            BlockVector3 maxVec = BlockVector3.at(max.getBlockX(), max.getBlockY(), max.getBlockZ());
+
+            CuboidRegion worldEditRegion = new CuboidRegion(weWorld, minVec, maxVec);
+
+            Clipboard clipboard = saveRegionToClipboard(weWorld, worldEditRegion, minVec);
+            if (clipboard == null) {
+                return false;
+            }
+
+            clipboard.setOrigin(minVec);
+
+            File schematicFile = getSchematicFile(task.region);
+            try (FileOutputStream fos = new FileOutputStream(schematicFile);
+                 ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
+
+                writer.write(clipboard);
+                cacheClipboard(task.region.getId(), clipboard);
+
+                logInternalDebug("Schematic saved: " + schematicFile.getName());
+                return true;
+            }
+
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error saving schematic: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private Clipboard saveRegionToClipboard(com.sk89q.worldedit.world.World weWorld, CuboidRegion region, BlockVector3 minVec) {
         EditSession editSession = null;
         try {
-            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(operation.targetLocation.getWorld());
+            editSession = WorldEdit.getInstance().newEditSession(weWorld);
+            editSession.setFastMode(true);
 
-            Clipboard clipboard = operation.clipboard;
-            BlockVector3 clipboardOrigin = clipboard.getOrigin();
-            BlockVector3 clipboardMin = clipboard.getMinimumPoint();
-            BlockVector3 clipboardMax = clipboard.getMaximumPoint();
+            Clipboard clipboard = new BlockArrayClipboard(region);
+            ForwardExtentCopy copy = new ForwardExtentCopy(editSession, region, clipboard, minVec);
+            copy.setCopyingEntities(false);
+            Operations.complete(copy);
 
-            BlockVector3 offset = clipboardMin.subtract(clipboardOrigin);
+            return clipboard;
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error saving region to clipboard: " + e.getMessage());
+            return null;
+        } finally {
+            if (editSession != null) {
+                editSession.close();
+            }
+        }
+    }
 
-            BlockVector3 targetPosition = BlockVector3.at(
-                    operation.targetLocation.getBlockX(),
-                    operation.targetLocation.getBlockY(),
-                    operation.targetLocation.getBlockZ()
-            );
+    private boolean executePaste(Clipboard clipboard, Location targetLocation) {
+        World world = targetLocation.getWorld();
+        if (world == null) {
+            return false;
+        }
 
-            BlockVector3 pastePosition = targetPosition.add(offset);
+        BlockVector3 clipboardOrigin = clipboard.getOrigin();
+        BlockVector3 clipboardMin = clipboard.getMinimumPoint();
+        BlockVector3 offset = clipboardMin.subtract(clipboardOrigin);
 
-            logInternalDebug("=== PASTE OPERATION DEBUG ===");
-            logInternalDebug("Operation ID: " + operation.operationId);
-            logInternalDebug("Clipboard Origin: " + clipboardOrigin);
-            logInternalDebug("Clipboard Min: " + clipboardMin);
-            logInternalDebug("Clipboard Max: " + clipboardMax);
-            logInternalDebug("Clipboard Size: " + clipboard.getDimensions());
-            logInternalDebug("Offset: " + offset);
-            logInternalDebug("Target Position (input): " + targetPosition);
-            logInternalDebug("Paste Position (calculated): " + pastePosition);
-            logInternalDebug("World: " + weWorld.getName());
+        BlockVector3 targetPosition = BlockVector3.at(
+            targetLocation.getBlockX(),
+            targetLocation.getBlockY(),
+            targetLocation.getBlockZ()
+        );
+        BlockVector3 pastePosition = targetPosition.add(offset);
+
+        EditSession editSession = null;
+        try {
+            com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(world);
 
             editSession = WorldEdit.getInstance().newEditSession(weWorld);
             editSession.setFastMode(true);
-            editSession.setTickingWatchdog(false);
+            editSession.setReorderMode(EditSession.ReorderMode.FAST);
 
             ClipboardHolder holder = new ClipboardHolder(clipboard);
             Operation pasteOperation = holder
-                    .createPaste(editSession)
-                    .to(pastePosition)
-                    .copyEntities(false)
-                    .ignoreAirBlocks(false)
-                    .build();
+                .createPaste(editSession)
+                .to(pastePosition)
+                .copyEntities(false)
+                .ignoreAirBlocks(false)
+                .build();
 
             Operations.complete(pasteOperation);
+            editSession.flushQueue();
 
-            logInternalDebug("Paste operation completed successfully for: " + operation.operationId);
             return true;
 
         } catch (WorldEditException e) {
-            DebugUtils.logInternalError("WorldEdit error in paste operation " + operation.operationId + ": " + e.getMessage());
+            DebugUtils.logInternalError("WorldEdit error during paste: " + e.getMessage());
             return false;
         } catch (Exception e) {
-            DebugUtils.logInternalError("Unexpected error in paste operation " + operation.operationId + ": " + e.getMessage());
+            DebugUtils.logInternalError("Unexpected error during paste: " + e.getMessage());
             return false;
         } finally {
             if (editSession != null) {
                 try {
                     editSession.close();
-                    editSession = null;
                 } catch (Exception e) {
                     DebugUtils.logInternalError("Error closing EditSession: " + e.getMessage());
                 }
             }
-            System.gc();
         }
+    }
+
+    private Clipboard loadOrGetClipboard(Region region) {
+        String regionId = region.getId();
+
+        synchronized (clipboardCache) {
+            Clipboard cached = clipboardCache.get(regionId);
+            if (cached != null) {
+                logInternalDebug("Using cached clipboard for region: " + regionId);
+                metrics.recordCacheHit();
+                return cached;
+            }
+        }
+
+        metrics.recordCacheMiss();
+
+        File schematicFile = getSchematicFile(region);
+        if (!schematicFile.exists()) {
+            DebugUtils.logInternalError("Schematic file not found: " + schematicFile.getName());
+            return null;
+        }
+
+        Clipboard clipboard = loadSchematicFromFile(schematicFile);
+        if (clipboard != null) {
+            cacheClipboard(regionId, clipboard);
+        }
+
+        return clipboard;
+    }
+
+    private Clipboard loadSchematicFromFile(File schematicFile) {
+        try (FileInputStream fis = new FileInputStream(schematicFile);
+             ClipboardReader reader = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(fis)) {
+
+            Clipboard clipboard = reader.read();
+            logInternalDebug("Loaded schematic from file: " + schematicFile.getName());
+            return clipboard;
+
+        } catch (IOException e) {
+            DebugUtils.logInternalError("Error loading schematic " + schematicFile.getName() + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void cacheClipboard(String regionId, Clipboard clipboard) {
+        synchronized (clipboardCache) {
+            clipboardCache.put(regionId, clipboard);
+            logInternalDebug("Clipboard cached for region: " + regionId + " (cache size: " + clipboardCache.size() + ")");
+        }
+    }
+
+    public CompletableFuture<Void> preloadClipboards(List<Region> regions) {
+        return CompletableFuture.runAsync(() -> {
+            logInternalDebug("Preloading " + regions.size() + " clipboards...");
+            int loaded = 0;
+            for (Region region : regions) {
+                if (loadOrGetClipboard(region) != null) {
+                    loaded++;
+                }
+            }
+            logInternalDebug("Preloaded " + loaded + "/" + regions.size() + " clipboards");
+        }, asyncExecutor);
+    }
+
+    public CompletableFuture<Boolean> regenerateRegion(Region region) {
+        String regionId = region.getId();
+
+        if (regeneratingRegions.containsKey(regionId)) {
+            logInternalDebug("Region already regenerating: " + regionId);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        File schematicFile = getSchematicFile(region);
+        if (!schematicFile.exists()) {
+            DebugUtils.logInternalError("No schematic found for region: " + regionId);
+            return CompletableFuture.completedFuture(false);
+        }
+
+        regeneratingRegions.put(regionId, true);
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        RegenerationTask task = new RegenerationTask(
+            TaskType.REGENERATE,
+            region,
+            null,
+            future,
+            1
+        );
+
+        taskQueue.offer(task);
+        logInternalDebug("Regeneration task queued for region: " + regionId);
+
+        return future;
+    }
+
+    public CompletableFuture<List<Boolean>> regenerateMultipleRegions(List<Region> regions) {
+        logInternalDebug("Batch regenerating " + regions.size() + " regions");
+
+        List<CompletableFuture<Boolean>> futures = new ArrayList<>();
+        for (Region region : regions) {
+            futures.add(regenerateRegion(region));
+        }
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .thenApply(v -> futures.stream()
+                .map(CompletableFuture::join)
+                .toList());
     }
 
     public CompletableFuture<Boolean> pasteRegionSchematicAt(Region sourceRegion, Location targetLocation) {
@@ -250,128 +498,41 @@ public class RegionRegenerationManager {
             return CompletableFuture.completedFuture(false);
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                synchronized (pendingPasteQueue) {
-                    if (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE) {
-                        logInternalDebug("Paste queue full (" + pendingPasteQueue.size() + "), waiting...");
-                        int waitAttempts = 0;
-                        while (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE / 2 && waitAttempts < 20) {
-                            try {
-                                Thread.sleep(100);
-                                waitAttempts++;
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                return false;
-                            }
-                        }
-                        if (pendingPasteQueue.size() >= MAX_PENDING_PASTE_QUEUE_SIZE) {
-                            DebugUtils.logInternalError("Paste queue still full after waiting, rejecting paste for " + sourceRegion.getId());
-                            return false;
-                        }
-                    }
-                }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        RegenerationTask task = new RegenerationTask(
+            TaskType.PASTE,
+            sourceRegion,
+            targetLocation,
+            future,
+            2
+        );
 
-                Clipboard clipboard = clipboardCache.get(sourceRegion.getId());
+        taskQueue.offer(task);
+        logInternalDebug("Paste task queued for region: " + sourceRegion.getId());
 
-                if (clipboard == null) {
-                    clipboard = loadSchematicFromFile(schematicFile);
-                    if (clipboard == null) {
-                        return false;
-                    }
-
-                    if (CACHE_ENABLED) {
-                        cacheClipboard(sourceRegion, clipboard);
-                    }
-                }
-
-                CompletableFuture<Boolean> operationFuture = new CompletableFuture<>();
-                PendingPasteOperation operation = new PendingPasteOperation(
-                        "paste_" + sourceRegion.getId() + "_" + System.currentTimeMillis(),
-                        clipboard,
-                        targetLocation.clone(),
-                        operationFuture
-                );
-                synchronized (pendingPasteQueue) {
-                    pendingPasteQueue.offer(operation);
-                }
-                return operationFuture.join();
-
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error in pasteRegionSchematicAt: " + e.getMessage());
-                return false;
-            }
-        });
+        return future;
     }
 
-    public CompletableFuture<Boolean> regenerateRegion(Region region) {
-        String regionId = region.getId();
-
-        if (regeneratingRegions.containsKey(regionId)) {
+    public CompletableFuture<Boolean> saveRegionSchematic(Region region) {
+        if (!region.isValid()) {
             return CompletableFuture.completedFuture(false);
         }
 
-        File schematicFile = getSchematicFile(region);
-        if (!schematicFile.exists()) {
-            return CompletableFuture.completedFuture(false);
-        }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        RegenerationTask task = new RegenerationTask(
+            TaskType.SAVE,
+            region,
+            null,
+            future,
+            3
+        );
 
-        regeneratingRegions.put(regionId, true);
+        taskQueue.offer(task);
+        logInternalDebug("Save task queued for region: " + region.getId());
 
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                logInternalDebug("Regenerando región: " + region.getId());
-
-                Clipboard clipboard = clipboardCache.get(regionId);
-
-                if (clipboard == null) {
-                    clipboard = loadSchematicFromFile(schematicFile);
-                    if (clipboard == null) {
-                        return false;
-                    }
-
-                    if (CACHE_ENABLED) {
-                        cacheClipboard(region, clipboard);
-                    }
-                }
-
-                return executeRegenerationOptimized(region, clipboard);
-
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error regenerando región " + region.getId() + ": " + e.getMessage());
-                return false;
-            } finally {
-                regeneratingRegions.remove(regionId);
-            }
-        });
+        return future;
     }
 
-    private boolean executeRegenerationOptimized(Region region, Clipboard clipboard) {
-        try {
-            cleanRegionEntities(region).join();
-            PlayerBlockTracker.getInstance().clearRegionBlocks(region.getId());
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            Location targetLocation = region.getMinimumPoint();
-            CompletableFuture<Boolean> pasteResult = pasteRegionSchematicAt(region, targetLocation);
-
-            boolean success = pasteResult.join();
-            if (success) {
-                logInternalDebug("Región regenerada exitosamente: " + region.getId());
-            } else {
-                DebugUtils.logInternalError("Fallo en regeneración para región: " + region.getId());
-            }
-
-            return success;
-
-        } catch (Exception e) {
-            DebugUtils.logInternalError("Error inesperado regenerando región " + region.getId() + ": " + e.getMessage());
-            return false;
-        }
-    }
     public CompletableFuture<Integer> cleanRegionEntities(Region region) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -392,8 +553,8 @@ public class RegionRegenerationManager {
 
                         Location loc = entity.getLocation();
                         if (loc.getX() >= minX && loc.getX() <= maxX &&
-                                loc.getY() >= minY && loc.getY() <= maxY &&
-                                loc.getZ() >= minZ && loc.getZ() <= maxZ) {
+                            loc.getY() >= minY && loc.getY() <= maxY &&
+                            loc.getZ() >= minZ && loc.getZ() <= maxZ) {
 
                             if (shouldRemoveEntity(entity)) {
                                 entity.remove();
@@ -402,261 +563,17 @@ public class RegionRegenerationManager {
                         }
                     }
 
-                    logInternalDebug("Limpiadas " + removed + " entidades en región " + region.getId());
+                    logInternalDebug("Cleaned " + removed + " entities in region " + region.getId());
                     return removed;
 
                 }).get();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error limpiando entidades en región " + region.getId() + ": " + e.getMessage());
+                DebugUtils.logInternalError("Error cleaning entities: " + e.getMessage());
                 return 0;
             }
-        });
+        }, asyncExecutor);
     }
 
-    private static class PendingPasteOperation {
-        final String operationId;
-        Clipboard clipboard;
-        final Location targetLocation;
-        final CompletableFuture<Boolean> future;
-
-        PendingPasteOperation(String operationId, Clipboard clipboard, Location targetLocation, CompletableFuture<Boolean> future) {
-            this.operationId = operationId;
-            this.clipboard = clipboard;
-            this.targetLocation = targetLocation;
-            this.future = future;
-        }
-
-        void releaseClipboard() {
-            if (clipboard != null) {
-                try {
-                    clipboard = null;
-                } catch (Exception e) {
-                    DebugUtils.logInternalError("Error releasing clipboard in operation: " + e.getMessage());
-                }
-            }
-        }
-    }
-
-    public CompletableFuture<Boolean> saveRegionSchematic(Region region) {
-        if (!region.isValid()) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        return CompletableFuture.supplyAsync(() -> {
-            EditSession editSession = null;
-            Clipboard clipboard = null;
-            try {
-                logInternalDebug("Guardando schematic para región: " + region.getId());
-
-                Location min = region.getMinimumPoint();
-                Location max = region.getMaximumPoint();
-
-                com.sk89q.worldedit.world.World weWorld = BukkitAdapter.adapt(min.getWorld());
-                BlockVector3 minVec = BlockVector3.at(min.getBlockX(), min.getBlockY(), min.getBlockZ());
-                BlockVector3 maxVec = BlockVector3.at(max.getBlockX(), max.getBlockY(), max.getBlockZ());
-
-                CuboidRegion worldEditRegion = new CuboidRegion(weWorld, minVec, maxVec);
-
-                editSession = WorldEdit.getInstance().newEditSession(weWorld);
-                editSession.setFastMode(true);
-
-                clipboard = new BlockArrayClipboard(worldEditRegion);
-                ForwardExtentCopy copy = new ForwardExtentCopy(editSession, worldEditRegion, clipboard, minVec);
-                copy.setCopyingEntities(false);
-                Operations.complete(copy);
-
-                clipboard.setOrigin(minVec);
-
-                logInternalDebug("=== SAVE SCHEMATIC DEBUG ===");
-                logInternalDebug("Region: " + region.getId());
-                logInternalDebug("Region Min (input): " + min);
-                logInternalDebug("Region Max (input): " + max);
-                logInternalDebug("MinVec: " + minVec);
-                logInternalDebug("MaxVec: " + maxVec);
-                logInternalDebug("Clipboard Origin (after set): " + clipboard.getOrigin());
-                logInternalDebug("Clipboard Min: " + clipboard.getMinimumPoint());
-                logInternalDebug("Clipboard Max: " + clipboard.getMaximumPoint());
-
-                File schematicFile = getSchematicFile(region);
-                try (FileOutputStream fos = new FileOutputStream(schematicFile);
-                     ClipboardWriter writer = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getWriter(fos)) {
-
-                    writer.write(clipboard);
-
-                    if (CACHE_ENABLED) {
-                        cacheClipboard(region, clipboard);
-                    }
-
-                    logInternalDebug("Schematic guardado: " + schematicFile.getName() + " con origin: " + clipboard.getOrigin());
-                    return true;
-                }
-
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error guardando schematic para región " + region.getId() + ": " + e.getMessage());
-                return false;
-            } finally {
-                if (editSession != null) {
-                    try {
-                        editSession.close();
-                        editSession = null;
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error closing EditSession in save: " + e.getMessage());
-                    }
-                }
-            }
-        });
-    }
-
-    public boolean hasSchematic(Region region) {
-        return getSchematicFile(region).exists();
-    }
-
-    public boolean isRegenerating(Region region) {
-        return regeneratingRegions.containsKey(region.getId());
-    }
-
-    public CompletableFuture<Boolean> deleteRegionSchematic(Region region) {
-        return CompletableFuture.supplyAsync(() -> {
-            File schematicFile = getSchematicFile(region);
-            String regionId = region.getId();
-
-            clipboardCache.remove(regionId);
-
-            if (schematicFile.exists()) {
-                boolean deleted = schematicFile.delete();
-                if (deleted) {
-                    logInternalDebug("Schematic eliminado para región: " + region.getId());
-                }
-                return deleted;
-            }
-
-            return true;
-        });
-    }
-
-    public RegenerationStats getStats() {
-        return new RegenerationStats(
-                clipboardCache.size(),
-                regeneratingRegions.size(),
-                schemsFolder.listFiles() != null ? schemsFolder.listFiles().length : 0,
-                activePasteOperations.get(),
-                pendingPasteQueue.size()
-        );
-    }
-
-    public void clearCache() {
-        int size = clipboardCache.size();
-        for (Clipboard clipboard : clipboardCache.values()) {
-            try {
-                clipboard = null;
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
-            }
-        }
-        clipboardCache.clear();
-        clipboardCacheTimestamps.clear();
-        System.gc();
-
-        logInternalDebug("Cache de clipboards limpiado: " + size + " elementos");
-    }
-
-    private Clipboard loadSchematicFromFile(File schematicFile) {
-        try (FileInputStream fis = new FileInputStream(schematicFile);
-             ClipboardReader reader = BuiltInClipboardFormat.SPONGE_SCHEMATIC.getReader(fis)) {
-
-            return reader.read();
-
-        } catch (IOException e) {
-            DebugUtils.logInternalError("Error cargando schematic " + schematicFile.getName() + ": " + e.getMessage());
-            return null;
-        }
-    }
-
-    private void cacheClipboard(Region region, Clipboard clipboard) {
-        String regionId = region.getId();
-
-        if (clipboardCache.size() >= MAX_CACHE_SIZE) {
-            String oldestKey = clipboardCache.keySet().iterator().next();
-            clipboardCache.remove(oldestKey);
-        }
-        clipboardCache.put(regionId, clipboard);
-        clipboardCacheTimestamps.put(regionId, System.currentTimeMillis());
-        logInternalDebug("Clipboard cacheado para región: " + region.getId());
-    }
-
-    public CompletableFuture<Integer> clearRegionPlayerBlocks(Region region) {
-        return CompletableFuture.supplyAsync(() -> {
-            String regionId = region.getId();
-            PlayerBlockTracker tracker = PlayerBlockTracker.getInstance();
-
-            int blocksBefore = tracker.getPlayerBlocks(regionId).size();
-
-            tracker.clearRegionBlocks(regionId);
-
-            logInternalDebug("Limpiados " + blocksBefore + " bloques de jugador en región " + region.getId());
-            return blocksBefore;
-        });
-    }
-
-    private boolean shouldRemoveEntity(Entity entity) {
-        EntityType type = entity.getType();
-        return type != EntityType.PLAYER;
-    }
-
-    private File getSchematicFile(Region region) {
-        return new File(schemsFolder, region.getId() + ".schem");
-    }
-
-    public void shutdown() {
-        if (pasteProcessor != null) {
-            pasteProcessor.cancel();
-        }
-        if (cacheCleanupTask != null) {
-            cacheCleanupTask.cancel();
-        }
-        if (!regeneratingRegions.isEmpty()) {
-            DebugUtils.logInternalInfo("Esperando " + regeneratingRegions.size() + " regeneraciones...");
-            int attempts = 0;
-            while (!regeneratingRegions.isEmpty() && attempts < 10) {
-                try {
-                    Thread.sleep(500);
-                    attempts++;
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        }
-        for (PendingPasteOperation operation : pendingPasteQueue) {
-            try {
-                operation.future.cancel(true);
-            } catch (Exception e) {
-                DebugUtils.logInternalError("Error canceling paste operation: " + e.getMessage());
-            }
-        }
-        clearCache();
-        regeneratingRegions.clear();
-        pendingPasteQueue.clear();
-        System.gc();
-    }
-
-    @Getter
-    public static class RegenerationStats {
-        private final int cachedClipboards;
-        private final int activeRegenerations;
-        private final int totalSchematics;
-        private final int activePasteOperations;
-        private final int pendingPasteOperations;
-
-        public RegenerationStats(int cachedClipboards, int activeRegenerations, int totalSchematics,
-                                 int activePasteOperations, int pendingPasteOperations) {
-            this.cachedClipboards = cachedClipboards;
-            this.activeRegenerations = activeRegenerations;
-            this.totalSchematics = totalSchematics;
-            this.activePasteOperations = activePasteOperations;
-            this.pendingPasteOperations = pendingPasteOperations;
-        }
-    }
     public CompletableFuture<Boolean> copyRegionStructure(Region sourceRegion, Location targetCenter) {
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -679,13 +596,10 @@ public class RegionRegenerationManager {
                 DebugUtils.logInternalError("Error copying region structure: " + e.getMessage());
                 return false;
             }
-        });
+        }, asyncExecutor);
     }
 
     private boolean copyAreaDirectly(Location sourceMin, Location sourceMax, Location targetMin) {
-        EditSession sourceSession = null;
-        EditSession targetSession = null;
-        Clipboard clipboard = null;
         try {
             com.sk89q.worldedit.world.World sourceWorld = BukkitAdapter.adapt(sourceMin.getWorld());
             com.sk89q.worldedit.world.World targetWorld = BukkitAdapter.adapt(targetMin.getWorld());
@@ -696,55 +610,245 @@ public class RegionRegenerationManager {
 
             CuboidRegion sourceRegion = new CuboidRegion(sourceWorld, sourceMinVec, sourceMaxVec);
 
-            sourceSession = WorldEdit.getInstance().newEditSession(sourceWorld);
-            targetSession = WorldEdit.getInstance().newEditSession(targetWorld);
+            Clipboard clipboard = saveRegionToClipboard(sourceWorld, sourceRegion, sourceMinVec);
+            if (clipboard == null) {
+                return false;
+            }
 
-            sourceSession.setFastMode(true);
-            targetSession.setFastMode(true);
-
-            clipboard = new BlockArrayClipboard(sourceRegion);
-            ForwardExtentCopy copy = new ForwardExtentCopy(sourceSession, sourceRegion, clipboard, sourceMinVec);
-            copy.setCopyingEntities(false);
-            Operations.complete(copy);
-
-            ClipboardHolder holder = new ClipboardHolder(clipboard);
-            Operation pasteOperation = holder
-                    .createPaste(targetSession)
-                    .to(targetMinVec)
-                    .ignoreAirBlocks(false)
-                    .build();
-
-            Operations.complete(pasteOperation);
-            return true;
+            return executePaste(clipboard, targetMin);
 
         } catch (Exception e) {
-            DebugUtils.logInternalError("Unexpected error in direct copy: " + e.getMessage());
+            DebugUtils.logInternalError("Error in direct copy: " + e.getMessage());
             return false;
-        } finally {
-            if (sourceSession != null) {
+        }
+    }
+
+    public CompletableFuture<Boolean> deleteRegionSchematic(Region region) {
+        return CompletableFuture.supplyAsync(() -> {
+            File schematicFile = getSchematicFile(region);
+            String regionId = region.getId();
+
+            synchronized (clipboardCache) {
+                clipboardCache.remove(regionId);
+            }
+
+            if (schematicFile.exists()) {
+                boolean deleted = schematicFile.delete();
+                if (deleted) {
+                    logInternalDebug("Schematic deleted for region: " + regionId);
+                }
+                return deleted;
+            }
+
+            return true;
+        }, asyncExecutor);
+    }
+
+    public CompletableFuture<Integer> clearRegionPlayerBlocks(Region region) {
+        return CompletableFuture.supplyAsync(() -> {
+            String regionId = region.getId();
+            PlayerBlockTracker tracker = PlayerBlockTracker.getInstance();
+
+            int blocksBefore = tracker.getPlayerBlocks(regionId).size();
+            tracker.clearRegionBlocks(regionId);
+
+            logInternalDebug("Cleared " + blocksBefore + " player blocks in region " + regionId);
+            return blocksBefore;
+        }, asyncExecutor);
+    }
+
+    public boolean hasSchematic(Region region) {
+        return getSchematicFile(region).exists();
+    }
+
+    public boolean isRegenerating(Region region) {
+        return regeneratingRegions.containsKey(region.getId());
+    }
+
+    public RegenerationStats getStats() {
+        int cachedCount;
+        synchronized (clipboardCache) {
+            cachedCount = clipboardCache.size();
+        }
+
+        return new RegenerationStats(
+            cachedCount,
+            regeneratingRegions.size(),
+            schemsFolder.listFiles() != null ? schemsFolder.listFiles().length : 0,
+            activeTasks.get(),
+            taskQueue.size(),
+            metrics.getSuccessCount(),
+            metrics.getFailureCount(),
+            metrics.getAverageDuration(),
+            metrics.getCacheHitRate()
+        );
+    }
+
+    public void clearCache() {
+        synchronized (clipboardCache) {
+            int size = clipboardCache.size();
+            clipboardCache.clear();
+            logInternalDebug("Clipboard cache cleared: " + size + " entries");
+        }
+        System.gc();
+    }
+
+    private boolean shouldRemoveEntity(Entity entity) {
+        return entity.getType() != EntityType.PLAYER;
+    }
+
+    private File getSchematicFile(Region region) {
+        return new File(schemsFolder, region.getId() + ".schem");
+    }
+
+    public void shutdown() {
+        isShuttingDown.set(true);
+
+        if (taskProcessor != null) {
+            taskProcessor.cancel();
+        }
+        if (memoryMonitor != null) {
+            memoryMonitor.cancel();
+        }
+
+        if (!regeneratingRegions.isEmpty()) {
+            DebugUtils.logInternalInfo("Waiting for " + regeneratingRegions.size() + " active regenerations...");
+            int attempts = 0;
+            while (!regeneratingRegions.isEmpty() && attempts < 20) {
                 try {
-                    sourceSession.close();
-                    sourceSession = null;
-                } catch (Exception e) {
-                    DebugUtils.logInternalError("Error closing source EditSession: " + e.getMessage());
+                    Thread.sleep(500);
+                    attempts++;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
-            if (targetSession != null) {
-                try {
-                    targetSession.close();
-                    targetSession = null;
-                } catch (Exception e) {
-                    DebugUtils.logInternalError("Error closing target EditSession: " + e.getMessage());
-                }
+        }
+
+        asyncExecutor.shutdown();
+
+        try {
+            if (!asyncExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                asyncExecutor.shutdownNow();
             }
-            if (clipboard != null) {
-                try {
-                    clipboard = null;
-                } catch (Exception e) {
-                    DebugUtils.logInternalError("Error cleaning clipboard: " + e.getMessage());
-                }
+        } catch (InterruptedException e) {
+            asyncExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        clearCache();
+        regeneratingRegions.clear();
+        taskQueue.clear();
+
+        logInternalDebug("RegionRegenerationManager shutdown complete");
+        logInternalDebug("Final metrics: " + metrics.getSummary());
+    }
+
+    private enum TaskType {
+        REGENERATE, PASTE, SAVE
+    }
+
+    private static class RegenerationTask {
+        final TaskType type;
+        final Region region;
+        final Location targetLocation;
+        final CompletableFuture<Boolean> future;
+        final int priority;
+
+        RegenerationTask(TaskType type, Region region, Location targetLocation,
+                        CompletableFuture<Boolean> future, int priority) {
+            this.type = type;
+            this.region = region;
+            this.targetLocation = targetLocation;
+            this.future = future;
+            this.priority = priority;
+        }
+    }
+
+    @Getter
+    public static class RegenerationStats {
+        private final int cachedClipboards;
+        private final int activeRegenerations;
+        private final int totalSchematics;
+        private final int activeTasks;
+        private final int pendingTasks;
+        private final long successCount;
+        private final long failureCount;
+        private final long averageDuration;
+        private final double cacheHitRate;
+
+        public RegenerationStats(int cachedClipboards, int activeRegenerations, int totalSchematics,
+                                int activeTasks, int pendingTasks, long successCount, long failureCount,
+                                long averageDuration, double cacheHitRate) {
+            this.cachedClipboards = cachedClipboards;
+            this.activeRegenerations = activeRegenerations;
+            this.totalSchematics = totalSchematics;
+            this.activeTasks = activeTasks;
+            this.pendingTasks = pendingTasks;
+            this.successCount = successCount;
+            this.failureCount = failureCount;
+            this.averageDuration = averageDuration;
+            this.cacheHitRate = cacheHitRate;
+        }
+    }
+
+    private static class RegenerationMetrics {
+        private final AtomicInteger successCount = new AtomicInteger(0);
+        private final AtomicInteger failureCount = new AtomicInteger(0);
+        private final AtomicInteger cacheHits = new AtomicInteger(0);
+        private final AtomicInteger cacheMisses = new AtomicInteger(0);
+        private final ConcurrentLinkedQueue<Long> recentDurations = new ConcurrentLinkedQueue<>();
+        private static final int MAX_DURATION_SAMPLES = 100;
+
+        public void recordSuccess(long duration) {
+            successCount.incrementAndGet();
+            recentDurations.offer(duration);
+            if (recentDurations.size() > MAX_DURATION_SAMPLES) {
+                recentDurations.poll();
             }
-            System.gc();
+        }
+
+        public void recordFailure() {
+            failureCount.incrementAndGet();
+        }
+
+        public void recordCacheHit() {
+            cacheHits.incrementAndGet();
+        }
+
+        public void recordCacheMiss() {
+            cacheMisses.incrementAndGet();
+        }
+
+        public long getSuccessCount() {
+            return successCount.get();
+        }
+
+        public long getFailureCount() {
+            return failureCount.get();
+        }
+
+        public long getAverageDuration() {
+            if (recentDurations.isEmpty()) {
+                return 0;
+            }
+            return (long) recentDurations.stream()
+                .mapToLong(Long::longValue)
+                .average()
+                .orElse(0);
+        }
+
+        public double getCacheHitRate() {
+            int totalRequests = cacheHits.get() + cacheMisses.get();
+            if (totalRequests == 0) {
+                return 0.0;
+            }
+            return (double) cacheHits.get() / totalRequests * 100.0;
+        }
+
+        public String getSummary() {
+            return String.format("Success: %d, Failures: %d, Avg Duration: %dms, Cache Hit Rate: %.1f%%",
+                successCount.get(), failureCount.get(), getAverageDuration(), getCacheHitRate());
         }
     }
 }

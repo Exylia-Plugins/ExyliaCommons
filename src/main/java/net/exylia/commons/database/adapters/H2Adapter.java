@@ -1296,15 +1296,42 @@ public class H2Adapter implements DatabaseAdapter {
             if (targetType == String.class) {
                 return value.toString();
             } else if (targetType == int.class || targetType == Integer.class) {
-                return Integer.valueOf(value.toString());
+                if (value instanceof Number) {
+                    return ((Number) value).intValue();
+                }
+                String strValue = value.toString();
+                if (strValue.contains(".")) {
+                    return Double.valueOf(strValue).intValue();
+                }
+                return Integer.valueOf(strValue);
             } else if (targetType == long.class || targetType == Long.class) {
-                return Long.valueOf(value.toString());
+                if (value instanceof Number) {
+                    return ((Number) value).longValue();
+                }
+                String strValue = value.toString();
+                if (strValue.contains(".")) {
+                    return Double.valueOf(strValue).longValue();
+                }
+                return Long.valueOf(strValue);
             } else if (targetType == double.class || targetType == Double.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).doubleValue();
+                }
                 return Double.valueOf(value.toString());
             } else if (targetType == float.class || targetType == Float.class) {
+                if (value instanceof Number) {
+                    return ((Number) value).floatValue();
+                }
                 return Float.valueOf(value.toString());
             } else if (targetType == boolean.class || targetType == Boolean.class) {
+                if (value instanceof Boolean) {
+                    return value;
+                }
                 return Boolean.valueOf(value.toString());
+            } else if (targetType.isEnum() && value instanceof String) {
+                @SuppressWarnings("unchecked")
+                Class<Enum> enumClass = (Class<Enum>) targetType;
+                return Enum.valueOf(enumClass, (String) value);
             }
 
             return value;

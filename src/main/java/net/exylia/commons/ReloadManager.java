@@ -5,7 +5,7 @@ import net.exylia.commons.ReloadResult;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.configSimple.Configs;
 import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.redis.RedisIntegration;
+import net.exylia.commons.simpleredis.SimpleRedis;
 import net.exylia.commons.utils.DateFormatter;
 import net.exylia.commons.utils.TimeFormatter;
 import org.bukkit.Bukkit;
@@ -263,9 +263,8 @@ public class ReloadManager {
             Map<String, Long> componentTimes = new HashMap<>();
 
             try {
-                logInternalDebug("Iniciando reload de Redis...");
+                logInternalDebug("Iniciando reload de SimpleRedis...");
 
-                // Verificar si Redis está disponible en el classpath
                 if (!isRedisAvailable()) {
                     logInternalDebug("Redis no está disponible en el classpath, omitiendo reload de Redis");
                     return new ReloadResult(true, System.currentTimeMillis() - startTime,
@@ -273,36 +272,14 @@ public class ReloadManager {
                 }
 
                 long redisStart = System.currentTimeMillis();
-                boolean wasInitialized = RedisIntegration.isAutoInitialized();
-                boolean success = false;
-                String operation = "";
+                boolean success = SimpleRedis.reload(plugin);
+                componentTimes.put("SimpleRedis.reload", System.currentTimeMillis() - redisStart);
 
-                if (wasInitialized) {
-                    logInternalInfo("Redis ya estaba inicializado, realizando reload completo...");
-                    operation = "RedisIntegration.reload";
-                    success = RedisIntegration.performCompleteReload();
-                } else {
-                    logInternalInfo("Redis no estaba inicializado, verificando configuración...");
-                    operation = "RedisIntegration.initialize";
-                    RedisIntegration.init(plugin);
-                    RedisIntegration.RedisStatus status = RedisIntegration.getStatus();
-
-                    if (status.isEnabledInConfig()) {
-                        success = status.isFullyOperational();
-                        if (!success) {
-                            componentTimes.put(operation, System.currentTimeMillis() - redisStart);
-                            return new ReloadResult(false, System.currentTimeMillis() - startTime,
-                                    componentTimes, "Redis habilitado en configuración pero falló la inicialización");
-                        }
-                    } else {
-                        logInternalInfo("Redis sigue deshabilitado en redis.yml");
-                        success = true; // Redis deshabilitado no es un error
-                    }
+                if (!success) {
+                    return new ReloadResult(false, System.currentTimeMillis() - startTime,
+                            componentTimes, "Failed to reload SimpleRedis");
                 }
 
-                componentTimes.put(operation, System.currentTimeMillis() - redisStart);
-
-                // Ejecutar hook en hilo principal
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
                     plugin.callRedisReloadHook();
                 }, task -> Bukkit.getScheduler().runTask(plugin, task));
@@ -314,18 +291,13 @@ public class ReloadManager {
                 }
 
                 long totalTime = System.currentTimeMillis() - startTime;
-                if (success) {
-                    logInternalSuccess("Reload de Redis completado en " + totalTime + "ms");
-                } else {
-                    logInternalError("Fallo en reload de Redis");
-                }
+                logInternalSuccess("SimpleRedis reload completed in " + totalTime + "ms");
 
-                return new ReloadResult(success, totalTime, componentTimes,
-                        success ? null : "Fallo en reload de Redis");
+                return new ReloadResult(true, totalTime, componentTimes, null);
 
             } catch (Exception e) {
                 long totalTime = System.currentTimeMillis() - startTime;
-                logInternalError("Error crítico en reload de Redis: " + e.getMessage());
+                logInternalError("Error crítico en reload de SimpleRedis: " + e.getMessage());
                 e.printStackTrace();
 
                 CompletableFuture<Void> errorHookFuture = CompletableFuture.runAsync(() -> {

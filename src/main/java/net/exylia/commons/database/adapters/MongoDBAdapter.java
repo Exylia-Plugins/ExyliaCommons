@@ -1068,12 +1068,20 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 if (value instanceof Number) {
                     return ((Number) value).intValue();
                 }
-                return Integer.valueOf(value.toString());
+                String strValue = value.toString();
+                if (strValue.contains(".")) {
+                    return Double.valueOf(strValue).intValue();
+                }
+                return Integer.valueOf(strValue);
             } else if (targetType == long.class || targetType == Long.class) {
                 if (value instanceof Number) {
                     return ((Number) value).longValue();
                 }
-                return Long.valueOf(value.toString());
+                String strValue = value.toString();
+                if (strValue.contains(".")) {
+                    return Double.valueOf(strValue).longValue();
+                }
+                return Long.valueOf(strValue);
             } else if (targetType == double.class || targetType == Double.class) {
                 if (value instanceof Number) {
                     return ((Number) value).doubleValue();
