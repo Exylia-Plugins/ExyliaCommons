@@ -66,7 +66,6 @@ publishing {
 
 shadowJar {
     archiveClassifier.set('')
-    relocate 'dev.rollczi', 'net.exylia.shadow.liteskullapi'
 }
 
 build {
