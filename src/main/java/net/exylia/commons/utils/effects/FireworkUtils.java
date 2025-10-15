@@ -49,18 +49,6 @@ public class FireworkUtils {
         }
     }
 
-    /**
-     * Lanza un fuego artificial con parámetros específicos
-     *
-     * @param location La ubicación donde lanzar
-     * @param type Tipo de efecto
-     * @param colors Colores principales
-     * @param fadeColors Colores de desvanecimiento
-     * @param flicker Si debe parpadear
-     * @param trail Si debe dejar rastro
-     * @param power Poder del fuego artificial (0-3)
-     * @return true si se lanzó correctamente
-     */
     public static boolean launchFirework(Location location, FireworkEffect.Type type,
                                          List<Color> colors, List<Color> fadeColors,
                                          boolean flicker, boolean trail, int power) {
@@ -162,18 +150,13 @@ public class FireworkUtils {
         PLAYER, NEARBY
     }
 
-    // ===== MÉTODOS AUXILIARES =====
-
-    /**
-     * Convierte string a tipo de fuego artificial
-     */
     private static FireworkEffect.Type parseFireworkType(String typeString) {
         if (typeString == null || typeString.isEmpty()) return null;
 
         try {
             return FireworkEffect.Type.valueOf(typeString.toUpperCase());
         } catch (IllegalArgumentException e) {
-            // Aliases comunes
+             
             switch (typeString.toUpperCase()) {
                 case "CIRCLE":
                 case "ROUND":
@@ -192,10 +175,6 @@ public class FireworkUtils {
         }
     }
 
-    /**
-     * Parsea una lista de colores desde string
-     * Format: "R,G,B;R,G,B;R,G,B" o "R,G,B"
-     */
     private static List<Color> parseColors(String colorString) {
         List<Color> colors = new ArrayList<>();
         if (colorString == null || colorString.isEmpty()) return colors;
@@ -211,13 +190,9 @@ public class FireworkUtils {
         return colors;
     }
 
-    /**
-     * Parsea un color individual desde string "R,G,B"
-     */
     private static Color parseColor(String colorString) {
         if (colorString == null || colorString.isEmpty()) return null;
 
-        // Colores predefinidos
         switch (colorString.toUpperCase()) {
             case "RED": return Color.RED;
             case "GREEN": return Color.GREEN;
@@ -233,7 +208,6 @@ public class FireworkUtils {
             case "MAGENTA": return Color.FUCHSIA;
         }
 
-        // Parsear RGB
         String[] rgb = colorString.split(",");
         if (rgb.length != 3) return null;
 
@@ -242,7 +216,6 @@ public class FireworkUtils {
             int g = Integer.parseInt(rgb[1].trim());
             int b = Integer.parseInt(rgb[2].trim());
 
-            // Validar valores RGB
             if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) return null;
 
             return Color.fromRGB(r, g, b);

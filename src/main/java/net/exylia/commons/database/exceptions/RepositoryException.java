@@ -1,8 +1,5 @@
 package net.exylia.commons.database.exceptions;
 
-/**
- * Exception for repository-level operations
- */
 public class RepositoryException extends DatabaseException {
 
     private final String repositoryMethod;
@@ -24,7 +21,6 @@ public class RepositoryException extends DatabaseException {
             sb.append("  Root Cause: ").append(getCause().getClass().getSimpleName())
                     .append(" - ").append(getCause().getMessage()).append("\n");
 
-            // Add stack trace for debugging
             sb.append("  Stack Trace:\n");
             StackTraceElement[] stack = getCause().getStackTrace();
             for (int i = 0; i < Math.min(5, stack.length); i++) {

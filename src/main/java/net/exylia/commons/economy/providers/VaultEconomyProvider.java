@@ -149,7 +149,7 @@ public class VaultEconomyProvider implements EconomyProvider {
     @Override
     public String getCurrencySymbol() {
         if (!isAvailable()) return "$";
-        return "$"; // Vault no proporciona símbolo directo
+        return "$";  
     }
 
     @Override

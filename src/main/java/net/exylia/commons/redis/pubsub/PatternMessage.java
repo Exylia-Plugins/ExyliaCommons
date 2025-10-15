@@ -20,30 +20,18 @@ public class PatternMessage {
         this.timestamp = timestamp;
     }
 
-    /**
-     * Obtiene el patrón que coincidió
-     */
     public String getPattern() {
         return pattern;
     }
 
-    /**
-     * Obtiene el canal específico
-     */
     public String getChannel() {
         return channel;
     }
 
-    /**
-     * Obtiene el contenido del mensaje
-     */
     public String getMessage() {
         return message;
     }
 
-    /**
-     * Obtiene el timestamp del mensaje
-     */
     public long getTimestamp() {
         return timestamp;
     }

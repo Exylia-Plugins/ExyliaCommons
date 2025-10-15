@@ -1,13 +1,9 @@
 package net.exylia.commons.redis.serialization;
 
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-/**
- * Serializador personalizable que permite registrar serializadores específicos por tipo
- */
 public class CustomRedisSerializer implements RedisSerializer {
 
     private final Map<Class<?>, Function<Object, String>> serializers;
@@ -24,9 +20,6 @@ public class CustomRedisSerializer implements RedisSerializer {
         this.fallbackSerializer = fallbackSerializer;
     }
 
-    /**
-     * Registra un serializador personalizado para un tipo específico
-     */
     public <T> CustomRedisSerializer registerSerializer(Class<T> type,
                                                         Function<T, String> serializer,
                                                         Function<String, T> deserializer) {
@@ -49,14 +42,12 @@ public class CustomRedisSerializer implements RedisSerializer {
             return serializer.apply(object);
         }
 
-        // Buscar por superclases
         for (Map.Entry<Class<?>, Function<Object, String>> entry : serializers.entrySet()) {
             if (entry.getKey().isAssignableFrom(type)) {
                 return entry.getValue().apply(object);
             }
         }
 
-        // Usar serializador por defecto
         return fallbackSerializer.serialize(object);
     }
 
@@ -73,14 +64,12 @@ public class CustomRedisSerializer implements RedisSerializer {
             return (T) deserializer.apply(data);
         }
 
-        // Buscar por superclases
         for (Map.Entry<Class<?>, Function<String, Object>> entry : deserializers.entrySet()) {
             if (entry.getKey().isAssignableFrom(type)) {
                 return (T) entry.getValue().apply(data);
             }
         }
 
-        // Usar deserializador por defecto
         return fallbackSerializer.deserialize(data, type);
     }
 

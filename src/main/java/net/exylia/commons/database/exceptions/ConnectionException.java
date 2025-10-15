@@ -1,8 +1,5 @@
 package net.exylia.commons.database.exceptions;
 
-/**
- * Exception for database connection issues
- */
 public class ConnectionException extends DatabaseException {
 
     private final String connectionString;
@@ -40,7 +37,6 @@ public class ConnectionException extends DatabaseException {
     private String maskConnectionString(String connectionString) {
         if (connectionString == null) return "Unknown";
 
-        // Mask passwords in connection strings
         return connectionString.replaceAll("password=[^&;]+", "password=***")
                 .replaceAll("pwd=[^&;]+", "pwd=***");
     }

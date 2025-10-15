@@ -39,7 +39,6 @@ public class EffectUtils {
         }
     }
 
-
     public static void removeEffects(LivingEntity livingEntity, List<String> effects) {
         for (String effectString : effects) {
             try {

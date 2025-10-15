@@ -6,16 +6,8 @@ import org.bukkit.entity.Player;
 
 import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 
-/**
- * Utilidades para procesar placeholders específicos de items
- */
 public class ItemPlaceholderUtils {
 
-    /**
-     * Procesa placeholders de usos en un texto
-     * %current_uses% -> usos actuales
-     * %max_uses% -> usos máximos
-     */
     public static String processUsePlaceholders(String text, InteractiveItem item) {
         if (!item.hasLimitedUses() || text == null) {
             return text;
@@ -25,29 +17,17 @@ public class ItemPlaceholderUtils {
                 .replace("%max_uses%", String.valueOf(item.getMaxUses()));
     }
 
-    /**
-     * Procesa placeholders de cooldown en un texto
-     * %cooldown_formatted% -> tiempo formateado (ej: "1m 30.2s")
-     * %cooldown_seconds% -> segundos restantes (con decimales)
-     */
     public static String processCooldownPlaceholders(String text, InteractiveItem item, Player player) {
         if (!item.getConfiguration().hasCooldown() || text == null || player == null) {
             return text;
         }
 
-        // Formatear tiempo
         String formattedTime = timeFormatter.format(item.getCooldownSeconds());
 
         return text.replace("%cooldown_formatted%", formattedTime)
                 .replace("%cooldown_seconds%", String.valueOf(item.getCooldownSeconds()));
     }
 
-    /**
-     * Procesa placeholders de expiración en un texto
-     * %expiration_remaining% -> tiempo restante formateado (ej: "2d 5h 30m")
-     * %expiration_date% -> fecha de expiración formateada
-     * %is_expired% -> true/false si el item está expirado
-     */
     public static String processExpirationPlaceholders(String text, InteractiveItem item) {
         if (text == null) {
             return text;
@@ -68,9 +48,6 @@ public class ItemPlaceholderUtils {
                 .replace("%is_expired%", String.valueOf(isExpired));
     }
 
-    /**
-     * Procesa todos los placeholders de item en un texto
-     */
     public static String processAllItemPlaceholders(String text, InteractiveItem item, Player player) {
         if (text == null) return null;
 
@@ -81,9 +58,6 @@ public class ItemPlaceholderUtils {
         return processed;
     }
 
-    /**
-     * Verifica si un texto contiene placeholders de item
-     */
     public static boolean containsItemPlaceholders(String text) {
         if (text == null) return false;
 

@@ -31,20 +31,13 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
     @Getter
     private final List<String> aliases;
 
-    // Cache simple para evitar múltiples registros
     private static final Map<String, ExyliaCommand> registeredCommands = new ConcurrentHashMap<>();
     private boolean isRegistered = false;
 
-    /**
-     * Constructor básico
-     */
     public ExyliaCommand(ExyliaPlugin plugin, String name) {
         this(plugin, name, new ArrayList<>());
     }
 
-    /**
-     * Constructor con aliases
-     */
     public ExyliaCommand(ExyliaPlugin plugin, String name, List<String> aliases) {
         this.plugin = plugin;
         this.name = name;
@@ -56,9 +49,6 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
         return execute(sender, label, args);
     }
 
-    /**
-     * A implementar con la lógica del comando
-     */
     public abstract boolean execute(CommandSender sender, String label, String[] args);
 
     @Override
@@ -85,7 +75,6 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
                 return false;
             }
 
-            // Configurar el comando
             command.setExecutor(this);
             command.setTabCompleter(this);
 
@@ -171,7 +160,7 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
 
     private void unregisterFromServer(String label, boolean removeAliases) {
         try {
-            // Desregistrar el commandMap del comando mismo
+             
             final PluginCommand command = Bukkit.getPluginCommand(label);
 
             if (command != null) {
@@ -183,7 +172,6 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
                 }
             }
 
-            // Eliminar comando + aliases del command map del servidor
             final Field field = SimpleCommandMap.class.getDeclaredField("knownCommands");
             field.setAccessible(true);
 
@@ -202,14 +190,10 @@ public abstract class ExyliaCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    /**
-     * Verifica si el comando está registrado (verificación simple)
-     */
     public boolean isRegistered() {
         return isRegistered && Bukkit.getPluginCommand(name) != null;
     }
 
-    // Métodos de utilidad (sin cambios)
     protected boolean isPlayer(CommandSender sender) {
         return sender instanceof Player;
     }

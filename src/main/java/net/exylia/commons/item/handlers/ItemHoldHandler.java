@@ -40,7 +40,6 @@ public class ItemHoldHandler {
         
         String sessionKey = generateSessionKey(player, hand);
         
-        // Check if there's already an active session for the same item
         HoldSession existingSession = activeSessions.get(sessionKey);
         if (existingSession != null) {
             String existingItemId = existingSession.getInteractiveItem().getEffectiveId();
@@ -50,18 +49,16 @@ public class ItemHoldHandler {
                         " with same item " + newItemId + ", keeping existing session");
                 return;
             } else {
-                // Different item, stop the existing session
+                 
                 DebugUtils.logInternalDebug("Stopping existing HOLD session for different item. Old: " + 
                         existingItemId + ", New: " + newItemId);
                 stopHoldSession(player, hand);
             }
         }
         
-        // Get configuration
-        int intervalTicks = config.getActionConfigInt("hold-interval", 20); // Default 1 second
-        String allowedHand = config.getActionConfigString("hold-hand", "ANY"); // ANY, MAIN, OFF
+        int intervalTicks = config.getActionConfigInt("hold-interval", 20);  
+        String allowedHand = config.getActionConfigString("hold-hand", "ANY");  
         
-        // Check if the item is in the correct hand
         if (!isItemInCorrectHand(player, interactiveItem, hand, allowedHand)) {
             return;
         }
@@ -69,11 +66,9 @@ public class ItemHoldHandler {
         DebugUtils.logInternalDebug("Starting HOLD session for " + player.getName() + 
                 " with item " + interactiveItem.getId() + " in " + hand + " hand");
         
-        // Create hold session
         HoldSession session = new HoldSession(player, interactiveItem, hand, allowedHand);
         activeSessions.put(sessionKey, session);
         
-        // Start periodic task (first execution is immediate, then follows interval)
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (!isSessionValid(session)) {
                 stopHoldSession(player, hand);
@@ -94,12 +89,10 @@ public class ItemHoldHandler {
             DebugUtils.logInternalDebug("Stopping HOLD session for " + player.getName() + 
                     " in " + hand + " hand");
             
-            // Cancel the task
             if (session.getTask() != null) {
                 session.getTask().cancel();
             }
             
-            // Execute cancellation action if configured
             executeCancellationAction(session);
         }
     }
@@ -117,25 +110,21 @@ public class ItemHoldHandler {
             return false;
         }
         
-        // Check if the session is for the same item
         return session.getInteractiveItem().getEffectiveId().equals(itemId);
     }
     
     private boolean isSessionValid(HoldSession session) {
         Player player = session.getPlayer();
         
-        // Check if player is online
         if (!player.isOnline()) {
             return false;
         }
         
-        // Check if item is still in the correct hand
         InteractiveItem currentItem = getCurrentInteractiveItem(player, session.getHand());
         if (currentItem == null) {
             return false;
         }
         
-        // Check if it's the same item (by effective ID)
         String originalId = session.getInteractiveItem().getEffectiveId();
         String currentId = currentItem.getEffectiveId();
         
@@ -143,7 +132,6 @@ public class ItemHoldHandler {
             return false;
         }
         
-        // Check if hand is still allowed
         return isItemInCorrectHand(player, currentItem, session.getHand(), session.getAllowedHand());
     }
     
@@ -153,7 +141,7 @@ public class ItemHoldHandler {
         EquipmentSlot hand = session.getHand();
         
         try {
-            // Create click info for the action
+             
             ItemClickInfo clickInfo = new ItemClickInfo(player, 
                     org.bukkit.event.inventory.ClickType.RIGHT,
                     hand == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
@@ -161,10 +149,8 @@ public class ItemHoldHandler {
                     ActionSource.ITEM_USE)
                     .withData("source", "hold_trigger");
             
-            // Execute the action
             boolean actionExecuted = interactiveItem.executeAction(clickInfo);
             
-            // Execute effects if action was executed or no action is configured
             if (actionExecuted || !interactiveItem.hasAction()) {
                 ItemEffectsHandler.executeEffects(player, player.getLocation(), interactiveItem.getConfiguration());
             }
@@ -176,7 +162,6 @@ public class ItemHoldHandler {
             DebugUtils.logInternalDebug("Exception occurred during HOLD action for " + player.getName() + 
                     " with item " + interactiveItem.getId() + ": " + e.getMessage());
             
-            // Stop the hold session immediately due to the exception
             stopHoldSession(player, hand);
         }
     }
@@ -186,7 +171,6 @@ public class ItemHoldHandler {
         InteractiveItem interactiveItem = session.getInteractiveItem();
         ItemConfiguration config = interactiveItem.getConfiguration();
         
-        // Create click info for the cancellation action
         ItemClickInfo clickInfo = new ItemClickInfo(player, 
                 org.bukkit.event.inventory.ClickType.LEFT,
                 session.getHand() == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40,
@@ -196,7 +180,6 @@ public class ItemHoldHandler {
                 .withData("hand", session.getHand())
                 .withData("triggerType", "hold_cancel");
         
-        // Create action context for the cancellation action
         ActionContext context = new ActionContext(player, ActionSource.ITEM_USE)
                 .withData("clickType", org.bukkit.event.inventory.ClickType.LEFT)
                 .withData("slot", session.getHand() == EquipmentSlot.HAND ? player.getInventory().getHeldItemSlot() : 40)
@@ -207,7 +190,6 @@ public class ItemHoldHandler {
                 .withData("triggerType", "hold_cancel")
                 .withData("holdCancel", true);
         
-        // Execute the same action but with hold_cancel context
         String action = config.getAction();
         if (action != null && !action.trim().isEmpty()) {
             boolean actionExecuted = GlobalActionManager.executeAction(action, context);
@@ -242,7 +224,7 @@ public class ItemHoldHandler {
             case "MAIN" -> actualHand == EquipmentSlot.HAND;
             case "OFF" -> actualHand == EquipmentSlot.OFF_HAND;
             case "ANY" -> actualHand == EquipmentSlot.HAND || actualHand == EquipmentSlot.OFF_HAND;
-            default -> true; // Default to allowing any hand
+            default -> true;  
         };
     }
     
@@ -251,7 +233,7 @@ public class ItemHoldHandler {
     }
     
     public void cleanup() {
-        // Stop all active sessions
+         
         for (HoldSession session : activeSessions.values()) {
             if (session.getTask() != null) {
                 session.getTask().cancel();
@@ -260,7 +242,6 @@ public class ItemHoldHandler {
         activeSessions.clear();
     }
     
-    // Inner class to hold session data
     @Getter
     private static class HoldSession {
         private final Player player;

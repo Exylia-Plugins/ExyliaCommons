@@ -15,11 +15,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
- * This configuration system is deprecated and will be removed in a future version.
- * The new system provides a simpler API without requiring class creation for each file.
- */
 @Deprecated
 public class ConfigManager {
     private static ConfigurationSystem internalSystem;
@@ -28,9 +23,8 @@ public class ConfigManager {
 
     public static void init(ConfigurationSystem existingSystem, Class<? extends ConfigBase>... configClasses) {
         ConfigManager.configClasses = configClasses;
-        internalSystem = existingSystem; // Usar el sistema existente en lugar de crear uno nuevo
+        internalSystem = existingSystem;  
 
-        // Registrar configs para acceso estático usando el sistema existente
         for (Class<? extends ConfigBase> configClass : configClasses) {
             staticConfigs.put(configClass, internalSystem.getConfig(configClass));
         }
@@ -582,7 +576,6 @@ public class ConfigManager {
         return 0L;
     }
 
-    // ===== ACCESO DIRECTO A ARCHIVOS =====
     public static FileConfiguration getFile(String fileName) {
         return internalSystem.getFile(fileName);
     }
@@ -599,20 +592,18 @@ public class ConfigManager {
     public static CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // 1. Recargar el sistema interno
+                 
                 boolean systemReloadSuccess = internalSystem.reloadAllAsync().join();
                 if (!systemReloadSuccess) {
                     DebugUtils.logInternalError("ERROR: Fallo en reload del sistema interno");
                     return false;
                 }
 
-                // 2. CRÍTICO: Recrear todas las instancias de configuración
                 staticConfigs.clear();
 
-                // 3. Reinicializar cada clase de configuración usando el sistema existente
                 for (Class<? extends ConfigBase> configClass : configClasses) {
                     try {
-                        // Obtener la instancia ya recargada del sistema
+                         
                         Object reloadedInstance = internalSystem.getConfig(configClass);
                         if (reloadedInstance != null) {
                             staticConfigs.put(configClass, reloadedInstance);

@@ -10,10 +10,6 @@ import org.bukkit.inventory.ItemStack;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Clase para manejar información de clics en items
- * ACTUALIZADO: Soporte para datos adicionales en el contexto
- */
 @Getter
 public class ItemClickInfo {
 
@@ -39,31 +35,19 @@ public class ItemClickInfo {
         this.data = new HashMap<>();
     }
 
-    /**
-     * Añade un dato al contexto de la interacción
-     */
     public ItemClickInfo withData(String key, Object value) {
         this.data.put(key, value);
         return this;
     }
 
-    /**
-     * Obtiene un dato del contexto
-     */
     public Object getData(String key) {
         return data.get(key);
     }
 
-    /**
-     * Verifica si existe un dato en el contexto
-     */
     public boolean hasData(String key) {
         return data.containsKey(key);
     }
 
-    /**
-     * Obtiene todos los datos del contexto
-     */
     public Map<String, Object> getData() {
         return new HashMap<>(data);
     }

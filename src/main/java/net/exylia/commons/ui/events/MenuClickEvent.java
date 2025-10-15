@@ -1,5 +1,3 @@
-// ==================== MENU CLICK EVENT ====================
-
 package net.exylia.commons.ui.events;
 
 import lombok.Getter;
@@ -31,8 +29,7 @@ public class MenuClickEvent {
         this.slot = slot;
         this.clickType = clickType;
     }
-    // ==================== CONVENIENCE METHODS ====================
-
+     
     public boolean isLeftClick() {
         return clickType == ClickType.LEFT || clickType == ClickType.SHIFT_LEFT;
     }

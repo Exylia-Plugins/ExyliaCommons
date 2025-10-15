@@ -28,7 +28,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-
 public class SkullManager {
 
     private static SkullManager instance;
@@ -184,7 +183,6 @@ public class SkullManager {
             return pending;
         }
         
-        // Only track request timing for debugging, don't block requests
         synchronized (requestLock) {
             lastRequestTime.put(key, now);
         }
@@ -233,14 +231,13 @@ public class SkullManager {
 
     private ItemStack fetchPlayerSkullFromMojang(String playerName) {
         try {
-            // Step 1: Get UUID from Mojang API
+             
             String uuid = fetchPlayerUUID(playerName);
             if (uuid == null) {
                 DebugUtils.logInternalDebug("No UUID found for player: " + playerName);
                 return createDefaultSkull();
             }
             
-            // Check if player is non-premium (404 response)
             if ("NOT_FOUND".equals(uuid)) {
                 DebugUtils.logInternalDebug("Caching default skull for non-premium player: " + playerName);
                 ItemStack defaultSkull = createDefaultSkull();
@@ -249,21 +246,17 @@ public class SkullManager {
                 return defaultSkull;
             }
             
-            // Step 2: Get profile with textures
             String texture = fetchPlayerTexture(uuid);
             if (texture == null) {
                 DebugUtils.logInternalDebug("No texture found for player: " + playerName);
                 return createDefaultSkull();
             }
             
-            // Step 3: Create skull from texture
             ItemStack skull = createSkullFromTextureInternal(texture);
             
-            // Step 4: Cache the result (permanent until server restart)
             String key = playerName.toLowerCase();
             playerCache.put(key, new CachedSkull(skull.clone()));
             
-            // Debug the skull that we're caching
             if (skull.getItemMeta() instanceof org.bukkit.inventory.meta.SkullMeta skullMeta) {
                 DebugUtils.logInternalDebug("Caching skull - hasOwner=" + skullMeta.hasOwner());
                 DebugUtils.logInternalDebug("Caching skull - owner=" + skullMeta.getOwner());
@@ -305,7 +298,7 @@ public class SkullManager {
         
         if (response.statusCode() == 404) {
             DebugUtils.logInternalDebug("Player not found (non-premium): " + playerName);
-            return "NOT_FOUND"; // Special marker for non-premium players
+            return "NOT_FOUND";  
         }
         
         if (response.statusCode() != 200) {
@@ -422,18 +415,15 @@ public class SkullManager {
         if (plugin == null) return;
 
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-            // Remove expired texture cache entries
+             
             textureCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
-            // Player cache doesn't expire (permanent until server restart)
-            
-            // Limit texture cache size
+             
             if (textureCache.size() > MAX_CACHE_SIZE) {
                 textureCache.entrySet().stream()
                         .limit(textureCache.size() - MAX_CACHE_SIZE)
                         .forEach(entry -> textureCache.remove(entry.getKey()));
             }
             
-            // Limit player cache size (just in case)
             if (playerCache.size() > MAX_PLAYER_CACHE_SIZE) {
                 var entries = new ArrayList<>(playerCache.entrySet());
                 entries.stream()
@@ -467,9 +457,6 @@ public class SkullManager {
         );
     }
     
-    /**
-     * Checks if a player skull is cached
-     */
     public boolean isPlayerCached(String playerName) {
         if (playerName == null || playerName.isEmpty()) {
             return false;
@@ -490,7 +477,6 @@ public class SkullManager {
         }
     }
 
-
     public CompletableFuture<List<ItemStack>> createPlayerSkullsBatch(String... playerNames) {
         if (playerNames == null || playerNames.length == 0) {
             return CompletableFuture.completedFuture(new ArrayList<>());
@@ -501,7 +487,7 @@ public class SkullManager {
         for (int i = 0; i < playerNames.length; i++) {
             String name = playerNames[i];
             if (name != null && !name.isEmpty()) {
-                final int delay = i * 150; // Increased delay for batch processing
+                final int delay = i * 150;  
                 
                 CompletableFuture<ItemStack> delayed = CompletableFuture.supplyAsync(() -> {
                     try {
@@ -531,7 +517,7 @@ public class SkullManager {
         public CachedSkull(ItemStack skull) {
             this.skull = skull;
             this.timestamp = System.currentTimeMillis();
-            this.duration = Long.MAX_VALUE; // Never expires for player cache
+            this.duration = Long.MAX_VALUE;  
         }
         
         public CachedSkull(ItemStack skull, long duration) {

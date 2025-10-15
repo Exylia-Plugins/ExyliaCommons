@@ -760,16 +760,16 @@ public class ItemConfigurationBuilder {
         if (config.contains("expiration")) {
             Object expirationValue = config.get("expiration");
             if (expirationValue instanceof Number) {
-                // Si es un número, se asume que son milisegundos de duración desde ahora
+                 
                 expirationFromNow(((Number) expirationValue).longValue());
             } else if (expirationValue instanceof String) {
                 String expirationStr = (String) expirationValue;
                 try {
-                    // Primero intenta parsearlo como número (duración)
+                     
                     long duration = Long.parseLong(expirationStr);
                     expirationFromNow(duration);
                 } catch (NumberFormatException e) {
-                    // Si no es un número, intenta parsearlo como fecha
+                     
                     try {
                         expirationDate(expirationStr);
                     } catch (DateTimeParseException dateE) {
@@ -859,7 +859,7 @@ public class ItemConfigurationBuilder {
                             try {
                                 radius(Double.parseDouble((String) radiusValue));
                             } catch (NumberFormatException e) {
-                                // Ignore invalid radius values
+                                 
                             }
                         }
                     }
@@ -913,17 +913,16 @@ public class ItemConfigurationBuilder {
         
         dateString = dateString.trim();
         
-        // Lista de formatos soportados
         DateTimeFormatter[] formatters = {
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
-            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),       
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),             
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),             
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")              
         };
         
         for (DateTimeFormatter formatter : formatters) {
@@ -931,7 +930,7 @@ public class ItemConfigurationBuilder {
                 LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
                 return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             } catch (DateTimeParseException e) {
-                // Continuar con el siguiente formato
+                 
             }
         }
         

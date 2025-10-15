@@ -7,10 +7,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Implementación del registro de configuraciones de items
- * Thread-safe usando ConcurrentHashMap
- */
 public class ItemRegistryImpl implements ItemRegistry {
 
     private final Map<String, ItemConfiguration> itemConfigurations = new ConcurrentHashMap<>();
@@ -101,10 +97,6 @@ public class ItemRegistryImpl implements ItemRegistry {
         return itemConfigurations.size();
     }
 
-    /**
-     * Obtiene estadísticas del registry
-     * @return String con estadísticas
-     */
     public String getStats() {
         long configurationsWithCooldown = itemConfigurations.values().stream()
                 .mapToLong(config -> config.hasCooldown() ? 1 : 0)

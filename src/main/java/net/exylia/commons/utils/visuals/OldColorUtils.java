@@ -104,7 +104,6 @@ public class OldColorUtils {
         return new int[]{Integer.parseInt(h.substring(0,2),16), Integer.parseInt(h.substring(2,4),16), Integer.parseInt(h.substring(4,6),16)};
     }
 
-
     private static String extractPlainText(String message) {
         String result = message;
         result = result.replaceAll("<[^>]+>", "");

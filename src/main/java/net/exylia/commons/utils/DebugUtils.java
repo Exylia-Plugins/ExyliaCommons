@@ -82,7 +82,7 @@ public class DebugUtils {
             logInternal("Powered by Exylia - https://discord.exylia.net");
             Bukkit.getLogger().info("");
         } catch (Exception e) {
-            // Fallback simple
+             
             logInternal("<#8a51c4>========== " + plugin.getName().toUpperCase() + " ==========<reset>");
         }
     }

@@ -1,14 +1,14 @@
 package net.exylia.commons.item.config;
 
 public enum TriggerType {
-    IMMEDIATE,         // Actions execute immediately on interact
-    AFTER_CONSUME,     // Actions execute after consuming the item
-    ON_HIT_PLAYER,     // Actions execute when hitting a player
-    ON_MULTIPLE_HIT_PLAYER, // Actions execute when hitting a player multiple times within a period
-    ON_PROJECTILE_LAUNCH, // Actions execute when launching a projectile
-    ON_PROJECTILE_HIT, // Actions execute when projectile hits something
-    RADIUS,            // Actions execute on all entities within radius
-    HOLD;              // Actions execute periodically while holding the item
+    IMMEDIATE,          
+    AFTER_CONSUME,      
+    ON_HIT_PLAYER,      
+    ON_MULTIPLE_HIT_PLAYER,  
+    ON_PROJECTILE_LAUNCH,  
+    ON_PROJECTILE_HIT,  
+    RADIUS,             
+    HOLD;               
 
     public static TriggerType fromString(String value) {
         if (value == null) return IMMEDIATE;
@@ -19,30 +19,18 @@ public enum TriggerType {
         }
     }
 
-    /**
-     * Checks if this trigger type supports radius-based actions
-     */
     public boolean supportsRadius() {
         return this == RADIUS || this == ON_HIT_PLAYER || this == ON_MULTIPLE_HIT_PLAYER || this == ON_PROJECTILE_HIT || this == IMMEDIATE || this == AFTER_CONSUME || this == ON_PROJECTILE_LAUNCH || this == HOLD;
     }
 
-    /**
-     * Checks if this trigger type requires a target player
-     */
     public boolean requiresTargetPlayer() {
         return this == ON_HIT_PLAYER || this == ON_MULTIPLE_HIT_PLAYER || this == ON_PROJECTILE_HIT;
     }
 
-    /**
-     * Checks if this trigger type can affect multiple entities
-     */
     public boolean canAffectMultipleEntities() {
         return this == RADIUS || this == IMMEDIATE || this == AFTER_CONSUME || this == ON_PROJECTILE_LAUNCH || this == HOLD;
     }
 
-    /**
-     * Checks if this trigger type should affect self by default when no radius is configured
-     */
     public boolean shouldAffectSelfByDefault() {
         return this == IMMEDIATE || this == AFTER_CONSUME || this == ON_PROJECTILE_LAUNCH || this == HOLD;
     }

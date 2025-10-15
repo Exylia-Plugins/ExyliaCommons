@@ -38,15 +38,12 @@ public class InputHandlers {
                     return InputResult.cancel("{error}Cancelled");
                 }
 
-                // Convertir a formato de ID válido
                 String formattedId = formatToId(input);
 
-                // Verificar que no esté vacío después del formateo
                 if (formattedId.isEmpty()) {
                     return InputResult.invalid("{error}ID cannot be empty after formatting");
                 }
 
-                // Mostrar el resultado formateado si es diferente del input original
                 if (!input.equals(formattedId)) {
                     MessageUtils.sendMessage(player, "{success}Formatted ID: " + formattedId);
                 }
@@ -62,7 +59,6 @@ public class InputHandlers {
             public void onStart(Player player) {
                 MessageUtils.sendMessage(player, "{info}" + prompt);
 
-                // Si min y max son -1, significa cualquier número
                 if (min == -1 && max == -1) {
                     MessageUtils.sendMessage(player, "{warning}Any number is allowed");
                 } else {
@@ -81,12 +77,10 @@ public class InputHandlers {
                 try {
                     int number = Integer.parseInt(input);
 
-                    // Si min y max son -1, aceptar cualquier número
                     if (min == -1 && max == -1) {
                         return InputResult.success(number);
                     }
 
-                    // Verificar rango normal
                     if (number < min || number > max) {
                         return InputResult.invalid("{error}Number must be between " + min + " and " + max);
                     }
@@ -101,10 +95,10 @@ public class InputHandlers {
 
     private static String formatToId(String input) {
         return input
-                .toLowerCase() // Convertir a minúsculas
-                .replaceAll("[\\s\\-]+", "_") // Espacios y guiones -> guiones bajos
-                .replaceAll("[^a-z0-9_]", "") // Remover caracteres no alfanuméricos
-                .replaceAll("_{2,}", "_") // Remover guiones bajos duplicados
-                .replaceAll("^_+|_+$", ""); // Remover guiones bajos al inicio/final
+                .toLowerCase()  
+                .replaceAll("[\\s\\-]+", "_")  
+                .replaceAll("[^a-z0-9_]", "")  
+                .replaceAll("_{2,}", "_")  
+                .replaceAll("^_+|_+$", "");  
     }
 }

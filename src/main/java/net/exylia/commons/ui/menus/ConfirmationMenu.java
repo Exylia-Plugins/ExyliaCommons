@@ -8,9 +8,6 @@ import org.bukkit.entity.Player;
 
 import java.util.function.Consumer;
 
-/**
- * Simple confirmation menu with accept/cancel options
- */
 public class ConfirmationMenu extends Menu {
 
     private final Consumer<Player> onConfirm;
@@ -26,17 +23,10 @@ public class ConfirmationMenu extends Menu {
         setupItems();
     }
 
-    /**
-     * Creates a builder for confirmation menus
-     * @return A new confirmation menu builder
-     */
     public static Builder builder() {
         return new Builder();
     }
 
-    /**
-     * Builder class for ConfirmationMenu
-     */
     public static class Builder {
         private String title = "Confirm Action";
         private String message = "";
@@ -69,7 +59,7 @@ public class ConfirmationMenu extends Menu {
     }
 
     private void setupItems() {
-        // Confirm button (green)
+         
         MenuItem confirmButton = new SimpleItemBuilder(Material.GREEN_WOOL)
                 .name("&a✓ Confirm")
                 .lore("&7Click to confirm this action")
@@ -81,7 +71,6 @@ public class ConfirmationMenu extends Menu {
                 })
                 .build();
 
-        // Cancel button (red)
         MenuItem cancelButton = new SimpleItemBuilder(Material.RED_WOOL)
                 .name("&c✗ Cancel")
                 .lore("&7Click to cancel this action")
@@ -93,24 +82,22 @@ public class ConfirmationMenu extends Menu {
                 })
                 .build();
 
-        // Message item (if provided)
         if (message != null && !message.isEmpty()) {
             MenuItem messageItem = new SimpleItemBuilder(Material.PAPER)
                     .name("&e⚠ Confirmation")
-                    .lore(message.split("\\|")) // Support multiple lines with |
+                    .lore(message.split("\\|"))  
                     .build();
 
-            setItem(13, messageItem); // Center slot
+            setItem(13, messageItem);  
         }
 
-        // Filler
         MenuItem filler = new SimpleItemBuilder(Material.GRAY_STAINED_GLASS_PANE)
                 .name(" ")
                 .hideAttributes()
                 .build();
 
         setGlobalFiller(filler);
-        setItem(11, confirmButton); // Left side
-        setItem(15, cancelButton);  // Right side
+        setItem(11, confirmButton);  
+        setItem(15, cancelButton);   
     }
 }

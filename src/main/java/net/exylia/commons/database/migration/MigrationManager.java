@@ -22,7 +22,6 @@ public class MigrationManager {
             logInternalDebug("Creating table: " + tableName);
             adapter.createTable(entityClass);
 
-            // Guardar información de versión si es SQL
             if (isSQLAdapter(adapter)) {
                 createVersionTable(adapter);
                 saveTableVersion(adapter, tableName, version);
@@ -30,7 +29,7 @@ public class MigrationManager {
 
             logInternalDebug("Table created: " + tableName);
         } else {
-            // Verificar si necesita actualización
+             
             if (isSQLAdapter(adapter)) {
                 String currentVersion = getTableVersion(adapter, tableName);
 
@@ -46,7 +45,7 @@ public class MigrationManager {
                     logInternalDebug("Table " + tableName + " is up to date: " + version);
                 }
             } else {
-                // Para MongoDB, siempre actualizar (es seguro)
+                 
                 adapter.updateTable(entityClass);
             }
         }
@@ -62,7 +61,7 @@ public class MigrationManager {
             String sql;
 
             if (isMySQLAdapter(adapter)) {
-                // SQL específico para MySQL/MariaDB
+                 
                 sql = "CREATE TABLE IF NOT EXISTS exylia_migrations (" +
                         "table_name VARCHAR(255) PRIMARY KEY, " +
                         "version VARCHAR(50), " +
@@ -70,7 +69,7 @@ public class MigrationManager {
                         "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP" +
                         ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
             } else {
-                // SQL para H2
+                 
                 sql = "CREATE TABLE IF NOT EXISTS exylia_migrations (" +
                         "table_name VARCHAR(255) PRIMARY KEY, " +
                         "version VARCHAR(50), " +
@@ -88,13 +87,13 @@ public class MigrationManager {
     private void saveTableVersion(DatabaseAdapter adapter, String tableName, String version) {
         try {
             if (isMySQLAdapter(adapter)) {
-                // Usar INSERT ... ON DUPLICATE KEY UPDATE para MySQL
+                 
                 String sql = "INSERT INTO exylia_migrations (table_name, version, updated_at) " +
                         "VALUES (?, ?, CURRENT_TIMESTAMP) " +
                         "ON DUPLICATE KEY UPDATE version = VALUES(version), updated_at = CURRENT_TIMESTAMP";
                 adapter.executeUpdate(sql, tableName, version);
             } else {
-                // Usar MERGE para H2
+                 
                 String sql = "MERGE INTO exylia_migrations (table_name, version, updated_at) " +
                         "VALUES (?, ?, CURRENT_TIMESTAMP)";
                 adapter.executeUpdate(sql, tableName, version);
@@ -111,14 +110,13 @@ public class MigrationManager {
             createVersionTable(adapter);
             String sql = "SELECT version FROM exylia_migrations WHERE table_name = ?";
 
-            // Usar una consulta directa para obtener la versión
             if (adapter instanceof net.exylia.commons.database.adapters.H2Adapter ||
                     adapter instanceof net.exylia.commons.database.adapters.MySQLAdapter) {
 
                 try {
                     var results = adapter.executeQuery(Object.class, sql, tableName);
                     if (!results.isEmpty()) {
-                        // Extraer la versión del primer resultado
+                         
                         Object result = results.get(0);
                         if (result instanceof java.util.Map) {
                             @SuppressWarnings("unchecked")
@@ -136,7 +134,7 @@ public class MigrationManager {
                 }
             }
 
-            return "1.0"; // Versión por defecto si no se encuentra
+            return "1.0";  
         } catch (Exception e) {
             logInternalError("Error obteniendo versión de tabla: " + e.getMessage());
             return "1.0";

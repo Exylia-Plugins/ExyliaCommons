@@ -19,11 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
-/**
- * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
- * This configuration system is deprecated and will be removed in a future version.
- * The new system provides a simpler API without requiring class creation for each file.
- */
 @Deprecated
 public class ConfigurationSystem {
 
@@ -42,11 +37,6 @@ public class ConfigurationSystem {
         ColorUtils.initializePresets(plugin);
     }
 
-    // ==================== INICIALIZACIÓN ====================
-
-    /**
-     * Inicializa el sistema de configuración
-     */
     @SafeVarargs
     public final ConfigurationSystem initialize(Class<? extends ConfigBase>... configClasses) {
         for (Class<? extends ConfigBase> configClass : configClasses) {
@@ -58,9 +48,6 @@ public class ConfigurationSystem {
         return this;
     }
 
-    /**
-     * Carga una clase de configuración específica
-     */
     private void loadConfigClass(Class<? extends ConfigBase> configClass) {
         try {
             ConfigFile annotation = configClass.getAnnotation(ConfigFile.class);
@@ -73,17 +60,14 @@ public class ConfigurationSystem {
             boolean required = annotation.required();
             String[] dependencies = annotation.dependencies();
 
-            // Cargar dependencias primero
             for (String dependency : dependencies) {
                 if (!configFiles.containsKey(dependency)) {
                     loadConfigFile(dependency, false);
                 }
             }
 
-            // Cargar el archivo
             ConfigFileData fileData = loadConfigFile(fileName, required);
 
-            // Crear instancia de la clase de configuración
             ConfigBase instance = configClass.getDeclaredConstructor().newInstance();
             instance.initialize(this, fileData);
             configInstances.put(configClass, instance);
@@ -96,25 +80,14 @@ public class ConfigurationSystem {
         }
     }
 
-    // ==================== API DE MENSAJES MODERNIZADA ====================
-
-    /**
-     * Builder modernizado para mensajes que usa el sistema unificado
-     */
     public MessageBuilder message(String path) {
         return new MessageBuilder(path);
     }
 
-    /**
-     * Obtiene un mensaje simple
-     */
     public Component getMessage(String path) {
         return message(path).build();
     }
 
-    /**
-     * Obtiene un mensaje con reemplazos
-     */
     public Component getMessage(String path, Object... replacements) {
         return message(path).replace(replacements).build();
     }
@@ -123,17 +96,10 @@ public class ConfigurationSystem {
         return configFiles.get(fileName);
     }
 
-    /**
-     * Obtiene el mapa de instancias de configuración para acceso interno
-     * @return Mapa de clases a instancias de configuración
-     */
     public Map<Class<?>, Object> getConfigInstances() {
         return new HashMap<>(configInstances);
     }
 
-    /**
-     * MessageBuilder modernizado que usa el sistema unificado de placeholders
-     */
     public class MessageBuilder {
         private final String path;
         private ExyliaContext context = ExyliaContext.create();
@@ -146,49 +112,30 @@ public class ConfigurationSystem {
             this.path = path;
         }
 
-        // ==================== GESTIÓN DE CONTEXTOS ====================
-
-        /**
-         * Establece el contexto completo
-         */
         public MessageBuilder withContext(ExyliaContext context) {
             this.context = context != null ? context : ExyliaContext.create();
             return this;
         }
 
-        /**
-         * Añade un objeto al contexto
-         */
         public MessageBuilder addToContext(Object object) {
             this.context.add(object);
             return this;
         }
 
-        /**
-         * Añade múltiples objetos al contexto
-         */
         public MessageBuilder addToContext(Object... objects) {
             this.context.addAll(objects);
             return this;
         }
 
-        /**
-         * Añade datos con clave al contexto
-         */
         public MessageBuilder addToContext(String key, Object value) {
             this.context.put(key, value);
             return this;
         }
 
-        /**
-         * Limpia el contexto
-         */
         public MessageBuilder clearContext() {
             this.context = ExyliaContext.create();
             return this;
         }
-
-        // ==================== CONFIGURACIÓN DEL BUILDER ====================
 
         public MessageBuilder forPlayer(Player player) {
             this.player = player;
@@ -222,8 +169,6 @@ public class ConfigurationSystem {
             return this;
         }
 
-        // ==================== CONSTRUCCIÓN DEL MENSAJE ====================
-
         public Component build() {
             return buildInternal();
         }
@@ -237,7 +182,7 @@ public class ConfigurationSystem {
         }
 
         private Component buildInternal() {
-            // Generar clave de cache para mensajes estáticos
+             
             String cacheKey = generateCacheKey();
             if (cacheKey != null) {
                 Component cached = cache.getMessage(cacheKey);
@@ -246,10 +191,8 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Obtener mensaje base
             String message = getMessageFile().getString(path, "{error}" + path + " not found");
 
-            // Aplicar prefix
             if (usePrefix) {
                 if (customPrefix != null) {
                     message = customPrefix + message;
@@ -258,20 +201,16 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Procesar con ExyliaContext
             message = context.processPlaceholders(message, player);
 
-            // Aplicar reemplazos manuales (no-Component)
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (!(entry.getValue() instanceof Component)) {
                     message = message.replace(entry.getKey(), entry.getValue().toString());
                 }
             }
 
-            // Convertir a Component
             Component component = ColorUtils.parse(message);
 
-            // Aplicar reemplazos de Component
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (entry.getValue() instanceof Component) {
                     component = component.replaceText(TextReplacementConfig.builder()
@@ -281,7 +220,6 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Guardar en cache si es estático
             if (cacheKey != null) {
                 cache.putMessage(cacheKey, component);
             }
@@ -290,10 +228,9 @@ public class ConfigurationSystem {
         }
 
         private String buildRawStringInternal() {
-            // Obtener mensaje base
+             
             String message = getMessageFile().getString(path, "{error}" + path + " not found");
 
-            // Aplicar prefix
             if (usePrefix) {
                 if (customPrefix != null) {
                     message = customPrefix + message;
@@ -302,27 +239,23 @@ public class ConfigurationSystem {
                 }
             }
 
-            // Procesar con ExyliaContext
             message = context.processPlaceholders(message, player);
 
-            // Aplicar reemplazos manuales (no-Component)
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (!(entry.getValue() instanceof Component)) {
                     message = message.replace(entry.getKey(), entry.getValue().toString());
                 }
             }
 
-            // Retornar el String RAW antes de ColorUtils.parse()
             return message;
         }
 
         private String generateCacheKey() {
-            // Solo cachear si no hay contextos o reemplazos dinámicos
+             
             if (!context.isEmpty() || player != null || !replacements.isEmpty()) {
                 return null;
             }
 
-            // Verificar si el mensaje contiene placeholders
             String messageText = getMessageFile().getString(path, "");
             if (containsPlaceholders(messageText)) {
                 return null;
@@ -335,9 +268,6 @@ public class ConfigurationSystem {
             );
         }
 
-        /**
-         * Verifica si un texto contiene placeholders
-         */
         private boolean containsPlaceholders(String text) {
             if (text == null || text.isEmpty()) {
                 return false;
@@ -346,11 +276,6 @@ public class ConfigurationSystem {
         }
     }
 
-    // ==================== OBTENCIÓN DE CONFIGURACIONES ====================
-
-    /**
-     * Obtiene una instancia de configuración por clase
-     */
     @SuppressWarnings("unchecked")
     public <T extends ConfigBase> T getConfig(Class<T> configClass) {
         T instance = (T) configInstances.get(configClass);
@@ -360,21 +285,16 @@ public class ConfigurationSystem {
         return instance;
     }
 
-    /**
-     * Acceso directo a archivo de configuración
-     */
     public FileConfiguration getFile(String fileName) {
         ConfigFileData data = configFiles.get(fileName);
         return data != null ? data.configuration : null;
     }
 
-    // ==================== SISTEMA DE CACHE ====================
-
     private static class ConfigCache {
         private final Map<String, Component> messageCache = new ConcurrentHashMap<>();
         private final Map<String, Object> valueCache = new ConcurrentHashMap<>();
         private final Map<String, Long> cacheTimestamps = new ConcurrentHashMap<>();
-        private static final long CACHE_TTL = 300000; // 5 minutos
+        private static final long CACHE_TTL = 300000;  
 
         public Component getMessage(String key) {
             if (isExpired(key)) {
@@ -420,21 +340,13 @@ public class ConfigurationSystem {
         }
     }
 
-    // ==================== SISTEMA DE RELOAD ====================
-
-    /**
-     * Recarga todas las configuraciones de forma asíncrona
-     * CORREGIDO: Ahora recrea completamente las instancias en lugar de solo actualizar campos
-     */
     public CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logInternalInfo("Iniciando reload del sistema de configuración...");
 
-                // 1. Limpiar cache
                 cache.invalidateAll();
 
-                // 2. Recargar todos los archivos de configuración
                 boolean allFilesSuccess = true;
                 for (String fileName : configFiles.keySet()) {
                     if (!reloadFile(fileName)) {
@@ -447,7 +359,6 @@ public class ConfigurationSystem {
                     return false;
                 }
 
-                // 3. CRÍTICO: Recrear completamente todas las instancias de configuración
                 Map<Class<?>, Object> oldInstances = new HashMap<>(configInstances);
                 configInstances.clear();
 
@@ -456,7 +367,7 @@ public class ConfigurationSystem {
                     Class<?> configClass = entry.getKey();
 
                     try {
-                        // Recrear la instancia completamente
+                         
                         if (recreateConfigInstance(configClass)) {
                             logInternalDebug("Instancia recreada exitosamente: " + configClass.getSimpleName());
                         } else {
@@ -475,13 +386,11 @@ public class ConfigurationSystem {
                     return false;
                 }
 
-                // 4. Recargar configuraciones globales
                 setupGlobalPrefix();
                 ColorUtils.reloadPresets();
 
                 logInternalSuccess("Reloaded " + configInstances.size() + " configs");
 
-                // 5. Notificar listeners en el hilo principal
                 Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);
                 return true;
 
@@ -493,19 +402,15 @@ public class ConfigurationSystem {
         });
     }
 
-    /**
-     * NUEVO: Recrea completamente una instancia de configuración
-     */
     @SuppressWarnings("unchecked")
     private boolean recreateConfigInstance(Class<?> configClass) {
         try {
-            // Verificar que sea una clase de configuración válida
+             
             if (!ConfigBase.class.isAssignableFrom(configClass)) {
                 logInternalError("Clase no es ConfigBase: " + configClass.getSimpleName());
                 return false;
             }
 
-            // Obtener anotación de archivo
             ConfigFile annotation = configClass.getAnnotation(ConfigFile.class);
             if (annotation == null) {
                 logInternalError("Clase sin anotación @ConfigFile: " + configClass.getSimpleName());
@@ -519,15 +424,12 @@ public class ConfigurationSystem {
                 return false;
             }
 
-            // Crear nueva instancia
             logInternalDebug("Creando nueva instancia de: " + configClass.getSimpleName());
             ConfigBase newInstance = (ConfigBase) configClass.getDeclaredConstructor().newInstance();
 
-            // Inicializar la nueva instancia
             logInternalDebug("Inicializando nueva instancia de: " + configClass.getSimpleName());
             newInstance.initialize(this, fileData);
 
-            // Guardar la nueva instancia
             configInstances.put(configClass, newInstance);
 
             logInternalDebug("Instancia recreada y registrada: " + configClass.getSimpleName());
@@ -540,9 +442,6 @@ public class ConfigurationSystem {
         }
     }
 
-    /**
-     * MEJORADO: Recarga un archivo específico con mejor manejo de errores
-     */
     public boolean reloadFile(String fileName) {
         try {
             ConfigFileData oldData = configFiles.get(fileName);
@@ -560,13 +459,11 @@ public class ConfigurationSystem {
             logInternalDebug("Recargando archivo: " + fileName);
             FileConfiguration newConfig = YamlConfiguration.loadConfiguration(file);
 
-            // Validar si hay un validador
             if (oldData.validator != null && !oldData.validator.apply(newConfig)) {
                 logInternalError("Validación fallida para " + fileName + " durante reload");
                 return false;
             }
 
-            // Actualizar la configuración
             oldData.configuration = newConfig;
             oldData.lastModified = file.lastModified();
 
@@ -579,8 +476,6 @@ public class ConfigurationSystem {
             return false;
         }
     }
-
-    // ==================== MÉTODOS INTERNOS ====================
 
     private ConfigFileData loadConfigFile(String fileName, boolean required) {
         try {
@@ -628,11 +523,6 @@ public class ConfigurationSystem {
         return messages;
     }
 
-    // ==================== MÉTODOS DE ESCRITURA PARA ConfigurationSystem ====================
-
-    /**
-     * Establece un valor en un archivo específico
-     */
     public void setValue(String fileName, String path, Object value) {
         ConfigFileData data = configFiles.get(fileName);
         if (data == null) {
@@ -643,9 +533,6 @@ public class ConfigurationSystem {
         saveFile(fileName);
     }
 
-    /**
-     * Establece múltiples valores en un archivo
-     */
     public void setValues(String fileName, Map<String, Object> values) {
         ConfigFileData data = configFiles.get(fileName);
         if (data == null) {
@@ -658,9 +545,6 @@ public class ConfigurationSystem {
         saveFile(fileName);
     }
 
-    /**
-     * Guarda un archivo específico
-     */
     public void saveFile(String fileName) {
         try {
             ConfigFileData data = configFiles.get(fileName);
@@ -672,7 +556,6 @@ public class ConfigurationSystem {
             data.configuration.save(file);
             data.lastModified = file.lastModified();
 
-            // Limpiar cache relacionado
             cache.invalidateAll();
 
             logInternalDebug("Archivo guardado: " + fileName);
@@ -682,9 +565,6 @@ public class ConfigurationSystem {
         }
     }
 
-    /**
-     * Guarda todos los archivos cargados
-     */
     public void saveAllFiles() {
         for (String fileName : configFiles.keySet()) {
             try {
@@ -694,8 +574,6 @@ public class ConfigurationSystem {
             }
         }
     }
-
-    // ==================== LISTENERS Y ESTADÍSTICAS ====================
 
     public interface ConfigReloadListener {
         void onConfigReload(String fileName);

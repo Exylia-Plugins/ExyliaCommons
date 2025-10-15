@@ -33,13 +33,12 @@ public abstract class SimpleCommand extends PermissionCommand {
 
     @Override
     protected final boolean onCommand(CommandSender sender, String label, String[] args) {
-        // Verificar si se pide ayuda
+         
         if (args.length > 0 && (args[0].equalsIgnoreCase("help") || args[0].equalsIgnoreCase("?"))) {
             showHelp(sender, label);
             return true;
         }
 
-        // Ejecutar el comando
         return executeCommand(sender, label, args);
     }
 

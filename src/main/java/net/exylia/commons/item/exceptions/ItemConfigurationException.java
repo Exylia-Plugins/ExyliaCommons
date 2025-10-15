@@ -1,8 +1,5 @@
 package net.exylia.commons.item.exceptions;
 
-/**
- * Excepción para errores de configuración de items
- */
 public class ItemConfigurationException extends ItemException {
 
     private final String itemId;

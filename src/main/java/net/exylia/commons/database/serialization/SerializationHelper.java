@@ -15,15 +15,8 @@ import org.bukkit.potion.PotionEffect;
 import java.lang.reflect.*;
 import java.util.*;
 
-/**
- * Enhanced helper for managing auto-serialization with automatic collection initialization
- */
 public class SerializationHelper {
 
-    /**
-     * Automatically serializes a value based on its type and configuration
-     * Now handles null collections by creating empty ones when appropriate
-     */
     @SuppressWarnings("unchecked")
     public static Object autoSerializeValue(Object value, Field field, SerializationType serType) throws InvocationTargetException, NoSuchMethodException, IllegalAccessException {
         Class<?> type = field.getType();
@@ -31,13 +24,13 @@ public class SerializationHelper {
         String fieldName = field.getName();
 
         try {
-            // NEW: Handle null collections by creating empty ones for serialization
+             
             if (value == null && CollectionUtils.isCollectionType(type)) {
                 Column column = field.getAnnotation(Column.class);
                 if (column != null && column.initializeEmpty()) {
                     value = CollectionUtils.createEmptyCollection(field);
                     if (value == null) {
-                        return "[]"; // Empty JSON array as fallback
+                        return "[]";  
                     }
                 }
             }
@@ -46,7 +39,6 @@ public class SerializationHelper {
 
             SerializationType actualType = serType == SerializationType.AUTO ? detectSerializationType(type, field) : serType;
 
-            // Region serialization - ALWAYS use RegionSerializer for Region
             if (type == Region.class || value instanceof Region) {
                 try {
                     String result = RegionSerializer.serialize((Region) value);
@@ -60,7 +52,6 @@ public class SerializationHelper {
                 }
             }
 
-            // Bukkit-specific types
             else if (type == Location.class) {
                 String result = SerializationUtils.serializeLocation((Location) value);
                 if (result == null) {
@@ -95,12 +86,10 @@ public class SerializationHelper {
                 }
             }
 
-            // Collections - Enhanced handling
             else if (Collection.class.isAssignableFrom(type)) {
                 return handleCollectionSerialization(value, field, actualType);
             }
 
-            // Maps
             else if (Map.class.isAssignableFrom(type)) {
                 String result = SerializationUtils.serializeMap((Map<String, Object>) value);
                 if (result == null) {
@@ -109,34 +98,32 @@ public class SerializationHelper {
                 return result;
             }
 
-            // Arrays
             else if (type.isArray()) {
                 return handleArraySerialization(value, actualType);
             } else if (actualType == SerializationType.STRING && !type.isPrimitive() && type != String.class) {
                 try {
                     String result;
 
-                    // Try Keyed interface first (Bukkit objects)
                     if (value instanceof Keyed) {
                         result = ((Keyed) value).getKey().toString();
                     }
-                    // Try enum next
+                     
                     else if (value.getClass().isEnum()) {
                         result = ((Enum<?>) value).name();
                     }
-                    // Try objects with a "name" method
+                     
                     else if (hasMethod(value.getClass(), "name")) {
                         Method nameMethod = value.getClass().getMethod("name");
                         Object nameResult = nameMethod.invoke(value);
                         result = nameResult != null ? nameResult.toString() : null;
                     }
-                    // Try objects with a "getName" method
+                     
                     else if (hasMethod(value.getClass(), "getName")) {
                         Method getNameMethod = value.getClass().getMethod("getName");
                         Object nameResult = getNameMethod.invoke(value);
                         result = nameResult != null ? nameResult.toString() : null;
                     }
-                    // Fallback to toString()
+                     
                     else {
                         result = value.toString();
                     }
@@ -156,13 +143,12 @@ public class SerializationHelper {
                 }
             }
 
-            // Complex objects
             else {
                 if (actualType == SerializationType.JSON) {
                     try {
                         return SerializationUtils.serializeMap((Map<String, Object>) value);
                     } catch (Exception e) {
-                        // Fallback to BASE64
+                         
                         return SerializationUtils.serializeObject(value);
                     }
                 } else {
@@ -184,12 +170,9 @@ public class SerializationHelper {
         }
     }
 
-    /**
-     * Automatically deserializes a value and ensures collections are never null
-     */
     public static Object autoDeserializeValue(Object serializedValue, Field field, SerializationType serType) throws InvocationTargetException, NoSuchMethodException, IllegalAccessException, InstantiationException {
         if (serializedValue == null) {
-            // NEW: Return empty collection instead of null for collection types
+             
             if (CollectionUtils.isCollectionType(field.getType())) {
                 Column column = field.getAnnotation(Column.class);
                 if (column != null && column.initializeEmpty()) {
@@ -207,7 +190,6 @@ public class SerializationHelper {
         try {
             SerializationType actualType = serType == SerializationType.AUTO ? detectSerializationType(type, field) : serType;
 
-            // Region deserialization
             if (type == Region.class) {
                 try {
                     Region result = RegionSerializer.deserialize(stringValue);
@@ -221,7 +203,6 @@ public class SerializationHelper {
                 }
             }
 
-            // Bukkit-specific types
             else if (type == Location.class) {
                 Location result = SerializationUtils.deserializeLocation(stringValue);
                 if (result == null) {
@@ -249,10 +230,9 @@ public class SerializationHelper {
                 }
             }
 
-            // Collections - Enhanced handling with null safety
             else if (Collection.class.isAssignableFrom(type)) {
                 Object result = handleCollectionDeserialization(stringValue, field, actualType);
-                // Ensure we never return null for collections
+                 
                 if (result == null) {
                     Column column = field.getAnnotation(Column.class);
                     if (column != null && column.initializeEmpty()) {
@@ -262,10 +242,9 @@ public class SerializationHelper {
                 return result;
             }
 
-            // Maps
             else if (Map.class.isAssignableFrom(type)) {
                 Map<String, Object> result = SerializationUtils.deserializeMap(stringValue);
-                // Ensure we never return null for maps
+                 
                 if (result == null) {
                     Column column = field.getAnnotation(Column.class);
                     if (column != null && column.initializeEmpty()) {
@@ -275,10 +254,9 @@ public class SerializationHelper {
                 return result;
             }
 
-            // Arrays
             else if (type.isArray()) {
                 Object result = handleArrayDeserialization(stringValue, type, actualType);
-                // For arrays, return empty array if null
+                 
                 if (result == null) {
                     return CollectionUtils.createEmptyCollection(field);
                 }
@@ -287,31 +265,31 @@ public class SerializationHelper {
 
             else if (actualType == SerializationType.STRING && !type.isPrimitive() && type != String.class) {
                 try {
-                    // Try Keyed interface first
+                     
                     if (Keyed.class.isAssignableFrom(type)) {
                         return deserializeKeyedObject(type, stringValue, entityClass, fieldName);
                     }
-                    // Try enum
+                     
                     else if (type.isEnum()) {
                         @SuppressWarnings("unchecked")
                         Class<Enum> enumClass = (Class<Enum>) type;
                         return Enum.valueOf(enumClass, stringValue);
                     }
-                    // Try static valueOf method
+                     
                     else if (hasMethod(type, "valueOf", String.class)) {
                         Method valueOfMethod = type.getMethod("valueOf", String.class);
                         if (java.lang.reflect.Modifier.isStatic(valueOfMethod.getModifiers())) {
                             return valueOfMethod.invoke(null, stringValue);
                         }
                     }
-                    // Try static getByName method
+                     
                     else if (hasMethod(type, "getByName", String.class)) {
                         Method getByNameMethod = type.getMethod("getByName", String.class);
                         if (java.lang.reflect.Modifier.isStatic(getByNameMethod.getModifiers())) {
                             return getByNameMethod.invoke(null, stringValue);
                         }
                     }
-                    // Try constructor with String parameter
+                     
                     else {
                         try {
                             return type.getConstructor(String.class).newInstance(stringValue);
@@ -332,7 +310,6 @@ public class SerializationHelper {
                 }
             }
 
-            // Complex objects
             else {
                 if (actualType == SerializationType.JSON) {
                     try {
@@ -355,56 +332,43 @@ public class SerializationHelper {
         }
     }
 
-    /**
-     * Detects the best serialization type for a field automatically
-     */
     private static SerializationType detectSerializationType(Class<?> type, Field field) {
-        // Region - use JSON for readability and flexibility
+         
         if (type == Region.class) {
             return SerializationType.JSON;
         }
 
-        // Enums - use STRING for human-readable storage
         if (type.isEnum()) {
             return SerializationType.STRING;
         }
 
-        // Bukkit-specific types
         if (type == Location.class || type == Component.class) {
             return SerializationType.STRING;
         }
 
-        // ItemStacks - use BASE64 by default, but allow YAML
         if (type == ItemStack.class || type == ItemStack[].class) {
             return SerializationType.BASE64;
         }
 
-        // PotionEffects - better in JSON
         if (type == PotionEffect.class || (type.isArray() && type.getComponentType() == PotionEffect.class)) {
             return SerializationType.JSON;
         }
 
-        // Collections and Maps - JSON
         if (Collection.class.isAssignableFrom(type) || Map.class.isAssignableFrom(type)) {
             return SerializationType.JSON;
         }
 
-        // Primitive arrays - JSON
         if (type.isArray() && (type.getComponentType().isPrimitive() || type.getComponentType() == String.class)) {
             return SerializationType.JSON;
         }
 
-        // Complex objects - BASE64 for full compatibility
         return SerializationType.BASE64;
     }
 
-    /**
-     * Enhanced collection serialization with better null handling
-     */
     @SuppressWarnings("unchecked")
     private static String handleCollectionSerialization(Object value, Field field, SerializationType serType) {
         if (value == null) {
-            return "[]"; // Return empty JSON array for null collections
+            return "[]";  
         }
 
         Collection<?> collection = (Collection<?>) value;
@@ -412,7 +376,7 @@ public class SerializationHelper {
         String fieldName = field.getName();
 
         try {
-            // Detect generic type
+             
             Type genericType = field.getGenericType();
             if (genericType instanceof ParameterizedType paramType) {
                 Type[] typeArgs = paramType.getActualTypeArguments();
@@ -420,17 +384,14 @@ public class SerializationHelper {
                 if (typeArgs.length > 0) {
                     Class<?> elementType = (Class<?>) typeArgs[0];
 
-                    // String list
                     if (elementType == String.class) {
                         return SerializationUtils.serializeStringList((List<String>) collection);
                     }
 
-                    // PotionEffect list
                     if (elementType == PotionEffect.class) {
                         return SerializationUtils.serializePotionEffectsToJson((List<PotionEffect>) collection);
                     }
 
-                    // Region list
                     if (elementType == Region.class) {
                         List<Region> regions = new ArrayList<>((Collection<Region>) collection);
                         StringBuilder json = new StringBuilder("[");
@@ -453,7 +414,6 @@ public class SerializationHelper {
                 }
             }
 
-            // Generic fallback
             return SerializationUtils.serializeObject(value);
 
         } catch (Exception e) {
@@ -466,20 +426,16 @@ public class SerializationHelper {
         }
     }
 
-    /**
-     * Enhanced collection deserialization with automatic empty collection creation
-     */
     private static Object handleCollectionDeserialization(String stringValue, Field field, SerializationType serType) {
         String entityClass = field.getDeclaringClass().getSimpleName();
         String fieldName = field.getName();
 
         try {
-            // Handle empty or null string values
+             
             if (stringValue == null || stringValue.trim().isEmpty() || "[]".equals(stringValue.trim())) {
                 return CollectionUtils.createEmptyCollection(field);
             }
 
-            // Detect generic type
             Type genericType = field.getGenericType();
             if (genericType instanceof ParameterizedType paramType) {
                 Type[] typeArgs = paramType.getActualTypeArguments();
@@ -487,33 +443,30 @@ public class SerializationHelper {
                 if (typeArgs.length > 0) {
                     Class<?> elementType = (Class<?>) typeArgs[0];
 
-                    // String list
                     if (elementType == String.class) {
                         List<String> result = SerializationUtils.deserializeStringList(stringValue);
                         if (result == null) {
                             return CollectionUtils.createEmptyCollection(field);
                         }
-                        // Convert to proper collection type
+                         
                         if (Set.class.isAssignableFrom(field.getType())) {
                             return new HashSet<>(result);
                         }
                         return result;
                     }
 
-                    // PotionEffect list
                     if (elementType == PotionEffect.class) {
                         List<PotionEffect> result = SerializationUtils.deserializePotionEffectsFromJson(stringValue);
                         if (result == null) {
                             return CollectionUtils.createEmptyCollection(field);
                         }
-                        // Convert to proper collection type
+                         
                         if (Set.class.isAssignableFrom(field.getType())) {
                             return new HashSet<>(result);
                         }
                         return result;
                     }
 
-                    // Region list
                     if (elementType == Region.class) {
                         try {
                             Collection<Region> regions;
@@ -559,14 +512,13 @@ public class SerializationHelper {
                             }
                             return regions;
                         } catch (Exception e) {
-                            // Fallback to empty collection
+                             
                             return CollectionUtils.createEmptyCollection(field);
                         }
                     }
                 }
             }
 
-            // Generic fallback
             Object result = SerializationUtils.deserializeObject(stringValue, field.getType());
             if (result == null) {
                 return CollectionUtils.createEmptyCollection(field);
@@ -577,15 +529,12 @@ public class SerializationHelper {
             if (e instanceof SerializationException) {
                 throw e;
             } else {
-                // Always return empty collection on error instead of null
+                 
                 return CollectionUtils.createEmptyCollection(field);
             }
         }
     }
 
-    /**
-     * Handles array serialization with enhanced error handling
-     */
     private static String handleArraySerialization(Object value, SerializationType serType) {
         Class<?> componentType = value.getClass().getComponentType();
 
@@ -595,7 +544,6 @@ public class SerializationHelper {
                 return SerializationUtils.serializePotionEffectsToJson(List.of(effects));
             }
 
-            // Region array
             if (componentType == Region.class) {
                 Region[] regions = (Region[]) value;
                 StringBuilder json = new StringBuilder("[");
@@ -616,7 +564,6 @@ public class SerializationHelper {
                 return json.toString();
             }
 
-            // Primitive arrays and others - use object serialization
             return SerializationUtils.serializeObject(value);
 
         } catch (Exception e) {
@@ -629,9 +576,6 @@ public class SerializationHelper {
         }
     }
 
-    /**
-     * Handles array deserialization with enhanced error handling
-     */
     private static Object handleArrayDeserialization(String stringValue, Class<?> arrayType, SerializationType serType) {
         Class<?> componentType = arrayType.getComponentType();
 
@@ -641,7 +585,6 @@ public class SerializationHelper {
                 return effects.toArray(new PotionEffect[0]);
             }
 
-            // Region array (similar to List<Region> deserialization)
             if (componentType == Region.class) {
                 try {
                     List<Region> regions = new ArrayList<>();
@@ -680,26 +623,22 @@ public class SerializationHelper {
                     }
                     return regions.toArray(new Region[0]);
                 } catch (Exception e) {
-                    return new Region[0]; // Return empty array on error
+                    return new Region[0];  
                 }
             }
 
-            // Primitive arrays and others
             return SerializationUtils.deserializeObject(stringValue, arrayType);
 
         } catch (Exception e) {
             if (e instanceof SerializationException) {
                 throw e;
             } else {
-                // Return empty array on error
+                 
                 return java.lang.reflect.Array.newInstance(componentType, 0);
             }
         }
     }
 
-    /**
-     * Checks if a type needs auto-serialization
-     */
     public static boolean needsAutoSerialization(Class<?> type) {
         return type == Location.class ||
                 type == Component.class ||
@@ -721,9 +660,6 @@ public class SerializationHelper {
                         !type.isEnum());
     }
 
-    /**
-     * Creates a detailed error message for serialization issues
-     */
     public static String createDetailedErrorMessage(String operation, String entityClass, String fieldName,
                                                     String serializationType, Object value, String message, Exception cause) {
         StringBuilder sb = new StringBuilder();
@@ -760,7 +696,6 @@ public class SerializationHelper {
                 throw new RuntimeException("Invalid NamespacedKey format: " + keyString);
             }
 
-            // Try to find matching static field
             java.lang.reflect.Field[] fields = type.getDeclaredFields();
             for (java.lang.reflect.Field field : fields) {
                 if (field.getType() == type &&
@@ -774,7 +709,7 @@ public class SerializationHelper {
                             return constant;
                         }
                     } catch (Exception e) {
-                        // Continue searching
+                         
                     }
                 }
             }

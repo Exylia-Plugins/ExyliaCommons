@@ -2,9 +2,6 @@ package net.exylia.commons.region.model;
 
 import lombok.Getter;
 
-/**
- * Tipos de estado para las flags de región
- */
 @Getter
 public enum RegionFlagType {
     ALLOW("allow", "Permite la acción", true),
@@ -13,7 +10,7 @@ public enum RegionFlagType {
 
     private final String key;
     private final String description;
-    private final Boolean value; // null = usar default
+    private final Boolean value;  
 
     RegionFlagType(String key, String description, Boolean value) {
         this.key = key;
@@ -21,9 +18,6 @@ public enum RegionFlagType {
         this.value = value;
     }
 
-    /**
-     * Obtiene el valor booleano efectivo considerando el default de la flag
-     */
     public boolean getEffectiveValue(RegionFlag flag) {
         if (value != null) {
             return value;
@@ -31,9 +25,6 @@ public enum RegionFlagType {
         return flag.isDefaultValue();
     }
 
-    /**
-     * Busca un tipo por su clave
-     */
     public static RegionFlagType fromKey(String key) {
         for (RegionFlagType type : values()) {
             if (type.key.equalsIgnoreCase(key)) {

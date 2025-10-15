@@ -9,8 +9,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface ConfigValidator {
-    /**
-     * Archivos que valida este método
-     */
+     
     String[] files() default {};
 }

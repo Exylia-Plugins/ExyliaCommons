@@ -42,7 +42,6 @@ public class MessageUtils {
     public static void sendMessage(Player player, String message) {
         if (message == null || message.trim().isEmpty()) return;
 
-        // Process effects if message starts with special prefix
         String cleanMessage = processEffectsAndGetMessage(player, message);
         if (cleanMessage == null || cleanMessage.trim().isEmpty()) return;
 
@@ -54,10 +53,10 @@ public class MessageUtils {
         if (message == null || message.trim().isEmpty()) return;
 
         if (sender instanceof Player player) {
-            // For players, process effects
+             
             sendMessage(player, message);
         } else {
-            // For non-players, remove effects and send clean message
+             
             String cleanMessage = message;
             if (message.startsWith("[")) {
                 int effectsEnd = message.indexOf(']');
@@ -85,7 +84,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void broadcastMessage(String message) {
         if (message == null || message.trim().isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -102,7 +100,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendMessage(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty()) return;
         for (Player player : players) {
@@ -116,7 +113,6 @@ public class MessageUtils {
             sendMessage(player, component);
         }
     }
-
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -160,7 +156,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
         for (Player player : recipients) {
@@ -196,7 +191,6 @@ public class MessageUtils {
             }
         }
     }
-
 
     public static void sendTitleToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
@@ -238,7 +232,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
         if (message == null || message.trim().isEmpty()) return;
         Component component = ColorUtils.parse(message);
@@ -277,7 +270,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void showBossBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, BossBar bossBar) {
         if (bossBar == null) return;
         for (Player player : recipients) {
@@ -314,7 +306,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void playSoundToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, Sound sound, float volume, float pitch) {
         if (sound == null) return;
         for (Player player : recipients) {
@@ -333,7 +324,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendMessageWithSoundToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message, Sound sound, float volume, float pitch) {
         if (message == null || message.trim().isEmpty() || sound == null) return;
         for (Player player : recipients) {
@@ -351,7 +341,6 @@ public class MessageUtils {
             }
         }
     }
-
 
     public static void sendTitle(Player player, Component title, Component subtitle, int fadeIn, int stay, int fadeOut) {
         if (title == null && subtitle == null) return;
@@ -401,7 +390,6 @@ public class MessageUtils {
         sendTitle(players, titleComponent, subtitleComponent, fadeIn, stay, fadeOut);
     }
 
-
     public static void sendActionBar(Player player, Component message) {
         if (message == null) return;
         player.sendActionBar(message);
@@ -439,7 +427,6 @@ public class MessageUtils {
         sendActionBar(players, component);
     }
 
-
     public static void showPlayerBossBar(Player player, BossBar bossBar) {
         if (bossBar == null) return;
         player.showBossBar(bossBar);
@@ -459,7 +446,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void hidePlayerBossBar(Player player, BossBar bossBar) {
         if (bossBar == null) return;
         player.hideBossBar(bossBar);
@@ -478,7 +464,6 @@ public class MessageUtils {
             player.hideBossBar(bossBar);
         }
     }
-
 
     public static BossBar createBossBar(String text, BossBar.Color color, BossBar.Overlay style, BossBar.Flag... flags) {
         if (text == null || text.trim().isEmpty()) return null;
@@ -527,7 +512,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendMessageToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -536,7 +520,6 @@ public class MessageUtils {
             }
         }
     }
-
 
     public static void sendTitleToFiltered(Predicate<Player> condition, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if ((title == null || title.trim().isEmpty()) && (subtitle == null || subtitle.trim().isEmpty())) return;
@@ -550,7 +533,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void showBossBarToFiltered(Predicate<Player> condition, BossBar bossBar) {
         if (bossBar == null) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -560,7 +542,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void hideBossBarToFiltered(Predicate<Player> condition, BossBar bossBar) {
         if (bossBar == null) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -569,7 +550,6 @@ public class MessageUtils {
             }
         }
     }
-
 
     public static void sendActionBarToFiltered(Predicate<Player> condition, String message) {
         if (message == null || message.trim().isEmpty()) return;
@@ -581,7 +561,6 @@ public class MessageUtils {
             }
         }
     }
-
 
     public static void sendPaginatedMessage(Player player, Component header, Component footer, int pageNumber, int itemsPerPage, List<Component> items) {
         if (items == null || items.isEmpty()) return;
@@ -623,7 +602,6 @@ public class MessageUtils {
 
         sendPaginatedMessage(player, headerComponent, footerComponent, pageNumber, itemsPerPage, components);
     }
-
 
     public static void sendRepeatedMessage(Player player, String message, long intervalTicks, long durationTicks) {
         if (message == null || message.trim().isEmpty()) return;
@@ -697,7 +675,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendSequence(Player player, List<String> messages, long delayBetweenMessages) {
         if (messages == null || messages.isEmpty()) return;
         for (int i = 0; i < messages.size(); i++) {
@@ -756,7 +733,6 @@ public class MessageUtils {
         }
     }
 
-
     public static void sendMessageInRadius(org.bukkit.Location origin, double radius, String message) {
         if (message == null || message.trim().isEmpty() || origin == null) return;
         double radiusSquared = radius * radius;
@@ -783,16 +759,6 @@ public class MessageUtils {
         }
     }
 
-    // ==================== SPECIAL EFFECTS SYSTEM ====================
-
-    /**
-     * Processes a message with special effects prefix and returns the clean message.
-     * Format: [sounds:sound1|1|1,sound2|1|2;particles:particle1;fireworks:firework1]%prefix% message
-     *
-     * @param player The player receiving the message
-     * @param message The raw message with potential effects
-     * @return The clean message without effects prefix
-     */
     public static String processEffectsAndGetMessage(Player player, String message) {
         if (message == null || !message.startsWith("[")) {
             return message;
@@ -810,12 +776,6 @@ public class MessageUtils {
         return cleanMessage;
     }
 
-    /**
-     * Processes special effects for a player (must be called from main thread)
-     *
-     * @param player The player to apply effects to
-     * @param effectsSection The effects configuration string
-     */
     private static void processEffects(Player player, String effectsSection) {
         if (effectsSection == null || effectsSection.trim().isEmpty() || player == null) {
             return;
@@ -846,10 +806,6 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Processes sound effects from configuration
-     * Format: sound1|volume|pitch,sound2|volume|pitch
-     */
     private static void processSounds(Player player, String soundsConfig) {
         if (soundsConfig == null || soundsConfig.trim().isEmpty()) return;
 
@@ -862,10 +818,6 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Processes particle effects from configuration
-     * Format: particle1|count|offsetX|offsetY|offsetZ|extra,particle2...
-     */
     private static void processParticles(Player player, String particlesConfig) {
         if (particlesConfig == null || particlesConfig.trim().isEmpty()) return;
 
@@ -878,10 +830,6 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Processes firework effects from configuration
-     * Format: firework1|type|colors|fade|flicker|trail|power,firework2...
-     */
     private static void processFireworks(Player player, String fireworksConfig) {
         if (fireworksConfig == null || fireworksConfig.trim().isEmpty()) return;
 
@@ -894,11 +842,6 @@ public class MessageUtils {
         }
     }
 
-    // ==================== ENHANCED MESSAGE METHODS ====================
-
-    /**
-     * Enhanced sendMessage that processes special effects
-     */
     public static void sendEnhancedMessage(Player player, String message) {
         if (message == null || message.trim().isEmpty()) return;
 
@@ -908,16 +851,13 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Enhanced sendMessage for CommandSender (effects only work for Players)
-     */
     public static void sendEnhancedMessage(CommandSender sender, String message) {
         if (message == null || message.trim().isEmpty()) return;
 
         if (sender instanceof Player player) {
             sendEnhancedMessage(player, message);
         } else {
-            // For non-players, remove effects and send clean message
+             
             String cleanMessage = message;
             if (message.startsWith("[")) {
                 int effectsEnd = message.indexOf(']');
@@ -929,9 +869,6 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Enhanced broadcast that processes effects for all players
-     */
     public static void broadcastEnhancedMessage(String message) {
         if (message == null || message.trim().isEmpty()) return;
 
@@ -940,9 +877,6 @@ public class MessageUtils {
         }
     }
 
-    /**
-     * Enhanced collection message that processes effects
-     */
     public static void sendEnhancedMessage(Collection<Player> players, String message) {
         if (message == null || message.trim().isEmpty() || players == null) return;
 

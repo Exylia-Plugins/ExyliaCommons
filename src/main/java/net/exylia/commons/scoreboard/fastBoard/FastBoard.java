@@ -1,26 +1,3 @@
-/*
- * This file is part of FastBoard, licensed under the MIT License.
- *
- * Copyright (c) 2019-2023 MrMicky
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
 package net.exylia.commons.scoreboard.fastBoard;
 
 import org.bukkit.ChatColor;
@@ -31,9 +8,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.util.Objects;
 
-/**
- * {@inheritDoc}
- */
 public class FastBoard extends FastBoardBase<String> {
 
     private static final MethodHandle MESSAGE_FROM_STRING;
@@ -50,16 +24,10 @@ public class FastBoard extends FastBoardBase<String> {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public FastBoard(Player player) {
         super(player);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void updateTitle(String title) {
         Objects.requireNonNull(title, "title");
@@ -71,9 +39,6 @@ public class FastBoard extends FastBoardBase<String> {
         super.updateTitle(title);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void updateLines(String... lines) {
         Objects.requireNonNull(lines, "lines");
@@ -103,7 +68,7 @@ public class FastBoard extends FastBoardBase<String> {
         } else if (line.length() <= maxLength) {
             prefix = line;
         } else {
-            // Prevent splitting color codes
+             
             int index = line.charAt(maxLength - 1) == ChatColor.COLOR_CHAR
                     ? (maxLength - 1) : maxLength;
             prefix = line.substring(0, index);
@@ -121,7 +86,7 @@ public class FastBoard extends FastBoardBase<String> {
         }
 
         if (prefix.length() > maxLength || suffix.length() > maxLength) {
-            // Something went wrong, just cut to prevent client crash/kick
+             
             prefix = prefix.substring(0, Math.min(maxLength, prefix.length()));
             suffix = suffix.substring(0, Math.min(maxLength, suffix.length()));
         }
@@ -148,13 +113,6 @@ public class FastBoard extends FastBoardBase<String> {
         return "";
     }
 
-    /**
-     * Return if the player has a prefix/suffix characters limit.
-     * By default, it returns true only in 1.12 or lower.
-     * This method can be overridden to fix compatibility with some versions support plugin.
-     *
-     * @return max length
-     */
     protected boolean hasLinesMaxLength() {
         return !VersionType.V1_13.isHigherOrEqual();
     }

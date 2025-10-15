@@ -1,4 +1,3 @@
-// GenericWizard.java
 package net.exylia.commons.wizard.generic;
 
 import net.exylia.commons.config.components.ActionBarConfig;
@@ -20,10 +19,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Generic customizable wizard for any type of interaction
- * Supports custom actions for SHIFT + LEFT CLICK and SHIFT + RIGHT CLICK
- */
 public final class GenericWizard implements Listener {
 
     private static GenericWizard instance;
@@ -35,9 +30,6 @@ public final class GenericWizard implements Listener {
 
     private GenericWizard() {}
 
-    /**
-     * Initialize the GenericWizard
-     */
     public static void init(ExyliaPlugin pluginInstance) {
         if (instance != null) {
             return;
@@ -48,33 +40,21 @@ public final class GenericWizard implements Listener {
         plugin.getServer().getPluginManager().registerEvents(instance, plugin);
     }
 
-    /**
-     * Start a generic wizard session
-     *
-     * @param player The player
-     * @param handler Custom handler for wizard actions
-     * @return CompletableFuture with the result
-     */
     public static <T> CompletableFuture<T> startWizard(Player player, GenericWizardHandler<T> handler) {
         if (instance == null) {
             throw new IllegalStateException("GenericWizard not initialized");
         }
 
-        // Cancel existing session if any
         cancelWizard(player);
 
         GenericWizardSession session = new GenericWizardSession(player, handler);
         instance.activeSessions.put(player.getUniqueId(), session);
 
-        // Start the wizard
         handler.onStart(player);
 
         return session.getFuture();
     }
 
-    /**
-     * Start wizard with initial display configuration
-     */
     public static <T> CompletableFuture<T> startWizard(Player player, GenericWizardHandler<T> handler,
                                                        TitleConfig titleConfig, ActionBarConfig actionBarConfig, ExyliaContext context) {
         CompletableFuture<T> future = startWizard(player, handler);
@@ -84,9 +64,6 @@ public final class GenericWizard implements Listener {
         return future;
     }
 
-    /**
-     * Update display (title/actionbar) for active wizard
-     */
     public static void updateDisplay(Player player, TitleConfig titleConfig, ActionBarConfig actionBarConfig, ExyliaContext context) {
         if (!hasActiveWizard(player)) {
             return;
@@ -108,23 +85,14 @@ public final class GenericWizard implements Listener {
         }
     }
 
-    /**
-     * Update only title for active wizard
-     */
     public static void updateTitle(Player player, TitleConfig titleConfig) {
         updateDisplay(player, titleConfig, null, null);
     }
 
-    /**
-     * Update only action bar for active wizard
-     */
     public static void updateActionBar(Player player, ActionBarConfig actionBarConfig) {
         updateDisplay(player, null, actionBarConfig, null);
     }
 
-    /**
-     * Cancel active wizard for player
-     */
     public static boolean cancelWizard(Player player) {
         if (instance == null) {
             return false;
@@ -141,9 +109,6 @@ public final class GenericWizard implements Listener {
         return false;
     }
 
-    /**
-     * Complete active wizard for player
-     */
     public static boolean completeWizard(Player player, Object result) {
         if (instance == null) {
             return false;
@@ -160,16 +125,10 @@ public final class GenericWizard implements Listener {
         return false;
     }
 
-    /**
-     * Check if player has active wizard
-     */
     public static boolean hasActiveWizard(Player player) {
         return instance != null && instance.activeSessions.containsKey(player.getUniqueId());
     }
 
-    /**
-     * Get active session for player
-     */
     public static GenericWizardSession getSession(Player player) {
         if (instance == null) {
             return null;
@@ -177,17 +136,12 @@ public final class GenericWizard implements Listener {
         return instance.activeSessions.get(player.getUniqueId());
     }
 
-    /**
-     * Clear all display elements for player
-     */
     private static void clearDisplay(Player player) {
         player.resetTitle();
-        // Clear common wizard display IDs
+         
         TitleUtils.cancelTitle(player, "generic_wizard");
         ActionBarUtils.cancelActionBar(player, "generic_wizard");
     }
-
-    // ===== EVENT HANDLERS =====
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -241,15 +195,13 @@ public final class GenericWizard implements Listener {
         cancelWizard(event.getPlayer());
     }
 
-    // ===== PRIVATE METHODS =====
-
     @SuppressWarnings("unchecked")
     private void handleActionResult(Player player, GenericWizardSession session, WizardActionResult result) {
         UUID playerId = player.getUniqueId();
 
         switch (result.getType()) {
             case CONTINUE:
-                // Update display if provided
+                 
                 if (result.getTitleConfig() != null || result.getActionBarConfig() != null) {
                     updateDisplay(player, result.getTitleConfig(), result.getActionBarConfig(), result.getContext());
                 }
@@ -271,9 +223,6 @@ public final class GenericWizard implements Listener {
         }
     }
 
-    /**
-     * Shutdown the GenericWizard
-     */
     public static void shutdown() {
         if (instance != null) {
             instance.activeSessions.values().forEach(session -> {

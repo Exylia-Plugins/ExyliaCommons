@@ -12,7 +12,6 @@ public interface DatabaseAdapter {
     void disconnect();
     boolean isConnected();
 
-    // Operaciones CRUD básicas
     <T> void save(T entity) throws Exception;
     <T> void saveOrUpdateAll(List<T> entities) throws Exception;
     <T> void updateAll(List<T> entities) throws Exception;
@@ -22,22 +21,18 @@ public interface DatabaseAdapter {
     <T> List<T> findAll(Class<T> entityClass) throws Exception;
     <T> List<T> findBy(Class<T> entityClass, String field, Object value) throws Exception;
 
-    // Operaciones de consulta personalizada
     <T> List<T> executeQuery(Class<T> entityClass, String query, Object... params) throws Exception;
     int executeUpdate(String query, Object... params) throws Exception;
 
-    // Operaciones de esquema
     void createTable(Class<?> entityClass) throws Exception;
     void updateTable(Class<?> entityClass) throws Exception;
     boolean tableExists(Class<?> entityClass) throws Exception;
     List<String> getTableColumns(Class<?> entityClass) throws Exception;
 
-    // Transacciones
     void beginTransaction() throws Exception;
     void commit() throws Exception;
     void rollback() throws Exception;
 
-    // Métodos optimizados para grandes datasets
     <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order) throws Exception;
     <T> List<T> findAllOrderedBy(Class<T> entityClass, String field, SortOrder order, int limit) throws Exception;
     <T> List<T> findAllPaged(Class<T> entityClass, int page, int size) throws Exception;
@@ -45,15 +40,12 @@ public interface DatabaseAdapter {
     <T> long getRankByField(Class<T> entityClass, String field, Object value, SortOrder order) throws Exception;
     <T> Optional<T> getByRank(Class<T> entityClass, String field, long rank, SortOrder order) throws Exception;
 
-    // Métodos optimizados para leaderboards con filtro y ordenamiento
     <T> List<T> findByFieldOrderedBy(Class<T> entityClass, String filterField, Object filterValue, String orderField, SortOrder order, int limit) throws Exception;
     <T> long countByField(Class<T> entityClass, String field, Object value) throws Exception;
 
-    // Utilidades
     String getTableName(Class<?> entityClass);
     Map<String, Object> entityToMap(Object entity) throws Exception;
     <T> T mapToEntity(Map<String, Object> map, Class<T> entityClass) throws Exception;
 
-    // Operaciones de mantenimiento
     void dropTable(Class<?> entityClass) throws Exception;
 }

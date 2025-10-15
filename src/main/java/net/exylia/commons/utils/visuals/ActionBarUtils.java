@@ -26,11 +26,6 @@ public class ActionBarUtils {
         plugin = mainPlugin;
     }
 
-    // ==================== API SIMPLE ====================
-
-    /**
-     * Envía un action bar usando configuración
-     */
     public static String sendActionBar(Player player, ActionBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
@@ -54,16 +49,10 @@ public class ActionBarUtils {
         return actionBarId;
     }
 
-    /**
-     * Envía un action bar sin contexto
-     */
     public static String sendActionBar(Player player, ActionBarConfig config) {
         return sendActionBar(player, config, ExyliaContext.create());
     }
 
-    /**
-     * Envía un action bar con ID personalizado
-     */
     public static String sendActionBar(Player player, String actionBarId, ActionBarConfig config, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
@@ -89,23 +78,11 @@ public class ActionBarUtils {
         return actionBarId;
     }
 
-    // ==================== API ACTIONBAR CON COUNTDOWN ====================
-
-    /**
-     * Envía un action bar con countdown automático
-     * @param player El jugador
-     * @param actionBarId ID del action bar
-     * @param config Configuración del action bar (debe contener %time% en el texto)
-     * @param durationTicks Duración del countdown en ticks
-     * @param context Contexto adicional
-     * @return ID del action bar creado
-     */
     public static String sendCountdownActionBar(Player player, String actionBarId, ActionBarConfig config, long durationTicks, ExyliaContext context) {
         if (player == null || !player.isOnline() || config == null || !config.isEnabled()) {
             throw new IllegalArgumentException("Parámetros inválidos");
         }
 
-        // Cancelar action bar existente si existe
         if (hasActionBar(player, actionBarId)) {
             cancelActionBar(player, actionBarId);
         }
@@ -116,7 +93,6 @@ public class ActionBarUtils {
                 .put("actionbar_id", actionBarId)
                 .put("countdown_duration", durationTicks);
 
-        // Crear configuración especial para countdown
         ActionBarConfig countdownConfig = new ActionBarConfig(
                 config.getText(),
                 config.getUpdateInterval()
@@ -133,28 +109,17 @@ public class ActionBarUtils {
         return actionBarId;
     }
 
-    /**
-     * Envía un action bar con countdown automático (versión simplificada)
-     */
     public static String sendCountdownActionBar(Player player, ActionBarConfig config, long durationTicks) {
         return sendCountdownActionBar(player, generateActionBarId(), config, durationTicks, ExyliaContext.create());
     }
 
-    /**
-     * Envía un action bar con countdown usando duración en segundos
-     */
     public static String sendCountdownActionBar(Player player, String actionBarId, ActionBarConfig config, int durationSeconds, ExyliaContext context) {
         return sendCountdownActionBar(player, actionBarId, config, durationSeconds * 20L, context);
     }
 
-    /**
-     * Envía un action bar con countdown usando duración en segundos (versión simplificada)
-     */
     public static String sendCountdownActionBar(Player player, ActionBarConfig config, int durationSeconds) {
         return sendCountdownActionBar(player, generateActionBarId(), config, durationSeconds * 20L, ExyliaContext.create());
     }
-
-    // ==================== EJECUCIÓN COUNTDOWN ====================
 
     private static BukkitTask executeCountdownActionBar(Player player, CountdownActionBarInstance instance) {
         ActionBarConfig config = instance.getConfig();
@@ -171,10 +136,8 @@ public class ActionBarUtils {
                     return;
                 }
 
-                // Calcular tiempo restante
-                long secondsRemaining = (ticksRemaining + 19) / 20; // Redondear hacia arriba
+                long secondsRemaining = (ticksRemaining + 19) / 20;  
 
-                // Actualizar contexto con información del countdown
                 ExyliaContext currentContext = instance.getContext().copy()
                         .put("time", secondsRemaining)
                         .put("ticks_remaining", ticksRemaining)
@@ -182,19 +145,15 @@ public class ActionBarUtils {
                         .put("countdown_active", true)
                         .withCurrentTime();
 
-                // Procesar placeholders
                 String processedText = processPlaceholders(config.getText(), player, currentContext);
 
-                // Enviar action bar
                 MessageUtils.sendActionBar(player, processedText);
 
-                // Actualizar contadores
                 ticksRemaining--;
                 updateCount++;
 
-                // Verificar si terminó el countdown
                 if (ticksRemaining < 0) {
-                    // Ejecutar callback si existe
+                     
                     if (instance.getOnComplete() != null) {
                         try {
                             instance.getOnComplete().run();
@@ -207,10 +166,8 @@ public class ActionBarUtils {
                     cancel();
                 }
             }
-        }.runTaskTimer(plugin, 0L, 1L); // Ejecutar cada tick para precisión
+        }.runTaskTimer(plugin, 0L, 1L);  
     }
-
-    // ==================== CLASE COUNTDOWN ACTIONBAR INSTANCE ====================
 
     @Getter
     public static class CountdownActionBarInstance extends ActionBarInstance {
@@ -231,7 +188,7 @@ public class ActionBarUtils {
 
         @Override
         public boolean isPermanent() {
-            return false; // Los countdown nunca son permanentes
+            return false;  
         }
 
         public CountdownActionBarInstance onComplete(Runnable callback) {
@@ -245,11 +202,6 @@ public class ActionBarUtils {
         }
     }
 
-    // ==================== API EXTENDIDA PARA COUNTDOWN ====================
-
-    /**
-     * Crea un action bar de countdown con callback
-     */
     public static String sendCountdownActionBar(Player player, String actionBarId, ActionBarConfig config, int durationSeconds,
                                                 ExyliaContext context, Runnable onComplete) {
         String id = sendCountdownActionBar(player, actionBarId, config, durationSeconds, context);
@@ -262,9 +214,6 @@ public class ActionBarUtils {
         return id;
     }
 
-    /**
-     * Crea un action bar de countdown con callbacks de completado y cancelación
-     */
     public static String sendCountdownActionBar(Player player, String actionBarId, ActionBarConfig config, int durationSeconds,
                                                 ExyliaContext context, Runnable onComplete, Runnable onCancel) {
         String id = sendCountdownActionBar(player, actionBarId, config, durationSeconds, context);
@@ -279,9 +228,6 @@ public class ActionBarUtils {
         return id;
     }
 
-    /**
-     * Obtiene el tiempo restante de un countdown en segundos
-     */
     public static int getCountdownTimeRemaining(Player player, String actionBarId) {
         ActionBarInstance instance = getActionBarInstance(player, actionBarId);
         if (instance instanceof CountdownActionBarInstance) {
@@ -294,17 +240,11 @@ public class ActionBarUtils {
         return -1;
     }
 
-    /**
-     * Verifica si un action bar es de tipo countdown
-     */
     public static boolean isCountdownActionBar(Player player, String actionBarId) {
         ActionBarInstance instance = getActionBarInstance(player, actionBarId);
         return instance instanceof CountdownActionBarInstance;
     }
 
-    /**
-     * Obtiene todos los action bars de countdown activos de un jugador
-     */
     public static Set<String> getCountdownActionBars(Player player) {
         Map<String, ActionBarInstance> playerData = playerActionBars.get(player.getUniqueId());
         if (playerData == null) return new HashSet<>();
@@ -315,13 +255,11 @@ public class ActionBarUtils {
                 .collect(Collectors.toSet());
     }
 
-    // ==================== EJECUCIÓN ====================
-
     private static BukkitTask executeActionBar(Player player, ActionBarInstance instance) {
         ActionBarConfig config = instance.getConfig();
 
         if (config.isPermanent()) {
-            // Action bar permanente que se actualiza periódicamente
+             
             return new BukkitRunnable() {
                 private long updateCount = 0;
 
@@ -345,18 +283,15 @@ public class ActionBarUtils {
                 }
             }.runTaskTimer(plugin, 0L, config.getUpdateInterval());
         } else {
-            // Action bar normal (una vez)
+             
             String processedText = processPlaceholders(config.getText(), player, instance.getContext());
             MessageUtils.sendActionBar(player, processedText);
 
-            // Auto-remover después de un tiempo (action bars desaparecen automáticamente)
             return Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 removeActionBarInstance(player, instance.getId());
-            }, 60L); // 3 segundos
+            }, 60L);  
         }
     }
-
-    // ==================== GESTIÓN DE INSTANCIAS ====================
 
     @Getter
     public static class ActionBarInstance {
@@ -391,8 +326,6 @@ public class ActionBarUtils {
         }
     }
 
-    // ==================== MÉTODOS AUXILIARES ====================
-
     private static String processPlaceholders(String text, Player player, ExyliaContext context) {
         if (text == null || text.isEmpty()) return "";
         return PlaceholderSystemManager.getInstance().process(text, player, context.getAllObjects());
@@ -424,16 +357,10 @@ public class ActionBarUtils {
         }
     }
 
-    // ==================== API DE GESTIÓN ====================
-
-    /**
-     * Cancela un action bar específico
-     */
     public static boolean cancelActionBar(Player player, String actionBarId) {
         ActionBarInstance instance = getActionBarInstance(player, actionBarId);
         if (instance == null) return false;
 
-        // Ejecutar callback de cancelación si es CountdownActionBarInstance
         if (instance instanceof CountdownActionBarInstance countdownInstance) {
             if (countdownInstance.getOnCancel() != null) {
                 try {
@@ -448,16 +375,12 @@ public class ActionBarUtils {
             instance.getTask().cancel();
         }
 
-        // Limpiar action bar enviando uno vacío
         MessageUtils.sendActionBar(player, "");
 
         removeActionBarInstance(player, actionBarId);
         return true;
     }
 
-    /**
-     * Cancela todos los action bars de un jugador
-     */
     public static int cancelAllActionBars(Player player) {
         Map<String, ActionBarInstance> playerData = playerActionBars.get(player.getUniqueId());
         if (playerData == null || playerData.isEmpty()) return 0;
@@ -472,24 +395,15 @@ public class ActionBarUtils {
         return count;
     }
 
-    /**
-     * Verifica si un jugador tiene un action bar específico activo
-     */
     public static boolean hasActionBar(Player player, String actionBarId) {
         return getActionBarInstance(player, actionBarId) != null;
     }
 
-    /**
-     * Obtiene todos los action bars activos de un jugador
-     */
     public static Set<String> getActiveActionBars(Player player) {
         Map<String, ActionBarInstance> playerData = playerActionBars.get(player.getUniqueId());
         return playerData != null ? new HashSet<>(playerData.keySet()) : new HashSet<>();
     }
 
-    /**
-     * Actualiza el contexto de un action bar
-     */
     public static boolean updateActionBar(Player player, String actionBarId, ExyliaContext newContext) {
         ActionBarInstance instance = getActionBarInstance(player, actionBarId);
         if (instance == null) return false;
@@ -498,9 +412,6 @@ public class ActionBarUtils {
         return true;
     }
 
-    /**
-     * Obtiene todos los action bars permanentes activos de un jugador
-     */
     public static Set<String> getPermanentActionBars(Player player) {
         Map<String, ActionBarInstance> playerData = playerActionBars.get(player.getUniqueId());
         if (playerData == null) return new HashSet<>();
@@ -511,16 +422,10 @@ public class ActionBarUtils {
                 .collect(Collectors.toSet());
     }
 
-    /**
-     * Verifica si un jugador tiene action bars permanentes activos
-     */
     public static boolean hasPermanentActionBars(Player player) {
         return !getPermanentActionBars(player).isEmpty();
     }
 
-    /**
-     * Cancela todos los action bars permanentes de un jugador
-     */
     public static int cancelAllPermanentActionBars(Player player) {
         Set<String> permanentActionBars = getPermanentActionBars(player);
         int count = 0;
@@ -532,9 +437,6 @@ public class ActionBarUtils {
         return count;
     }
 
-    /**
-     * Limpia todos los datos al cerrar el plugin
-     */
     public static void cleanup() {
         for (UUID playerId : new HashSet<>(playerActionBars.keySet())) {
             Player player = Bukkit.getPlayer(playerId);

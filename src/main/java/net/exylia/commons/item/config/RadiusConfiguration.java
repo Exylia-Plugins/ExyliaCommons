@@ -2,9 +2,6 @@ package net.exylia.commons.item.config;
 
 import lombok.Getter;
 
-/**
- * Configuration for radius-based actions
- */
 @Getter
 public class RadiusConfiguration {
 
@@ -20,19 +17,13 @@ public class RadiusConfiguration {
         this.affectSelf = affectSelf;
         this.onlyPlayers = onlyPlayers;
         this.requireLineOfSight = requireLineOfSight;
-        this.maxTargets = Math.max(-1, maxTargets); // -1 means no limit
+        this.maxTargets = Math.max(-1, maxTargets);  
     }
 
-    /**
-     * Creates a default radius configuration
-     */
     public static RadiusConfiguration defaultConfig() {
         return new RadiusConfiguration(5.0, false, true, false, -1);
     }
 
-    /**
-     * Creates a radius configuration from action config values
-     */
     public static RadiusConfiguration fromActionConfig(ItemConfiguration config) {
         double radius = config.getActionConfigDouble("radius", 5.0);
         boolean affectSelf = config.getActionConfigBoolean("affect-self", false);
@@ -43,16 +34,10 @@ public class RadiusConfiguration {
         return new RadiusConfiguration(radius, affectSelf, onlyPlayers, requireLineOfSight, maxTargets);
     }
 
-    /**
-     * Checks if this configuration has a valid radius
-     */
     public boolean hasRadius() {
         return radius > 0.0;
     }
 
-    /**
-     * Checks if there's a limit on the number of targets
-     */
     public boolean hasMaxTargets() {
         return maxTargets > 0;
     }

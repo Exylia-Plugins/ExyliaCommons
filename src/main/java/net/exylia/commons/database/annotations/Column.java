@@ -18,5 +18,5 @@ public @interface Column {
 
     boolean autoSerialize() default false;
     SerializationType serializationType() default SerializationType.AUTO;
-    boolean initializeEmpty() default true; // Por defecto true para colecciones
+    boolean initializeEmpty() default true;  
 }

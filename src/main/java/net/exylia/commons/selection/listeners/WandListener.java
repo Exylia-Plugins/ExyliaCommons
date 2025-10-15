@@ -21,9 +21,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Optional;
 
-/**
- * Listener para el manejo de wands con soporte para visualización
- */
 public class WandListener implements Listener {
     private final JavaPlugin plugin;
     private final WandFactory wandFactory;
@@ -40,43 +37,36 @@ public class WandListener implements Listener {
         Player player = event.getPlayer();
         ItemStack item = event.getItem();
 
-        // Verificar si es una wand
         if (!wandFactory.isWand(item)) {
             return;
         }
 
         event.setCancelled(true);
 
-        // Verificar permisos
         if (!player.hasPermission("exylia.selection.use")) {
             return;
         }
 
-        // Obtener información de la wand
         String selectionId = wandFactory.getSelectionId(item);
         if (selectionId == null) {
             return;
         }
 
-        // Determinar acción
         WandUseEvent.WandAction action = getWandAction(event.getAction(), player.isSneaking());
         if (action == null) {
             return;
         }
 
-        // Obtener o crear selección
         Selection selection = getOrCreateSelection(player, selectionId);
         if (selection == null) {
             return;
         }
 
-        // Obtener ubicación del bloque
         Location location = getTargetLocation(event, player);
         if (location == null) {
             return;
         }
 
-        // Disparar evento personalizado
         WandUseEvent wandEvent = new WandUseEvent(player, item, location, action, selection);
         Bukkit.getPluginManager().callEvent(wandEvent);
 
@@ -84,17 +74,14 @@ public class WandListener implements Listener {
             return;
         }
 
-        // Procesar acción
         handleWandAction(player, selection, location, action, item);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        // Limpiar selecciones del jugador cuando se desconecta
+         
         selectionManager.clearSelections(event.getPlayer());
     }
-
-    // ===== MÉTODOS PRIVADOS =====
 
     private WandUseEvent.WandAction getWandAction(Action action, boolean sneaking) {
         return switch (action) {
@@ -162,7 +149,6 @@ public class WandListener implements Listener {
         Location min = selection.getMinimumPoint();
         Location max = selection.getMaximumPoint();
 
-        // Información de visualización
         boolean visualEnabled = selectionManager.isVisualizationEnabled(player);
         boolean isVisible = selectionManager.getParticleVisualizer().isSelectionVisible(player, selection.getSelectionId());
 

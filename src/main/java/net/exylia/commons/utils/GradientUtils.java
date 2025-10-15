@@ -7,30 +7,17 @@ import java.awt.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Utilidades para aplicar gradientes y colores hexadecimales a mensajes
- */
 public class GradientUtils {
 
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("<#([A-Fa-f0-9]{6})>(.*?)</#([A-Fa-f0-9]{6})>");
     private static final Pattern HEX_PATTERN = Pattern.compile("<#([A-Fa-f0-9]{6})>");
     private static final Pattern FORMAT_PATTERN = Pattern.compile("(&[klmnor])");
 
-    /**
-     * Aplica gradientes y colores hexadecimales a un mensaje
-     * @param message Mensaje original
-     * @return Mensaje con gradientes y colores aplicados
-     */
     public static String applyGradientsAndHex(String message) {
         message = applyHexColors(message);
         return applyGradients(message);
     }
 
-    /**
-     * Aplica colores hexadecimales a un mensaje
-     * @param message Mensaje original
-     * @return Mensaje con colores hexadecimales aplicados
-     */
     private static String applyHexColors(String message) {
         Matcher matcher = HEX_PATTERN.matcher(message);
         while (matcher.find()) {
@@ -41,11 +28,6 @@ public class GradientUtils {
         return message;
     }
 
-    /**
-     * Aplica gradientes a un mensaje
-     * @param message Mensaje original
-     * @return Mensaje con gradientes aplicados
-     */
     private static String applyGradients(String message) {
         Matcher matcher = GRADIENT_PATTERN.matcher(message);
         StringBuilder sb = new StringBuilder();
@@ -63,13 +45,6 @@ public class GradientUtils {
         return sb.toString();
     }
 
-    /**
-     * Crea un gradiente entre dos colores
-     * @param text Texto al que aplicar el gradiente
-     * @param startColor Color inicial
-     * @param endColor Color final
-     * @return Texto con gradiente aplicado
-     */
     private static String createGradient(String text, Color startColor, Color endColor) {
         StringBuilder builder = new StringBuilder();
 
@@ -109,11 +84,6 @@ public class GradientUtils {
         return builder.toString();
     }
 
-    /**
-     * Convierte un color hexadecimal a ChatColor
-     * @param hex Código hexadecimal del color
-     * @return ChatColor correspondiente
-     */
     public static String toChatColor(String hex) {
         return ChatColor.of(hex).toString();
     }

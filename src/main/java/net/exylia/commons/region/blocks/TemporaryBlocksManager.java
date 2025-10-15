@@ -23,18 +23,14 @@ import java.util.concurrent.ConcurrentMap;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Manager para manejar bloques temporales que desaparecen automáticamente
- */
 public class TemporaryBlocksManager {
     private static TemporaryBlocksManager instance;
 
     private final JavaPlugin plugin;
     private final RegionManager regionManager;
-    private final ConcurrentMap<String, BukkitTask> scheduledRemovals; // location key -> removal task
-    private final ConcurrentMap<String, TemporaryBlock> temporaryBlocks; // location key -> block info
+    private final ConcurrentMap<String, BukkitTask> scheduledRemovals;  
+    private final ConcurrentMap<String, TemporaryBlock> temporaryBlocks;  
 
-    // Configuración por defecto
     private static final int DEFAULT_REMOVAL_SECONDS = 30;
 
     private TemporaryBlocksManager(JavaPlugin plugin, RegionManager regionManager) {
@@ -59,38 +55,34 @@ public class TemporaryBlocksManager {
 
     public void scheduleBlockRemoval(Region region, Location location, Material material, UUID playerId) {
         if (!region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
-            return; // La región no tiene bloques temporales habilitados
+            return;  
         }
 
         String locationKey = getLocationKey(location);
 
-        // Cancelar tarea anterior si existe
         BukkitTask existingTask = scheduledRemovals.get(locationKey);
         if (existingTask != null) {
             existingTask.cancel();
         }
 
-        // Obtener tiempo de remoción desde metadata de la región
         int removalSeconds = getRemovalTime(region);
 
-        // NUEVO: Crear información del bloque temporal con información del jugador
         TemporaryBlock tempBlock = new TemporaryBlock(
                 location.clone(),
                 material,
                 System.currentTimeMillis() + (removalSeconds * 1000L),
-                playerId, // NUEVO: Guardar ID del jugador que colocó el bloque
-                region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS) // NUEVO: Verificar si debe devolver el bloque
+                playerId,  
+                region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS)  
         );
 
         temporaryBlocks.put(locationKey, tempBlock);
 
-        // Programar remoción
         BukkitTask removalTask = new BukkitRunnable() {
             @Override
             public void run() {
                 removeTemporaryBlock(locationKey, location);
             }
-        }.runTaskLater(plugin, removalSeconds * 20L); // convertir a ticks
+        }.runTaskLater(plugin, removalSeconds * 20L);  
 
         scheduledRemovals.put(locationKey, removalTask);
     }
@@ -98,13 +90,11 @@ public class TemporaryBlocksManager {
     public void cancelBlockRemoval(Location location) {
         String locationKey = getLocationKey(location);
 
-        // Cancelar tarea
         BukkitTask task = scheduledRemovals.remove(locationKey);
         if (task != null) {
             task.cancel();
         }
 
-        // Remover información
         temporaryBlocks.remove(locationKey);
     }
 
@@ -120,24 +110,21 @@ public class TemporaryBlocksManager {
     
     private void removeTemporaryBlock(String locationKey, Location location) {
         try {
-            // Obtener información del bloque antes de removerlo
+             
             TemporaryBlock temporaryBlock = temporaryBlocks.get(locationKey);
             if (temporaryBlock == null) {
                 logInternalWarn("Intento de remover bloque temporal inexistente: " + locationKey);
                 return;
             }
 
-            // Obtener la región para el evento
             String regionId = null;
             List<Region> regions = regionManager.getRegionsAt(location);
             if (!regions.isEmpty()) {
                 regionId = regions.get(0).getId();
             }
 
-            // Calcular tiempo de colocación (aproximado)
             long placementTime = temporaryBlock.getRemovalTime() - (getRemovalTime(regions.isEmpty() ? null : regions.get(0)) * 1000L);
 
-            // Crear y disparar el evento personalizado ANTES de remover el bloque
             TemporaryBlockRemovedEvent event = new TemporaryBlockRemovedEvent(
                     location,
                     temporaryBlock.getMaterial(),
@@ -147,26 +134,20 @@ public class TemporaryBlocksManager {
 
             plugin.getServer().getPluginManager().callEvent(event);
 
-            // Si el evento fue cancelado, no remover el bloque
             if (event.isCancelled()) {
                 logInternalDebug("Remoción de bloque temporal cancelada por evento: " + locationKey);
                 return;
             }
 
-            // NUEVO: Manejar devolución de bloque si RE_GIVE_BLOCKS está activo
             if (temporaryBlock.isShouldReGiveBlock() && temporaryBlock.getPlayerId() != null) {
                 giveBlockBackToPlayer(temporaryBlock);
             }
 
-            // Remover bloque del mundo
             location.getBlock().setType(Material.AIR);
 
-            // Limpiar registros
             scheduledRemovals.remove(locationKey);
             temporaryBlocks.remove(locationKey);
 
-            // Notificar al PlayerBlockTracker para mantener consistencia
-            // Solo si tenemos una región válida
             if (regionId != null) {
                 PlayerBlockTracker.getInstance().removePlayerBlock(regionId, location);
             }
@@ -174,7 +155,6 @@ public class TemporaryBlocksManager {
         } catch (Exception e) {
             logInternalWarn("Error removiendo bloque temporal en " + locationKey + ": " + e.getMessage());
 
-            // Limpiar registros incluso si hay error, para evitar memory leaks
             scheduledRemovals.remove(locationKey);
             temporaryBlocks.remove(locationKey);
         }
@@ -187,7 +167,6 @@ public class TemporaryBlocksManager {
             return;
         }
 
-        // Verificar si el jugador está online
         Player player = Bukkit.getPlayer(playerId);
         if (player == null || !player.isOnline()) {
             logInternalDebug(String.format(
@@ -197,12 +176,10 @@ public class TemporaryBlocksManager {
             return;
         }
 
-        // Crear ItemStack del material
         ItemStack blockItem = new ItemStack(temporaryBlock.getMaterial(), 1);
 
-        // Intentar añadir al inventario
         if (player.getInventory().firstEmpty() != -1) {
-            // Hay espacio en el inventario
+             
             player.getInventory().addItem(blockItem);
 
             logInternalDebug(String.format(
@@ -210,7 +187,7 @@ public class TemporaryBlocksManager {
                     player.getName(), temporaryBlock.getMaterial().name()
             ));
         } else {
-            // No hay espacio, dropearlo en la ubicación del jugador
+             
             Location dropLocation = player.getLocation();
             dropLocation.getWorld().dropItemNaturally(dropLocation, blockItem);
 
@@ -221,9 +198,6 @@ public class TemporaryBlocksManager {
         }
     }
 
-    /**
-     * Obtiene el tiempo de remoción desde la metadata de la región
-     */
     private int getRemovalTime(Region region) {
         if (region == null) {
             return DEFAULT_REMOVAL_SECONDS;
@@ -232,9 +206,6 @@ public class TemporaryBlocksManager {
         return customTime != null ? customTime : DEFAULT_REMOVAL_SECONDS;
     }
 
-    /**
-     * Genera clave única para una ubicación
-     */
     private String getLocationKey(Location location) {
         return String.format("%s:%d,%d,%d",
                 location.getWorld().getName(),
@@ -244,17 +215,12 @@ public class TemporaryBlocksManager {
         );
     }
 
-    /**
-     * Limpia todas las tareas pendientes y datos
-     */
     public void shutdown() {
         DebugUtils.logInternalInfo("Cerrando TemporaryBlocksManager...");
 
-        // Cancelar todas las tareas pendientes
         scheduledRemovals.values().forEach(BukkitTask::cancel);
         scheduledRemovals.clear();
 
-        // Limpiar datos
         temporaryBlocks.clear();
 
         DebugUtils.logInternalInfo("TemporaryBlocksManager cerrado");
@@ -267,11 +233,10 @@ public class TemporaryBlocksManager {
 
         int canceledCount = 0;
 
-        // Recorrer todos los bloques temporales
         for (TemporaryBlock tempBlock : temporaryBlocks.values()) {
-            // Si el bloque pertenece al jugador y tiene re-give activo
+             
             if (playerId.equals(tempBlock.getPlayerId()) && tempBlock.isShouldReGiveBlock()) {
-                // Marcar que no debe devolver el bloque (modificar in-place)
+                 
                 tempBlock.cancelReGive();
                 canceledCount++;
             }
@@ -297,9 +262,6 @@ public class TemporaryBlocksManager {
         return getPendingReGiveCount(player.getUniqueId());
     }
 
-    /**
-     * Obtiene estadísticas del sistema
-     */
     public TemporaryBlocksStats getStats() {
         int activeRemovals = scheduledRemovals.size();
         int totalBlocks = temporaryBlocks.size();
@@ -316,14 +278,12 @@ public class TemporaryBlocksManager {
         private final Material material;
         private final long removalTime;
         private final UUID playerId;
-        private boolean shouldReGiveBlock; // CAMBIADO: Ya no es final para poder modificarlo
+        private boolean shouldReGiveBlock;  
 
-        // Constructor original para compatibilidad
         public TemporaryBlock(Location location, Material material, long removalTime) {
             this(location, material, removalTime, null, false);
         }
 
-        // NUEVO: Constructor con información del jugador y RE_GIVE_BLOCKS
         public TemporaryBlock(Location location, Material material, long removalTime, UUID playerId, boolean shouldReGiveBlock) {
             this.location = location;
             this.material = material;
@@ -332,17 +292,10 @@ public class TemporaryBlocksManager {
             this.shouldReGiveBlock = shouldReGiveBlock;
         }
 
-        /**
-         * NUEVO: Cancela la devolución de este bloque específico
-         * El bloque seguirá desapareciendo normalmente
-         */
         public void cancelReGive() {
             this.shouldReGiveBlock = false;
         }
 
-        /**
-         * NUEVO: Reactiva la devolución de este bloque (si es que se había cancelado)
-         */
         public void enableReGive() {
             this.shouldReGiveBlock = true;
         }
@@ -367,7 +320,7 @@ public class TemporaryBlocksManager {
     public static class TemporaryBlocksStats {
         private final int activeRemovals;
         private final int totalBlocks;
-        private final int blocksWithReGive; // NUEVO
+        private final int blocksWithReGive;  
 
         public TemporaryBlocksStats(int activeRemovals, int totalBlocks, int blocksWithReGive) {
             this.activeRemovals = activeRemovals;

@@ -17,23 +17,14 @@ public class ChannelMessage {
         this.timestamp = timestamp;
     }
 
-    /**
-     * Obtiene el canal del mensaje
-     */
     public String getChannel() {
         return channel;
     }
 
-    /**
-     * Obtiene el contenido del mensaje
-     */
     public String getMessage() {
         return message;
     }
 
-    /**
-     * Obtiene el timestamp del mensaje
-     */
     public long getTimestamp() {
         return timestamp;
     }

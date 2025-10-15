@@ -31,7 +31,6 @@ public interface Repository<T> {
     List<T> query(String query, Object... params);
     CompletableFuture<List<T>> queryAsync(String query, Object... params);
 
-    // Métodos de ordenamiento y ranking
     List<T> findAllOrderedBy(String field, SortOrder order);
     List<T> findAllOrderedBy(String field, SortOrder order, int limit);
     List<T> findTopN(String field, int n);
@@ -41,19 +40,16 @@ public interface Repository<T> {
     CompletableFuture<List<T>> findTopNAsync(String field, int n);
     CompletableFuture<List<T>> findBottomNAsync(String field, int n);
 
-    // Métodos de paginación
     List<T> findAllPaged(int page, int size);
     List<T> findAllPagedOrderedBy(String field, SortOrder order, int page, int size);
     CompletableFuture<List<T>> findAllPagedAsync(int page, int size);
     CompletableFuture<List<T>> findAllPagedOrderedByAsync(String field, SortOrder order, int page, int size);
 
-    // Métodos de posición y ranking
     long getRankByField(String field, Object value, SortOrder order);
     Optional<T> getByRank(String field, long rank, SortOrder order);
     CompletableFuture<Long> getRankByFieldAsync(String field, Object value, SortOrder order);
     CompletableFuture<Optional<T>> getByRankAsync(String field, long rank, SortOrder order);
 
-    // Métodos de leaderboard
     List<T> getLeaderboard(String field, int limit);
     List<T> getLeaderboard(String field, int limit, SortOrder order);
     List<T> getLeaderboardRange(String field, int startRank, int endRank, SortOrder order);
@@ -61,13 +57,11 @@ public interface Repository<T> {
     CompletableFuture<List<T>> getLeaderboardAsync(String field, int limit, SortOrder order);
     CompletableFuture<List<T>> getLeaderboardRangeAsync(String field, int startRank, int endRank, SortOrder order);
 
-    // Métodos optimizados para leaderboards con filtro y ordenamiento
     List<T> findByFieldOrderedBy(String filterField, Object filterValue, String orderField, SortOrder order, int limit);
     long countByField(String field, Object value);
     CompletableFuture<List<T>> findByFieldOrderedByAsync(String filterField, Object filterValue, String orderField, SortOrder order, int limit);
     CompletableFuture<Long> countByFieldAsync(String field, Object value);
 
-    // Operaciones de mantenimiento
     void drop();
     CompletableFuture<Void> dropAsync();
 

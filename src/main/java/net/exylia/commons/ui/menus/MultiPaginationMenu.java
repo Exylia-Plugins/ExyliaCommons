@@ -1,5 +1,3 @@
-// ==================== MULTI PAGINATION MENU V2 - ENHANCED ====================
-
 package net.exylia.commons.ui.menus;
 
 import net.exylia.commons.placeholders.ExyliaContext;
@@ -19,18 +17,12 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/**
- * Advanced multi-section pagination menu with optimized performance and filtering support
- * Each section can have independent pagination, navigation, items, and filtering
- */
 public class MultiPaginationMenu extends Menu {
 
-    // Section management
     private final Map<String, PaginationSection> sections = new LinkedHashMap<>();
     private final Map<UUID, Map<String, Integer>> playerPages = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, Map<Integer, Integer>>> playerItemTasks = new ConcurrentHashMap<>();
 
-    // Event handlers
     private BiConsumer<String, Integer> onSectionUpdate;
     private Consumer<Player> externalCloseHandler;
 
@@ -44,32 +36,24 @@ public class MultiPaginationMenu extends Menu {
         super.setCloseHandler(this::onPlayerCloseMenu);
     }
 
-    // ==================== PAGINATION SECTION CLASS ====================
-
-    /**
-     * Independent pagination section with its own items, navigation, settings, and filtering
-     */
     public static class PaginationSection {
         private final String name;
-        private final List<MenuItem> allItems = new ArrayList<>(); // Todos los items
-        private final List<MenuItem> filteredItems = new ArrayList<>(); // Items después del filtro
+        private final List<MenuItem> allItems = new ArrayList<>();  
+        private final List<MenuItem> filteredItems = new ArrayList<>();  
         private final int[] slots;
         private final int itemsPerPage;
 
-        // Navigation configuration
         private MenuItem previousButton;
         private MenuItem nextButton;
         private int previousButtonSlot = -1;
         private int nextButtonSlot = -1;
 
-        // Section configuration
         private MenuItem fillerItem;
         private MenuItem selectedItemTemplate;
         private BiFunction<MenuClickEvent, Integer, Boolean> onItemSelect;
         private Consumer<Integer> onPageChange;
         private Integer selectedIndex = null;
 
-        // Filtering support
         private Predicate<MenuItem> currentFilter = null;
         private boolean filterDirty = true;
 
@@ -79,35 +63,18 @@ public class MultiPaginationMenu extends Menu {
             this.itemsPerPage = slots.length;
         }
 
-        // ==================== ITEM MANAGEMENT ====================
-
-        /**
-         * Adds an item to this section
-         * @param item The item to add
-         * @return This section for chaining
-         */
         public PaginationSection addItem(MenuItem item) {
             allItems.add(item);
             filterDirty = true;
             return this;
         }
 
-        /**
-         * Adds multiple items to this section
-         * @param items The items to add
-         * @return This section for chaining
-         */
         public PaginationSection addItems(Collection<MenuItem> items) {
             this.allItems.addAll(items);
             filterDirty = true;
             return this;
         }
 
-        /**
-         * Sets all items for this section
-         * @param newItems The items to set
-         * @return This section for chaining
-         */
         public PaginationSection setItems(Collection<MenuItem> newItems) {
             allItems.clear();
             allItems.addAll(newItems);
@@ -116,10 +83,6 @@ public class MultiPaginationMenu extends Menu {
             return this;
         }
 
-        /**
-         * Clears all items from this section
-         * @return This section for chaining
-         */
         public PaginationSection clearItems() {
             allItems.clear();
             filteredItems.clear();
@@ -128,12 +91,6 @@ public class MultiPaginationMenu extends Menu {
             return this;
         }
 
-        /**
-         * Updates an item at a specific index in the original list
-         * @param index The index to update
-         * @param item The new item
-         * @return This section for chaining
-         */
         public PaginationSection updateItem(int index, MenuItem item) {
             if (index >= 0 && index < allItems.size()) {
                 allItems.set(index, item);
@@ -142,11 +99,6 @@ public class MultiPaginationMenu extends Menu {
             return this;
         }
 
-        /**
-         * Removes an item at a specific index from the original list
-         * @param index The index to remove
-         * @return This section for chaining
-         */
         public PaginationSection removeItem(int index) {
             if (index >= 0 && index < allItems.size()) {
                 allItems.remove(index);
@@ -156,31 +108,17 @@ public class MultiPaginationMenu extends Menu {
             return this;
         }
 
-        // ==================== FILTERING ====================
-
-        /**
-         * Sets a filter for this section
-         * @param filter The filter predicate (null to remove filter)
-         * @return This section for chaining
-         */
         public PaginationSection setFilter(Predicate<MenuItem> filter) {
             this.currentFilter = filter;
             this.filterDirty = true;
-            this.selectedIndex = null; // Clear selection when filter changes
+            this.selectedIndex = null;  
             return this;
         }
 
-        /**
-         * Removes the current filter
-         * @return This section for chaining
-         */
         public PaginationSection clearFilter() {
             return setFilter(null);
         }
 
-        /**
-         * Applies the current filter to update the filtered items list
-         */
         private void applyFilter() {
             if (!filterDirty) return;
 
@@ -195,16 +133,10 @@ public class MultiPaginationMenu extends Menu {
             filterDirty = false;
         }
 
-        /**
-         * Gets the currently visible items (after filtering)
-         * @return List of filtered items
-         */
         public List<MenuItem> getVisibleItems() {
             applyFilter();
             return new ArrayList<>(filteredItems);
         }
-
-        // ==================== NAVIGATION CONFIGURATION ====================
 
         public PaginationSection setPreviousButton(MenuItem button, int slot) {
             this.previousButton = button;
@@ -228,8 +160,6 @@ public class MultiPaginationMenu extends Menu {
             return this;
         }
 
-        // ==================== EVENT HANDLERS ====================
-
         public PaginationSection setOnItemSelect(BiFunction<MenuClickEvent, Integer, Boolean> handler) {
             this.onItemSelect = handler;
             return this;
@@ -239,8 +169,6 @@ public class MultiPaginationMenu extends Menu {
             this.onPageChange = handler;
             return this;
         }
-
-        // ==================== SELECTION MANAGEMENT ====================
 
         public PaginationSection setSelectedIndex(Integer index) {
             this.selectedIndex = index;
@@ -257,22 +185,11 @@ public class MultiPaginationMenu extends Menu {
                     ? filteredItems.get(selectedIndex) : null;
         }
 
-        // ==================== UTILITY METHODS ====================
-
-        /**
-         * Gets the total number of pages based on filtered items
-         * @return The total pages
-         */
         public int getTotalPages() {
             applyFilter();
             return Math.max(1, (int) Math.ceil((double) filteredItems.size() / itemsPerPage));
         }
 
-        /**
-         * Gets items for a specific page from filtered items
-         * @param page The page number (1-based)
-         * @return List of items for the page
-         */
         public List<MenuItem> getItemsForPage(int page) {
             applyFilter();
             int start = (page - 1) * itemsPerPage;
@@ -285,11 +202,6 @@ public class MultiPaginationMenu extends Menu {
             return new ArrayList<>(filteredItems.subList(start, end));
         }
 
-        /**
-         * Checks if an item is selected based on filtered index
-         * @param filteredIndex The filtered item index
-         * @return True if the item is selected
-         */
         public boolean isItemSelected(int filteredIndex) {
             return selectedIndex != null && selectedIndex.equals(filteredIndex);
         }
@@ -304,8 +216,6 @@ public class MultiPaginationMenu extends Menu {
             }
         }
 
-        // ==================== GETTERS ====================
-
         public String getName() { return name; }
         public List<MenuItem> getAllItems() { return new ArrayList<>(allItems); }
         public int getItemCount() {
@@ -317,7 +227,6 @@ public class MultiPaginationMenu extends Menu {
         public int getItemsPerPage() { return itemsPerPage; }
         public boolean hasFilter() { return currentFilter != null; }
 
-        // Package-private getters for menu processing
         MenuItem getPreviousButton() { return previousButton; }
         MenuItem getNextButton() { return nextButton; }
         int getPreviousButtonSlot() { return previousButtonSlot; }
@@ -327,8 +236,6 @@ public class MultiPaginationMenu extends Menu {
         BiFunction<MenuClickEvent, Integer, Boolean> getOnItemSelect() { return onItemSelect; }
         Consumer<Integer> getOnPageChange() { return onPageChange; }
     }
-
-    // ==================== SECTION MANAGEMENT ====================
 
     public PaginationSection addSection(String name, int... slots) {
         PaginationSection section = new PaginationSection(name, slots);
@@ -353,8 +260,6 @@ public class MultiPaginationMenu extends Menu {
         this.onSectionUpdate = handler;
         return this;
     }
-
-    // ==================== PAGE MANAGEMENT ====================
 
     public int getCurrentPage(Player player, String sectionName) {
         Map<String, Integer> pages = playerPages.get(player.getUniqueId());
@@ -409,11 +314,6 @@ public class MultiPaginationMenu extends Menu {
         return this;
     }
 
-    /**
-     * Refreshes a specific section synchronously
-     * @param player The player
-     * @param sectionName The section name
-     */
     private void refreshSectionSynchronous(Player player, String sectionName) {
         PaginationSection section = sections.get(sectionName);
         if (section != null) {
@@ -422,8 +322,6 @@ public class MultiPaginationMenu extends Menu {
             updateInventoryDisplay();
         }
     }
-
-    // ==================== MENU OPERATIONS ====================
 
     @Override
     public void open(Player player, ExyliaContext context) {
@@ -435,9 +333,6 @@ public class MultiPaginationMenu extends Menu {
         updateAllSectionsSynchronous(player);
     }
 
-    /**
-     * Synchronous update of all sections
-     */
     private void updateAllSectionsSynchronous(Player player) {
         if (viewer != player || !isOpen()) {
             return;
@@ -473,20 +368,13 @@ public class MultiPaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Refreshes a specific section and resets to page 1
-     * Useful when applying filters that change the item count
-     * @param sectionName The section name
-     */
     public void refreshSectionWithReset(String sectionName) {
         if (viewer != null && isOpen()) {
-            // Reset to page 1
+             
             setCurrentPage(viewer, sectionName, 1);
             refreshSectionSynchronous(viewer, sectionName);
         }
     }
-
-    // ==================== PRIVATE IMPLEMENTATION ====================
 
     private void initializePlayerPages(Player player) {
         Map<String, Integer> pages = new ConcurrentHashMap<>();
@@ -547,10 +435,9 @@ public class MultiPaginationMenu extends Menu {
 
     @Override
     protected ExyliaContext prepareItemContext(MenuItem item) {
-        // Crear contexto base desde el menú
+         
         ExyliaContext combinedContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
 
-        // Fusionar con el contexto específico del item (tiene prioridad)
         if (item.getContext() != null && !item.getContext().isEmpty()) {
             combinedContext.merge(item.getContext());
         }
@@ -562,13 +449,11 @@ public class MultiPaginationMenu extends Menu {
         String sectionName = section.getName();
         int totalPages = section.getTotalPages();
 
-        // ==================== BOTÓN ANTERIOR ====================
         if (currentPage > 1 && section.getPreviousButton() != null && section.getPreviousButtonSlot() != -1) {
             MenuItem prevButton = section.getPreviousButton().clone();
 
-            // ✅ USAR EL CONTEXTO DEL MENÚ PARA BOTONES DE NAVEGACIÓN
             ExyliaContext buttonContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
-            // Agregar información de paginación al contexto
+             
             buttonContext.put("current_page", currentPage);
             buttonContext.put("total_pages", totalPages);
             buttonContext.put("section_name", sectionName);
@@ -582,7 +467,7 @@ public class MultiPaginationMenu extends Menu {
 
             items.put(section.getPreviousButtonSlot(), prevButton);
         } else {
-            // Remover botón anterior si no debe aparecer
+             
             if (section.getPreviousButtonSlot() != -1) {
                 items.remove(section.getPreviousButtonSlot());
 
@@ -597,13 +482,11 @@ public class MultiPaginationMenu extends Menu {
             }
         }
 
-        // ==================== BOTÓN SIGUIENTE ====================
         if (currentPage < totalPages && section.getNextButton() != null && section.getNextButtonSlot() != -1) {
             MenuItem nextButton = section.getNextButton().clone();
 
-            // ✅ USAR EL CONTEXTO DEL MENÚ PARA BOTONES DE NAVEGACIÓN
             ExyliaContext buttonContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
-            // Agregar información de paginación al contexto
+             
             buttonContext.put("current_page", currentPage);
             buttonContext.put("total_pages", totalPages);
             buttonContext.put("section_name", sectionName);
@@ -617,7 +500,7 @@ public class MultiPaginationMenu extends Menu {
 
             items.put(section.getNextButtonSlot(), nextButton);
         } else {
-            // Remover botón siguiente si no debe aparecer
+             
             if (section.getNextButtonSlot() != -1) {
                 items.remove(section.getNextButtonSlot());
 
@@ -634,17 +517,12 @@ public class MultiPaginationMenu extends Menu {
     }
 
     private void processSectionForPlayer(Player player, PaginationSection section, int currentPage) {
-        // Debug opcional (comentar en producción)
-        // debugSectionState(section, currentPage);
-
+         
         applySectionFiller(player, section);
         placeSectionItems(player, section, currentPage);
         placeSectionNavigation(player, section, currentPage);
     }
 
-    /**
-     * Fuerza la actualización de los botones de navegación para todas las secciones
-     */
     public void forceRefreshNavigation() {
         if (viewer != null && isOpen()) {
             Map<String, Integer> pages = playerPages.get(viewer.getUniqueId());
@@ -658,11 +536,6 @@ public class MultiPaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Gets the effective filler for a specific slot (considering border and global fillers)
-     * @param slot The slot to get the filler for
-     * @return The appropriate filler item
-     */
     private MenuItem getEffectiveFillerForSlot(int slot) {
         if (borderFiller != null && isBorderSlot(slot)) {
             return borderFiller;
@@ -769,8 +642,6 @@ public class MultiPaginationMenu extends Menu {
         itemTasks.put(slot, taskId);
     }
 
-    // ==================== CLEANUP ====================
-
     private void onPlayerCloseMenu(Player player) {
         cleanupPlayerResources(player);
         if (externalCloseHandler != null) {
@@ -793,8 +664,6 @@ public class MultiPaginationMenu extends Menu {
             );
         }
     }
-
-    // ==================== OVERRIDE METHODS ====================
 
     @Override
     public MultiPaginationMenu setCloseHandler(Consumer<Player> closeHandler) {

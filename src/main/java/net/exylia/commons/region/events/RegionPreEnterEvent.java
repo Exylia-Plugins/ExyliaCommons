@@ -10,10 +10,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Evento llamado cuando un jugador intenta entrar a una región
- * Este evento se dispara antes que RegionEnterEvent y puede ser cancelado
- */
 @Getter
 public class RegionPreEnterEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();

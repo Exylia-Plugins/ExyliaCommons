@@ -19,10 +19,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Static Input Manager for handling custom player inputs
- * Simple, lightweight and customizable
- */
 public final class InputManager implements Listener {
 
     private static InputManager instance;
@@ -32,9 +28,6 @@ public final class InputManager implements Listener {
 
     private InputManager() {}
 
-    /**
-     * Initialize the InputManager
-     */
     public static void init(ExyliaPlugin pluginInstance) {
         if (instance != null) {
             return;
@@ -45,25 +38,16 @@ public final class InputManager implements Listener {
         plugin.getServer().getPluginManager().registerEvents(instance, plugin);
     }
 
-    /**
-     * Request custom input from player
-     *
-     * @param player The player to request input from
-     * @param handler Custom handler to process the input
-     * @return CompletableFuture with the result
-     */
     public static <T> CompletableFuture<T> requestInput(Player player, InputHandler<T> handler) {
         if (instance == null) {
             throw new IllegalStateException("InputManager not initialized");
         }
 
-        // Cancel existing session if any
         cancelInput(player);
 
         InputSession session = new InputSession(player, handler);
         instance.activeSessions.put(player.getUniqueId(), session);
 
-        // Start the input process
         handler.onStart(player);
 
         TitleUtils.sendCountdownTitle(player, "input_timeout",
@@ -83,9 +67,6 @@ public final class InputManager implements Listener {
         return session.getFuture();
     }
 
-    /**
-     * Cancel active input for player
-     */
     public static boolean cancelInput(Player player) {
         if (instance == null) {
             return false;
@@ -99,21 +80,13 @@ public final class InputManager implements Listener {
         return false;
     }
 
-    /**
-     * Check if player has active input
-     */
     public static boolean hasActiveInput(Player player) {
         return instance != null && instance.activeSessions.containsKey(player.getUniqueId());
     }
 
-    /**
-     * Get active session for player (internal use)
-     */
     static InputSession getActiveSession(Player player) {
         return instance != null ? instance.activeSessions.get(player.getUniqueId()) : null;
     }
-
-    // ===== EVENT HANDLERS =====
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -123,9 +96,8 @@ public final class InputManager implements Listener {
         if (session != null) {
             event.setCancelled(true);
 
-            // Handle on main thread
             plugin.getServer().getScheduler().runTask(plugin, () -> {
-                // Check if session still exists (might have been cancelled)
+                 
                 if (activeSessions.containsKey(player.getUniqueId())) {
                     handleInput(player, event.getMessage());
                 }
@@ -137,8 +109,6 @@ public final class InputManager implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         cancelInput(event.getPlayer());
     }
-
-    // ===== PRIVATE METHODS =====
 
     @SuppressWarnings("unchecked")
     private void handleInput(Player player, String input) {
@@ -186,9 +156,6 @@ public final class InputManager implements Listener {
         }
     }
 
-    /**
-     * Send message from InputResult to player (handles both String and Component)
-     */
     private static void sendResultMessage(Player player, InputResult result) {
         if (result.hasStringMessage()) {
             MessageUtils.sendMessage(player, result.getMessageAsString());
@@ -197,9 +164,6 @@ public final class InputManager implements Listener {
         }
     }
 
-    /**
-     * Shutdown the InputManager
-     */
     public static void shutdown() {
         if (instance != null) {
             instance.activeSessions.values().forEach(InputSession::cancel);

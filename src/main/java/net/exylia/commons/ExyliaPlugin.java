@@ -36,13 +36,11 @@ import static net.exylia.commons.utils.DebugUtils.*;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
 
-    // ===== STATIC FIELDS =====
     private static boolean initialized = false;
     private static final Set<ExyliaPlugin> registeredPlugins = new HashSet<>();
     @Getter
     private static ExyliaPlugin instance;
 
-    // ===== INSTANCE FIELDS =====
     private BukkitAudiences adventure;
     private ConfigurationSystem configSystem;
     private ReloadManager reloadManager;
@@ -50,11 +48,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Setter
     private SunLicenseAPI api;
 
-    // ===== CONSTRUCTOR =====
-
     public abstract int getProductID();
 
-    // ===== BUKKIT LIFECYCLE =====
     @Override
     public final void onEnable() {
         try {
@@ -126,47 +121,35 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
-    // ===== SISTEMA DE CONFIGURACIÓN =====
-
-    /**
-     * Inicializa el sistema de configuración con las clases especificadas por el plugin
-     */
     private void initializeConfigurationSystem() {
         try {
             configSystem = new ConfigurationSystem(this);
 
-            // Obtener las clases de configuración del plugin
             Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
 
-            // Crear lista combinada con configuraciones base y del plugin
             List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
 
-            // Agregar configuraciones base de ExyliaCommons
             allConfigClasses.add(MainConfigBase.class);
             allConfigClasses.add(MessagesBase.class);
 
-            // Agregar configuraciones específicas del plugin
             if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
-                // Filtrar para evitar duplicados y mantener las extensiones
+                 
                 for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
 
-                    // Verificar si extiende una configuración base
                     if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
-                        // Reemplazar MainConfigBase con la extensión
+                         
                         allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
                     }
 
                     if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
-                        // Reemplazar MessagesBase con la extensión
+                         
                         allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
                     }
 
-                    // Agregar la clase del plugin
                     allConfigClasses.add(pluginClass);
                 }
             }
 
-            // Convertir a array
             Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
 
             configSystem.initialize(finalConfigClasses);
@@ -176,7 +159,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             TimeFormatter.init();
             DateFormatter.init();
             
-            // Inicializar ColorUtils con presets personalizados
             ColorUtils.initializePresets(this, getCustomColorPresets());
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
@@ -184,9 +166,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
-    /**
-     * Configura listeners para reloads de configuración
-     */
     private void setupConfigurationListeners() {
         configSystem.addReloadListener(new ConfigurationSystem.ConfigReloadListener() {
             @Override
@@ -201,57 +180,24 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         });
     }
 
-    // ===== MÉTODOS ABSTRACTOS PARA IMPLEMENTAR =====
-
-    /**
-     * Implementación principal del plugin
-     */
     protected abstract void onExyliaEnable();
 
-    /**
-     * Limpieza del plugin
-     */
     protected abstract void onExyliaDisable();
 
-    /**
-     * Define las clases de configuración que usa el plugin
-     * @return Array de clases que extienden ConfigBase
-     */
     protected abstract Class<? extends ConfigBase>[] getConfigurationClasses();
 
-    /**
-     * Define presets de colores personalizados para el plugin
-     * Estos presets se añadirán a los presets por defecto de ColorUtils
-     * @return LinkedHashMap con los presets personalizados (key: nombre del preset, value: código de color)
-     *         El orden de inserción se respeta en el archivo colors.yml
-     */
     protected Map<String, String> getCustomColorPresets() {
         return new LinkedHashMap<>();
     }
 
-    // ===== API DE RELOAD =====
-
-    /**
-     * Obtiene el gestor de reloads para este plugin
-     * @return ReloadManager asociado a este plugin
-     */
     public final ReloadManager getReloadManager() {
         return reloadManager;
     }
 
-    /**
-     * Realiza un reload completo de todos los sistemas
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadAllAsync() {
         return reloadManager.reloadAllAsync();
     }
 
-    /**
-     * Realiza un reload completo de todos los sistemas con mensaje automático al sender
-     * @param sender CommandSender que recibirá los mensajes de progreso
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender) {
         ReloadResult.sendStartMessage(sender);
         return reloadManager.reloadAllAsync()
@@ -262,21 +208,10 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 });
     }
 
-    /**
-     * Realiza un reload completo con timeout
-     * @param timeoutSeconds Timeout en segundos
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadAllAsync(long timeoutSeconds) {
         return reloadManager.reloadAllAsync(timeoutSeconds);
     }
 
-    /**
-     * Realiza un reload completo con timeout y mensaje automático al sender
-     * @param sender CommandSender que recibirá los mensajes de progreso
-     * @param timeoutSeconds Timeout en segundos
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender, long timeoutSeconds) {
         ReloadResult.sendStartMessage(sender);
         return reloadManager.reloadAllAsync(timeoutSeconds)
@@ -287,77 +222,41 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 });
     }
 
-    /**
-     * Realiza un reload solo del sistema de configuración
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadConfigurationAsync() {
         return reloadManager.reloadConfigurationAsync();
     }
 
-    /**
-     * Realiza un reload solo de la base de datos
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadDatabaseAsync() {
         return reloadManager.reloadDatabaseAsync();
     }
 
-    /**
-     * Realiza un reload solo de Redis
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadRedisAsync() {
         return reloadManager.reloadRedisAsync();
     }
 
-    /**
-     * Realiza un reload personalizado del plugin
-     * @return CompletableFuture con el resultado del reload
-     */
     public final CompletableFuture<ReloadResult> reloadPluginAsync() {
         return reloadManager.reloadPluginAsync();
     }
 
-    // ===== HOOKS OPCIONALES PARA LOS PLUGINS =====
-
-    /**
-     * Hook llamado después del reload de base de datos
-     */
     protected void onDatabaseReload() {
-        // Hook vacío por defecto
+         
     }
 
-    /**
-     * Hook llamado después del reload de Redis
-     */
     protected void onRedisReload() {
-        // Hook vacío por defecto
+         
     }
 
-    /**
-     * Hook llamado para reload personalizado del plugin
-     */
     protected void onPluginReload() {
-        // Hook vacío por defecto
+         
     }
 
-    /**
-     * Hook llamado cuando se recarga un archivo de configuración específico
-     * @param fileName Nombre del archivo recargado
-     */
     protected void onConfigurationFileReload(String fileName) {
-        // Hook vacío por defecto
+         
     }
 
-    /**
-     * Hook llamado cuando se recargan todas las configuraciones
-     */
     protected void onAllConfigurationsReload() {
-        // Hook vacío por defecto
+         
     }
-
-    // ===== MÉTODOS PACKAGE-PRIVATE PARA RELOADMANAGER =====
 
     final void callDatabaseReloadHook() {
         onDatabaseReload();
@@ -379,7 +278,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         onAllConfigurationsReload();
     }
 
-    // ===== ADVENTURE API =====
     public BukkitAudiences adventure() {
         if (this.adventure == null) {
             throw new IllegalStateException("Attempted to access Adventure when the plugin was disabled!");
@@ -387,7 +285,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return this.adventure;
     }
 
-    // ===== STATIC UTILITY METHODS =====
     @SuppressWarnings("unchecked")
     public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
         for (ExyliaPlugin plugin : registeredPlugins) {
@@ -402,7 +299,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
     }
 
-    // ===== PRIVATE INITIALIZATION METHODS =====
     private void initializeExylia() {
         try {
             ConfigInitializer.init(this);

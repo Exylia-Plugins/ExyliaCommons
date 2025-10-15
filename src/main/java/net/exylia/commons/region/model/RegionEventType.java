@@ -2,9 +2,6 @@ package net.exylia.commons.region.model;
 
 import lombok.Getter;
 
-/**
- * Tipos de eventos de región
- */
 @Getter
 public enum RegionEventType {
     ENTER("enter", "Entrada a región"),

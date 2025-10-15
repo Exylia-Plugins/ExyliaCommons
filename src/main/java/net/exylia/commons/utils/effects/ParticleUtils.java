@@ -126,12 +126,6 @@ public class ParticleUtils {
         }
     }
 
-    /**
-     * Parses a color from a string in format "R,G,B"
-     *
-     * @param colorString The color string
-     * @return The Color object, or null if invalid
-     */
     private static Color parseColor(String colorString) {
         if (colorString == null || colorString.isEmpty()) return null;
 
@@ -143,7 +137,6 @@ public class ParticleUtils {
             int g = Integer.parseInt(rgb[1].trim());
             int b = Integer.parseInt(rgb[2].trim());
 
-            // Validate RGB values
             if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) return null;
 
             return Color.fromRGB(r, g, b);

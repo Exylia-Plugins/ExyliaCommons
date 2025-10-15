@@ -4,9 +4,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Particle;
 
-/**
- * Configuración para la visualización de partículas
- */
 @Getter
 @Setter
 public class ParticleConfig {
@@ -27,12 +24,11 @@ public class ParticleConfig {
         this.offsetY = 0.0;
         this.offsetZ = 0.0;
         this.speed = 0.0;
-        this.updateInterval = 4L; // 4 ticks = 0.2 segundos
-        this.maxVolumeForVisualization = 100000L; // 100k bloques
+        this.updateInterval = 4L;  
+        this.maxVolumeForVisualization = 100000L;  
         this.enabledByDefault = true;
     }
 
-    // Builder pattern para configuración fluida
     public ParticleConfig particleType(Particle particleType) {
         this.particleType = particleType;
         return this;
@@ -70,9 +66,6 @@ public class ParticleConfig {
         return this;
     }
 
-    /**
-     * Configuración para partículas sutiles
-     */
     public static ParticleConfig subtle() {
         return new ParticleConfig()
                 .particleType(Particle.CRIT)
@@ -80,9 +73,6 @@ public class ParticleConfig {
                 .updateInterval(8L);
     }
 
-    /**
-     * Configuración para partículas llamativas
-     */
     public static ParticleConfig vibrant() {
         return new ParticleConfig()
                 .particleType(Particle.FLAME)
@@ -91,9 +81,6 @@ public class ParticleConfig {
                 .updateInterval(2L);
     }
 
-    /**
-     * Configuración para partículas mágicas
-     */
     public static ParticleConfig magical() {
         return new ParticleConfig()
                 .particleType(Particle.ENCHANTMENT_TABLE)
@@ -103,9 +90,6 @@ public class ParticleConfig {
                 .updateInterval(3L);
     }
 
-    /**
-     * Configuración de alto rendimiento para selecciones grandes
-     */
     public static ParticleConfig performance() {
         return new ParticleConfig()
                 .particleType(Particle.CRIT)

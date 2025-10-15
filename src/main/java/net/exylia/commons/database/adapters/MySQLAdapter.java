@@ -58,15 +58,15 @@ public class MySQLAdapter implements DatabaseAdapter {
             hikariConfig.setJdbcUrl(url);
             hikariConfig.setUsername(username);
             hikariConfig.setPassword(password);
-            hikariConfig.setMaximumPoolSize(Math.min(poolSize, 5)); // Limit max pool size
-            hikariConfig.setMinimumIdle(Math.min(2, poolSize / 2)); // Reduce minimum idle
-            hikariConfig.setConnectionTimeout(15000); // Reduce timeout
-            hikariConfig.setIdleTimeout(300000); // 5 minutes instead of 10
-            hikariConfig.setMaxLifetime(900000); // 15 minutes instead of 30
-            hikariConfig.setLeakDetectionThreshold(30000); // Reduce leak detection
+            hikariConfig.setMaximumPoolSize(Math.min(poolSize, 5));  
+            hikariConfig.setMinimumIdle(Math.min(2, poolSize / 2));  
+            hikariConfig.setConnectionTimeout(15000);  
+            hikariConfig.setIdleTimeout(300000);  
+            hikariConfig.setMaxLifetime(900000);  
+            hikariConfig.setLeakDetectionThreshold(30000);  
             hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
-            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "100"); // Reduce cache size
-            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "1024"); // Reduce SQL limit
+            hikariConfig.addDataSourceProperty("prepStmtCacheSize", "100");  
+            hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "1024");  
             hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
             hikariConfig.addDataSourceProperty("useLocalSessionState", "true");
             hikariConfig.addDataSourceProperty("rewriteBatchedStatements", "true");
@@ -77,7 +77,6 @@ public class MySQLAdapter implements DatabaseAdapter {
 
             dataSource = new HikariDataSource(hikariConfig);
 
-            // Test connection
             try (Connection testConnection = dataSource.getConnection()) {
                 testConnection.prepareStatement("SELECT 1").executeQuery();
                 logInternalInfo("MySQL connection pool established successfully with " + poolSize + " connections");
@@ -157,7 +156,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                             "No rows were inserted, save operation failed");
                 }
 
-                // Update entity with generated ID
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         int generatedId = generatedKeys.getInt(1);
@@ -195,7 +193,6 @@ public class MySQLAdapter implements DatabaseAdapter {
             String tableName = getTableName(entities.get(0).getClass());
             String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-            // Separate entities into INSERT (new) and UPDATE (existing) batches
             List<T> newEntities = new ArrayList<>();
             List<T> existingEntities = new ArrayList<>();
 
@@ -211,7 +208,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
             }
 
-            // Process new entities (INSERT) with generated keys
             if (!newEntities.isEmpty()) {
                 Map<String, Object> firstEntityMap = entityToMap(newEntities.get(0));
 
@@ -221,7 +217,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 List<String> columns = new ArrayList<>();
                 List<Object> allParameters = new ArrayList<>();
 
-                // Build column part
                 boolean first = true;
                 for (String columnName : firstEntityMap.keySet()) {
                     if (!first) {
@@ -233,7 +228,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
                 sql.append(") ");
 
-                // Build VALUES for all new entities
                 for (int i = 0; i < newEntities.size(); i++) {
                     if (i > 0) {
                         valuePlaceholders.append(", ");
@@ -265,7 +259,6 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                     stmt.executeUpdate();
 
-                    // Update entities with generated IDs
                     try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                         int index = 0;
                         while (generatedKeys.next() && index < newEntities.size()) {
@@ -281,7 +274,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
             }
 
-            // Process existing entities (UPDATE) with ON DUPLICATE KEY UPDATE
             if (!existingEntities.isEmpty()) {
                 Map<String, Object> firstEntityMap = entityToMapWithId(existingEntities.get(0));
 
@@ -292,7 +284,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 List<String> columns = new ArrayList<>();
                 List<Object> allParameters = new ArrayList<>();
 
-                // Build column part
                 boolean first = true;
                 for (String columnName : firstEntityMap.keySet()) {
                     if (!first) {
@@ -304,7 +295,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
                 sql.append(") ");
 
-                // Build VALUES for all existing entities
                 for (int i = 0; i < existingEntities.size(); i++) {
                     if (i > 0) {
                         valuePlaceholders.append(", ");
@@ -325,7 +315,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                     valuePlaceholders.append(")");
                 }
 
-                // Build UPDATE clause (exclude primary key)
                 first = true;
                 for (String column : columns) {
                     if (!column.equals(primaryKey)) {
@@ -379,7 +368,6 @@ public class MySQLAdapter implements DatabaseAdapter {
             String tableName = getTableName(entities.get(0).getClass());
             String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-            // Use batch updates for MySQL for better performance
             Map<String, Object> firstEntityMap = entityToMap(entities.get(0));
 
             StringBuilder sql = new StringBuilder("UPDATE `" + tableName + "` SET ");
@@ -410,11 +398,11 @@ public class MySQLAdapter implements DatabaseAdapter {
                         Map<String, Object> entityMap = entityToMap(entity);
 
                         int paramIndex = 1;
-                        // Set values for update columns
+                         
                         for (String column : updateColumns) {
                             stmt.setObject(paramIndex++, entityMap.get(column));
                         }
-                        // Set primary key value for WHERE clause
+                         
                         stmt.setObject(paramIndex, entityMap.get(primaryKey));
 
                         stmt.addBatch();
@@ -812,11 +800,9 @@ public class MySQLAdapter implements DatabaseAdapter {
                         sql.append(" UNIQUE");
                     }
 
-                    // Handle default values specific for MySQL
                     if (!column.defaultValue().isEmpty()) {
                         String defaultValue = column.defaultValue();
 
-                        // For BOOLEAN, convert true/false to 1/0
                         if ((field.getType() == boolean.class || field.getType() == Boolean.class)) {
                             if ("true".equalsIgnoreCase(defaultValue)) {
                                 sql.append(" DEFAULT 1");
@@ -883,19 +869,16 @@ public class MySQLAdapter implements DatabaseAdapter {
                             String alterSql = "ALTER TABLE `" + getTableName(entityClass) +
                                     "` ADD COLUMN `" + columnName + "` " + sqlType;
 
-                            // First add as nullable
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
                                 logInternalInfo("Column added: " + columnName);
                                 hasUpdates = true;
                             }
 
-                            // If has default value, update existing records
                             if (!column.defaultValue().isEmpty()) {
                                 String defaultValue = column.defaultValue();
                                 Object actualValue = defaultValue;
 
-                                // Convert values for specific types
                                 if (field.getType() == boolean.class || field.getType() == Boolean.class) {
                                     if ("true".equalsIgnoreCase(defaultValue)) {
                                         actualValue = 1;
@@ -913,7 +896,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                                 }
                             }
 
-                            // Make NOT NULL if necessary
                             if (!column.nullable() && !column.primaryKey()) {
                                 String alterNotNullSql = "ALTER TABLE `" + getTableName(entityClass) +
                                         "` MODIFY COLUMN `" + columnName + "` " + sqlType + " NOT NULL";
@@ -1025,20 +1007,19 @@ public class MySQLAdapter implements DatabaseAdapter {
 
     @Override
     public void beginTransaction() throws Exception {
-        // Transactions are handled per connection in MySQL with HikariCP
-        // This would be implemented using ThreadLocal for per-transaction connections
+         
         throw new UnsupportedOperationException("Transactions require specific implementation with ThreadLocal connections");
     }
 
     @Override
     public void commit() throws Exception {
-        // Implement transaction handling
+         
         throw new UnsupportedOperationException("Transaction commit requires specific implementation");
     }
 
     @Override
     public void rollback() throws Exception {
-        // Implement transaction handling
+         
         throw new UnsupportedOperationException("Transaction rollback requires specific implementation");
     }
 
@@ -1051,7 +1032,6 @@ public class MySQLAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
-    // Enhanced entityToMap with better error handling
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
@@ -1067,7 +1047,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // Skip autoIncrement fields with value 0 (not yet generated)
                     if (column.autoIncrement() && value != null) {
                         if ((value instanceof Integer && (Integer) value == 0) ||
                             (value instanceof Long && (Long) value == 0L)) {
@@ -1075,9 +1054,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                         }
                     }
 
-                    // Manejo especial para enums
                     if (value != null && value.getClass().isEnum()) {
-                        value = ((Enum<?>) value).name(); // Convertir a string
+                        value = ((Enum<?>) value).name();  
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -1121,13 +1099,12 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                     Object value = map.get(columnName);
 
-                    // NUEVA LÓGICA: Inicializar colecciones vacías automáticamente
                     if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
                             Object emptyCollection = CollectionUtils.createEmptyCollection(field);
                             if (emptyCollection != null) {
                                 field.set(entity, emptyCollection);
-                                continue; // Skip further processing for this field
+                                continue;  
                             }
                         } catch (Exception e) {
                             errorHandler.logWarning("MapToEntity", entityClassName,
@@ -1137,8 +1114,7 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                     if (value != null) {
                         try {
-                            // Manejo especial para enums
-
+                             
                             if (field.getType().isEnum() && value instanceof String) {
                                 value = EnumSafetyHandler.handleEnumDeserialization(value, field,
                                         entityClassName, columnName, errorHandler);
@@ -1149,7 +1125,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                                 } catch (SerializationException e) {
                                     errorHandler.handleError(e);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -1163,7 +1138,6 @@ public class MySQLAdapter implements DatabaseAdapter {
                                             "Failed to auto-deserialize field during mapToEntity", e);
                                     errorHandler.handleError(serException);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -1202,7 +1176,6 @@ public class MySQLAdapter implements DatabaseAdapter {
         return this.getClass().getSimpleName().replace("Adapter", "");
     }
 
-    // Helper methods with better error context
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {
@@ -1217,7 +1190,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     private String getMySQLType(Class<?> javaType, Column column) {
-        // Auto-serialization fields always use TEXT/VARCHAR for serialized string
+         
         if (column.autoSerialize()) {
             if (column.length() == -1 || column.length() > 65535) {
                 return "LONGTEXT";
@@ -1228,7 +1201,6 @@ public class MySQLAdapter implements DatabaseAdapter {
             }
         }
 
-        // Normal types without serialization
         if (javaType == String.class) {
             if (column.length() == -1) {
                 return "TEXT";
@@ -1255,7 +1227,7 @@ public class MySQLAdapter implements DatabaseAdapter {
         } else if (javaType == float.class || javaType == Float.class) {
             return "FLOAT";
         } else if (javaType == boolean.class || javaType == Boolean.class) {
-            return "TINYINT(1)"; // MySQL standard for boolean
+            return "TINYINT(1)";  
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "DATETIME";
         } else {

@@ -2,9 +2,6 @@ package net.exylia.commons.region.model;
 
 import lombok.Getter;
 
-/**
- * Prioridad de las regiones para resolver conflictos
- */
 @Getter
 public enum RegionPriority {
     LOWEST(0, "Más baja"),

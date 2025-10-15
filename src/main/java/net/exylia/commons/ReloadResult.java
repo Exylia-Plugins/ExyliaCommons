@@ -70,7 +70,6 @@ public class ReloadResult {
 
         StringBuilder sb = new StringBuilder();
 
-        // Obtener componentes base
         long configTime = componentTimes.getOrDefault("Configuración", 0L);
         long dbTime = componentTimes.getOrDefault("Base de Datos", 0L);
         long redisTime = componentTimes.getOrDefault("Redis", 0L);
@@ -88,7 +87,6 @@ public class ReloadResult {
         sb.append("  System Overhead: ").append(totalOverhead).append("ms\n");
         sb.append("  Total: ").append(durationMs).append("ms\n");
 
-        // Calcular porcentajes
         if (durationMs > 0) {
             double componentPercent = (totalComponentTime * 100.0) / durationMs;
             double overheadPercent = (totalOverhead * 100.0) / durationMs;

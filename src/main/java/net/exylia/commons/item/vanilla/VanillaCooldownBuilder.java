@@ -6,10 +6,6 @@ import org.bukkit.configuration.ConfigurationSection;
 
 import java.util.*;
 
-/**
- * Builder para configurar cooldowns de items vanilla de forma fácil
- * ACTUALIZADO: Soporte para display-name
- */
 public class VanillaCooldownBuilder {
 
     private final VanillaItemCooldownManager manager;
@@ -18,35 +14,21 @@ public class VanillaCooldownBuilder {
         this.manager = VanillaItemCooldownManager.getInstance();
     }
 
-    // ===== MÉTODOS FLUIDOS =====
-
-    /**
-     * Configura un item individual
-     */
     public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds) {
         manager.registerCooldown(material, cooldownSeconds);
         return this;
     }
 
-    /**
-     * Configura un item con trigger específico
-     */
     public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, VanillaTriggerType trigger) {
         manager.registerCooldown(material, cooldownSeconds, trigger);
         return this;
     }
 
-    /**
-     * NUEVO: Configura un item con display name personalizado
-     */
     public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, String displayName) {
         manager.registerCooldown(material, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
         return this;
     }
 
-    /**
-     * NUEVO: Configura un item con trigger y display name
-     */
     public VanillaCooldownBuilder addItem(Material material, double cooldownSeconds, VanillaTriggerType trigger, String displayName) {
         manager.registerCooldown(material, cooldownSeconds, trigger, displayName);
         return this;
@@ -62,52 +44,31 @@ public class VanillaCooldownBuilder {
         return this;
     }
 
-    /**
-     * Configura múltiples items con el mismo cooldown
-     */
     public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds) {
         manager.registerCooldowns(materials, cooldownSeconds);
         return this;
     }
 
-    /**
-     * Configura múltiples items con el mismo cooldown y trigger
-     */
     public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds, VanillaTriggerType trigger) {
         manager.registerCooldowns(materials, cooldownSeconds, trigger);
         return this;
     }
 
-    /**
-     * NUEVO: Configura múltiples items con cooldown y display name
-     */
     public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds, String displayName) {
         manager.registerCooldowns(materials, cooldownSeconds, VanillaTriggerType.AUTO_DETECT, displayName);
         return this;
     }
 
-    /**
-     * NUEVO: Configura múltiples items con cooldown, trigger y display name
-     */
     public VanillaCooldownBuilder addItems(List<Material> materials, double cooldownSeconds, VanillaTriggerType trigger, String displayName) {
         manager.registerCooldowns(materials, cooldownSeconds, trigger, displayName);
         return this;
     }
 
-    /**
-     * Configura desde un Map
-     */
     public VanillaCooldownBuilder fromMap(Map<Material, Double> cooldowns) {
         manager.registerCooldowns(cooldowns);
         return this;
     }
 
-    // ===== CONFIGURACIÓN DESDE ARCHIVO =====
-
-    /**
-     * Carga configuraciones desde ConfigurationSection
-     * ACTUALIZADO: Soporte para display-name
-     */
     public VanillaCooldownBuilder fromConfig(ConfigurationSection config) {
         if (config == null) return this;
 
@@ -116,7 +77,7 @@ public class VanillaCooldownBuilder {
                 Material material = Material.valueOf(materialName.toUpperCase());
 
                 if (config.isConfigurationSection(materialName)) {
-                    // Formato detallado
+                     
                     ConfigurationSection itemConfig = config.getConfigurationSection(materialName);
                     double cooldown = itemConfig.getDouble("cooldown", 0.0);
                     String triggerString = itemConfig.getString("trigger", "auto-detect");
@@ -141,7 +102,6 @@ public class VanillaCooldownBuilder {
                     Integer worldLimit = itemConfig.isSet("world-limit") ? itemConfig.getInt("world-limit") : null;
                     Map<String, VanillaWorldConfig> worldConfigs = new HashMap<>();
                     
-                    // Soportar tanto "world" como "worlds"
                     ConfigurationSection worldSection = null;
                     if (itemConfig.isConfigurationSection("world")) {
                         worldSection = itemConfig.getConfigurationSection("world");
@@ -151,7 +111,6 @@ public class VanillaCooldownBuilder {
                     
                     if (worldSection != null) {
                         
-                        // Procesar configuraciones específicas por mundo si existen
                         if (worldSection.isConfigurationSection("cooldowns")) {
                             ConfigurationSection cooldownsSection = worldSection.getConfigurationSection("cooldowns");
                             for (String worldName : cooldownsSection.getKeys(false)) {
@@ -161,7 +120,6 @@ public class VanillaCooldownBuilder {
                             }
                         }
                         
-                        // Procesar límites específicos por mundo si existen
                         if (worldSection.isConfigurationSection("limits")) {
                             ConfigurationSection limitsSection = worldSection.getConfigurationSection("limits");
                             for (String worldName : limitsSection.getKeys(false)) {
@@ -175,7 +133,6 @@ public class VanillaCooldownBuilder {
                             }
                         }
                         
-                        // Procesar configuraciones completas por mundo si existen
                         for (String key : worldSection.getKeys(false)) {
                             if (!key.equals("cooldowns") && !key.equals("limits") && worldSection.isConfigurationSection(key)) {
                                 ConfigurationSection specificWorldSection = worldSection.getConfigurationSection(key);
@@ -189,7 +146,7 @@ public class VanillaCooldownBuilder {
                     VanillaItemConfig vanillaConfig = new VanillaItemConfig(material, cooldown, trigger, displayName, regionLimit, worldLimit, regionConfigs, worldConfigs);
                     VanillaItemCooldownManager.getInstance().registerConfig(vanillaConfig);
                 } else {
-                    // Formato simple: material: cooldown
+                     
                     double cooldown = config.getDouble(materialName, 0.0);
                     if (cooldown > 0) {
                         addItem(material, cooldown);
@@ -203,49 +160,30 @@ public class VanillaCooldownBuilder {
         return this;
     }
 
-    // ===== MÉTODOS DE CONFIGURACIÓN AVANZADA =====
-
-    /**
-     * Configura todos los items de un tipo específico
-     */
     public VanillaCooldownBuilder itemsByType(ItemType type, double cooldownSeconds) {
         List<Material> materials = getItemsByType(type);
         return addItems(materials, cooldownSeconds);
     }
 
-    /**
-     * NUEVO: Configura todos los items de un tipo con display name
-     */
     public VanillaCooldownBuilder itemsByType(ItemType type, double cooldownSeconds, String displayName) {
         List<Material> materials = getItemsByType(type);
         return addItems(materials, cooldownSeconds, displayName);
     }
 
-    /**
-     * Remueve la configuración de un item
-     */
     public VanillaCooldownBuilder remove(Material material) {
         manager.unregisterCooldown(material);
         return this;
     }
 
-    /**
-     * Remueve múltiples configuraciones
-     */
     public VanillaCooldownBuilder removeItems(List<Material> materials) {
         materials.forEach(manager::unregisterCooldown);
         return this;
     }
 
-    /**
-     * Limpia todas las configuraciones
-     */
     public VanillaCooldownBuilder clear() {
         manager.clearAllCooldowns();
         return this;
     }
-
-    // ===== ENUMS Y UTILIDADES =====
 
     public enum ItemType {
         FOOD,
@@ -257,9 +195,6 @@ public class VanillaCooldownBuilder {
         BLOCKS
     }
 
-    /**
-     * Obtiene materials por tipo
-     */
     private List<Material> getItemsByType(ItemType type) {
         return switch (type) {
             case FOOD -> Arrays.asList(
@@ -330,46 +265,26 @@ public class VanillaCooldownBuilder {
         };
     }
 
-    // ===== MÉTODOS ESTÁTICOS DE CONVENIENCIA =====
-
-    /**
-     * Crea un nuevo builder
-     */
     public static VanillaCooldownBuilder create() {
         return new VanillaCooldownBuilder();
     }
 
-    /**
-     * Configura rápidamente un item
-     */
     public static VanillaCooldownBuilder quickSetup(Material material, double cooldown) {
         return new VanillaCooldownBuilder().addItem(material, cooldown);
     }
 
-    /**
-     * Configura rápidamente un item con trigger
-     */
     public static VanillaCooldownBuilder quickSetup(Material material, double cooldown, VanillaTriggerType trigger) {
         return new VanillaCooldownBuilder().addItem(material, cooldown, trigger);
     }
 
-    /**
-     * NUEVO: Configura rápidamente un item con display name
-     */
     public static VanillaCooldownBuilder quickSetup(Material material, double cooldown, String displayName) {
         return new VanillaCooldownBuilder().addItem(material, cooldown, displayName);
     }
 
-    /**
-     * NUEVO: Configura rápidamente un item con trigger y display name
-     */
     public static VanillaCooldownBuilder quickSetup(Material material, double cooldown, VanillaTriggerType trigger, String displayName) {
         return new VanillaCooldownBuilder().addItem(material, cooldown, trigger, displayName);
     }
 
-    /**
-     * Carga desde configuración
-     */
     public static VanillaCooldownBuilder loadFromConfig(ConfigurationSection config) {
         return new VanillaCooldownBuilder().fromConfig(config);
     }

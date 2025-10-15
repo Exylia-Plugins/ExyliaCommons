@@ -2,9 +2,6 @@ package net.exylia.commons.item.exceptions;
 
 import java.util.UUID;
 
-/**
- * Excepción para errores relacionados con cooldowns
- */
 public class ItemCooldownException extends ItemException {
 
     private final UUID playerId;

@@ -5,10 +5,6 @@ import java.util.Base64;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * Serializador usando serialización nativa de Java
- * Útil para objetos que implementan Serializable
- */
 public class JavaRedisSerializer implements RedisSerializer {
 
     @Override

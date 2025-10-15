@@ -1,7 +1,3 @@
-
-
-// ==================== SELECTION MENU ====================
-
 package net.exylia.commons.ui.menus;
 
 import net.exylia.commons.ui.core.Menu;
@@ -14,9 +10,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-/**
- * Menu for selecting from a list of options
- */
 public class SelectionMenu extends Menu {
 
     private final List<String> options;
@@ -31,22 +24,21 @@ public class SelectionMenu extends Menu {
     }
 
     private static int calculateRows(int optionCount) {
-        // Calculate needed rows, leaving space for borders and navigation
-        int itemsPerRow = 7; // Avoid edges
+         
+        int itemsPerRow = 7;  
         int neededRows = (int) Math.ceil((double) optionCount / itemsPerRow);
-        return Math.max(3, Math.min(6, neededRows + 2)); // +2 for top/bottom borders
+        return Math.max(3, Math.min(6, neededRows + 2));  
     }
 
     private void setupItems() {
-        // Filler
+         
         MenuItem filler = new SimpleItemBuilder(Material.LIGHT_GRAY_STAINED_GLASS_PANE)
                 .name(" ")
                 .hideAttributes()
                 .build();
         setGlobalFiller(filler);
 
-        // Add options
-        int slot = 10; // Start position (avoiding edges)
+        int slot = 10;  
         for (int i = 0; i < options.size(); i++) {
             final int index = i;
             String option = options.get(i);
@@ -64,14 +56,13 @@ public class SelectionMenu extends Menu {
 
             setItem(slot, optionItem);
 
-            // Move to next valid slot
             slot++;
-            if (slot % 9 == 8) { // If at right edge
-                slot += 2; // Skip to next row, avoiding edges
+            if (slot % 9 == 8) {  
+                slot += 2;  
             }
 
-            if (slot >= size - 9) { // If approaching bottom row
-                break; // Stop to avoid overflow
+            if (slot >= size - 9) {  
+                break;  
             }
         }
     }

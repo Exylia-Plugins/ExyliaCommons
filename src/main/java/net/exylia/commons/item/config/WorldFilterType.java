@@ -1,29 +1,13 @@
 package net.exylia.commons.item.config;
 
-/**
- * Tipos de filtros para mundos en items
- */
 public enum WorldFilterType {
-    /**
-     * Sin filtro de mundo - permite en todos los mundos
-     */
+     
     NONE,
 
-    /**
-     * Lista blanca - solo permite en los mundos especificados
-     */
     WHITELIST,
 
-    /**
-     * Lista negra - permite en todos los mundos excepto los especificados
-     */
     BLACKLIST;
 
-    /**
-     * Convierte un string a WorldFilterType
-     * @param typeString String a convertir
-     * @return WorldFilterType correspondiente
-     */
     public static WorldFilterType fromString(String typeString) {
         if (typeString == null || typeString.trim().isEmpty()) {
             return NONE;

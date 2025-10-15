@@ -119,10 +119,6 @@ public class VanillaItemConfig {
         return worldConfig != null && worldConfig.isBlocked();
     }
 
-    /**
-     * Obtiene el display name efectivo del item
-     * Si tiene display-name personalizado, lo usa; sino usa el nombre del material
-     */
     public String getEffectiveDisplayName() {
         if (hasDisplayName()) {
             return displayName;
@@ -130,16 +126,10 @@ public class VanillaItemConfig {
         return getDefaultDisplayName();
     }
 
-    /**
-     * Obtiene el nombre por defecto basado en el material
-     */
     public String getDefaultDisplayName() {
         return formatMaterialName(material.name());
     }
 
-    /**
-     * Formatea el nombre del material para ser más legible
-     */
     private String formatMaterialName(String materialName) {
         return materialName.toLowerCase()
                 .replace("_", " ");

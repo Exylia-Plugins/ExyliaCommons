@@ -72,7 +72,6 @@ public class InteractiveItem {
     @Accessors(fluent = true)
     private ExyliaContext context = ExyliaContext.create();
 
-    // Player skull async loading
     private boolean awaitingPlayerSkull = false;
     private String pendingPlayerName;
     private boolean dynamicSkullUpdate = false;
@@ -344,7 +343,6 @@ public class InteractiveItem {
         }
         return false;
     }
-
 
     public boolean hasAction() {
         String action = getAction();
@@ -656,17 +654,16 @@ public class InteractiveItem {
         
         dateString = dateString.trim();
         
-        // Lista de formatos soportados
         DateTimeFormatter[] formatters = {
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
-            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),       
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),             
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),             
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")              
         };
         
         for (DateTimeFormatter formatter : formatters) {
@@ -674,7 +671,7 @@ public class InteractiveItem {
                 LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
                 return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             } catch (DateTimeParseException e) {
-                // Continuar con el siguiente formato
+                 
             }
         }
         
@@ -766,11 +763,11 @@ public class InteractiveItem {
         String trimmed = expirationString.trim();
         
         try {
-            // Intenta parsearlo como número (milisegundos de duración)
+             
             long duration = Long.parseLong(trimmed);
             return addExpirationFromNow(itemStack, duration);
         } catch (NumberFormatException e) {
-            // Si no es número, intenta parsearlo como fecha
+             
             return addExpirationDate(itemStack, trimmed);
         }
     }
@@ -844,15 +841,15 @@ public class InteractiveItem {
         dateString = dateString.trim().replace("_", " ");
         
         DateTimeFormatter[] formatters = {
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),      // 24/12/2025 15:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),   // 24/12/2025 15:00:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),      // 2025-12-24 15:00
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),   // 2025-12-24 15:00:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),      // 24-12-2025 15:00
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),   // 24-12-2025 15:00:00
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"),            // 24/12/2025 (00:00)
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),            // 2025-12-24 (00:00)
-            DateTimeFormatter.ofPattern("dd-MM-yyyy")             // 24-12-2025 (00:00)
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),       
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),       
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),    
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),             
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),             
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")              
         };
         
         for (DateTimeFormatter formatter : formatters) {
@@ -860,7 +857,7 @@ public class InteractiveItem {
                 LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
                 return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
             } catch (DateTimeParseException e) {
-                // Continuar con el siguiente formato
+                 
             }
         }
         
@@ -930,7 +927,6 @@ public class InteractiveItem {
         String remainingTimeFormatted = remainingTime <= 0 ? "Expirado" : 
             (remainingTime == -1 ? "Sin expiración" : TimeFormatter.timeFormatter.format(remainingTime));
 
-        // Para la fecha de expiración, necesitamos obtenerla del NBT
         JavaPlugin plugin = ItemManager.getPlugin() != null ? ItemManager.getPlugin() :
                 JavaPlugin.getProvidingPlugin(InteractiveItem.class);
         long expirationTime = ItemNBTUtils.getNBTLong(itemStack, plugin, NBT_EXPIRATION_TIME, 0L);
@@ -985,7 +981,7 @@ public class InteractiveItem {
             this.itemStack = updatedSkull;
             this.awaitingPlayerSkull = false;
             this.pendingPlayerName = null;
-            // Keep dynamicSkullUpdate true if other dynamic features are needed
+             
             if (!usesPlaceholders()) {
                 this.dynamicSkullUpdate = false;
             }
@@ -993,7 +989,7 @@ public class InteractiveItem {
     }
 
     public void updatePlaceholders(Player player, EquipmentSlot hand) {
-        // Check for pending player skull updates first
+         
         if (awaitingPlayerSkull && pendingPlayerName != null) {
             updateSkullIfNeeded();
         }

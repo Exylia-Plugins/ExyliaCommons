@@ -90,7 +90,7 @@ public class LicenseManager {
         }
 
         if (!isRequired) {
-            // Plugin gratuito - siempre válido
+             
             isVerified = true;
             return CompletableFuture.completedFuture(
                     new LicenseResult(true, "Plugin gratuito - no requiere licencia", LicenseResult.ErrorType.NONE)
@@ -163,7 +163,6 @@ public class LicenseManager {
             String serverHWID = getHWID();
             String serverIP = getServerIP();
 
-            // Crear payload JSON
             JsonObject payload = new JsonObject();
             payload.addProperty("key", licenseKey);
             payload.addProperty("hwid", serverHWID);
@@ -171,7 +170,6 @@ public class LicenseManager {
             payload.addProperty("server_name", Bukkit.getServer().getName());
             payload.addProperty("minecraft_version", Bukkit.getVersion());
 
-            // Realizar petición HTTP
             HttpURLConnection connection = createConnection();
             sendPayload(connection, payload.toString());
 
@@ -272,7 +270,6 @@ public class LicenseManager {
         }
     }
 
-
     private String getHWID() {
         try {
             String toEncrypt = System.getenv("COMPUTERNAME") + System.getProperty("user.name") + System.getenv("PROCESSOR_IDENTIFIER") + System.getenv("PROCESSOR_LEVEL");
@@ -292,10 +289,6 @@ public class LicenseManager {
             return "Error";
         }
     }
-
-//    private String getHWID() {
-//        return "TO DO";
-//    }
 
     private String getServerIP() {
         try {

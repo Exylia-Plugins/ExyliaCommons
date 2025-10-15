@@ -46,7 +46,7 @@ public class H2Adapter implements DatabaseAdapter {
         String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName + ";AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
 
         try {
-            // Force load H2 driver
+             
             Class.forName("org.h2.Driver");
         } catch (ClassNotFoundException e) {
             throw new ConnectionException("H2", url, "H2 driver not found in classpath", e);
@@ -69,7 +69,6 @@ public class H2Adapter implements DatabaseAdapter {
 
             dataSource = new HikariDataSource(hikariConfig);
 
-            // Test connection
             try (Connection testConnection = dataSource.getConnection()) {
                 testConnection.setAutoCommit(true);
                 logInternalInfo("H2 connection pool established with " + poolSize + " connections.");
@@ -84,10 +83,9 @@ public class H2Adapter implements DatabaseAdapter {
     public void disconnect() {
         try {
             if (dataSource != null && !dataSource.isClosed()) {
-                // Wait for active connections to finish their operations
+                 
                 dataSource.getHikariPoolMXBean().softEvictConnections();
 
-                // Give active connections time to complete
                 Thread.sleep(1000);
 
                 dataSource.close();
@@ -161,7 +159,6 @@ public class H2Adapter implements DatabaseAdapter {
                             "No rows were inserted, save operation failed");
                 }
 
-                // Update entity with generated ID
                 try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                     if (generatedKeys.next()) {
                         int generatedId = generatedKeys.getInt(1);
@@ -199,7 +196,6 @@ public class H2Adapter implements DatabaseAdapter {
             String tableName = getTableName(entities.get(0).getClass());
             String primaryKey = getPrimaryKeyField(entities.get(0).getClass());
 
-            // Separate entities into INSERT (new) and MERGE (update) batches
             List<T> newEntities = new ArrayList<>();
             List<T> existingEntities = new ArrayList<>();
 
@@ -207,7 +203,6 @@ public class H2Adapter implements DatabaseAdapter {
                 Map<String, Object> entityMap = entityToMap(entity);
                 Object pkValue = getPrimaryKeyValue(entity);
 
-                // If primary key is 0 or null, it's a new entity (needs INSERT)
                 boolean isNew = pkValue == null ||
                                (pkValue instanceof Integer && (Integer)pkValue == 0) ||
                                (pkValue instanceof Long && (Long)pkValue == 0L);
@@ -223,7 +218,7 @@ public class H2Adapter implements DatabaseAdapter {
             int failureCount = 0;
 
             try (Connection conn = getConnection()) {
-                // Process INSERT for new entities
+                 
                 if (!newEntities.isEmpty()) {
                     Map<String, Object> firstEntityMap = entityToMap(newEntities.get(0));
 
@@ -262,7 +257,6 @@ public class H2Adapter implements DatabaseAdapter {
                         }
                         stmt.executeBatch();
 
-                        // Update entities with generated IDs
                         try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
                             int index = 0;
                             while (generatedKeys.next() && index < newEntities.size()) {
@@ -275,7 +269,6 @@ public class H2Adapter implements DatabaseAdapter {
                     }
                 }
 
-                // Process MERGE for existing entities
                 if (!existingEntities.isEmpty()) {
                     Map<String, Object> firstEntityMap = entityToMapWithId(existingEntities.get(0));
 
@@ -319,7 +312,7 @@ public class H2Adapter implements DatabaseAdapter {
                 int[] results = new int[successCount];
                 int processed = 0;
                 for (int result : results) {
-                    if (result >= 0) processed++; // MERGE can return different values
+                    if (result >= 0) processed++;  
                 }
 
                 if (failureCount > 0) {
@@ -387,11 +380,11 @@ public class H2Adapter implements DatabaseAdapter {
                         Map<String, Object> entityMap = entityToMap(entity);
 
                         int paramIndex = 1;
-                        // Set values for update columns
+                         
                         for (String column : updateColumns) {
                             stmt.setObject(paramIndex++, entityMap.get(column));
                         }
-                        // Set primary key value for WHERE clause
+                         
                         stmt.setObject(paramIndex, entityMap.get(primaryKey));
 
                         stmt.addBatch();
@@ -866,14 +859,12 @@ public class H2Adapter implements DatabaseAdapter {
                             String alterSql = "ALTER TABLE " + getTableName(entityClass) +
                                     " ADD COLUMN " + columnName + " " + sqlType;
 
-                            // For new columns, always make them nullable initially
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(alterSql);
                                 logInternalInfo("Column added (nullable): " + columnName);
                                 hasUpdates = true;
                             }
 
-                            // If has default value, update all existing records
                             if (!column.defaultValue().isEmpty()) {
                                 String updateSql = "UPDATE " + getTableName(entityClass) +
                                         " SET " + columnName + " = ? WHERE " + columnName + " IS NULL";
@@ -884,7 +875,6 @@ public class H2Adapter implements DatabaseAdapter {
                                 }
                             }
 
-                            // Now make the column NOT NULL if necessary
                             if (!column.nullable() && !column.primaryKey()) {
                                 String alterNotNullSql = "ALTER TABLE " + getTableName(entityClass) +
                                         " ALTER COLUMN " + columnName + " SET NOT NULL";
@@ -1014,7 +1004,6 @@ public class H2Adapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
-    // Enhanced entityToMap with better error handling
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
@@ -1030,7 +1019,6 @@ public class H2Adapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // Skip autoIncrement fields with value 0 (not yet generated)
                     if (column.autoIncrement() && value != null) {
                         if ((value instanceof Integer && (Integer) value == 0) ||
                             (value instanceof Long && (Long) value == 0L)) {
@@ -1038,7 +1026,6 @@ public class H2Adapter implements DatabaseAdapter {
                         }
                     }
 
-                    // Manejo especial para enums
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
                     } else if (value != null && column.autoSerialize()) {
@@ -1068,9 +1055,6 @@ public class H2Adapter implements DatabaseAdapter {
         return map;
     }
 
-    /**
-     * Similar to entityToMap but includes autoIncrement fields (for MERGE/UPDATE operations)
-     */
     private Map<String, Object> entityToMapWithId(Object entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
         Map<String, Object> map = new HashMap<>();
@@ -1085,9 +1069,6 @@ public class H2Adapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // For MERGE, include all fields including autoIncrement (don't skip)
-
-                    // Manejo especial para enums
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
                     } else if (value != null && column.autoSerialize()) {
@@ -1117,9 +1098,6 @@ public class H2Adapter implements DatabaseAdapter {
         return map;
     }
 
-    /**
-     * Get the value of the primary key field from an entity
-     */
     private Object getPrimaryKeyValue(Object entity) throws Exception {
         Field[] fields = entity.getClass().getDeclaredFields();
         for (Field field : fields) {
@@ -1134,9 +1112,6 @@ public class H2Adapter implements DatabaseAdapter {
         return null;
     }
 
-    /**
-     * Set the value of the primary key field in an entity
-     */
     private void setPrimaryKeyValue(Object entity, Object value) throws Exception {
         Field[] fields = entity.getClass().getDeclaredFields();
         for (Field field : fields) {
@@ -1144,7 +1119,7 @@ public class H2Adapter implements DatabaseAdapter {
                 Column column = field.getAnnotation(Column.class);
                 if (column.primaryKey()) {
                     field.setAccessible(true);
-                    // Handle different numeric types
+                     
                     if (field.getType() == int.class || field.getType() == Integer.class) {
                         field.set(entity, ((Number) value).intValue());
                     } else if (field.getType() == long.class || field.getType() == Long.class) {
@@ -1174,13 +1149,12 @@ public class H2Adapter implements DatabaseAdapter {
 
                     Object value = map.get(columnName);
 
-                    // NUEVA LÓGICA: Inicializar colecciones vacías automáticamente
                     if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
                             Object emptyCollection = CollectionUtils.createEmptyCollection(field);
                             if (emptyCollection != null) {
                                 field.set(entity, emptyCollection);
-                                continue; // Skip further processing for this field
+                                continue;  
                             }
                         } catch (Exception e) {
                             errorHandler.logWarning("MapToEntity", entityClassName,
@@ -1201,7 +1175,6 @@ public class H2Adapter implements DatabaseAdapter {
                                 } catch (SerializationException e) {
                                     errorHandler.handleError(e);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -1215,7 +1188,6 @@ public class H2Adapter implements DatabaseAdapter {
                                             "Failed to auto-deserialize field during mapToEntity", e);
                                     errorHandler.handleError(serException);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -1254,7 +1226,6 @@ public class H2Adapter implements DatabaseAdapter {
         return this.getClass().getSimpleName().replace("Adapter", "");
     }
 
-    // Helper methods with better error context
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {
@@ -1269,18 +1240,17 @@ public class H2Adapter implements DatabaseAdapter {
     }
 
     private String getSQLType(Class<?> javaType, Column column) {
-        // Auto-serialization fields always use TEXT/VARCHAR for serialized string
+         
         if (column.autoSerialize()) {
             if (column.length() == -1 || column.length() > 8000) {
                 return "TEXT";
             } else if (column.length() > 255) {
                 return "TEXT";
             } else {
-                return "VARCHAR(" + Math.max(column.length(), 500) + ")"; // Minimum 500 chars for serialized data
+                return "VARCHAR(" + Math.max(column.length(), 500) + ")";  
             }
         }
 
-        // Normal types without serialization
         if (javaType == String.class) {
             if (column.length() == -1 || column.length() > 8000) {
                 return "TEXT";
@@ -1302,7 +1272,7 @@ public class H2Adapter implements DatabaseAdapter {
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "TIMESTAMP";
         } else {
-            // For complex types that don't use auto-serialization, use TEXT
+             
             return "TEXT";
         }
     }

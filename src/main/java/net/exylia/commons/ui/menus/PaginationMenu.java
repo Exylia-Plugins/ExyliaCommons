@@ -1,5 +1,3 @@
-// ==================== PAGINATION MENU ====================
-
 package net.exylia.commons.ui.menus;
 
 import lombok.Getter;
@@ -16,9 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.ui.commons.SlotUtils.parseSlots;
 
-/**
- * Pagination menu implementation
- */
 public class PaginationMenu extends Menu {
 
     private final List<MenuItem> paginationItems = new ArrayList<>();
@@ -26,16 +21,13 @@ public class PaginationMenu extends Menu {
     @Getter
     private final int itemsPerPage;
 
-    // Navigation
     private MenuItem previousButton;
     private MenuItem nextButton;
     private int previousButtonSlot;
     private int nextButtonSlot;
 
-    // Per-player state
     private final Map<UUID, Integer> playerPages = new ConcurrentHashMap<>();
 
-    // Configuration
     private MenuItem itemSlotFiller;
     private String titleTemplate;
 
@@ -86,8 +78,8 @@ public class PaginationMenu extends Menu {
                 .setName("{success}▶ Next Page")
                 .setLore("{letters}Click to go to the next page");
 
-        this.previousButtonSlot = rows * 9 - 6; // Center left
-        this.nextButtonSlot = rows * 9 - 4;    // Center right
+        this.previousButtonSlot = rows * 9 - 6;  
+        this.nextButtonSlot = rows * 9 - 4;     
         this.globalFiller = new MenuItem("BLACK_STAINED_GLASS_PANE")
                 .setName(" ")
                 .hideAllAttributes();
@@ -96,59 +88,31 @@ public class PaginationMenu extends Menu {
                 .hideAllAttributes();
     }
 
-    // ==================== ITEM MANAGEMENT ====================
-
-    /**
-     * Adds an item to the pagination
-     * @param item The item to add
-     * @return This menu for chaining
-     */
     public PaginationMenu addItem(MenuItem item) {
         paginationItems.add(item);
         return this;
     }
 
-    /**
-     * Adds multiple items to the pagination
-     * @param items The items to add
-     * @return This menu for chaining
-     */
     public PaginationMenu addItems(Collection<MenuItem> items) {
         paginationItems.addAll(items);
         return this;
     }
 
-    /**
-     * Sets all pagination items
-     * @param items The items to set
-     * @return This menu for chaining
-     */
     public PaginationMenu setItems(Collection<MenuItem> items) {
         paginationItems.clear();
         paginationItems.addAll(items);
         return this;
     }
 
-    /**
-     * Clears all pagination items
-     * @return This menu for chaining
-     */
     public PaginationMenu clearItems() {
         paginationItems.clear();
         return this;
     }
 
-    /**
-     * Updates a pagination item
-     * @param index The index of the item
-     * @param item The new item
-     * @return This menu for chaining
-     */
     public PaginationMenu updateItem(int index, MenuItem item) {
         if (index >= 0 && index < paginationItems.size()) {
             paginationItems.set(index, item);
 
-            // Update display if currently visible
             if (isOpen() && viewer != null) {
                 refreshCurrentPage();
             }
@@ -156,97 +120,47 @@ public class PaginationMenu extends Menu {
         return this;
     }
 
-    // ==================== NAVIGATION CONFIGURATION ====================
-
-    /**
-     * Sets the previous page button
-     * @param button The button item
-     * @param slot The slot for the button
-     * @return This menu for chaining
-     */
     public PaginationMenu setPreviousButton(MenuItem button, int slot) {
         this.previousButton = button;
         this.previousButtonSlot = slot;
         return this;
     }
 
-    /**
-     * Sets the next page button
-     * @param button The button item
-     * @param slot The slot for the button
-     * @return This menu for chaining
-     */
     public PaginationMenu setNextButton(MenuItem button, int slot) {
         this.nextButton = button;
         this.nextButtonSlot = slot;
         return this;
     }
 
-    /**
-     * Sets the filler item for empty item slots
-     * @param filler The filler item
-     * @return This menu for chaining
-     */
     public PaginationMenu setItemSlotFiller(MenuItem filler) {
         this.itemSlotFiller = filler;
         return this;
     }
 
-    // ==================== PAGE MANAGEMENT ====================
-
-    /**
-     * Opens the menu to a specific page
-     * @param player The player
-     * @param page The page number (1-based)
-     */
     public void openToPage(Player player, int page) {
         setCurrentPage(player, page);
         open(player);
     }
 
-    /**
-     * Opens the menu to a specific page with context
-     * @param player The player
-     * @param page The page number (1-based)
-     * @param context The menu context
-     */
     public void openToPage(Player player, int page, ExyliaContext context) {
         setCurrentPage(player, page);
         open(player, context);
     }
 
-    /**
-     * Sets the current page for a player
-     * @param player The player
-     * @param page The page number (1-based)
-     */
     public void setCurrentPage(Player player, int page) {
         int maxPages = getTotalPages();
         page = Math.max(1, Math.min(page, maxPages));
         playerPages.put(player.getUniqueId(), page);
     }
 
-    /**
-     * Gets the current page for a player
-     * @param player The player
-     * @return The current page (1-based)
-     */
     public int getCurrentPage(Player player) {
         return playerPages.getOrDefault(player.getUniqueId(), 1);
     }
 
-    /**
-     * Gets the total number of pages
-     * @return The total pages
-     */
     public int getTotalPages() {
         return Math.max(1, (int) Math.ceil((double) paginationItems.size() / itemsPerPage));
     }
 
-    /**
-     * Goes to the next page
-     * @param player The player
-     */
     public void nextPage(Player player) {
         int currentPage = getCurrentPage(player);
         if (currentPage < getTotalPages()) {
@@ -255,10 +169,6 @@ public class PaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Goes to the previous page
-     * @param player The player
-     */
     public void previousPage(Player player) {
         int currentPage = getCurrentPage(player);
         if (currentPage > 1) {
@@ -267,11 +177,9 @@ public class PaginationMenu extends Menu {
         }
     }
 
-    // ==================== OVERRIDE METHODS ====================
-
     @Override
     public void open(Player player, ExyliaContext context) {
-        // Set default page if not set
+         
         if (!playerPages.containsKey(player.getUniqueId())) {
             playerPages.put(player.getUniqueId(), 1);
         }
@@ -302,33 +210,24 @@ public class PaginationMenu extends Menu {
     protected void populateInventory() {
         if (inventory == null || viewer == null) return;
 
-        // Clear inventory first
         inventory.clear();
 
-        // Apply base fillers
         super.populateInventory();
 
-        // Add pagination items for current page
         populatePageItems();
 
-        // Add navigation buttons
         populateNavigation();
     }
 
-    /**
-     * Populates the current page items
-     */
     private void populatePageItems() {
         int currentPage = getCurrentPage(viewer);
         int startIndex = (currentPage - 1) * itemsPerPage;
         int endIndex = Math.min(startIndex + itemsPerPage, paginationItems.size());
 
-        // Clear item slots first
         for (int slot : itemSlots) {
             inventory.setItem(slot, null);
         }
 
-        // Add page items
         for (int i = startIndex; i < endIndex; i++) {
             int slotIndex = i - startIndex;
             if (slotIndex < itemSlots.length) {
@@ -336,11 +235,10 @@ public class PaginationMenu extends Menu {
 
                 int slot = itemSlots[slotIndex];
                 inventory.setItem(slot, item.build());
-                items.put(slot, item); // Store for click handling
+                items.put(slot, item);  
             }
         }
 
-        // Fill empty item slots with filler
         if (itemSlotFiller != null) {
             int itemsInPage = endIndex - startIndex;
             for (int i = itemsInPage; i < itemSlots.length; i++) {
@@ -358,20 +256,15 @@ public class PaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Populates navigation buttons
-     */
     private void populateNavigation() {
         int currentPage = getCurrentPage(viewer);
         int totalPages = getTotalPages();
 
-        // Clear navigation slots
         inventory.setItem(previousButtonSlot, null);
         inventory.setItem(nextButtonSlot, null);
         items.remove(previousButtonSlot);
         items.remove(nextButtonSlot);
 
-        // Previous button
         if (currentPage > 1 && previousButton != null) {
             MenuItem prevBtn = previousButton.clone();
             prevBtn.setClickHandler(this::handlePreviousClick);
@@ -383,11 +276,10 @@ public class PaginationMenu extends Menu {
             inventory.setItem(previousButtonSlot, prevBtn.build());
             items.put(previousButtonSlot, prevBtn);
         } else {
-            // Fill with global filler if no previous button is needed
+             
             fillNavigationSlot(previousButtonSlot);
         }
 
-        // Next button
         if (currentPage < totalPages && nextButton != null) {
             MenuItem nextBtn = nextButton.clone();
             nextBtn.setClickHandler(this::handleNextClick);
@@ -399,15 +291,11 @@ public class PaginationMenu extends Menu {
             inventory.setItem(nextButtonSlot, nextBtn.build());
             items.put(nextButtonSlot, nextBtn);
         } else {
-            // Fill with global filler if no next button is needed
+             
             fillNavigationSlot(nextButtonSlot);
         }
     }
 
-    /**
-     * Fills a navigation slot with the appropriate filler
-     * @param slot The slot to fill
-     */
     private void fillNavigationSlot(int slot) {
         MenuItem filler = getEffectiveFillerForSlot(slot);
         if (filler != null) {
@@ -421,41 +309,23 @@ public class PaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Gets the effective filler for a specific slot (considering border and global fillers)
-     * @param slot The slot to get the filler for
-     * @return The appropriate filler item
-     */
     private MenuItem getEffectiveFillerForSlot(int slot) {
-        // Apply border filler if this is a border slot and border filler is available
+         
         if (borderFiller != null && isBorderSlot(slot)) {
             return borderFiller;
         }
 
-        // Apply global filler
         return globalFiller;
     }
 
-    /**
-     * Handles previous button click
-     * @param event The click event
-     */
     private void handlePreviousClick(MenuClickEvent event) {
         previousPage(event.getPlayer());
     }
 
-    /**
-     * Handles next button click
-     * @param event The click event
-     */
     private void handleNextClick(MenuClickEvent event) {
         nextPage(event.getPlayer());
     }
 
-    /**
-     * Refreshes the menu for a specific player
-     * @param player The player
-     */
     private void refreshForPlayer(Player player) {
         if (viewer == player && isOpen()) {
             processTitle();
@@ -463,9 +333,6 @@ public class PaginationMenu extends Menu {
         }
     }
 
-    /**
-     * Refreshes the current page
-     */
     public void refreshCurrentPage() {
         if (viewer != null && isOpen()) {
             refreshForPlayer(viewer);
@@ -479,8 +346,6 @@ public class PaginationMenu extends Menu {
         }
         super.onClose();
     }
-
-    // ==================== GETTERS ====================
 
     public List<MenuItem> getPaginationItems() {
         return new ArrayList<>(paginationItems);

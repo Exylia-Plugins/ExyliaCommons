@@ -2,9 +2,6 @@ package net.exylia.commons.selection.model;
 
 import lombok.Getter;
 
-/**
- * Tipos de selección disponibles
- */
 @Getter
 public enum SelectionType {
     CUBOID("Cuboid", "Selección rectangular"),

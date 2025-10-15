@@ -10,10 +10,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Evento llamado cuando un jugador intenta salir de una región
- * Este evento se dispara antes que RegionExitEvent y puede ser cancelado
- */
 @Getter
 public class RegionPreExitEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();

@@ -69,7 +69,7 @@ public class YAMLAdapter implements DatabaseAdapter {
     @Override
     public void disconnect() {
         try {
-            // Save all configurations before disconnecting
+             
             for (Map.Entry<Class<?>, YamlConfiguration> entry : entityConfigs.entrySet()) {
                 try {
                     File file = entityFiles.get(entry.getKey());
@@ -139,7 +139,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             Object primaryKeyValue = entityMap.get(primaryKey);
 
             if (primaryKeyValue == null) {
-                // Generate a UUID for entities without primary key
+                 
                 primaryKeyValue = UUID.randomUUID().toString();
                 setPrimaryKeyValue(entity, primaryKey, primaryKeyValue);
                 entityMap.put(primaryKey, primaryKeyValue);
@@ -147,13 +147,11 @@ public class YAMLAdapter implements DatabaseAdapter {
 
             String entityPath = "entities." + primaryKeyValue;
 
-            // Check if entity already exists
             if (yamlConfig.isConfigurationSection(entityPath)) {
                 throw new DatabaseException("Save", entityClassName, "YAML",
                         "Entity with primary key " + primaryKeyValue + " already exists. Use update() instead.");
             }
 
-            // Save entity data
             for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
                 yamlConfig.set(entityPath + "." + entry.getKey(), entry.getValue());
             }
@@ -195,7 +193,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                     Object primaryKeyValue = entityMap.get(primaryKey);
 
                     if (primaryKeyValue == null) {
-                        // Generate a UUID for entities without primary key
+                         
                         primaryKeyValue = UUID.randomUUID().toString();
                         setPrimaryKeyValue(entity, primaryKey, primaryKeyValue);
                         entityMap.put(primaryKey, primaryKeyValue);
@@ -203,7 +201,6 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     String entityPath = "entities." + primaryKeyValue;
 
-                    // Save/update entity data
                     for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
                         yamlConfig.set(entityPath + "." + entry.getKey(), entry.getValue());
                     }
@@ -273,7 +270,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                         continue;
                     }
 
-                    // Update entity data
                     for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
                         yamlConfig.set(entityPath + "." + entry.getKey(), entry.getValue());
                     }
@@ -330,7 +326,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                         "Entity with primary key " + primaryKeyValue + " does not exist");
             }
 
-            // Update entity data
             for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
                 yamlConfig.set(entityPath + "." + entry.getKey(), entry.getValue());
             }
@@ -507,7 +502,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public <T> List<T> executeQuery(Class<T> entityClass, String query, Object... params) throws Exception {
-        // For YAML, we interpret query as a simple field:value filter
+         
         String entityClassName = entityClass.getSimpleName();
 
         try {
@@ -538,7 +533,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public int executeUpdate(String query, Object... params) throws Exception {
-        // YAML adapter doesn't support raw update queries
+         
         throw new UnsupportedOperationException("executeUpdate is not supported for YAML adapter. Use specific repository methods.");
     }
 
@@ -547,20 +542,17 @@ public class YAMLAdapter implements DatabaseAdapter {
         String entityClassName = entityClass.getSimpleName();
 
         try {
-            // For YAML, "creating a table" means creating the YAML file
+             
             YamlConfiguration yamlConfig = getEntityConfig(entityClass);
 
-            // Initialize empty entities section if it doesn't exist
             if (!yamlConfig.isConfigurationSection("entities")) {
                 yamlConfig.createSection("entities");
             }
 
-            // Add metadata about the entity
             yamlConfig.set("metadata.entityClass", entityClass.getName());
             yamlConfig.set("metadata.tableName", getTableName(entityClass));
             yamlConfig.set("metadata.created", System.currentTimeMillis());
 
-            // Add field definitions for documentation
             Field[] fields = entityClass.getDeclaredFields();
             for (Field field : fields) {
                 if (field.isAnnotationPresent(Column.class)) {
@@ -592,7 +584,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public void updateTable(Class<?> entityClass) throws Exception {
-        // For YAML, table update is the same as creation since YAML is schema-less
+         
         try {
             createTable(entityClass);
         } catch (Exception e) {
@@ -631,7 +623,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public List<String> getTableColumns(Class<?> entityClass) throws Exception {
-        // Return fields defined in the entity class
+         
         List<String> fields = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
@@ -647,13 +639,13 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public void beginTransaction() throws Exception {
-        // YAML doesn't support transactions, but we can implement a simple backup mechanism
+         
         throw new UnsupportedOperationException("Transactions not supported for YAML adapter");
     }
 
     @Override
     public void commit() throws Exception {
-        // Save all pending configurations
+         
         for (Class<?> entityClass : entityConfigs.keySet()) {
             saveEntityConfig(entityClass);
         }
@@ -661,7 +653,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
     @Override
     public void rollback() throws Exception {
-        // Reload all configurations from disk
+         
         for (Class<?> entityClass : entityConfigs.keySet()) {
             File entityFile = entityFiles.get(entityClass);
             if (entityFile != null && entityFile.exists()) {
@@ -695,7 +687,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // Handle enum serialization
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
                     } else if (value != null && column.autoSerialize()) {
@@ -741,7 +732,6 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     Object value = map.get(columnName);
 
-                    // Initialize empty collections automatically
                     if (value == null && CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                         try {
                             Object emptyCollection = CollectionUtils.createEmptyCollection(field);
@@ -757,7 +747,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     if (value != null) {
                         try {
-                            // Handle enum deserialization
+                             
                             if (field.getType().isEnum() && value instanceof String) {
                                 value = EnumSafetyHandler.handleEnumDeserialization(value, field,
                                         entityClassName, columnName, errorHandler);
@@ -767,7 +757,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                                 } catch (SerializationException e) {
                                     errorHandler.handleError(e);
 
-                                    // Fallback for collections
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -781,7 +770,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                                             "Failed to auto-deserialize field during mapToEntity", e);
                                     errorHandler.handleError(serException);
 
-                                    // Fallback for collections
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -816,7 +804,6 @@ public class YAMLAdapter implements DatabaseAdapter {
         }
     }
 
-    // Helper methods
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {
@@ -827,7 +814,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                 }
             }
         }
-        return "id"; // Default primary key field name
+        return "id";  
     }
 
     private void setPrimaryKeyValue(Object entity, String primaryKeyField, Object value) throws Exception {
@@ -1081,7 +1068,6 @@ public class YAMLAdapter implements DatabaseAdapter {
                 logInternalInfo("YAML file does not exist, nothing to drop: " + fileName);
             }
 
-            // Remove from cache
             entityConfigs.remove(entityClass);
             entityFiles.remove(entityClass);
 

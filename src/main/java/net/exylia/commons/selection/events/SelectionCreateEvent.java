@@ -8,9 +8,6 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
-/**
- * Evento llamado cuando se crea una nueva selección
- */
 @Getter
 public class SelectionCreateEvent extends Event {
     private static final HandlerList handlers = new HandlerList();

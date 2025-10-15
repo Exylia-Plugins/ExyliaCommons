@@ -5,9 +5,6 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.util.concurrent.Future;
 
-/**
- * Representa una suscripción por patrón
- */
 public class PatternSubscription {
 
     private final String pattern;
@@ -24,9 +21,6 @@ public class PatternSubscription {
         this.manager = manager;
     }
 
-    /**
-     * Cancela la suscripción por patrón
-     */
     public void cancel() {
         if (cancelled) return;
 
@@ -46,22 +40,14 @@ public class PatternSubscription {
         }
     }
 
-    /**
-     * Verifica si la suscripción está activa
-     */
     public boolean isActive() {
         return !cancelled && subscriber.isSubscribed() &&
                 (subscriptionFuture == null || !subscriptionFuture.isDone());
     }
 
-    /**
-     * Verifica si la suscripción fue cancelada
-     */
     public boolean isCancelled() {
         return cancelled;
     }
-
-    // ==================== GETTERS ====================
 
     public String getPattern() {
         return pattern;

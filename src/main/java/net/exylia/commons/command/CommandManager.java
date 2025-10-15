@@ -13,9 +13,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
-/**
- * Gestor de comandos mejorado con mejor manejo de errores y verificaciones
- */
 public class CommandManager {
 
     private final JavaPlugin plugin;
@@ -31,42 +28,35 @@ public class CommandManager {
         this.retryCount = new HashMap<>();
     }
 
-    /**
-     * Registra un comando con reintentos automáticos
-     */
     public boolean registerCommand(ExyliaCommand command) {
         String cmdName = command.getName().toLowerCase();
 
-        // Evitar registros duplicados
         if (commands.containsKey(cmdName)) {
             logInternalWarn("Comando " + cmdName + " ya está registrado");
             return true;
         }
 
-        // Intentar registro
         boolean success = attemptRegistration(command);
 
         if (success) {
-            // Guardar en mapas locales
+             
             commands.put(cmdName, command);
             for (String alias : command.getAliases()) {
                 aliasMap.put(alias.toLowerCase(), cmdName);
             }
 
-            // Verificar registro después de algunos ticks
             scheduleVerification(command);
 
         } else {
-            // Intentar reintentos si no ha superado el máximo
+             
             int currentRetries = retryCount.getOrDefault(cmdName, 0);
             if (currentRetries < maxRetries) {
                 retryCount.put(cmdName, currentRetries + 1);
                 logInternalWarn("Reintentando registro de " + cmdName + " (intento " + (currentRetries + 1) + "/" + maxRetries + ")");
 
-                // Programar reintento
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     registerCommand(command);
-                }, 20L * (currentRetries + 1)); // Delay progresivo
+                }, 20L * (currentRetries + 1));  
 
                 return false;
             } else {
@@ -78,15 +68,12 @@ public class CommandManager {
         return success;
     }
 
-    /**
-     * Intenta el registro del comando con verificaciones
-     */
     private boolean attemptRegistration(ExyliaCommand command) {
         try {
             boolean registered = command.register();
 
             if (registered) {
-                // Verificación inmediata
+                 
                 if (command.isRegistered()) {
                     retryCount.remove(command.getName().toLowerCase());
                     return true;
@@ -104,47 +91,39 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Programa una verificación del registro después de un delay
-     */
     private void scheduleVerification(ExyliaCommand command) {
-        // Verificación inmediata
+         
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!command.isRegistered()) {
                 logInternalError("Verificación post-registro falló para " + command.getName());
-                // Intentar re-registro
+                 
                 if (retryCount.getOrDefault(command.getName().toLowerCase(), 0) < maxRetries) {
                     logInternalInfo("Iniciando re-registro automático para " + command.getName());
                     registerCommand(command);
                 }
             }
-        }, 40L); // 2 segundos después
+        }, 40L);  
 
-        // Verificación adicional para problemas de sincronización con jugadores
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             verifyPlayerAccess(command);
-        }, 100L); // 5 segundos después
+        }, 100L);  
     }
 
-    /**
-     * Verifica que los jugadores puedan acceder al comando
-     */
     private void verifyPlayerAccess(ExyliaCommand command) {
         if (Bukkit.getOnlinePlayers().isEmpty()) {
-            return; // No hay jugadores para verificar
+            return;  
         }
 
         try {
-            // Forzar actualización de comandos para todos los jugadores
+             
             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                 try {
                     player.updateCommands();
                 } catch (Exception e) {
-                    player.sendMessage(""); // Mensaje vacío para forzar actualización
+                    player.sendMessage("");  
                 }
             }
 
-            // Verificar nuevamente después de la actualización
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 boolean accessible = testCommandAccessibility(command);
                 if (!accessible) {
@@ -158,12 +137,9 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Prueba la accesibilidad del comando
-     */
     private boolean testCommandAccessibility(ExyliaCommand command) {
         try {
-            // Verificar que el comando existe en el CommandMap principal
+             
             org.bukkit.command.CommandMap commandMap = Bukkit.getServer().getCommandMap();
             org.bukkit.command.Command cmd = commandMap.getCommand(command.getName());
 
@@ -177,14 +153,10 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Fuerza una sincronización global de comandos
-     */
     private void forceGlobalCommandSync() {
         try {
             logInternalInfo("Forzando sincronización global de comandos...");
 
-            // Re-registrar todos los comandos con un delay escalonado
             int delay = 0;
             for (ExyliaCommand command : commands.values()) {
                 final int currentDelay = delay;
@@ -198,16 +170,15 @@ public class CommandManager {
                         logInternalError("Error en sincronización global para " + command.getName());
                     }
                 }, currentDelay);
-                delay += 3; // 3 ticks entre cada comando
+                delay += 3;  
             }
 
-            // Actualizar comandos de todos los jugadores después de completar el re-registro
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
                 for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                     try {
                         player.updateCommands();
                     } catch (Exception e) {
-                        // Ignorar errores individuales
+                         
                     }
                 }
                 logInternalInfo("Sincronización global completada");
@@ -218,9 +189,6 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Registra múltiples comandos con mejor manejo de errores
-     */
     public CommandRegistrationSummary registerCommands(ExyliaCommand... commands) {
         List<String> successful = new ArrayList<>();
         List<String> failed = new ArrayList<>();
@@ -241,16 +209,10 @@ public class CommandManager {
         );
     }
 
-    /**
-     * Registra comandos de una lista
-     */
     public CommandRegistrationSummary registerCommands(List<ExyliaCommand> commands) {
         return registerCommands(commands.toArray(new ExyliaCommand[0]));
     }
 
-    /**
-     * Registra comandos de forma asíncrona con mejor reporte
-     */
     public CompletableFuture<CommandRegistrationResult> registerCommandsAsync(List<ExyliaCommand> commands) {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -283,9 +245,6 @@ public class CommandManager {
         });
     }
 
-    /**
-     * Verifica todos los comandos con reporte detallado
-     */
     public CommandVerificationResult verifyAllCommands() {
         List<String> verified = new ArrayList<>();
         List<String> unverified = new ArrayList<>();
@@ -299,7 +258,6 @@ public class CommandManager {
             } else {
                 unverified.add(cmdName);
 
-                // Verificar si existe en Bukkit
                 if (Bukkit.getPluginCommand(cmdName) == null) {
                     missing.add(cmdName);
                 }
@@ -319,20 +277,15 @@ public class CommandManager {
         return result;
     }
 
-    /**
-     * Re-registra todos los comandos con mejor lógica
-     */
     public CommandRegistrationSummary reregisterAllCommands() {
         logInternalInfo("Re-registrando todos los comandos...");
 
-        // Limpiar contadores de reintentos
         retryCount.clear();
 
         List<String> successful = new ArrayList<>();
         List<String> failed = new ArrayList<>();
         long startTime = System.currentTimeMillis();
 
-        // Primero desregistrar todos
         for (ExyliaCommand command : new ArrayList<>(commands.values())) {
             try {
                 command.unregister();
@@ -341,9 +294,8 @@ public class CommandManager {
             }
         }
 
-        // Esperar un tick para que se complete el desregistro
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // Luego re-registrar
+             
             for (ExyliaCommand command : new ArrayList<>(commands.values())) {
                 try {
                     if (attemptRegistration(command)) {
@@ -365,9 +317,6 @@ public class CommandManager {
         return new CommandRegistrationSummary(successful, failed, System.currentTimeMillis() - startTime);
     }
 
-    /**
-     * Obtiene un comando por su nombre o alias
-     */
     public ExyliaCommand getCommand(String name) {
         String lowercaseName = name.toLowerCase();
 
@@ -378,16 +327,10 @@ public class CommandManager {
         return commands.get(lowercaseName);
     }
 
-    /**
-     * Obtiene todos los comandos registrados
-     */
     public List<ExyliaCommand> getCommands() {
         return new ArrayList<>(commands.values());
     }
 
-    /**
-     * Obtiene estadísticas detalladas
-     */
     public CommandStats getStats() {
         int totalCommands = commands.size();
         int totalAliases = aliasMap.size();
@@ -415,31 +358,28 @@ public class CommandManager {
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             try {
-                // Paso 1: Desregistrar
+                 
                 for (ExyliaCommand command : commands.values()) {
                     command.unregister();
                 }
 
-                // Paso 2: Limpiar cache del servidor
-                System.gc(); // Sugerir garbage collection
+                System.gc();  
 
-                // Paso 3: Re-registrar con delays
                 AtomicInteger delay = new AtomicInteger(5);
                 for (ExyliaCommand command : commands.values()) {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         attemptRegistration(command);
 
-                        // Forzar actualización inmediata
                         Bukkit.getScheduler().runTaskLater(plugin, () -> {
                             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                                 try {
                                     player.updateCommands();
                                 } catch (Exception e) {
                                     try {
-                                        // Simular desconexión/reconexión suave del comando
-                                        player.performCommand("help"); // Fuerza recarga de comandos
+                                         
+                                        player.performCommand("help");  
                                     } catch (Exception ex) {
-                                        // Último recurso: mensaje al jugador
+                                         
                                         player.sendMessage("§aComandos actualizados. Si tienes problemas, usa §e/" +
                                                 plugin.getName().toLowerCase() + ":" + command.getName());
                                     }
@@ -450,7 +390,6 @@ public class CommandManager {
                     }, delay.getAndAdd(10));
                 }
 
-                // Paso 4: Verificación final
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     CommandVerificationResult result = verifyAllCommands();
                     logInternalInfo("Sincronización de emergencia completada: " + result);
@@ -468,9 +407,6 @@ public class CommandManager {
         });
     }
 
-    /**
-     * Desregistra todos los comandos de forma segura
-     */
     public void unregisterAll() {
         logInternalInfo("Desregistrando " + commands.size() + " comandos...");
 
@@ -487,9 +423,6 @@ public class CommandManager {
         retryCount.clear();
     }
 
-    /**
-     * Resultado del registro de comandos mejorado
-     */
     public static class CommandRegistrationResult {
         public final int successCount;
         public final int totalCount;
@@ -515,9 +448,6 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Resumen del registro de comandos
-     */
     public static class CommandRegistrationSummary {
         public final List<String> successful;
         public final List<String> failed;
@@ -540,9 +470,6 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Resultado de verificación de comandos
-     */
     public static class CommandVerificationResult {
         public final List<String> verified;
         public final List<String> unverified;
@@ -563,9 +490,6 @@ public class CommandManager {
         }
     }
 
-    /**
-     * Estadísticas de comandos mejoradas
-     */
     public static class CommandStats {
         public final int totalCommands;
         public final int totalAliases;

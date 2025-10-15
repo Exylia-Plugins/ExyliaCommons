@@ -6,9 +6,6 @@ import com.google.gson.JsonSyntaxException;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * Implementación de RedisSerializer usando Gson
- */
 public class GsonRedisSerializer implements RedisSerializer {
 
     private final Gson gson;
@@ -32,17 +29,15 @@ public class GsonRedisSerializer implements RedisSerializer {
         }
 
         try {
-            // Si es String, devolver directamente
+             
             if (object instanceof String) {
                 return (String) object;
             }
 
-            // Si es primitivo o wrapper, convertir a String
             if (isPrimitiveOrWrapper(object.getClass())) {
                 return object.toString();
             }
 
-            // Para objetos complejos, usar Gson
             return gson.toJson(object);
 
         } catch (Exception e) {
@@ -58,17 +53,15 @@ public class GsonRedisSerializer implements RedisSerializer {
         }
 
         try {
-            // Si es String, devolver directamente
+             
             if (type == String.class) {
                 return type.cast(data);
             }
 
-            // Manejar tipos primitivos y wrappers
             if (isPrimitiveOrWrapper(type)) {
                 return deserializePrimitive(data, type);
             }
 
-            // Para objetos complejos, usar Gson
             return gson.fromJson(data, type);
 
         } catch (JsonSyntaxException e) {
@@ -82,13 +75,10 @@ public class GsonRedisSerializer implements RedisSerializer {
 
     @Override
     public boolean canSerialize(Class<?> type) {
-        // Puede serializar cualquier tipo que Gson pueda manejar
+         
         return type != null && !type.isArray() && !type.isInterface();
     }
 
-    /**
-     * Verifica si el tipo es primitivo o wrapper
-     */
     private boolean isPrimitiveOrWrapper(Class<?> type) {
         return type.isPrimitive() ||
                 type == Boolean.class || type == Character.class ||
@@ -97,9 +87,6 @@ public class GsonRedisSerializer implements RedisSerializer {
                 type == Float.class || type == Double.class;
     }
 
-    /**
-     * Deserializa tipos primitivos y wrappers
-     */
     @SuppressWarnings("unchecked")
     private <T> T deserializePrimitive(String data, Class<T> type) {
         try {
@@ -127,9 +114,6 @@ public class GsonRedisSerializer implements RedisSerializer {
         return null;
     }
 
-    /**
-     * Obtiene la instancia de Gson
-     */
     public Gson getGson() {
         return gson;
     }

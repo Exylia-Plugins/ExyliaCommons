@@ -16,10 +16,6 @@ import java.util.function.Consumer;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
-/**
- * Gestor de Pub/Sub para Redis
- * Maneja la publicación y suscripción a canales de Redis
- */
 public class RedisPubSubManager {
 
     private final RedisConnectionManager connectionManager;
@@ -37,9 +33,6 @@ public class RedisPubSubManager {
         });
     }
 
-    /**
-     * Inicializa el sistema Pub/Sub
-     */
     public synchronized void initialize() {
         if (initialized) return;
 
@@ -52,9 +45,6 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Publica un mensaje en un canal
-     */
     public void publish(String channel, String message) {
         if (!initialized) {
             throw new IllegalStateException("PubSubManager no está inicializado");
@@ -69,9 +59,6 @@ public class RedisPubSubManager {
         });
     }
 
-    /**
-     * Publica un mensaje en un canal de forma síncrona
-     */
     public long publishSync(String channel, String message) {
         if (!initialized) {
             throw new IllegalStateException("PubSubManager no está inicializado");
@@ -85,16 +72,10 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Se suscribe a un canal
-     */
     public RedisSubscription subscribe(String channel, Consumer<String> messageHandler) {
         return subscribe(channel, messageHandler, null, null);
     }
 
-    /**
-     * Se suscribe a un canal con handlers personalizados
-     */
     public RedisSubscription subscribe(String channel,
                                        Consumer<String> messageHandler,
                                        Runnable onSubscribe,
@@ -122,17 +103,11 @@ public class RedisPubSubManager {
         return new RedisSubscription(channel, subscriber, future, this);
     }
 
-    /**
-     * Se suscribe a múltiples canales
-     */
     public MultiChannelSubscription subscribeMultiple(String[] channels,
                                                       Consumer<ChannelMessage> messageHandler) {
         return subscribeMultiple(channels, messageHandler, null, null);
     }
 
-    /**
-     * Se suscribe a múltiples canales con handlers personalizados
-     */
     public MultiChannelSubscription subscribeMultiple(String[] channels,
                                                       Consumer<ChannelMessage> messageHandler,
                                                       Consumer<String> onSubscribe,
@@ -155,7 +130,6 @@ public class RedisPubSubManager {
             }
         });
 
-        // Registrar suscriptor para cada canal
         for (String channel : channels) {
             subscribers.put(channel, subscriber);
         }
@@ -163,17 +137,11 @@ public class RedisPubSubManager {
         return new MultiChannelSubscription(channels, subscriber, future, this);
     }
 
-    /**
-     * Se suscribe a patrones de canales
-     */
     public PatternSubscription subscribePattern(String pattern,
                                                 Consumer<PatternMessage> messageHandler) {
         return subscribePattern(pattern, messageHandler, null, null);
     }
 
-    /**
-     * Se suscribe a patrones de canales con handlers personalizados
-     */
     public PatternSubscription subscribePattern(String pattern,
                                                 Consumer<PatternMessage> messageHandler,
                                                 Consumer<String> onSubscribe,
@@ -199,9 +167,6 @@ public class RedisPubSubManager {
         return new PatternSubscription(pattern, subscriber, future, this);
     }
 
-    /**
-     * Cancela suscripción de un canal
-     */
     public void unsubscribe(String channel) {
         RedisSubscriber subscriber = subscribers.remove(channel);
         if (subscriber != null && !subscriber.isUnsubscribed()) {
@@ -209,9 +174,6 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Cancela todas las suscripciones
-     */
     public void unsubscribeAll() {
         for (RedisSubscriber subscriber : subscribers.values()) {
             if (!subscriber.isUnsubscribed()) {
@@ -221,19 +183,15 @@ public class RedisPubSubManager {
         subscribers.clear();
     }
 
-    /**
-     * Cierra el sistema Pub/Sub
-     */
     public synchronized void shutdown() {
         if (!initialized) return;
 
         logInternalInfo("Cerrando sistema Pub/Sub...");
 
         try {
-            // Cancelar todas las suscripciones
+             
             unsubscribeAll();
 
-            // Cerrar executor
             executorService.shutdown();
 
             initialized = false;
@@ -244,32 +202,18 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Verifica si está inicializado
-     */
     public boolean isInitialized() {
         return initialized;
     }
 
-    /**
-     * Obtiene el número de suscripciones activas
-     */
     public int getActiveSubscriptions() {
         return subscribers.size();
     }
 
-    // ==================== CLASES INTERNAS ====================
-
-    /**
-     * Clase base para suscriptores de Redis
-     */
     public static abstract class RedisSubscriber extends JedisPubSub {
         public abstract boolean isUnsubscribed();
     }
 
-    /**
-     * Suscriptor de Redis para un canal específico
-     */
     private static class SingleChannelSubscriber extends RedisSubscriber {
         private final String channel;
         private final Consumer<String> messageHandler;
@@ -325,9 +269,6 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Suscriptor para múltiples canales
-     */
     private static class MultiChannelSubscriber extends RedisSubscriber {
         private final Consumer<ChannelMessage> messageHandler;
         private final Consumer<String> onSubscribe;
@@ -382,9 +323,6 @@ public class RedisPubSubManager {
         }
     }
 
-    /**
-     * Suscriptor por patrones
-     */
     private static class PatternSubscriber extends RedisSubscriber {
         private final String pattern;
         private final Consumer<PatternMessage> messageHandler;

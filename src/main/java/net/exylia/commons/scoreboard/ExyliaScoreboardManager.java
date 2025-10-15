@@ -6,7 +6,6 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.scoreboard.config.ScoreboardSettings;
 import net.exylia.commons.scoreboard.internal.PlayerScoreboardInstance;
 import net.exylia.commons.scoreboard.internal.ScoreboardRenderer;
-import net.exylia.commons.scoreboard.metrics.ScoreboardMetrics;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -23,7 +22,6 @@ public class ExyliaScoreboardManager {
 
     private final Plugin plugin;
     private final ScoreboardRenderer renderer;
-    private final ScoreboardMetrics metrics;
     private final ScoreboardSettings settings;
     private final Map<UUID, PlayerScoreboardInstance> activeScoreboards = new ConcurrentHashMap<>();
     private final Map<UUID, Scoreboard> originalScoreboards = new ConcurrentHashMap<>();
@@ -40,15 +38,11 @@ public class ExyliaScoreboardManager {
         this.plugin = plugin;
         this.settings = settings;
         this.renderer = new ScoreboardRenderer(settings);
-        this.metrics = new ScoreboardMetrics();
-
         startUpdateTask();
         if (settings.isAutoCleanupEmptyTeams()) {
             startCleanupTask();
         }
     }
-
-    // ==================== API PRINCIPAL ====================
 
     public ExyliaPlayerScoreboard showScoreboard(Player player, ScoreboardConfig config) {
         return showScoreboard(player, config, ExyliaContext.create());
@@ -68,7 +62,6 @@ public class ExyliaScoreboardManager {
         activeScoreboards.put(player.getUniqueId(), instance);
         instance.show();
 
-        metrics.incrementScoreboardsShown();
         return new ExyliaPlayerScoreboard(instance);
     }
 
@@ -79,8 +72,6 @@ public class ExyliaScoreboardManager {
             if (settings.isPreserveOriginalScoreboard()) {
                 restoreOriginalScoreboard(player);
             }
-
-            metrics.incrementScoreboardsHidden();
         }
     }
 
@@ -107,7 +98,6 @@ public class ExyliaScoreboardManager {
         return activeScoreboards.containsKey(player.getUniqueId());
     }
 
-    // ==================== GESTIÓN DE TEAMS ====================
     public boolean addPlayerToMainTeam(Player teamOwner, Player playerToAdd) {
         PlayerScoreboardInstance instance = activeScoreboards.get(teamOwner.getUniqueId());
         if (instance == null) return false;
@@ -120,33 +110,21 @@ public class ExyliaScoreboardManager {
         return false;
     }
 
-    // ==================== ACTUALIZACIÓN ====================
-
     public void updateAll() {
         if (activeScoreboards.isEmpty()) return;
-
-        long startTime = System.nanoTime();
-        int updated = 0;
-        int errors = 0;
-
         for (PlayerScoreboardInstance instance : activeScoreboards.values()) {
             try {
                 if (instance.getPlayer().isOnline()) {
                     if (instance.shouldUpdate()) {
                         instance.update();
-                        updated++;
                     }
                 } else {
                     cleanupDisconnectedPlayer(instance.getPlayer());
                 }
             } catch (Exception e) {
-                errors++;
                 logInternalDebug("Error actualizando scoreboard de " + instance.getPlayer().getName() + ": " + e.getMessage());
             }
         }
-
-        long duration = System.nanoTime() - startTime;
-        metrics.recordUpdateCycle(updated, errors, duration);
     }
 
     private void cleanupDisconnectedPlayer(Player player) {
@@ -187,7 +165,6 @@ public class ExyliaScoreboardManager {
         );
     }
 
-    // ==================== CONFIGURACIÓN ====================
     public void setGlobalUpdateTicks(long ticks) {
         this.globalUpdateTicks = Math.max(1L, ticks);
         startUpdateTask();
@@ -209,8 +186,6 @@ public class ExyliaScoreboardManager {
         originalScoreboards.clear();
     }
 
-    // ==================== INFORMACIÓN Y MÉTRICAS ====================
-
     public int getActiveScoreboardCount() {
         return activeScoreboards.size();
     }
@@ -224,8 +199,6 @@ public class ExyliaScoreboardManager {
         );
     }
 
-    // ==================== SHUTDOWN ====================
-
     public void shutdown() {
         if (updateTask != null) {
             updateTask.cancel();
@@ -238,7 +211,6 @@ public class ExyliaScoreboardManager {
         hideAllScoreboards();
     }
 
-    // ==================== CLASE DE ESTADÍSTICAS ====================
         public record ScoreboardSystemStats(int activeScoreboards, int backedUpScoreboards, boolean hasCustomTeamSettings,
                                             boolean autoCleanupEnabled, long updateIntervalTicks) {
     }

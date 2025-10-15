@@ -18,9 +18,6 @@ import java.util.concurrent.TimeoutException;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
-/**
- * Gestor centralizado para todos los tipos de reload del sistema Exylia
- */
 public class ReloadManager {
 
     private final ExyliaPlugin plugin;
@@ -29,11 +26,6 @@ public class ReloadManager {
         this.plugin = plugin;
     }
 
-    // ===== RELOAD COMPLETO =====
-
-    /**
-     * Realiza un reload completo de todos los sistemas
-     */
     public CompletableFuture<ReloadResult> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -43,7 +35,6 @@ public class ReloadManager {
             try {
                 logInternalInfo("=== INICIANDO RELOAD COMPLETO ASÍNCRONO ===");
 
-                // 1. Reload del sistema de configuración
                 long stepStart = System.currentTimeMillis();
                 ReloadResult configResult = reloadConfigurationAsync().join();
                 long stepEnd = System.currentTimeMillis();
@@ -58,9 +49,6 @@ public class ReloadManager {
                             componentTimes, "Error en reload de configuraciones: " + configResult.getErrorMessage());
                 }
 
-
-
-                // 2. Reload de base de datos
                 stepStart = System.currentTimeMillis();
                 ReloadResult dbResult = reloadDatabaseAsync().join();
                 stepEnd = System.currentTimeMillis();
@@ -73,7 +61,6 @@ public class ReloadManager {
                             componentTimes, "Error en reload de base de datos: " + dbResult.getErrorMessage());
                 }
 
-                // 3. Reload de Redis
                 stepStart = System.currentTimeMillis();
                 ReloadResult redisResult = reloadRedisAsync().join();
                 stepEnd = System.currentTimeMillis();
@@ -86,7 +73,6 @@ public class ReloadManager {
                             componentTimes, "Error en reload de Redis: " + redisResult.getErrorMessage());
                 }
 
-                // 4. Reload personalizado del plugin
                 stepStart = System.currentTimeMillis();
                 ReloadResult pluginResult = reloadPluginAsync().join();
                 stepEnd = System.currentTimeMillis();
@@ -101,7 +87,6 @@ public class ReloadManager {
 
                 long totalTime = System.currentTimeMillis() - startTime;
 
-                // Calcular overhead total
                 long totalComponentTime = componentTimes.get("Configuración") +
                                         componentTimes.get("Base de Datos") +
                                         componentTimes.get("Redis") +
@@ -121,9 +106,6 @@ public class ReloadManager {
         });
     }
 
-    /**
-     * Realiza un reload completo con timeout
-     */
     public CompletableFuture<ReloadResult> reloadAllAsync(long timeoutSeconds) {
         return reloadAllAsync()
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
@@ -140,11 +122,6 @@ public class ReloadManager {
                 });
     }
 
-    // ===== RELOAD ESPECÍFICOS =====
-
-    /**
-     * Reload solo del sistema de configuración
-     */
     public CompletableFuture<ReloadResult> reloadConfigurationAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -165,13 +142,11 @@ public class ReloadManager {
                             componentTimes, "Fallo en reload de ConfigManager");
                 }
 
-                // Reload de TimeFormatter
                 long timeFormatterStart = System.currentTimeMillis();
                 TimeFormatter.reload();
                 DateFormatter.reload();
                 componentTimes.put("TimeFormatter", System.currentTimeMillis() - timeFormatterStart);
 
-                // Ejecutar hooks en hilo principal
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
                     plugin.callAllConfigurationsReloadHook();
                 }, task -> Bukkit.getScheduler().runTask(plugin, task));
@@ -196,9 +171,6 @@ public class ReloadManager {
         });
     }
 
-    /**
-     * Reload solo de la base de datos
-     */
     public CompletableFuture<ReloadResult> reloadDatabaseAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -229,7 +201,6 @@ public class ReloadManager {
                     success = true;
                 }
 
-                // Ejecutar hook en hilo principal
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
                     plugin.callDatabaseReloadHook();
                 }, task -> Bukkit.getScheduler().runTask(plugin, task));
@@ -254,9 +225,6 @@ public class ReloadManager {
         });
     }
 
-    /**
-     * Reload solo de Redis
-     */
     public CompletableFuture<ReloadResult> reloadRedisAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -315,9 +283,6 @@ public class ReloadManager {
         });
     }
 
-    /**
-     * Reload personalizado del plugin
-     */
     public CompletableFuture<ReloadResult> reloadPluginAsync() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
@@ -360,11 +325,6 @@ public class ReloadManager {
         });
     }
 
-    // ===== MÉTODOS DE UTILIDAD =====
-
-    /**
-     * Verifica si Redis está disponible en el classpath
-     */
     private boolean isRedisAvailable() {
         try {
             Class.forName("redis.clients.jedis.exceptions.JedisException");

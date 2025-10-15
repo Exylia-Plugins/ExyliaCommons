@@ -104,7 +104,6 @@ public class MenuManager implements Listener {
                     player, menu, item, slot, event.getClick()
             );
 
-            // Check if item has its own click sounds, otherwise use menu click sounds
             if (item.hasClickSounds()) {
                 item.playClickSounds(player);
             } else {
@@ -131,7 +130,6 @@ public class MenuManager implements Listener {
                             player, menu, item, slot, event.getClick()
                     );
 
-                    // Check if item has its own click sounds, otherwise use menu click sounds
                     if (item.hasClickSounds()) {
                         item.playClickSounds(player);
                     } else {

@@ -4,9 +4,6 @@ import org.bukkit.entity.Player;
 
 import java.util.function.Supplier;
 
-/**
- * Builder avanzado para crear contextos complejos
- */
 class ExyliaContextBuilder {
     private final ExyliaContext exyliaContext = new ExyliaContext();
 

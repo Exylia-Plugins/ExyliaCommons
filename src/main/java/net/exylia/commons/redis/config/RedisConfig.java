@@ -3,12 +3,8 @@ package net.exylia.commons.redis.config;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
-/**
- * Configuración para la conexión de Redis
- */
 public class RedisConfig {
 
-    // Configuración de conexión
     private String host = "localhost";
     private int port = 6379;
     private String password = null;
@@ -16,7 +12,6 @@ public class RedisConfig {
     private int timeout = 2000;
     private boolean ssl = false;
 
-    // Configuración del pool de conexiones
     private int maxTotal = 20;
     private int maxIdle = 10;
     private int minIdle = 2;
@@ -26,32 +21,26 @@ public class RedisConfig {
     private boolean testWhileIdle = true;
     private long timeBetweenEvictionRunsMillis = 30000;
 
-    // Configuración de caché
-    private int defaultTTL = 3600; // 1 hora por defecto
+    private int defaultTTL = 3600;  
     private String keyPrefix = "exylia:";
 
-    // Configuración de Pub/Sub
     private boolean enablePubSub = true;
     private String pubSubPrefix = "exylia:pubsub:";
 
     public RedisConfig() {
-        // Constructor vacío con valores por defecto
+         
     }
 
-    /**
-     * Crea configuración desde un archivo de configuración de Bukkit
-     */
     public static RedisConfig fromConfig(FileConfiguration config) {
         RedisConfig redisConfig = new RedisConfig();
 
         if (!config.contains("redis")) {
-            return redisConfig; // Devolver configuración por defecto
+            return redisConfig;  
         }
 
         ConfigurationSection redis = config.getConfigurationSection("redis");
         if (redis == null) return redisConfig;
 
-        // Configuración de conexión
         redisConfig.host = redis.getString("host", "localhost");
         redisConfig.port = redis.getInt("port", 6379);
         redisConfig.password = redis.getString("password");
@@ -59,7 +48,6 @@ public class RedisConfig {
         redisConfig.timeout = redis.getInt("timeout", 2000);
         redisConfig.ssl = redis.getBoolean("ssl", false);
 
-        // Configuración del pool
         ConfigurationSection pool = redis.getConfigurationSection("pool");
         if (pool != null) {
             redisConfig.maxTotal = pool.getInt("max-total", 20);
@@ -72,14 +60,12 @@ public class RedisConfig {
             redisConfig.timeBetweenEvictionRunsMillis = pool.getLong("time-between-eviction-runs-millis", 30000);
         }
 
-        // Configuración de caché
         ConfigurationSection cache = redis.getConfigurationSection("cache");
         if (cache != null) {
             redisConfig.defaultTTL = cache.getInt("default-ttl", 3600);
             redisConfig.keyPrefix = cache.getString("key-prefix", "exylia:");
         }
 
-        // Configuración de Pub/Sub
         ConfigurationSection pubsub = redis.getConfigurationSection("pubsub");
         if (pubsub != null) {
             redisConfig.enablePubSub = pubsub.getBoolean("enabled", true);
@@ -89,9 +75,6 @@ public class RedisConfig {
         return redisConfig;
     }
 
-    /**
-     * Builder para crear configuraciones de Redis
-     */
     public static class Builder {
         private final RedisConfig config = new RedisConfig();
 
@@ -175,9 +158,6 @@ public class RedisConfig {
         }
     }
 
-    /**
-     * Valida la configuración
-     */
     public void validate() {
         if (host == null || host.trim().isEmpty()) {
             throw new IllegalArgumentException("Host de Redis no puede estar vacío");
@@ -207,8 +187,6 @@ public class RedisConfig {
             throw new IllegalArgumentException("TTL por defecto debe ser mayor a 0");
         }
     }
-
-    // ==================== GETTERS Y SETTERS ====================
 
     public String getHost() {
         return host;

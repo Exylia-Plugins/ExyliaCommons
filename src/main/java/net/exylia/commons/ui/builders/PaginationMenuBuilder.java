@@ -5,9 +5,6 @@ import net.exylia.commons.ui.items.MenuItem;
 
 import java.util.Collection;
 
-/**
- * Builder for pagination menus
- */
 public class PaginationMenuBuilder {
 
     private final PaginationMenu menu;

@@ -12,8 +12,6 @@ import java.util.Map;
 @ConfigFile(value = "messages", required = true)
 public class MessagesBase extends ConfigBase {
 
-    // ===== IMPLEMENTACIÓN DE MessageConfig =====
-
     @Override
     public ConfigurationSystem getSystem() {
         return ConfigManager.getSystem();
@@ -22,8 +20,6 @@ public class MessagesBase extends ConfigBase {
     public FileConfiguration file() {
         return getActiveFileConfiguration();
     }
-
-    // ===== MÉTODOS ESTÁTICOS PRINCIPALES (STRING) =====
 
     public static String get(String path) {
         String result = getActiveInstance().getSystem().message(path).buildRawString();
@@ -52,8 +48,6 @@ public class MessagesBase extends ConfigBase {
                 .withContext(ExyliaContext.of(context))
                 .buildRawString();
     }
-
-    // ===== MÉTODOS ESPECÍFICOS PARA COMPONENT =====
 
     public static Component getComponent(String path) {
         return getActiveInstance().getSystem().getMessage(path);
@@ -93,8 +87,6 @@ public class MessagesBase extends ConfigBase {
     public static String getRaw(String path, String defaultValue) {
         return getActiveInstance().file().getString(path, defaultValue);
     }
-
-    // ===== MÉTODOS INTERNOS =====
 
     private static MessagesBase getActiveInstance() {
         try {

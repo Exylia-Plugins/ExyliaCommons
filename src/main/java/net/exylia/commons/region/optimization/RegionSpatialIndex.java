@@ -7,17 +7,11 @@ import org.bukkit.World;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Índice espacial optimizado para búsquedas O(1) de regiones
- * Divide el mundo en chunks para búsqueda eficiente manteniendo precisión exacta
- */
 public class RegionSpatialIndex {
-    private static final int CHUNK_SIZE = 16; // Tamaño estándar de chunk
+    private static final int CHUNK_SIZE = 16;  
 
-    // Map<World, Map<ChunkCoord, Set<Region>>>
     private final Map<World, Map<Long, Set<Region>>> chunkIndex;
 
-    // Estadísticas para monitoring
     private volatile int totalRegions = 0;
     private volatile int totalChunksUsed = 0;
 
@@ -25,10 +19,6 @@ public class RegionSpatialIndex {
         this.chunkIndex = new ConcurrentHashMap<>();
     }
 
-    /**
-     * Registra una región en el índice espacial
-     * Complejidad: O(k) donde k es el número de chunks que ocupa la región
-     */
     public void addRegion(Region region) {
         if (region == null || !region.isValid()) {
             return;
@@ -38,8 +28,7 @@ public class RegionSpatialIndex {
         Location min = region.getMinimumPoint();
         Location max = region.getMaximumPoint();
 
-        // Calcular chunks que ocupa la región
-        int minChunkX = min.getBlockX() >> 4; // División por 16 optimizada
+        int minChunkX = min.getBlockX() >> 4;  
         int maxChunkX = max.getBlockX() >> 4;
         int minChunkZ = min.getBlockZ() >> 4;
         int maxChunkZ = max.getBlockZ() >> 4;
@@ -49,7 +38,6 @@ public class RegionSpatialIndex {
 
         int chunksAdded = 0;
 
-        // Registrar región en todos los chunks que ocupa
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
                 long chunkKey = getChunkKey(chunkX, chunkZ);
@@ -66,10 +54,6 @@ public class RegionSpatialIndex {
         totalChunksUsed += chunksAdded;
     }
 
-    /**
-     * Remueve una región del índice
-     * Complejidad: O(k) donde k es el número de chunks que ocupaba la región
-     */
     public void removeRegion(Region region) {
         if (region == null || !region.isValid()) {
             return;
@@ -89,7 +73,6 @@ public class RegionSpatialIndex {
 
         int chunksRemoved = 0;
 
-        // Remover de todos los chunks que ocupaba
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
                 long chunkKey = getChunkKey(chunkX, chunkZ);
@@ -98,7 +81,6 @@ public class RegionSpatialIndex {
                 if (regionSet != null && regionSet.remove(region)) {
                     chunksRemoved++;
 
-                    // Limpiar chunks vacíos para ahorrar memoria
                     if (regionSet.isEmpty()) {
                         worldIndex.remove(chunkKey);
                     }
@@ -106,7 +88,6 @@ public class RegionSpatialIndex {
             }
         }
 
-        // Limpiar mundo si está vacío
         if (worldIndex.isEmpty()) {
             chunkIndex.remove(world);
         }
@@ -115,11 +96,6 @@ public class RegionSpatialIndex {
         totalChunksUsed -= chunksRemoved;
     }
 
-    /**
-     * Busca regiones en una ubicación específica
-     * Complejidad: O(1) promedio - solo verifica regiones del chunk específico
-     * Mantiene precisión EXACTA al bloque
-     */
     public List<Region> getRegionsAt(Location location) {
         if (location == null) {
             return Collections.emptyList();
@@ -130,7 +106,6 @@ public class RegionSpatialIndex {
             return Collections.emptyList();
         }
 
-        // Calcular chunk de la ubicación
         int chunkX = location.getBlockX() >> 4;
         int chunkZ = location.getBlockZ() >> 4;
         long chunkKey = getChunkKey(chunkX, chunkZ);
@@ -140,17 +115,12 @@ public class RegionSpatialIndex {
             return Collections.emptyList();
         }
 
-        // AQUÍ SE MANTIENE LA PRECISIÓN EXACTA:
-        // Filtrar regiones candidatas con verificación precisa y ordenar por prioridad
         return candidateRegions.stream()
-                .filter(region -> region.contains(location)) // ← VERIFICACIÓN EXACTA AL BLOQUE
+                .filter(region -> region.contains(location))  
                 .sorted((r1, r2) -> r2.getPriority().getLevel() - r1.getPriority().getLevel())
                 .toList();
     }
 
-    /**
-     * Busca regiones en múltiples ubicaciones (optimización para áreas)
-     */
     public Set<Region> getRegionsInArea(Location corner1, Location corner2) {
         if (corner1 == null || corner2 == null || !corner1.getWorld().equals(corner2.getWorld())) {
             return Collections.emptySet();
@@ -173,7 +143,6 @@ public class RegionSpatialIndex {
 
         Set<Region> result = new HashSet<>();
 
-        // Recopilar todas las regiones de los chunks del área
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
                 long chunkKey = getChunkKey(chunkX, chunkZ);
@@ -188,9 +157,6 @@ public class RegionSpatialIndex {
         return result;
     }
 
-    /**
-     * Obtiene todas las regiones de un mundo específico
-     */
     public Set<Region> getRegionsInWorld(World world) {
         Map<Long, Set<Region>> worldIndex = chunkIndex.get(world);
         if (worldIndex == null) {
@@ -205,9 +171,6 @@ public class RegionSpatialIndex {
         return result;
     }
 
-    /**
-     * Verifica si hay regiones en un chunk específico
-     */
     public boolean hasRegionsInChunk(World world, int chunkX, int chunkZ) {
         Map<Long, Set<Region>> worldIndex = chunkIndex.get(world);
         if (worldIndex == null) return false;
@@ -217,9 +180,6 @@ public class RegionSpatialIndex {
         return regions != null && !regions.isEmpty();
     }
 
-    /**
-     * Obtiene el número de regiones en un chunk específico
-     */
     public int getRegionCountInChunk(World world, int chunkX, int chunkZ) {
         Map<Long, Set<Region>> worldIndex = chunkIndex.get(world);
         if (worldIndex == null) return 0;
@@ -229,17 +189,10 @@ public class RegionSpatialIndex {
         return regions != null ? regions.size() : 0;
     }
 
-    /**
-     * Genera clave única para un chunk usando bit shifting
-     * Complejidad: O(1)
-     */
     private long getChunkKey(int chunkX, int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
-    /**
-     * Obtiene estadísticas del índice espacial
-     */
     public SpatialIndexStats getStats() {
         int totalWorldsIndexed = chunkIndex.size();
         int totalChunksInUse = 0;
@@ -265,20 +218,17 @@ public class RegionSpatialIndex {
         );
     }
 
-    /**
-     * Valida la integridad del índice
-     */
     public boolean validateIndex() {
         try {
             for (Map<Long, Set<Region>> worldIndex : chunkIndex.values()) {
                 for (Map.Entry<Long, Set<Region>> chunkEntry : worldIndex.entrySet()) {
                     if (chunkEntry.getValue().isEmpty()) {
-                        return false; // No debería haber chunks vacíos
+                        return false;  
                     }
 
                     for (Region region : chunkEntry.getValue()) {
                         if (region == null || !region.isValid()) {
-                            return false; // No debería haber regiones inválidas
+                            return false;  
                         }
                     }
                 }
@@ -289,18 +239,12 @@ public class RegionSpatialIndex {
         }
     }
 
-    /**
-     * Limpia el índice completamente
-     */
     public void clear() {
         chunkIndex.clear();
         totalRegions = 0;
         totalChunksUsed = 0;
     }
 
-    /**
-     * Reconstruye el índice desde una colección de regiones
-     */
     public void rebuild(Collection<Region> regions) {
         clear();
 
@@ -311,9 +255,6 @@ public class RegionSpatialIndex {
         }
     }
 
-    /**
-     * Obtiene información detallada para debugging
-     */
     public String getDetailedInfo() {
         StringBuilder info = new StringBuilder();
         SpatialIndexStats stats = getStats();
@@ -327,7 +268,6 @@ public class RegionSpatialIndex {
         info.append(String.format("Average regions per chunk: %.2f\n", stats.getAverageRegionsPerChunk()));
         info.append(String.format("Index valid: %b\n", validateIndex()));
 
-        // Detalles por mundo
         for (Map.Entry<World, Map<Long, Set<Region>>> worldEntry : chunkIndex.entrySet()) {
             World world = worldEntry.getKey();
             Map<Long, Set<Region>> worldIndex = worldEntry.getValue();
@@ -341,9 +281,6 @@ public class RegionSpatialIndex {
         return info.toString();
     }
 
-    /**
-     * Clase para estadísticas del índice espacial
-     */
     public static class SpatialIndexStats {
         private final int totalRegions;
         private final int totalWorldsIndexed;
@@ -370,10 +307,6 @@ public class RegionSpatialIndex {
             return totalChunksInUse > 0 ? (double) totalRegionInstances / totalChunksInUse : 0.0;
         }
 
-        /**
-         * Factor de eficiencia: qué tan bien está distribuido el índice
-         * Valor entre 0-1, donde 1 es óptimo (sin duplicación)
-         */
         public double getEfficiencyFactor() {
             return totalRegions > 0 ? (double) totalRegions / totalRegionInstances : 0.0;
         }

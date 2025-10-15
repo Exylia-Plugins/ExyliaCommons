@@ -26,9 +26,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-/**
- * Manager principal para el sistema de selecciones con visualización de partículas
- */
 public class SelectionManager implements Listener {
     private static SelectionManager instance;
     private final JavaPlugin plugin;
@@ -54,7 +51,6 @@ public class SelectionManager implements Listener {
         this.wandFactory = new WandFactory(plugin);
         this.particleVisualizer = new ParticleVisualizer(plugin, particleConfig);
 
-        // Registrar listeners
         plugin.getServer().getPluginManager().registerEvents(new WandListener(plugin, wandFactory, this), plugin);
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
@@ -78,46 +74,26 @@ public class SelectionManager implements Listener {
         return instance;
     }
 
-    // ===== MÉTODOS DE WAND =====
-
-    /**
-     * Crea una wand con configuración por defecto
-     */
     public ItemStack createWand() {
         return wandFactory.createWand();
     }
 
-    /**
-     * Crea una wand con ID de selección específico
-     */
     public ItemStack createWand(String selectionId) {
         return wandFactory.createWand(selectionId);
     }
 
-    /**
-     * Crea una wand con configuración personalizada
-     */
     public ItemStack createWand(WandConfig config) {
         return wandFactory.createWand(config);
     }
 
-    /**
-     * Verifica si un item es una wand
-     */
     public boolean isWand(ItemStack item) {
         return wandFactory.isWand(item);
     }
 
-    // ===== MÉTODOS DE SELECCIÓN =====
-
-    /**
-     * Crea una nueva selección para un jugador
-     */
     public Selection createSelection(Player player, String selectionId, SelectionType type) {
         UUID playerId = player.getUniqueId();
         Selection selection = new Selection(playerId, selectionId, type);
 
-        // Disparar evento
         SelectionCreateEvent event = new SelectionCreateEvent(player, selection);
         Bukkit.getPluginManager().callEvent(event);
 
@@ -125,26 +101,18 @@ public class SelectionManager implements Listener {
             return null;
         }
 
-        // Guardar selección
         playerSelections.computeIfAbsent(playerId, k -> new HashMap<>())
                 .put(selectionId, selection);
 
-        // Establecer como activa
         activeSelections.put(playerId, selectionId);
 
         return selection;
     }
 
-    /**
-     * Establece el primer punto de una selección
-     */
     public boolean setPos1(Player player, Location location) {
         return setPos1(player, getActiveSelectionId(player), location);
     }
 
-    /**
-     * Establece el primer punto de una selección específica
-     */
     public boolean setPos1(Player player, String selectionId, Location location) {
         Optional<Selection> selectionOpt = getSelection(player, selectionId);
         if (!selectionOpt.isPresent()) {
@@ -154,23 +122,16 @@ public class SelectionManager implements Listener {
         Selection selection = selectionOpt.get();
         selection.setPos1(location);
 
-        // Actualizar visualización
         updateVisualization(player, selection);
 
         checkSelectionComplete(player, selection);
         return true;
     }
 
-    /**
-     * Establece el segundo punto de una selección
-     */
     public boolean setPos2(Player player, Location location) {
         return setPos2(player, getActiveSelectionId(player), location);
     }
 
-    /**
-     * Establece el segundo punto de una selección específica
-     */
     public boolean setPos2(Player player, String selectionId, Location location) {
         Optional<Selection> selectionOpt = getSelection(player, selectionId);
         if (!selectionOpt.isPresent()) {
@@ -180,16 +141,12 @@ public class SelectionManager implements Listener {
         Selection selection = selectionOpt.get();
         selection.setPos2(location);
 
-        // Actualizar visualización
         updateVisualization(player, selection);
 
         checkSelectionComplete(player, selection);
         return true;
     }
 
-    /**
-     * Obtiene una selección específica de un jugador
-     */
     public Optional<Selection> getSelection(Player player, String selectionId) {
         UUID playerId = player.getUniqueId();
         return Optional.ofNullable(
@@ -197,9 +154,6 @@ public class SelectionManager implements Listener {
         );
     }
 
-    /**
-     * Obtiene la selección activa de un jugador
-     */
     public Optional<Selection> getActiveSelection(Player player) {
         String activeId = getActiveSelectionId(player);
         if (activeId == null) {
@@ -208,16 +162,10 @@ public class SelectionManager implements Listener {
         return getSelection(player, activeId);
     }
 
-    /**
-     * Obtiene el ID de la selección activa
-     */
     public String getActiveSelectionId(Player player) {
         return activeSelections.get(player.getUniqueId());
     }
 
-    /**
-     * Establece una selección como activa
-     */
     public boolean setActiveSelection(Player player, String selectionId) {
         if (getSelection(player, selectionId).isPresent()) {
             activeSelections.put(player.getUniqueId(), selectionId);
@@ -226,13 +174,9 @@ public class SelectionManager implements Listener {
         return false;
     }
 
-    /**
-     * Limpia todas las selecciones de un jugador
-     */
     public void clearSelections(Player player) {
         UUID playerId = player.getUniqueId();
 
-        // Limpiar visualizaciones
         particleVisualizer.clearAll(player);
 
         playerSelections.remove(playerId);
@@ -241,9 +185,6 @@ public class SelectionManager implements Listener {
         visualizationEnabled.remove(playerId);
     }
 
-    /**
-     * Limpia una selección específica
-     */
     public boolean clearSelection(Player player, String selectionId) {
         UUID playerId = player.getUniqueId();
         Map<String, Selection> selections = playerSelections.get(playerId);
@@ -252,12 +193,10 @@ public class SelectionManager implements Listener {
             return false;
         }
 
-        // Limpiar visualización
         particleVisualizer.clearSelection(player, selectionId);
 
         selections.remove(selectionId);
 
-        // Si era la selección activa, limpiar
         if (selectionId.equals(activeSelections.get(playerId))) {
             activeSelections.remove(playerId);
         }
@@ -265,32 +204,18 @@ public class SelectionManager implements Listener {
         return true;
     }
 
-    /**
-     * Obtiene todas las selecciones de un jugador
-     */
     public Map<String, Selection> getAllSelections(Player player) {
         return new HashMap<>(playerSelections.getOrDefault(player.getUniqueId(), new HashMap<>()));
     }
 
-    /**
-     * Registra un callback para cuando se complete una selección
-     */
     public void setSelectionCallback(Player player, Consumer<Selection> callback) {
         selectionCallbacks.put(player.getUniqueId(), callback);
     }
 
-    /**
-     * Remueve el callback de selección
-     */
     public void removeSelectionCallback(Player player) {
         selectionCallbacks.remove(player.getUniqueId());
     }
 
-    // ===== MÉTODOS DE VISUALIZACIÓN =====
-
-    /**
-     * Habilita/deshabilita la visualización de partículas para un jugador
-     */
     public void setVisualizationEnabled(Player player, boolean enabled) {
         UUID playerId = player.getUniqueId();
         visualizationEnabled.put(playerId, enabled);
@@ -298,7 +223,7 @@ public class SelectionManager implements Listener {
         if (!enabled) {
             particleVisualizer.clearAll(player);
         } else {
-            // Mostrar todas las selecciones completas
+             
             Map<String, Selection> selections = playerSelections.get(playerId);
             if (selections != null) {
                 selections.values().stream()
@@ -308,9 +233,6 @@ public class SelectionManager implements Listener {
         }
     }
 
-    /**
-     * Verifica si la visualización está habilitada para un jugador
-     */
     public boolean isVisualizationEnabled(Player player) {
         return visualizationEnabled.getOrDefault(
                 player.getUniqueId(),
@@ -318,9 +240,6 @@ public class SelectionManager implements Listener {
         );
     }
 
-    /**
-     * Muestra manualmente una selección específica
-     */
     public void showSelection(Player player, String selectionId) {
         Optional<Selection> selectionOpt = getSelection(player, selectionId);
         if (selectionOpt.isPresent() && isVisualizationEnabled(player)) {
@@ -328,24 +247,18 @@ public class SelectionManager implements Listener {
         }
     }
 
-    /**
-     * Oculta manualmente una selección específica
-     */
     public void hideSelection(Player player, String selectionId) {
         particleVisualizer.clearSelection(player, selectionId);
     }
 
-    // ===== MÉTODOS PRIVADOS =====
-
     private void checkSelectionComplete(Player player, Selection selection) {
         if (selection.isComplete()) {
-            // Disparar evento
+             
             SelectionCompleteEvent event = new SelectionCompleteEvent(
                     player, selection, selection.getPos1(), selection.getPos2()
             );
             Bukkit.getPluginManager().callEvent(event);
 
-            // Ejecutar callback si existe
             Consumer<Selection> callback = selectionCallbacks.get(player.getUniqueId());
             if (callback != null) {
                 callback.accept(selection);
@@ -363,7 +276,6 @@ public class SelectionManager implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
 
-        // Clean up all data for disconnected player to prevent memory leaks
         particleVisualizer.clearAll(event.getPlayer());
         playerSelections.remove(playerId);
         activeSelections.remove(playerId);
@@ -371,9 +283,6 @@ public class SelectionManager implements Listener {
         visualizationEnabled.remove(playerId);
     }
 
-    /**
-     * Limpia datos de jugadores desconectados y recursos
-     */
     public void cleanup() {
         particleVisualizer.cleanup();
         playerSelections.clear();

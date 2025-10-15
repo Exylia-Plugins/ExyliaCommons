@@ -5,9 +5,6 @@ import org.bukkit.entity.Player;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Represents an active input session
- */
 @Getter
 class InputSession {
 
@@ -23,36 +20,24 @@ class InputSession {
         this.startTime = System.currentTimeMillis();
     }
 
-    /**
-     * Complete the session with result
-     */
     void complete(Object result) {
         if (!future.isDone()) {
             future.complete(result);
         }
     }
 
-    /**
-     * Cancel the session
-     */
     void cancel() {
         if (!future.isDone()) {
             future.cancel(true);
         }
     }
 
-    /**
-     * Complete with exception
-     */
     void completeExceptionally(Throwable throwable) {
         if (!future.isDone()) {
             future.completeExceptionally(throwable);
         }
     }
 
-    /**
-     * Get the future with correct type
-     */
     @SuppressWarnings("unchecked")
     <T> CompletableFuture<T> getFuture() {
         return (CompletableFuture<T>) future;

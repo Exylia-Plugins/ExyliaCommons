@@ -9,9 +9,6 @@ import redis.clients.jedis.exceptions.JedisException;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
-/**
- * Gestor de conexiones para Redis usando pool de conexiones
- */
 public class RedisConnectionManager {
 
     private final RedisConfig config;
@@ -22,9 +19,6 @@ public class RedisConnectionManager {
         this.config = config;
     }
 
-    /**
-     * Inicializa el pool de conexiones
-     */
     public synchronized void initialize() {
         if (initialized) {
             return;
@@ -57,7 +51,6 @@ public class RedisConnectionManager {
                 );
             }
 
-            // Probar la conexión
             try (Jedis jedis = jedisPool.getResource()) {
                 jedis.ping();
             }
@@ -75,9 +68,6 @@ public class RedisConnectionManager {
         }
     }
 
-    /**
-     * Obtiene una conexión del pool
-     */
     public Jedis getConnection() {
         if (!initialized || jedisPool == null) {
             throw new IllegalStateException("ConnectionManager no está inicializado");
@@ -91,16 +81,10 @@ public class RedisConnectionManager {
         }
     }
 
-    /**
-     * Verifica si el pool está activo
-     */
     public boolean isActive() {
         return initialized && jedisPool != null && !jedisPool.isClosed();
     }
 
-    /**
-     * Obtiene estadísticas del pool
-     */
     public PoolStats getPoolStats() {
         if (!isActive()) {
             return new PoolStats(0, 0, 0);
@@ -113,9 +97,6 @@ public class RedisConnectionManager {
         );
     }
 
-    /**
-     * Valida las conexiones del pool
-     */
     public void validateConnections() {
         if (!isActive()) {
             return;
@@ -125,21 +106,18 @@ public class RedisConnectionManager {
             jedis.ping();
         } catch (Exception e) {
             logInternalError("Error validando conexiones Redis: " + e.getMessage());
-            // Intentar reinicializar si hay problemas
+             
             reinitialize();
         }
     }
 
-    /**
-     * Reinicializa el pool de conexiones
-     */
     public synchronized void reinitialize() {
         logInternalInfo("Reinicializando pool de conexiones Redis...");
 
         shutdown();
 
         try {
-            Thread.sleep(1000); // Esperar un segundo antes de reintentar
+            Thread.sleep(1000);  
             initialize();
             logInternalInfo("Pool de conexiones Redis reinicializado correctamente");
         } catch (Exception e) {
@@ -147,9 +125,6 @@ public class RedisConnectionManager {
         }
     }
 
-    /**
-     * Cierra el pool de conexiones
-     */
     public synchronized void shutdown() {
         if (jedisPool != null && !jedisPool.isClosed()) {
             try {
@@ -164,36 +139,25 @@ public class RedisConnectionManager {
         initialized = false;
     }
 
-    /**
-     * Crea la configuración del pool de conexiones
-     */
     private JedisPoolConfig createPoolConfig() {
         JedisPoolConfig poolConfig = new JedisPoolConfig();
 
-        // Configuración básica del pool
         poolConfig.setMaxTotal(config.getMaxTotal());
         poolConfig.setMaxIdle(config.getMaxIdle());
         poolConfig.setMinIdle(config.getMinIdle());
         poolConfig.setMaxWaitMillis(config.getMaxWaitMillis());
 
-        // Configuración de validación
         poolConfig.setTestOnBorrow(config.isTestOnBorrow());
         poolConfig.setTestOnReturn(config.isTestOnReturn());
         poolConfig.setTestWhileIdle(config.isTestWhileIdle());
         poolConfig.setTimeBetweenEvictionRunsMillis(config.getTimeBetweenEvictionRunsMillis());
 
-        // Configuración adicional para optimización
         poolConfig.setBlockWhenExhausted(true);
         poolConfig.setJmxEnabled(false);
 
         return poolConfig;
     }
 
-    // ==================== CLASES INTERNAS ====================
-
-    /**
-     * Estadísticas del pool de conexiones
-     */
     public static class PoolStats {
         private final int active;
         private final int idle;
@@ -231,8 +195,6 @@ public class RedisConnectionManager {
                     '}';
         }
     }
-
-    // ==================== GETTERS ====================
 
     public RedisConfig getConfig() {
         return config;

@@ -1,5 +1,3 @@
-// ==================== SISTEMA CENTRALIZADO DE PLACEHOLDERS ====================
-
 package net.exylia.commons.placeholders;
 
 import lombok.Setter;
@@ -19,54 +17,34 @@ import java.util.regex.Pattern;
 import static net.exylia.commons.ExyliaPlugin.isPlaceholderAPIEnabled;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Sistema Centralizado de Placeholders para Exylia Commons
- * <p>
- * Este sistema unifica todos los placeholders en una sola arquitectura:
- * - Contextos múltiples con prioridad
- * - Placeholders globales, de contexto y de jugador
- * - Cache inteligente
- * - Integración automática con PlaceholderAPI
- * - API fluida y consistente
- */
 public class PlaceholderSystemManager {
 
     private static PlaceholderSystemManager instance;
     private final JavaPlugin plugin;
 
-    // Registro de placeholders por tipo
     private final Map<String, GlobalPlaceholder> globalPlaceholders = new ConcurrentHashMap<>();
     private final Map<String, ContextPlaceholder> contextPlaceholders = new ConcurrentHashMap<>();
     private final Map<String, PlayerPlaceholder> playerPlaceholders = new ConcurrentHashMap<>();
 
     private final Set<String> nonCacheablePlaceholders = ConcurrentHashMap.newKeySet();
 
-    // Cache para mejorar rendimiento
     private final PlaceholderCache cache = new PlaceholderCache();
 
-    // Configuración
     @Setter
     private boolean debugMode = true;
 
-    // Patrón para encontrar placeholders
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%]+)%");
 
     private PlaceholderSystemManager(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * Inicializa el sistema (debe llamarse una vez en onEnable)
-     */
     public static void initialize(JavaPlugin plugin) {
         if (instance == null) {
             instance = new PlaceholderSystemManager(plugin);
         }
     }
 
-    /**
-     * Obtiene la instancia del sistema
-     */
     public static PlaceholderSystemManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("El sistema debe ser inicializado primero con initialize()");
@@ -74,32 +52,15 @@ public class PlaceholderSystemManager {
         return instance;
     }
 
-    // ==================== API PRINCIPAL DE PROCESAMIENTO ====================
-
-    /**
-     * Procesa un texto con contextos múltiples (API principal)
-     * @param text Texto a procesar
-     * @param player Jugador (puede ser null)
-     * @param contexts Contextos en orden de prioridad (los primeros tienen mayor prioridad)
-     * @return Texto procesado
-     */
     public String process(String text, Player player, Object... contexts) {
         return process(text, player, Arrays.asList(contexts));
     }
 
-    /**
-     * Procesa un texto con contextos múltiples
-     * @param text Texto a procesar
-     * @param player Jugador (puede ser null)
-     * @param contexts Lista de contextos en orden de prioridad
-     * @return Texto procesado
-     */
     public String process(String text, Player player, List<Object> contexts) {
         if (text == null || text.isEmpty()) {
             return text;
         }
 
-        // Generar clave de cache
         String cacheKey = generateCacheKey(text, player, contexts);
         if (cacheKey != null) {
             String cached = cache.get(cacheKey);
@@ -110,10 +71,8 @@ public class PlaceholderSystemManager {
 
         String result = text;
 
-        // 1. Procesar placeholders del sistema unificado
         result = processUnifiedPlaceholders(result, player, contexts);
 
-        // 2. Procesar PlaceholderAPI si está disponible
         if (isPlaceholderAPIEnabled() && player != null) {
             try {
                 result = PlaceholderAPI.setPlaceholders(player, result);
@@ -124,7 +83,6 @@ public class PlaceholderSystemManager {
             }
         }
 
-        // Guardar en cache si es válido
         if (cacheKey != null) {
             cache.put(cacheKey, result);
         }
@@ -132,32 +90,18 @@ public class PlaceholderSystemManager {
         return result;
     }
 
-    /**
-     * Procesa solo con jugador (sin contextos adicionales)
-     */
     public String process(String text, Player player) {
         return process(text, player, Collections.emptyList());
     }
 
-    /**
-     * Procesa solo con contextos (sin jugador)
-     */
     public String process(String text, Object... contexts) {
         return process(text, null, contexts);
     }
 
-    /**
-     * Procesa texto sin contexto ni jugador
-     */
     public String process(String text) {
         return process(text, null, Collections.emptyList());
     }
 
-    // ==================== PROCESAMIENTO INTERNO ====================
-
-    /**
-     * Procesa los placeholders del sistema unificado
-     */
     private String processUnifiedPlaceholders(String text, Player player, List<Object> contexts) {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         StringBuilder result = new StringBuilder();
@@ -175,11 +119,8 @@ public class PlaceholderSystemManager {
         return result.toString();
     }
 
-    /**
-     * Resuelve un placeholder específico
-     */
     private String resolvePlaceholder(String placeholderName, Player player, List<Object> contexts) {
-        // 1. Intentar con placeholders de contexto (tienen prioridad)
+         
         for (Object context : contexts) {
             if (context instanceof ExyliaContext exyliaContext) {
                 Object value = exyliaContext.get(placeholderName);
@@ -207,7 +148,6 @@ public class PlaceholderSystemManager {
             }
         }
 
-        // 2. Intentar con placeholders de jugador
         if (player != null) {
             PlayerPlaceholder playerPlaceholder = playerPlaceholders.get(placeholderName);
             if (playerPlaceholder != null) {
@@ -224,7 +164,6 @@ public class PlaceholderSystemManager {
             }
         }
 
-        // 3. Intentar con placeholders globales
         GlobalPlaceholder globalPlaceholder = globalPlaceholders.get(placeholderName);
         if (globalPlaceholder != null) {
             try {
@@ -239,61 +178,36 @@ public class PlaceholderSystemManager {
             }
         }
 
-        return null; // No se encontró el placeholder
+        return null;  
     }
 
-    // ==================== REGISTRO DE PLACEHOLDERS ====================
-
-    /**
-     * Registra un placeholder global (no depende de nada)
-     */
     public void registerGlobal(String name, GlobalPlaceholder placeholder) {
         globalPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
     }
 
-    /**
-     * Registra un placeholder de contexto (depende de un contexto)
-     */
     public void registerContext(String name, ContextPlaceholder placeholder) {
         contextPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
     }
 
-    /**
-     * Registra un placeholder de jugador (solo depende del jugador)
-     */
     public void registerPlayer(String name, PlayerPlaceholder placeholder) {
         playerPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
     }
 
-    // ==================== MÉTODOS DE CONVENIENCIA ====================
-
-    /**
-     * Registra un placeholder global con función lambda
-     */
     public void registerGlobal(String name, Function<Void, Object> resolver) {
         registerGlobal(name, () -> resolver.apply(null));
     }
 
-    /**
-     * Registra un placeholder de contexto con función lambda
-     */
     public void registerContextLambda(String name, BiFunction<Object, Player, Object> resolver) {
         registerContext(name, resolver::apply);
     }
 
-    /**
-     * Registra un placeholder de jugador con función lambda
-     */
     public void registerPlayerLambda(String name, Function<Player, Object> resolver) {
         registerPlayer(name, resolver::apply);
     }
 
-    /**
-     * Registra un placeholder que busca automáticamente en contextos por tipo
-     */
     public <T> void registerContextByType(String name, Class<T> contextType, Function<T, Object> resolver) {
         registerContext(name, (context, player) -> {
             T typedContext = findInContexts(Collections.singletonList(context), contextType);
@@ -301,9 +215,6 @@ public class PlaceholderSystemManager {
         });
     }
 
-    /**
-     * Registra un placeholder que busca automáticamente en contextos por tipo con jugador
-     */
     public <T> void registerContextByType(String name, Class<T> contextType, BiFunction<T, Player, Object> resolver) {
         registerContext(name, (context, player) -> {
             T typedContext = findInContexts(Collections.singletonList(context), contextType);
@@ -311,9 +222,6 @@ public class PlaceholderSystemManager {
         });
     }
 
-    /**
-     * Registra un placeholder global con control de caché
-     */
     public void registerGlobal(String name, GlobalPlaceholder placeholder, boolean cacheable) {
         registerGlobal(name, placeholder);
         if (!cacheable) {
@@ -321,9 +229,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Registra un placeholder de contexto con control de caché
-     */
     public void registerContext(String name, ContextPlaceholder placeholder, boolean cacheable) {
         registerContext(name, placeholder);
         if (!cacheable) {
@@ -331,9 +236,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Registra un placeholder de jugador con control de caché
-     */
     public void registerPlayer(String name, PlayerPlaceholder placeholder, boolean cacheable) {
         registerPlayer(name, placeholder);
         if (!cacheable) {
@@ -341,9 +243,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Registra un placeholder que busca automáticamente en contextos por tipo (SIN caché)
-     */
     public <T> void registerContextByType(String name, Class<T> contextType, Function<T, Object> resolver, boolean cacheable) {
         registerContextByType(name, contextType, resolver);
         if (!cacheable) {
@@ -351,9 +250,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Registra un placeholder que busca automáticamente en contextos por tipo con jugador (SIN caché)
-     */
     public <T> void registerContextByType(String name, Class<T> contextType, BiFunction<T, Player, Object> resolver, boolean cacheable) {
         registerContextByType(name, contextType, resolver);
         if (!cacheable) {
@@ -361,9 +257,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Verifica si el texto contiene placeholders que no deben cachearse
-     */
     private boolean containsNonCacheablePlaceholders(String text) {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         while (matcher.find()) {
@@ -375,11 +268,6 @@ public class PlaceholderSystemManager {
         return false;
     }
 
-    // ==================== UTILIDADES DE BÚSQUEDA EN CONTEXTOS ====================
-
-    /**
-     * Busca un objeto de tipo específico en los contextos
-     */
     public static <T> T findInContexts(List<Object> contexts, Class<T> type) {
         if (contexts == null || contexts.isEmpty()) {
             return null;
@@ -388,12 +276,10 @@ public class PlaceholderSystemManager {
         for (Object context : contexts) {
             if (context == null) continue;
 
-            // Verificar si el contexto mismo es del tipo buscado
             if (type.isInstance(context)) {
                 return type.cast(context);
             }
 
-            // Si el contexto es una lista, buscar dentro
             if (context instanceof List<?>) {
                 for (Object item : (List<?>) context) {
                     if (type.isInstance(item)) {
@@ -402,7 +288,6 @@ public class PlaceholderSystemManager {
                 }
             }
 
-            // Si el contexto es un array, buscar dentro
             if (context instanceof Object[]) {
                 for (Object item : (Object[]) context) {
                     if (type.isInstance(item)) {
@@ -415,9 +300,6 @@ public class PlaceholderSystemManager {
         return null;
     }
 
-    /**
-     * Busca todos los objetos de un tipo específico en los contextos
-     */
     public static <T> List<T> findAllInContexts(List<Object> contexts, Class<T> type) {
         List<T> results = new ArrayList<>();
         if (contexts == null || contexts.isEmpty()) {
@@ -451,8 +333,6 @@ public class PlaceholderSystemManager {
         return results;
     }
 
-    // ==================== INTERFACES PARA PLACEHOLDERS ====================
-
     @FunctionalInterface
     public interface GlobalPlaceholder {
         Object resolve();
@@ -468,12 +348,10 @@ public class PlaceholderSystemManager {
         Object resolve(Player player);
     }
 
-    // ==================== SISTEMA DE CACHE ====================
-
     private static class PlaceholderCache {
         private final Map<String, String> cache = new ConcurrentHashMap<>();
         private final Map<String, Long> timestamps = new ConcurrentHashMap<>();
-        private static final long TTL = 1000; // 30 segundos
+        private static final long TTL = 1000;  
 
         public String get(String key) {
             Long timestamp = timestamps.get(key);
@@ -501,11 +379,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    // ==================== MÉTODOS AUXILIARES ====================
-
-    /**
-     * Convierte un objeto a string manejando Components
-     */
     private static String objectToString(Object obj) {
         if (obj == null) {
             return "";
@@ -518,14 +391,11 @@ public class PlaceholderSystemManager {
         return obj.toString();
     }
 
-    /**
-     * Genera una clave de cache si es posible
-     */
     private String generateCacheKey(String text, Player player, List<Object> contexts) {
-        // Solo cachear si no hay contextos dinámicos
+         
         if (!contexts.isEmpty() ||
                 containsPlayerSpecificPlaceholders(text) ||
-                containsNonCacheablePlaceholders(text)) {  // ← Agregar esta línea
+                containsNonCacheablePlaceholders(text)) {   
             return null;
         }
 
@@ -533,9 +403,6 @@ public class PlaceholderSystemManager {
         return text.hashCode() + "_" + playerKey;
     }
 
-    /**
-     * Verifica si el texto contiene placeholders específicos del jugador
-     */
     private boolean containsPlayerSpecificPlaceholders(String text) {
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         while (matcher.find()) {
@@ -547,9 +414,6 @@ public class PlaceholderSystemManager {
         return false;
     }
 
-    /**
-     * Verifica si PlaceholderAPI está disponible
-     */
     private boolean checkPlaceholderAPI() {
         try {
             return plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
@@ -558,11 +422,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    // ==================== MÉTODOS DE GESTIÓN ====================
-
-    /**
-     * Limpia todos los placeholders registrados
-     */
     public void clearAll() {
         globalPlaceholders.clear();
         contextPlaceholders.clear();
@@ -570,9 +429,6 @@ public class PlaceholderSystemManager {
         cache.clear();
     }
 
-    /**
-     * Obtiene estadísticas del sistema
-     */
     public PlaceholderStats getStats() {
         return new PlaceholderStats(
                 globalPlaceholders.size(),
@@ -602,9 +458,6 @@ public class PlaceholderSystemManager {
         }
     }
 
-    /**
-     * Finalización del sistema
-     */
     public void shutdown() {
         clearAll();
         instance = null;

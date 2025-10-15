@@ -10,7 +10,7 @@ public class Message_1_17_Adapter implements MessageAdapter {
     private final BukkitAudiences audience;
 
     public Message_1_17_Adapter(JavaPlugin plugin) {
-        // Inicializar BukkitAudiences para enviar mensajes
+         
         this.audience = BukkitAudiences.create(plugin);
     }
 
@@ -24,9 +24,6 @@ public class Message_1_17_Adapter implements MessageAdapter {
         audience.sender(sender).sendMessage(component);
     }
 
-    /**
-     * Cierra correctamente el manejador de audiencia
-     */
     public void close() {
         if (audience != null) {
             audience.close();

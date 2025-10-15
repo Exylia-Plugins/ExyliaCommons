@@ -15,9 +15,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Factory para crear wands de selección
- */
 public class WandFactory {
     private static final String WAND_KEY = "exylia_selection_wand";
     private static final String SELECTION_ID_KEY = "exylia_selection_id";
@@ -35,53 +32,39 @@ public class WandFactory {
         this.selectionTypeKey = new NamespacedKey(plugin, SELECTION_TYPE_KEY);
     }
 
-    /**
-     * Crea una wand con configuración por defecto
-     */
     public ItemStack createWand() {
         return createWand(new WandConfig());
     }
 
-    /**
-     * Crea una wand básica con ID de selección
-     */
     public ItemStack createWand(String selectionId) {
         return createWand(new WandConfig().selectionId(selectionId));
     }
 
-    /**
-     * Crea una wand con configuración personalizada
-     */
     public ItemStack createWand(WandConfig config) {
         ItemStack wand = new ItemStack(config.getMaterial());
         ItemMeta meta = wand.getItemMeta();
 
         if (meta != null) {
-            // Nombre y lore
+             
             meta.displayName(config.getDisplayName());
             meta.lore(config.getLore());
 
-            // Configurar unbreakable
             if (config.isUnbreakable()) {
                 meta.setUnbreakable(true);
                 meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
             }
 
-            // Configurar encantamiento
             if (config.isEnchanted()) {
                 meta.addEnchant(Enchantment.LUCK, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             }
 
-            // Custom model data
             if (config.getCustomModelData() > 0) {
                 meta.setCustomModelData(config.getCustomModelData());
             }
 
-            // Ocultar flags adicionales
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
-            // Datos persistentes
             meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
             meta.getPersistentDataContainer().set(selectionIdKey, PersistentDataType.STRING, config.getSelectionId());
             meta.getPersistentDataContainer().set(selectionTypeKey, PersistentDataType.STRING, config.getSelectionType().name());
@@ -92,9 +75,6 @@ public class WandFactory {
         return wand;
     }
 
-    /**
-     * Verifica si un item es una wand
-     */
     public boolean isWand(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) {
             return false;
@@ -104,9 +84,6 @@ public class WandFactory {
         return meta != null && meta.getPersistentDataContainer().has(wandKey, PersistentDataType.BYTE);
     }
 
-    /**
-     * Obtiene el ID de selección de una wand
-     */
     public String getSelectionId(ItemStack wand) {
         if (!isWand(wand)) {
             return null;
@@ -116,9 +93,6 @@ public class WandFactory {
         return meta.getPersistentDataContainer().get(selectionIdKey, PersistentDataType.STRING);
     }
 
-    /**
-     * Obtiene el tipo de selección de una wand
-     */
     public SelectionType getSelectionType(ItemStack wand) {
         if (!isWand(wand)) {
             return null;

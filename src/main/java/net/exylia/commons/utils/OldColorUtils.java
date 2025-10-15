@@ -11,12 +11,6 @@ public class OldColorUtils {
 
     private static final Cache<String, String> LEGACY_CACHE = new Cache<>(1800000, 500, 300000);
 
-    /**
-     * Traduce códigos de color usando el sistema antiguo de ChatColor
-     * y convierte etiquetas MiniMessage a formato legacy con caché
-     * @param message Mensaje con códigos de color
-     * @return String con colores aplicados en formato legacy
-     */
     public static String parseOld(String message) {
         if (message == null || message.isEmpty()) {
             return "";
@@ -70,7 +64,7 @@ public class OldColorUtils {
 
     public static String parseOldNormalColors(String processed){
         processed = processed
-                // Colores
+                 
                 .replace("<black>", "&0")
                 .replace("<dark_blue>", "&1")
                 .replace("<dark_green>", "&2")
@@ -88,7 +82,6 @@ public class OldColorUtils {
                 .replace("<yellow>", "&e")
                 .replace("<white>", "&f")
 
-                // Formatos
                 .replace("<obfuscated>", "&k")
                 .replace("<bold>", "&l")
                 .replace("<strikethrough>", "&m")
@@ -98,7 +91,6 @@ public class OldColorUtils {
                 .replace("<reset>", "&r")
                 .replace("<!italic>", "");
 
-        // Need to add all the closing tags replacement
         processed = processed
                 .replace("</black>", "&r")
                 .replace("</dark_blue>", "&r")

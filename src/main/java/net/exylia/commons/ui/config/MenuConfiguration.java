@@ -209,7 +209,6 @@ public class MenuConfiguration {
         return MenuItemBuilder.fromConfig(config, player, context);
     }
 
-
     private List<Integer> getItemSlots(ConfigurationSection config, int rows) {
         List<Integer> slots = new ArrayList<>();
         int maxSlot = rows * 9 - 1;

@@ -379,7 +379,6 @@ public class DatabaseExportImportManager {
                 Object entity = adapter.mapToEntity(map, entityClass);
                 entities.add(entity);
                 
-                // Log detailed information about each entity being converted
                 String entityId = extractEntityIdentifier(map);
                 logInternalInfo("Converting entity " + (i + 1) + "/" + maps.size() + " for " + tableName + 
                     (entityId != null ? " (ID: " + entityId + ")" : ""));
@@ -436,7 +435,7 @@ public class DatabaseExportImportManager {
     }
     
     private String extractEntityIdentifier(Map<String, Object> entityMap) {
-        // Try common identifier field names
+         
         String[] idFields = {"id", "uuid", "playerId", "player", "name", "identifier"};
         
         for (String field : idFields) {
@@ -446,7 +445,6 @@ public class DatabaseExportImportManager {
             }
         }
         
-        // If no common identifier found, return the first non-null value
         for (Map.Entry<String, Object> entry : entityMap.entrySet()) {
             if (entry.getValue() != null) {
                 return entry.getKey() + "=" + entry.getValue();

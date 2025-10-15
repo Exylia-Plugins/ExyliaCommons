@@ -8,9 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Represents an active wizard session
- */
 @Getter
 class WizardSession {
 
@@ -31,57 +28,36 @@ class WizardSession {
         this.selectedLocations = new ArrayList<>();
     }
 
-    /**
-     * Add a selected location
-     */
     void addLocation(Location location) {
         selectedLocations.add(location.clone());
     }
 
-    /**
-     * Get remaining positions needed
-     */
     int getRemainingPositions() {
         return totalPositions - selectedLocations.size();
     }
 
-    /**
-     * Check if wizard is complete
-     */
     boolean isComplete() {
         return selectedLocations.size() >= totalPositions;
     }
 
-    /**
-     * Complete the session with result
-     */
     void complete(Object result) {
         if (!future.isDone()) {
             future.complete(result);
         }
     }
 
-    /**
-     * Cancel the session
-     */
     void cancel() {
         if (!future.isDone()) {
             future.cancel(true);
         }
     }
 
-    /**
-     * Complete with exception
-     */
     void completeExceptionally(Throwable throwable) {
         if (!future.isDone()) {
             future.completeExceptionally(throwable);
         }
     }
 
-    /**
-     * Get the future with correct type
-     */
     @SuppressWarnings("unchecked")
     <T> CompletableFuture<T> getFuture() {
         return (CompletableFuture<T>) future;

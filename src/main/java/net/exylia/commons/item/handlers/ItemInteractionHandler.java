@@ -215,13 +215,13 @@ public class ItemInteractionHandler {
 
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (hasUsesLeft) {
-                // Get current item in hand to check original amount
+                 
                 ItemStack currentItem = hand == EquipmentSlot.HAND ?
                         player.getInventory().getItemInMainHand() :
                         player.getInventory().getItemInOffHand();
 
                 if (currentItem != null && currentItem.getAmount() > 1) {
-                    // Reduce by 1 from the stack
+                     
                     currentItem.setAmount(currentItem.getAmount() - 1);
                     if (hand == EquipmentSlot.HAND) {
                         player.getInventory().setItemInMainHand(currentItem);
@@ -229,7 +229,6 @@ public class ItemInteractionHandler {
                         player.getInventory().setItemInOffHand(currentItem);
                     }
 
-                    // Add back one item with updated uses if needed
                     ItemStack returnItem = interactiveItem.getItemStack();
                     returnItem.setAmount(1);
 
@@ -244,7 +243,7 @@ public class ItemInteractionHandler {
                             "Reduced stack by 1 and added updated item for " + player.getName() +
                                     " with " + interactiveItem.getCurrentUses() + " uses remaining");
                 } else {
-                    // Single item, update in place
+                     
                     ItemStack updatedItem = interactiveItem.getItemStack();
                     updatedItem.setAmount(1);
 
@@ -265,7 +264,7 @@ public class ItemInteractionHandler {
                                     " with " + interactiveItem.getCurrentUses() + " uses remaining");
                 }
             } else {
-                // Item consumed completely, use the existing removeOrReduceItemByEquipmentSlot method
+                 
                 ItemInventoryHandler.removeOrReduceItemByEquipmentSlot(player, itemStack, hand);
                 handleConsumedMessage(player, interactiveItem);
                 DebugUtils.logInternalDebug(

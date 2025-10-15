@@ -5,9 +5,6 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.util.concurrent.Future;
 
-/**
- * Representa una suscripción a múltiples canales
- */
 public class MultiChannelSubscription {
 
     private final String[] channels;
@@ -24,9 +21,6 @@ public class MultiChannelSubscription {
         this.manager = manager;
     }
 
-    /**
-     * Cancela la suscripción a todos los canales
-     */
     public void cancel() {
         if (cancelled) return;
 
@@ -46,35 +40,24 @@ public class MultiChannelSubscription {
         }
     }
 
-    /**
-     * Cancela la suscripción a un canal específico
-     */
     public void cancel(String channel) {
         try {
             if (subscriber.isSubscribed()) {
                 subscriber.unsubscribe(channel);
             }
         } catch (Exception e) {
-            // Ignorar errores al cancelar canal específico
+             
         }
     }
 
-    /**
-     * Verifica si la suscripción está activa
-     */
     public boolean isActive() {
         return !cancelled && subscriber.isSubscribed() &&
                 (subscriptionFuture == null || !subscriptionFuture.isDone());
     }
 
-    /**
-     * Verifica si la suscripción fue cancelada
-     */
     public boolean isCancelled() {
         return cancelled;
     }
-
-    // ==================== GETTERS ====================
 
     public String[] getChannels() {
         return channels.clone();

@@ -21,10 +21,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Static Location Wizard Manager for selecting multiple positions
- * Simple, lightweight and customizable
- */
 public final class LocationWizard implements Listener {
 
     private static LocationWizard instance;
@@ -34,9 +30,6 @@ public final class LocationWizard implements Listener {
 
     private LocationWizard() {}
 
-    /**
-     * Initialize the LocationWizard
-     */
     public static void init(ExyliaPlugin pluginInstance) {
         if (instance != null) {
             return;
@@ -47,14 +40,6 @@ public final class LocationWizard implements Listener {
         plugin.getServer().getPluginManager().registerEvents(instance, plugin);
     }
 
-    /**
-     * Start location selection wizard
-     *
-     * @param player The player
-     * @param positionsNeeded Number of positions to select (1, 2, 3, etc.)
-     * @param handler Custom handler to process selections
-     * @return CompletableFuture with the result
-     */
     public static <T> CompletableFuture<T> startWizard(Player player, int positionsNeeded, WizardHandler<T> handler) {
         if (instance == null) {
             throw new IllegalStateException("LocationWizard not initialized");
@@ -64,22 +49,17 @@ public final class LocationWizard implements Listener {
             throw new IllegalArgumentException("Positions needed must be at least 1");
         }
 
-        // Cancel existing session if any
         cancelWizard(player);
 
         WizardSession session = new WizardSession(player, positionsNeeded, handler);
         instance.activeSessions.put(player.getUniqueId(), session);
 
-        // Start the wizard
         handler.onStart(player, positionsNeeded);
         sendInstructions(player, session);
 
         return session.getFuture();
     }
 
-    /**
-     * Cancel active wizard for player
-     */
     public static boolean cancelWizard(Player player) {
         if (instance == null) {
             return false;
@@ -96,16 +76,10 @@ public final class LocationWizard implements Listener {
         return false;
     }
 
-    /**
-     * Check if player has active wizard
-     */
     public static boolean hasActiveWizard(Player player) {
         return instance != null && instance.activeSessions.containsKey(player.getUniqueId());
     }
 
-    /**
-     * Get remaining positions for player
-     */
     public static int getRemainingPositions(Player player) {
         if (instance == null) {
             return 0;
@@ -114,8 +88,6 @@ public final class LocationWizard implements Listener {
         WizardSession session = instance.activeSessions.get(player.getUniqueId());
         return session != null ? session.getRemainingPositions() : 0;
     }
-
-    // ===== EVENT HANDLERS =====
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
@@ -126,7 +98,6 @@ public final class LocationWizard implements Listener {
             return;
         }
 
-        // Check for SHIFT + LEFT CLICK
         if ((event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) &&
                 player.isSneaking()) {
 
@@ -141,8 +112,6 @@ public final class LocationWizard implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         cancelWizard(event.getPlayer());
     }
-
-    // ===== PRIVATE METHODS =====
 
     @SuppressWarnings("unchecked")
     private void handleLocationSelection(Player player, Location location) {
@@ -198,7 +167,6 @@ public final class LocationWizard implements Listener {
         int total = session.getTotalPositions();
         int current = total - remaining + 1;
 
-        // Send title with progress
         TitleUtils.sendTitle(player,
                 "location_wizard",
                 new TitleConfig(
@@ -213,9 +181,6 @@ public final class LocationWizard implements Listener {
                 ExyliaContext.create());
     }
 
-    /**
-     * Shutdown the LocationWizard
-     */
     public static void shutdown() {
         if (instance != null) {
             instance.activeSessions.values().forEach(WizardSession::cancel);

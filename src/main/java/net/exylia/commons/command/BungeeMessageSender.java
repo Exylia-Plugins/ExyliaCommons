@@ -9,9 +9,6 @@ import java.io.IOException;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
-/**
- * Utility class para enviar comandos al proxy (BungeeCord/Velocity)
- */
 public class BungeeMessageSender {
 
     private static final String CHANNEL = "exylia:commands";

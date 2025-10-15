@@ -48,16 +48,15 @@ public class SimpleRedis {
         DebugUtils.logInternalDebug("SimpleRedis: Gson serializer created");
 
         JedisPoolConfig poolConfig = new JedisPoolConfig();
-        // Increase pool size to accommodate PubSub subscriptions + regular operations
-        // Each PubSub subscription takes 1 connection, so we need more than just poolSize
-        int totalPoolSize = config.getPoolSize() + 10; // Extra 10 for PubSub channels
+         
+        int totalPoolSize = config.getPoolSize() + 10;  
         poolConfig.setMaxTotal(totalPoolSize);
         poolConfig.setMaxIdle(totalPoolSize);
         poolConfig.setMinIdle(2);
         poolConfig.setTestOnBorrow(true);
         poolConfig.setTestOnReturn(true);
         poolConfig.setTestWhileIdle(true);
-        poolConfig.setMaxWaitMillis(2000);  // Wait max 2 seconds for a connection
+        poolConfig.setMaxWaitMillis(2000);   
         poolConfig.setBlockWhenExhausted(true);
         DebugUtils.logInternalDebug("SimpleRedis: Pool config created (size: " + totalPoolSize + " [" + config.getPoolSize() + " + 10 for PubSub], maxWait: 2000ms)");
 

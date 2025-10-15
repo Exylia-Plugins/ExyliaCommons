@@ -17,11 +17,6 @@ import java.util.Map;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * @deprecated Use {@link net.exylia.commons.configSimple.Configs} instead.
- * This configuration system is deprecated and will be removed in a future version.
- * The new system provides a simpler API without requiring class creation for each file.
- */
 @Deprecated
 public abstract class ConfigBase {
     protected ConfigurationSystem system;
@@ -43,10 +38,9 @@ public abstract class ConfigBase {
 
     private void loadAnnotatedFields() {
         try {
-            // Cargar campos de todas las clases en la jerarquía
+             
             loadFieldsFromClass(this.getClass());
 
-            // Cargar campos de clases padre hasta llegar a ConfigBase
             Class<?> currentClass = this.getClass().getSuperclass();
             while (currentClass != null && ConfigBase.class.isAssignableFrom(currentClass) && !currentClass.equals(ConfigBase.class)) {
                 loadFieldsFromClass(currentClass);
@@ -66,7 +60,6 @@ public abstract class ConfigBase {
                 Object value = getValueForField(field, annotation);
                 field.set(this, value);
 
-                // Log de debug para componentes
                 if (isConfigComponent(field.getType())) {
                     logInternalDebug("Campo de componente recargado: " + field.getName() + " = " + value);
                 }
@@ -113,9 +106,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Creates a Map from a configuration section
-     */
     private Map<String, Object> createMapFromConfig(java.lang.reflect.Field field, String path) {
         ConfigurationSection section = config.getConfigurationSection(path);
         if (section == null) {
@@ -125,7 +115,6 @@ public abstract class ConfigBase {
 
         Map<String, Object> resultMap = new HashMap<>();
 
-        // Get the generic type information
         Type genericType = field.getGenericType();
         if (genericType instanceof ParameterizedType) {
             ParameterizedType paramType = (ParameterizedType) genericType;
@@ -134,29 +123,27 @@ public abstract class ConfigBase {
             if (actualTypes.length >= 2) {
                 Type valueTypeGeneric = actualTypes[1];
 
-                // Manejar el tipo del valor de manera segura
                 Class<?> valueType = null;
 
                 if (valueTypeGeneric instanceof Class<?>) {
-                    // Caso simple: el tipo es una clase directa
+                     
                     valueType = (Class<?>) valueTypeGeneric;
                 } else if (valueTypeGeneric instanceof ParameterizedType paramValueType) {
-                    // Caso complejo: el tipo es genérico (ej: List<String>)
+                     
                     valueType = (Class<?>) paramValueType.getRawType();
                 } else {
-                    // Fallback: intentar obtener el tipo raw
+                     
                     logInternalError("Tipo de valor no soportado para el campo " + field.getName() + ": " + valueTypeGeneric);
                     return resultMap;
                 }
 
-                // Handle different value types
                 for (String key : section.getKeys(false)) {
                     Object value = createValueFromSection(section, key, valueType);
                     resultMap.put(key, value);
                 }
             }
         } else {
-            // Si no es un tipo parametrizado, intentar crear un mapa básico
+             
             for (String key : section.getKeys(false)) {
                 resultMap.put(key, section.get(key));
             }
@@ -165,9 +152,6 @@ public abstract class ConfigBase {
         return resultMap;
     }
 
-    /**
-     * Creates a value from a configuration section based on the expected type
-     */
     private Object createValueFromSection(ConfigurationSection parentSection, String key, Class<?> valueType) {
         if (valueType == String.class) {
             return parentSection.getString(key);
@@ -212,21 +196,17 @@ public abstract class ConfigBase {
             if (subSection != null) {
                 return createComplexObjectFromSection(subSection, valueType);
             } else {
-                // If it's not a section, return the raw value
+                 
                 return parentSection.get(key);
             }
         }
     }
 
-    /**
-     * Creates complex objects (like RankTier) from configuration sections
-     */
     private Object createComplexObjectFromSection(ConfigurationSection section, Class<?> objectType) {
         try {
-            // Try to create an instance of the object
+             
             Object instance = objectType.getDeclaredConstructor().newInstance();
 
-            // Use reflection to set fields based on configuration
             for (java.lang.reflect.Field field : objectType.getDeclaredFields()) {
                 field.setAccessible(true);
                 String fieldName = field.getName();
@@ -235,7 +215,7 @@ public abstract class ConfigBase {
                     Object value = getValueFromSection(section, fieldName, field.getType());
                     field.set(instance, value);
                 } else if (section.contains(camelToSnake(fieldName))) {
-                    // Try snake_case version
+                     
                     Object value = getValueFromSection(section, camelToSnake(fieldName), field.getType());
                     field.set(instance, value);
                 }
@@ -248,9 +228,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Gets a value from a configuration section with proper type conversion
-     */
     private Object getValueFromSection(ConfigurationSection section, String key, Class<?> expectedType) {
         if (expectedType == String.class) {
             return section.getString(key);
@@ -299,9 +276,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Converts camelCase to snake_case
-     */
     private String camelToSnake(String camelCase) {
         return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
     }
@@ -350,32 +324,20 @@ public abstract class ConfigBase {
         }
     }
 
-    // ==================== MÉTODOS DE ESCRITURA PARA ConfigBase ====================
-
-    /**
-     * Establece un valor en la configuración y lo guarda
-     */
     protected void setValue(String path, Object value) {
         config.set(path, value);
         saveConfig();
     }
 
-    /**
-     * Establece un valor en la configuración sin guardar automáticamente
-     */
     protected void setValueNoSave(String path, Object value) {
         config.set(path, value);
     }
 
-    /**
-     * Guarda la configuración actual al archivo
-     */
     protected void saveConfig() {
         try {
             File configFile = new File(system.getPlugin().getDataFolder(), fileName + ".yml");
             config.save(configFile);
 
-            // Actualizar el timestamp en el sistema
             ConfigurationSystem.ConfigFileData data = system.getFileData(fileName);
             if (data != null) {
                 data.lastModified = configFile.lastModified();
@@ -388,9 +350,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Establece múltiples valores y guarda una sola vez
-     */
     protected void setValues(Map<String, Object> values) {
         for (Map.Entry<String, Object> entry : values.entrySet()) {
             config.set(entry.getKey(), entry.getValue());
@@ -398,9 +357,6 @@ public abstract class ConfigBase {
         saveConfig();
     }
 
-    /**
-     * Recarga un campo específico después de cambiar su valor
-     */
     protected void reloadField(String fieldName) {
         try {
             java.lang.reflect.Field field = findFieldByName(fieldName);
@@ -418,9 +374,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * NUEVO: Recarga todos los campos de configuración (útil para reload manual)
-     */
     protected void reloadAllFields() {
         try {
             logInternalDebug("Recargando todos los campos de configuración para: " + fileName);
@@ -431,9 +384,6 @@ public abstract class ConfigBase {
         }
     }
 
-    /**
-     * Busca un campo por nombre en la jerarquía de clases
-     */
     private java.lang.reflect.Field findFieldByName(String fieldName) {
         Class<?> currentClass = this.getClass();
         while (currentClass != null && ConfigBase.class.isAssignableFrom(currentClass)) {
@@ -445,7 +395,6 @@ public abstract class ConfigBase {
         }
         return null;
     }
-
 
     private int parseIntDefault(String value) {
         try { return value.isEmpty() ? 0 : Integer.parseInt(value); }
@@ -463,19 +412,17 @@ public abstract class ConfigBase {
     }
 
     public final void onReload() {
-        // CORREGIDO: Asegurar que se recargan todos los campos incluyendo componentes
+         
         logInternalDebug("Ejecutando onReload para: " + fileName);
-        loadAnnotatedFields(); // Esto recarga TODOS los campos, incluyendo componentes
+        loadAnnotatedFields();  
         onCustomReload();
         logInternalDebug("onReload completado para: " + fileName);
     }
 
-    // Métodos que pueden ser sobrescritos por las clases hijas
     protected void onInitialize() {}
     protected void onCustomReload() {}
     public boolean validate() { return true; }
 
-    // Métodos de utilidad para acceder al sistema y configuración
     protected ConfigurationSystem getSystem() {
         return system;
     }

@@ -8,10 +8,6 @@ import net.exylia.commons.redis.config.RedisConfigManager;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * Clase de integración para configurar Redis automáticamente en ExyliaPlugin
- * Usa un archivo redis.yml dedicado para la configuración
- */
 public class RedisIntegration {
 
     @Getter
@@ -20,24 +16,20 @@ public class RedisIntegration {
     private static RedisConfigManager configManager;
     private static ExyliaPlugin currentPlugin;
 
-    /**
-     * Inicializa Redis automáticamente creando y usando el archivo redis.yml
-     */
     public static void init(ExyliaPlugin plugin) {
         currentPlugin = plugin;
 
-        // Si ya está inicializado, no hacer nada
         if (autoInitialized) {
             return;
         }
 
         try {
-            // Si no hay configManager o si es diferente plugin, crear/recrear
+             
             if (configManager == null || !plugin.equals(configManager.getPlugin())) {
                 configManager = new RedisConfigManager(plugin);
                 configManager.initialize();
             } else {
-                // Si ya existe configManager para este plugin, recargar config
+                 
                 configManager.reloadConfig();
             }
 
@@ -58,9 +50,6 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Recarga la configuración de Redis desde el archivo
-     */
     public static void reloadConfig() {
         if (configManager == null) {
             logInternalError("No se puede recargar configuración: Redis no está inicializado");
@@ -71,8 +60,6 @@ public class RedisIntegration {
             configManager.reloadConfig();
             logInternalInfo("Configuración de Redis recargada.");
 
-            // Nota: Para aplicar cambios de configuración completamente,
-            // sería necesario reinicializar Redis, pero esto puede ser disruptivo
             logInternalInfo("Nota: Algunos cambios requieren reiniciar el servidor para aplicarse");
 
         } catch (Exception e) {
@@ -80,32 +67,24 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * NUEVO: Reload completo de Redis - cierra conexión actual y reinicializa con nueva configuración
-     */
     public static boolean performCompleteReload() {
         try {
             logInternalInfo("Iniciando reload completo de Redis...");
 
-            // 1. Cerrar conexión actual si existe
             if (autoInitialized && RedisManager.isAvailable()) {
                 logInternalInfo("Cerrando conexión Redis actual...");
                 RedisManager.getInstance().shutdown();
             }
 
-            // 2. Resetear estado
             autoInitialized = false;
             configManager = null;
 
-            // 3. Pequeña pausa para asegurar cierre completo
             Thread.sleep(500);
 
-            // 4. Reinicializar desde cero
             if (currentPlugin != null) {
                 logInternalInfo("Reinicializando Redis con nueva configuración...");
                 init(currentPlugin);
 
-                // 5. Verificar resultado
                 RedisStatus status = getStatus();
                 if (status.isEnabledInConfig()) {
                     if (status.isFullyOperational()) {
@@ -117,7 +96,7 @@ public class RedisIntegration {
                     }
                 } else {
                     logInternalInfo("Redis está deshabilitado en configuración después del reload");
-                    return true; // No es error si está intencionalmente deshabilitado
+                    return true;  
                 }
             } else {
                 logInternalError("No hay plugin disponible para reinicializar Redis");
@@ -131,14 +110,10 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Reinicia Redis forzadamente - útil para debugging
-     */
     public static boolean forceRestart() {
         try {
             logInternalInfo("Forzando reinicio de Redis...");
 
-            // Cerrar sin importar el estado
             try {
                 if (RedisManager.isAvailable()) {
                     RedisManager.getInstance().shutdown();
@@ -147,13 +122,11 @@ public class RedisIntegration {
                 logInternalError("Error cerrando Redis (continuando): " + e.getMessage());
             }
 
-            // Reset completo
             autoInitialized = false;
             configManager = null;
 
-            Thread.sleep(1000); // Pausa más larga para forzar
+            Thread.sleep(1000);  
 
-            // Reinicializar
             if (currentPlugin != null) {
                 init(currentPlugin);
                 return getStatus().isFullyOperational();
@@ -167,9 +140,6 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Cierra Redis si fue inicializado automáticamente
-     */
     public static void shutdownRedis() {
         if (autoInitialized && RedisManager.isAvailable()) {
             try {
@@ -184,16 +154,10 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Verifica si el archivo redis.yml existe
-     */
     public static boolean configFileExists() {
         return configManager != null && configManager.configFileExists();
     }
 
-    /**
-     * Habilita Redis en la configuración y guarda el archivo
-     */
     public static void enableRedis() {
         if (configManager != null) {
             configManager.setRedisEnabled(true);
@@ -202,9 +166,6 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Deshabilita Redis en la configuración y guarda el archivo
-     */
     public static void disableRedis() {
         if (configManager != null) {
             configManager.setRedisEnabled(false);
@@ -213,9 +174,6 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Obtiene información del estado actual de Redis
-     */
     public static RedisStatus getStatus() {
         return new RedisStatus(
                 autoInitialized,
@@ -226,13 +184,9 @@ public class RedisIntegration {
         );
     }
 
-    /**
-     * Verifica si Redis debería estar habilitado según la configuración actual
-     * Útil para detectar cambios sin inicializar Redis
-     */
     public static boolean shouldBeEnabled(ExyliaPlugin plugin) {
         try {
-            // Crear un configManager temporal solo para leer
+             
             RedisConfigManager tempConfigManager = new RedisConfigManager(plugin);
             tempConfigManager.initialize();
             return tempConfigManager.isRedisEnabled();
@@ -242,9 +196,6 @@ public class RedisIntegration {
         }
     }
 
-    /**
-     * Obtiene información detallada del estado para debugging
-     */
     public static String getDetailedStatus() {
         RedisStatus status = getStatus();
         StringBuilder sb = new StringBuilder();
@@ -263,11 +214,6 @@ public class RedisIntegration {
         return sb.toString();
     }
 
-    // ==================== CLASE DE ESTADO ====================
-
-    /**
-     * Información del estado de Redis
-     */
     public static class RedisStatus {
         private final boolean autoInitialized;
         private final boolean configManagerExists;

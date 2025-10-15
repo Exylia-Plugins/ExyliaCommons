@@ -13,9 +13,6 @@ import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
-/**
- * Listener que intercepta interacciones con items para verificar su expiración
- */
 public class ExpirationListener implements Listener {
 
     private final ExpirationManager expirationManager;
@@ -24,24 +21,18 @@ public class ExpirationListener implements Listener {
         this.expirationManager = ExpirationManager.getInstance();
     }
 
-    /**
-     * Verifica items expirados cuando un jugador se conecta
-     */
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        // Verificar inventario después de un pequeño delay para asegurar que esté completamente cargado
+         
         if (expirationManager != null && expirationManager.isEnabled()) {
             org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"), // Ajusta el nombre del plugin
+                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
                 () -> expirationManager.checkPlayerInventoryForExpiredItems(event.getPlayer()),
-                20L // 1 segundo de delay
+                20L  
             );
         }
     }
 
-    /**
-     * Intercepta interacciones con items (click derecho/izquierdo)
-     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerInteract(PlayerInteractEvent event) {
         ItemStack item = event.getItem();
@@ -52,9 +43,6 @@ public class ExpirationListener implements Listener {
         }
     }
 
-    /**
-     * Intercepta el consumo de items (comida, pociones, etc.)
-     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
         ItemStack item = event.getItem();
@@ -65,9 +53,6 @@ public class ExpirationListener implements Listener {
         }
     }
 
-    /**
-     * Intercepta la colocación de bloques
-     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onBlockPlace(BlockPlaceEvent event) {
         ItemStack item = event.getItemInHand();
@@ -78,9 +63,6 @@ public class ExpirationListener implements Listener {
         }
     }
 
-    /**
-     * Intercepta clicks en inventarios
-     */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
@@ -90,50 +72,40 @@ public class ExpirationListener implements Listener {
         
         if (item == null) return;
 
-        // Verificar si el item está expirado y debería ser eliminado/transformado
         if (InteractiveItem.hasExpirationTime(item) && InteractiveItem.isItemStackExpired(item)) {
-            // Forzar una verificación del inventario después de este click
+             
             org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"), // Ajusta el nombre del plugin
+                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
                 () -> {
                     if (expirationManager != null) {
                         expirationManager.checkPlayerInventoryForExpiredItems(player);
                     }
                 },
-                1L // 1 tick de delay
+                1L  
             );
         }
 
-        // Si es un item que no puede usarse, cancelar la acción
         if (!canUseExpiredItem(item, player)) {
-            // No cancelamos completamente porque podría estar moviendo el item
-            // pero sí verificamos si debería eliminarse
+             
             return;
         }
     }
 
-    /**
-     * Actualiza placeholders cuando se abre un inventario
-     */
     @EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getPlayer() instanceof Player)) return;
         
         Player player = (Player) event.getPlayer();
         
-        // Actualizar placeholders con un pequeño delay para asegurar que el inventario esté completamente abierto
         if (expirationManager != null && expirationManager.isUpdatePlaceholders()) {
             org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"), // Ajusta el nombre del plugin
+                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
                 () -> expirationManager.updatePlaceholdersForPlayer(player),
-                3L // 3 ticks de delay
+                3L  
             );
         }
     }
 
-    /**
-     * Verifica si un item expirado puede usarse según su comportamiento
-     */
     private boolean canUseExpiredItem(ItemStack item, Player player) {
         if (expirationManager == null) {
             return true;

@@ -1,8 +1,5 @@
 package net.exylia.commons.database.exceptions;
 
-/**
- * Custom exception class for database operations with enhanced error details
- */
 public class DatabaseException extends RuntimeException {
 
     private final String operation;
@@ -68,7 +65,6 @@ public class DatabaseException extends RuntimeException {
         return sb.toString();
     }
 
-    // Getters
     public String getOperation() { return operation; }
     public String getEntityClass() { return entityClass; }
     public String getAdapterType() { return adapterType; }

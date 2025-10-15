@@ -14,10 +14,6 @@ import java.util.function.Supplier;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
-/**
- * Sistema de caché tipado para Redis
- * Proporciona operaciones de caché de alto nivel con tipos seguros
- */
 public class RedisCache<T> {
 
     private final RedisManager redisManager;
@@ -35,20 +31,15 @@ public class RedisCache<T> {
         this.type = type;
         this.serializer = serializer;
         this.keyPrefix = redisManager.getConfig().getKeyPrefix() + "cache:" + cacheName + ":";
-        this.useLocalCache = true; // Caché local habilitado por defecto
+        this.useLocalCache = true;  
         this.localCache = useLocalCache ? new ConcurrentHashMap<>() : null;
     }
 
-    // ==================== OPERACIONES BÁSICAS ====================
-
-    /**
-     * Obtiene un valor de la caché
-     */
     public T get(String key) {
         if (closed) return null;
 
         try {
-            // Verificar caché local primero
+             
             if (useLocalCache) {
                 CacheEntry<T> localEntry = localCache.get(key);
                 if (localEntry != null && !localEntry.isExpired()) {
@@ -58,7 +49,6 @@ public class RedisCache<T> {
                 }
             }
 
-            // Buscar en Redis
             String redisKey = keyPrefix + key;
             String serialized = redisManager.get(redisKey);
 
@@ -68,12 +58,11 @@ public class RedisCache<T> {
 
             T value = serializer.deserialize(serialized, type);
 
-            // Actualizar caché local
             if (useLocalCache && value != null) {
                 long ttl = redisManager.getTTL(redisKey);
                 if (ttl > 0) {
                     localCache.put(key, new CacheEntry<>(value, System.currentTimeMillis() + (ttl * 1000)));
-                } else if (ttl == -1) { // Clave sin expiración
+                } else if (ttl == -1) {  
                     localCache.put(key, new CacheEntry<>(value, -1));
                 }
             }
@@ -86,16 +75,10 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Almacena un valor en la caché
-     */
     public void put(String key, T value) {
         put(key, value, redisManager.getConfig().getDefaultTTL());
     }
 
-    /**
-     * Almacena un valor en la caché con TTL específico
-     */
     public void put(String key, T value, int ttlSeconds) {
         if (closed) return;
 
@@ -109,7 +92,6 @@ public class RedisCache<T> {
                 redisManager.set(redisKey, serialized);
             }
 
-            // Actualizar caché local
             if (useLocalCache) {
                 long expirationTime = ttlSeconds > 0 ?
                         System.currentTimeMillis() + (ttlSeconds * 1000L) : -1;
@@ -121,9 +103,6 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Elimina un valor de la caché
-     */
     public boolean remove(String key) {
         if (closed) return false;
 
@@ -131,7 +110,6 @@ public class RedisCache<T> {
             String redisKey = keyPrefix + key;
             boolean removed = redisManager.delete(redisKey);
 
-            // Remover de caché local
             if (useLocalCache) {
                 localCache.remove(key);
             }
@@ -144,14 +122,11 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Verifica si existe una clave en la caché
-     */
     public boolean exists(String key) {
         if (closed) return false;
 
         try {
-            // Verificar caché local primero
+             
             if (useLocalCache) {
                 CacheEntry<T> localEntry = localCache.get(key);
                 if (localEntry != null && !localEntry.isExpired()) {
@@ -170,18 +145,10 @@ public class RedisCache<T> {
         }
     }
 
-    // ==================== OPERACIONES AVANZADAS ====================
-
-    /**
-     * Obtiene un valor o lo calcula si no existe
-     */
     public T getOrCompute(String key, Supplier<T> supplier) {
         return getOrCompute(key, supplier, redisManager.getConfig().getDefaultTTL());
     }
 
-    /**
-     * Obtiene un valor o lo calcula si no existe con TTL específico
-     */
     public T getOrCompute(String key, Supplier<T> supplier, int ttlSeconds) {
         T value = get(key);
         if (value != null) {
@@ -200,9 +167,6 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Obtiene múltiples valores
-     */
     public Map<String, T> getMultiple(Collection<String> keys) {
         Map<String, T> result = new HashMap<>();
 
@@ -216,25 +180,16 @@ public class RedisCache<T> {
         return result;
     }
 
-    /**
-     * Almacena múltiples valores
-     */
     public void putMultiple(Map<String, T> values) {
         putMultiple(values, redisManager.getConfig().getDefaultTTL());
     }
 
-    /**
-     * Almacena múltiples valores con TTL específico
-     */
     public void putMultiple(Map<String, T> values, int ttlSeconds) {
         for (Map.Entry<String, T> entry : values.entrySet()) {
             put(entry.getKey(), entry.getValue(), ttlSeconds);
         }
     }
 
-    /**
-     * Actualiza el TTL de una clave
-     */
     public boolean expire(String key, int ttlSeconds) {
         if (closed) return false;
 
@@ -242,7 +197,6 @@ public class RedisCache<T> {
             String redisKey = keyPrefix + key;
             boolean success = redisManager.expire(redisKey, ttlSeconds);
 
-            // Actualizar caché local
             if (useLocalCache && success) {
                 CacheEntry<T> localEntry = localCache.get(key);
                 if (localEntry != null) {
@@ -259,9 +213,6 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Obtiene el TTL de una clave
-     */
     public long getTTL(String key) {
         if (closed) return -2;
 
@@ -274,41 +225,22 @@ public class RedisCache<T> {
         }
     }
 
-    // ==================== OPERACIONES ASÍNCRONAS ====================
-
-    /**
-     * Obtiene un valor de forma asíncrona
-     */
     public CompletableFuture<T> getAsync(String key) {
         return CompletableFuture.supplyAsync(() -> get(key));
     }
 
-    /**
-     * Almacena un valor de forma asíncrona
-     */
     public CompletableFuture<Void> putAsync(String key, T value) {
         return CompletableFuture.runAsync(() -> put(key, value));
     }
 
-    /**
-     * Almacena un valor de forma asíncrona con TTL específico
-     */
     public CompletableFuture<Void> putAsync(String key, T value, int ttlSeconds) {
         return CompletableFuture.runAsync(() -> put(key, value, ttlSeconds));
     }
 
-    /**
-     * Obtiene o computa un valor de forma asíncrona
-     */
     public CompletableFuture<T> getOrComputeAsync(String key, Supplier<T> supplier) {
         return CompletableFuture.supplyAsync(() -> getOrCompute(key, supplier));
     }
 
-    // ==================== UTILIDADES ====================
-
-    /**
-     * Limpia las entradas expiradas de la caché local
-     */
     public void cleanup() {
         if (!useLocalCache || localCache == null) return;
 
@@ -319,18 +251,12 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Limpia toda la caché local
-     */
     public void clearLocalCache() {
         if (useLocalCache && localCache != null) {
             localCache.clear();
         }
     }
 
-    /**
-     * Obtiene estadísticas de la caché local
-     */
     public CacheStats getLocalCacheStats() {
         if (!useLocalCache || localCache == null) {
             return new CacheStats(0, 0);
@@ -344,9 +270,6 @@ public class RedisCache<T> {
         return new CacheStats(total, total - expired);
     }
 
-    /**
-     * Cierra la caché
-     */
     public void close() {
         closed = true;
         if (useLocalCache && localCache != null) {
@@ -354,11 +277,6 @@ public class RedisCache<T> {
         }
     }
 
-    // ==================== CLASES INTERNAS ====================
-
-    /**
-     * Entrada de caché local
-     */
     private static class CacheEntry<T> {
         private final T value;
         private final long expirationTime;
@@ -377,9 +295,6 @@ public class RedisCache<T> {
         }
     }
 
-    /**
-     * Estadísticas de caché
-     */
     public static class CacheStats {
         private final int totalEntries;
         private final int validEntries;
@@ -410,8 +325,6 @@ public class RedisCache<T> {
                     '}';
         }
     }
-
-    // ==================== GETTERS ====================
 
     public String getCacheName() {
         return cacheName;

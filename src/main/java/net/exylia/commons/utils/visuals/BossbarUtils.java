@@ -122,7 +122,6 @@ public class BossbarUtils {
     private static BukkitTask executeCountdownBossBar(Player player, CountdownBossBarInstance instance) {
         BossBarConfig config = instance.getConfig();
 
-        // Initialize countdown values at maximum
         long totalTicks = instance.getDurationTicks();
         long initialSecondsRemaining = (totalTicks + 19) / 20;
         long initialMillisRemaining = totalTicks * 50;

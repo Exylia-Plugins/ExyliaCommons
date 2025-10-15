@@ -15,10 +15,6 @@ import java.util.HashSet;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Instancia de scoreboard para un jugador específico usando FastBoard con Adventure Components
- * Mantiene la misma API pero usa FastBoard internamente
- */
 public class PlayerScoreboardInstance {
 
     private final Plugin plugin;
@@ -35,7 +31,6 @@ public class PlayerScoreboardInstance {
     private boolean visible = false;
     private long lastUpdate = 0;
 
-    // Gestión de jugadores en el team principal
     private final Set<String> teamMembers = new HashSet<>();
 
     public PlayerScoreboardInstance(Plugin plugin, Player player, ScoreboardConfig config,
@@ -47,9 +42,6 @@ public class PlayerScoreboardInstance {
         this.renderer = renderer;
     }
 
-    /**
-     * Muestra el scoreboard al jugador usando FastBoard
-     */
     public void show() {
         if (visible || !player.isOnline()) return;
 
@@ -60,7 +52,6 @@ public class PlayerScoreboardInstance {
                 rendered = renderer.createScoreboard(player, config, context);
                 visible = true;
 
-                // Añadir el jugador al team principal automáticamente
                 if (rendered.mainTeam != null) {
                     teamMembers.add(player.getName());
                 }
@@ -73,16 +64,13 @@ public class PlayerScoreboardInstance {
         });
     }
 
-    /**
-     * Oculta el scoreboard del jugador
-     */
     public void hide() {
         if (!visible) return;
 
         visible = false;
 
         try {
-            // Limpiar recursos
+             
             if (rendered != null) {
                 rendered.cleanup();
                 rendered = null;
@@ -91,13 +79,9 @@ public class PlayerScoreboardInstance {
             logInternalWarn("Error ocultando scoreboard de " + player.getName() + ": " + e.getMessage());
         }
 
-        // Limpiar miembros del team
         teamMembers.clear();
     }
 
-    /**
-     * Actualiza el contenido del scoreboard usando FastBoard
-     */
     public void update() {
         if (!visible || !player.isOnline() || rendered == null) {
             hide();
@@ -112,37 +96,23 @@ public class PlayerScoreboardInstance {
         }
     }
 
-    /**
-     * Verifica si el scoreboard debe actualizarse según su configuración
-     */
     public boolean shouldUpdate() {
         if (!visible || config.getUpdateInterval() <= 0) {
             return false;
         }
 
-        long interval = config.getUpdateInterval() * 50L; // Convertir ticks a ms
+        long interval = config.getUpdateInterval() * 50L;  
         return (System.currentTimeMillis() - lastUpdate) >= interval;
     }
 
-    /**
-     * Actualiza el contexto completo
-     */
     public void updateContext(ExyliaContext newContext) {
         this.context = newContext.copy();
     }
 
-    /**
-     * Añade objetos al contexto existente
-     */
     public void addToContext(Object... objects) {
         this.context.addAll(objects);
     }
 
-    // ==================== GESTIÓN DE TEAMS ====================
-
-    /**
-     * Añade un jugador al team principal del scoreboard
-     */
     public boolean addPlayerToMainTeam(Player targetPlayer) {
         if (!visible || rendered == null || rendered.mainTeam == null) {
             return false;
@@ -162,9 +132,6 @@ public class PlayerScoreboardInstance {
         return false;
     }
 
-    /**
-     * Remueve un jugador del team principal
-     */
     public boolean removePlayerFromMainTeam(Player targetPlayer) {
         if (!visible || rendered == null || rendered.mainTeam == null) {
             return false;
@@ -184,30 +151,21 @@ public class PlayerScoreboardInstance {
         return false;
     }
 
-    /**
-     * Verifica si un jugador está en el team principal
-     */
     public boolean isPlayerInMainTeam(Player targetPlayer) {
         return teamMembers.contains(targetPlayer.getName());
     }
 
-    /**
-     * Obtiene todos los miembros del team principal
-     */
     public Set<String> getMainTeamMembers() {
         return new HashSet<>(teamMembers);
     }
 
-    /**
-     * Limpia todos los miembros del team principal excepto el owner
-     */
     public void clearMainTeam() {
         if (!visible || rendered == null || rendered.mainTeam == null) {
             return;
         }
 
         try {
-            // Remover todos excepto el propietario
+             
             Set<String> toRemove = new HashSet<>(teamMembers);
             toRemove.remove(player.getName());
 
@@ -216,22 +174,16 @@ public class PlayerScoreboardInstance {
             }
 
             teamMembers.clear();
-            teamMembers.add(player.getName()); // Mantener solo al propietario
+            teamMembers.add(player.getName());  
         } catch (Exception e) {
             logInternalWarn("Error limpiando team principal de " + player.getName() + ": " + e.getMessage());
         }
     }
 
-    /**
-     * Obtiene el team principal si existe
-     */
     public Team getMainTeam() {
         return (visible && rendered != null) ? rendered.mainTeam : null;
     }
 
-    /**
-     * Crea un team personalizado en este scoreboard
-     */
     public Team createCustomTeam(String teamName) {
         if (!visible || rendered == null) {
             return null;
@@ -252,9 +204,6 @@ public class PlayerScoreboardInstance {
         }
     }
 
-    /**
-     * Obtiene un team por nombre
-     */
     public Team getTeam(String teamName) {
         if (!visible || rendered == null) {
             return null;
@@ -267,9 +216,6 @@ public class PlayerScoreboardInstance {
         }
     }
 
-    /**
-     * Elimina un team personalizado
-     */
     public boolean removeCustomTeam(String teamName) {
         if (!visible || rendered == null) {
             return false;
@@ -288,8 +234,6 @@ public class PlayerScoreboardInstance {
         }
         return false;
     }
-
-    // ==================== GETTERS ====================
 
     public ExyliaContext getContext() {
         return context.copy();

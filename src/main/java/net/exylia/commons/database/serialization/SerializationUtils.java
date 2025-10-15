@@ -19,73 +19,45 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
-/**
- * Utilidades centralizadas para serialización/deserialización de objetos comunes de Bukkit
- */
 public class SerializationUtils {
 
     private static final Gson GSON = new Gson();
     private static final GsonComponentSerializer COMPONENT_SERIALIZER = GsonComponentSerializer.gson();
 
-    // ===== COMPONENT SERIALIZATION =====
-
-    /**
-     * Serializa un Component a JSON
-     */
     public static String serializeComponent(Component component) {
         if (component == null) return null;
         return COMPONENT_SERIALIZER.serialize(component);
     }
 
-    /**
-     * Deserializa un Component desde JSON
-     */
     public static Component deserializeComponent(String json) {
         if (json == null || json.isEmpty()) return null;
         try {
             return COMPONENT_SERIALIZER.deserialize(json);
         } catch (JsonSyntaxException e) {
-            return Component.text(json); // Fallback a texto plano
+            return Component.text(json);  
         }
     }
 
-    // ===== ITEMSTACK SERIALIZATION =====
-
-    /**
-     * Serializa un ItemStack a Base64
-     */
     public static String serializeItemStack(ItemStack item) {
         if (item == null) return null;
         return serializeObject(item);
     }
 
-    /**
-     * Deserializa un ItemStack desde Base64
-     */
     public static ItemStack deserializeItemStack(String base64) {
         if (base64 == null || base64.isEmpty()) return null;
         return deserializeObject(base64, ItemStack.class);
     }
 
-    /**
-     * Serializa un array de ItemStacks a Base64
-     */
     public static String serializeItemArray(ItemStack[] items) {
         if (items == null) return null;
         return serializeObject(items);
     }
 
-    /**
-     * Deserializa un array de ItemStacks desde Base64
-     */
     public static ItemStack[] deserializeItemArray(String base64) {
         if (base64 == null || base64.isEmpty()) return null;
         return deserializeObject(base64, ItemStack[].class);
     }
 
-    /**
-     * Serializa ItemStacks a YAML (más legible para configs)
-     */
     public static String serializeItemsToYaml(ItemStack[] items) {
         if (items == null || items.length == 0) return null;
 
@@ -98,9 +70,6 @@ public class SerializationUtils {
         return config.saveToString();
     }
 
-    /**
-     * Deserializa ItemStacks desde YAML
-     */
     public static ItemStack[] deserializeItemsFromYaml(String yaml, int size) {
         if (yaml == null || yaml.isEmpty()) return new ItemStack[size];
 
@@ -128,19 +97,11 @@ public class SerializationUtils {
         }
     }
 
-    // ===== POTION EFFECTS SERIALIZATION =====
-
-    /**
-     * Serializa una lista de PotionEffects a Base64
-     */
     public static String serializePotionEffects(List<PotionEffect> effects) {
         if (effects == null || effects.isEmpty()) return null;
         return serializeObject(effects.toArray(new PotionEffect[0]));
     }
 
-    /**
-     * Deserializa PotionEffects desde Base64
-     */
     public static List<PotionEffect> deserializePotionEffects(String base64) {
         if (base64 == null || base64.isEmpty()) return new ArrayList<>();
 
@@ -148,9 +109,6 @@ public class SerializationUtils {
         return effects != null ? Arrays.asList(effects) : new ArrayList<>();
     }
 
-    /**
-     * Serializa PotionEffects a formato de mapa (más legible)
-     */
     public static String serializePotionEffectsToJson(List<PotionEffect> effects) {
         if (effects == null || effects.isEmpty()) return null;
 
@@ -169,9 +127,6 @@ public class SerializationUtils {
         return GSON.toJson(effectMaps);
     }
 
-    /**
-     * Deserializa PotionEffects desde JSON
-     */
     @SuppressWarnings("unchecked")
     public static List<PotionEffect> deserializePotionEffectsFromJson(String json) {
         if (json == null || json.isEmpty()) return new ArrayList<>();
@@ -195,7 +150,7 @@ public class SerializationUtils {
                     );
                     effects.add(effect);
                 } catch (Exception e) {
-                    // Ignorar efectos inválidos
+                     
                 }
             }
 
@@ -205,11 +160,6 @@ public class SerializationUtils {
         }
     }
 
-    // ===== LOCATION SERIALIZATION =====
-
-    /**
-     * Serializa una Location a String
-     */
     public static String serializeLocation(Location location) {
         if (location == null || location.getWorld() == null) return null;
 
@@ -223,9 +173,6 @@ public class SerializationUtils {
         );
     }
 
-    /**
-     * Deserializa una Location desde String
-     */
     public static Location deserializeLocation(String locationString) {
         if (locationString == null || locationString.isEmpty()) return null;
 
@@ -248,9 +195,6 @@ public class SerializationUtils {
         }
     }
 
-    /**
-     * Serializa Location a JSON (más detallado)
-     */
     public static String serializeLocationToJson(Location location) {
         if (location == null) return null;
 
@@ -265,9 +209,6 @@ public class SerializationUtils {
         return GSON.toJson(locationMap);
     }
 
-    /**
-     * Deserializa Location desde JSON
-     */
     @SuppressWarnings("unchecked")
     public static Location deserializeLocationFromJson(String json) {
         if (json == null || json.isEmpty()) return null;
@@ -293,11 +234,6 @@ public class SerializationUtils {
         }
     }
 
-    // ===== GENERIC OBJECT SERIALIZATION =====
-
-    /**
-     * Serializa cualquier objeto serializable a Base64
-     */
     public static String serializeObject(Object object) {
         if (object == null) return null;
 
@@ -312,9 +248,6 @@ public class SerializationUtils {
         }
     }
 
-    /**
-     * Deserializa un objeto desde Base64
-     */
     @SuppressWarnings("unchecked")
     public static <T> T deserializeObject(String base64, Class<T> type) {
         if (base64 == null || base64.isEmpty()) return null;
@@ -330,19 +263,11 @@ public class SerializationUtils {
         }
     }
 
-    // ===== LIST AND MAP SERIALIZATION =====
-
-    /**
-     * Serializa una lista de strings a JSON
-     */
     public static String serializeStringList(List<String> list) {
         if (list == null || list.isEmpty()) return null;
         return GSON.toJson(list);
     }
 
-    /**
-     * Deserializa una lista de strings desde JSON
-     */
     @SuppressWarnings("unchecked")
     public static List<String> deserializeStringList(String json) {
         if (json == null || json.isEmpty()) return new ArrayList<>();
@@ -354,17 +279,11 @@ public class SerializationUtils {
         }
     }
 
-    /**
-     * Serializa un mapa a JSON
-     */
     public static String serializeMap(Map<String, Object> map) {
         if (map == null || map.isEmpty()) return null;
         return GSON.toJson(map);
     }
 
-    /**
-     * Deserializa un mapa desde JSON
-     */
     @SuppressWarnings("unchecked")
     public static Map<String, Object> deserializeMap(String json) {
         if (json == null || json.isEmpty()) return new HashMap<>();
@@ -376,11 +295,6 @@ public class SerializationUtils {
         }
     }
 
-    // ===== UTILITY METHODS =====
-
-    /**
-     * Verifica si un string es un JSON válido
-     */
     public static boolean isValidJson(String json) {
         try {
             GSON.fromJson(json, Object.class);
@@ -390,9 +304,6 @@ public class SerializationUtils {
         }
     }
 
-    /**
-     * Obtiene el tamaño aproximado en bytes de un string
-     */
     public static int getStringSize(String text) {
         return text != null ? text.getBytes().length : 0;
     }

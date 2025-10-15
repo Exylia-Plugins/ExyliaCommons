@@ -38,7 +38,6 @@ public class DatabaseManager {
     @Getter
     private DatabaseExportImportManager exportImportManager;
 
-    // Enhanced error handling
     @Getter
     private DatabaseErrorHandler errorHandler;
 
@@ -99,18 +98,15 @@ public class DatabaseManager {
 
             config.set("database.type", "H2");
 
-            // YAML
             config.set("database.yaml.directory", "data");
             config.set("database.yaml.auto-save", true);
             config.set("database.yaml.backup-on-shutdown", true);
 
-            // H2
             config.set("database.h2.file", "database/h2");
             config.set("database.h2.username", "sa");
             config.set("database.h2.password", "");
             config.set("database.h2.pool-size", 5);
 
-            // MySQL/MariaDB
             config.set("database.mysql.host", "localhost");
             config.set("database.mysql.port", 3306);
             config.set("database.mysql.database", "minecraft");
@@ -123,7 +119,6 @@ public class DatabaseManager {
             config.set("database.mysql.idle-timeout", 600000);
             config.set("database.mysql.max-lifetime", 1800000);
 
-            // MongoDB
             config.set("database.mongodb.host", "localhost");
             config.set("database.mongodb.port", 27017);
             config.set("database.mongodb.database", "minecraft");
@@ -132,7 +127,6 @@ public class DatabaseManager {
             config.set("database.mongodb.auth-database", "admin");
             config.set("database.mongodb.connection-pool-size", 10);
 
-            // general
             config.set("database.auto-migrate", true);
             config.set("database.debug", false);
             config.set("database.enable-metrics", false);
@@ -188,7 +182,6 @@ public class DatabaseManager {
         } catch (Exception e) {
             String errorMsg = String.format("Failed to connect to %s database (%s)", type, connectionInfo);
 
-            // Fallback strategy: YAML -> H2 -> fail
             if (!type.equals("YAML") && !type.equals("H2")) {
                 errorHandler.logWarning("Connection", type, "Primary database connection failed, attempting YAML fallback");
 
@@ -365,20 +358,17 @@ public class DatabaseManager {
         try {
             logInternalDebug("=== STARTING COMPLETE RELOAD ===");
 
-            // 1. Reset initialization state
             synchronized (initializationLock) {
                 tablesInitialized = false;
             }
 
-            // 2. Wait for pending async operations to complete
             logInternalDebug("Waiting for pending async operations...");
             try {
-                Thread.sleep(2000); // Give time for async operations to complete
+                Thread.sleep(2000);  
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
 
-            // 3. Reconnect
             logInternalDebug("Reconnecting to database...");
             reconnect();
 
@@ -387,7 +377,6 @@ public class DatabaseManager {
                         "Failed to establish database connection during reload", null);
             }
 
-            // 4. Initialize tables synchronously
             logInternalDebug("Initializing tables synchronously...");
             CompletableFuture<Void> initFuture = initializeAllTables();
 
@@ -398,7 +387,6 @@ public class DatabaseManager {
                         "Failed during table initialization in reload", e);
             }
 
-            // 5. Recreate repositories
             logInternalDebug("Recreating all repositories...");
             recreateAllRepositories();
             return true;

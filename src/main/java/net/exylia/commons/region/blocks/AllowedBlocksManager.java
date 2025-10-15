@@ -13,9 +13,6 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Manager para manejar listas de bloques permitidos en regiones específicas
- */
 public class AllowedBlocksManager {
     private static AllowedBlocksManager instance;
 
@@ -38,23 +35,17 @@ public class AllowedBlocksManager {
         return instance;
     }
 
-    /**
-     * Verifica si un material está permitido in una región
-     */
     public boolean isMaterialAllowed(Region region, Material material) {
         if (!region.getFlagValue(RegionFlag.ALLOWED_BLOCKS_ONLY)) {
-            return true; // Si la flag no está activa, todos los bloques están permitidos
+            return true;  
         }
 
         Set<Material> allowedBlocks = getAllowedBlocks(region);
         return allowedBlocks.contains(material);
     }
 
-    /**
-     * Obtiene la lista de bloques permitidos para una región
-     */
     public Set<Material> getAllowedBlocks(Region region) {
-        // Intentar obtener lista personalizada desde metadata
+         
         @SuppressWarnings("unchecked")
         Set<String> customBlocks = region.getMetadata("allowed-blocks", Set.class);
 
@@ -67,9 +58,6 @@ public class AllowedBlocksManager {
         return new HashSet<>();
     }
 
-    /**
-     * Establece una lista personalizada de bloques permitidos
-     */
     public void setAllowedBlocks(Region region, Set<Material> materials) {
         Set<String> materialNames = materials.stream()
                 .map(Material::name)
@@ -83,9 +71,6 @@ public class AllowedBlocksManager {
         ));
     }
 
-    /**
-     * Añade materiales adicionales a la lista permitida
-     */
     public void addAllowedMaterials(Region region, Set<Material> materialsToAdd) {
         Set<Material> currentAllowed = getAllowedBlocks(region);
         currentAllowed.addAll(materialsToAdd);
@@ -97,9 +82,6 @@ public class AllowedBlocksManager {
         ));
     }
 
-    /**
-     * Remueve materiales de la lista permitida
-     */
     public void removeAllowedMaterials(Region region, Set<Material> materialsToRemove) {
         Set<Material> currentAllowed = getAllowedBlocks(region);
         currentAllowed.removeAll(materialsToRemove);
@@ -111,10 +93,6 @@ public class AllowedBlocksManager {
         ));
     }
 
-
-    /**
-     * Parsea un string a Material de forma segura
-     */
     private Material parseMaterial(String materialName) {
         try {
             return Material.valueOf(materialName.toUpperCase());
@@ -124,9 +102,6 @@ public class AllowedBlocksManager {
         }
     }
 
-    /**
-     * Verifica si un material es un bloque válido para colocar
-     */
     public boolean isValidPlaceableBlock(Material material) {
         return material.isBlock() &&
                 !material.name().contains("LEGACY") &&
@@ -135,9 +110,6 @@ public class AllowedBlocksManager {
                 material != Material.CAVE_AIR;
     }
 
-    /**
-     * Clase para información de bloques permitidos
-     */
     @Getter
     public static class AllowedBlocksInfo {
         private final boolean enabled;

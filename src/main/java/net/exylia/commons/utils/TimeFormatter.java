@@ -156,7 +156,6 @@ public class TimeFormatter {
         return new TimeComponents(millis);
     }
 
-
     private long parseInputIntelligent(Object input) {
         if (input == null) {
             return 0;
@@ -304,7 +303,6 @@ public class TimeFormatter {
 
         return String.join(compactMode ? "" : " ", parts);
     }
-
 
     private String formatAsClockTime(long millis) {
         return formatAsClockTime(millis, ClockFormat.AUTO);
@@ -547,7 +545,6 @@ public class TimeFormatter {
         return copy;
     }
 
-
     public enum ClockFormat {
         AUTO,
         HH_MM_SS,
@@ -590,7 +587,6 @@ public class TimeFormatter {
                     years, months, weeks, days, hours, minutes, seconds, milliseconds);
         }
     }
-
 
     public static String formatMillis(long millis) {
         return timeFormatter.format(millis);

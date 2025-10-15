@@ -20,9 +20,6 @@ public class Message_1_18_Adapter implements MessageAdapter {
         sender.sendMessage(component);
     }
 
-    /**
-     * No se necesita cerrar nada en esta versión
-     */
     public void close() {
     }
 }

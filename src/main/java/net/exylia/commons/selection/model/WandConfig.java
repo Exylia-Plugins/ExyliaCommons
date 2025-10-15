@@ -8,9 +8,6 @@ import org.bukkit.Material;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Configuración para crear wands personalizadas
- */
 @Getter
 public class WandConfig {
     private Material material;
@@ -39,7 +36,6 @@ public class WandConfig {
         this.selectionType = SelectionType.CUBOID;
     }
 
-    // Builder pattern
     public WandConfig material(Material material) {
         this.material = material;
         return this;

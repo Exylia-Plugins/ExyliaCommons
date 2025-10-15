@@ -53,7 +53,6 @@ public class EconomyRegister {
         initializeEconomySystem();
         initialized = true;
 
-        // Actualizar todos los plugins registrados
         for (String pluginName : registeredPlugins.keySet()) {
             registeredPlugins.put(pluginName, currentProvider);
         }
@@ -61,9 +60,6 @@ public class EconomyRegister {
         DebugUtils.logInternalInfo("Economy system reinitialized. Provider: " + currentProvider.getProviderName());
     }
 
-    /**
-     * Obtiene información del estado actual
-     */
     public static EconomyStatus getStatus() {
         return new EconomyStatus(
                 currentProvider != null ? currentProvider.getProviderName() : "None",
@@ -76,10 +72,8 @@ public class EconomyRegister {
     private static void initializeEconomySystem() {
         DebugUtils.logInternalInfo("Initializing economy system...");
 
-        // Intentar proveedores en orden de prioridad
         EconomyProvider provider = tryProvider(VaultEconomyProvider::new, "Vault");
 
-        // Si no hay proveedores disponibles, usar dummy
         if (provider == null || !provider.isAvailable()) {
             provider = new DummyEconomyProvider();
             DebugUtils.logInternalWarn("No economy plugin detected. Using dummy provider.");
@@ -116,9 +110,6 @@ public class EconomyRegister {
         EconomyProvider create() throws Exception;
     }
 
-    /**
-     * Información del estado del sistema de economía
-     */
     public static class EconomyStatus {
         private final String providerName;
         private final boolean available;

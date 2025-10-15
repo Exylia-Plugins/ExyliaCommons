@@ -8,11 +8,8 @@ import org.bukkit.entity.Player;
 @Deprecated
 public interface MessageConfig {
 
-    // Métodos que debe implementar la clase
     ConfigurationSystem getSystem();
     FileConfiguration file();
-
-    // ===== MÉTODOS DEFAULT AUTOMÁTICOS =====
 
     default Component get(String path) {
         return getSystem().getMessage(path);

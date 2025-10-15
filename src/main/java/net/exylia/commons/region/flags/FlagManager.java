@@ -17,21 +17,15 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
-/**
- * Gestor central OPTIMIZADO para la aplicación y validación de flags de región
- * Incluye cache mejorado y optimizaciones de rendimiento
- */
 public class FlagManager {
     private static FlagManager instance;
 
     private final JavaPlugin plugin;
-    private final Map<UUID, FlagState> playerStates; // Estado de flags por jugador
-    private final Map<UUID, BukkitRunnable> activeEffects; // Efectos activos por jugador
+    private final Map<UUID, FlagState> playerStates;  
+    private final Map<UUID, BukkitRunnable> activeEffects;  
 
-    // ===== CACHE OPTIMIZADO =====
     private final OptimizedFlagCache optimizedCache;
 
-    // ===== ESTADÍSTICAS =====
     private final AtomicLong cacheHits = new AtomicLong();
     private final AtomicLong cacheMisses = new AtomicLong();
     private final AtomicLong validationCalls = new AtomicLong();
@@ -42,7 +36,6 @@ public class FlagManager {
         this.activeEffects = new ConcurrentHashMap<>();
         this.optimizedCache = new OptimizedFlagCache();
 
-        // Iniciar tarea de limpieza optimizada
         startOptimizedCleanupTask();
     }
 
@@ -59,28 +52,17 @@ public class FlagManager {
         return instance;
     }
 
-    // ===== VALIDACIÓN DE ACCIONES OPTIMIZADA =====
-
-    /**
-     * Verifica si un jugador puede realizar una acción específica en su ubicación actual
-     */
     public boolean canPlayerPerformAction(Player player, RegionFlag flag) {
         return canPlayerPerformActionAt(player, player.getLocation(), flag);
     }
 
-    /**
-     * OPTIMIZADO: Verifica si un jugador puede realizar una acción en una ubicación específica
-     * Usa cache optimizado y spatial index para máximo rendimiento
-     */
     public boolean canPlayerPerformActionAt(Player player, Location location, RegionFlag flag) {
         validationCalls.incrementAndGet();
 
-        // Validar parámetros obligatorios
         if (location == null || flag == null) {
             throw new IllegalArgumentException("Location y flag no pueden ser null");
         }
 
-        // OPTIMIZACIÓN 1: Cache optimizado primero
         if (player != null) {
             Boolean cached = optimizedCache.getCachedResult(player,
                     location.getBlockX(), location.getBlockY(), location.getBlockZ(), flag);
@@ -92,55 +74,46 @@ public class FlagManager {
 
         cacheMisses.incrementAndGet();
 
-        // OPTIMIZACIÓN 2: Verificar permisos administrativos temprano
         if (player != null && hasAdminPermission(player, flag)) {
             cacheResult(player, location, flag, true);
             return true;
         }
 
-        // OPTIMIZACIÓN 3: Usar spatial index del RegionManager para búsqueda O(1)
         List<Region> regions = RegionManager.getInstance().getRegionsAt(location);
 
         boolean result;
         if (regions.isEmpty()) {
-            // No hay regiones, usar valor por defecto
+             
             result = flag.isDefaultValue();
         } else {
-            // OPTIMIZACIÓN 4: Usar la región de mayor prioridad directamente
-            Region highestPriorityRegion = regions.get(0); // Ya viene ordenado por prioridad
+             
+            Region highestPriorityRegion = regions.get(0);  
             result = evaluateFlagInRegionOptimized(player, highestPriorityRegion, flag, location);
         }
 
-        // Cachear resultado
         cacheResult(player, location, flag, result);
         return result;
     }
 
-    /**
-     * OPTIMIZADO: Evalúa una flag en una región específica con optimizaciones
-     */
     private boolean evaluateFlagInRegionOptimized(Player player, Region region, RegionFlag flag, Location actionLocation) {
-        // OPTIMIZACIÓN 1: Early exit para flags críticas
+         
         if (player != null && flag == RegionFlag.REGION_MEMBERS_ONLY && region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
             if (flag.isAffectedByRegionMembersOnly()) {
                 boolean playerInRegion = region.contains(player.getLocation());
                 if (!playerInRegion) {
-                    return false; // Denegación rápida
+                    return false;  
                 }
             }
         }
 
-        // OPTIMIZACIÓN 2: Cache de membresía del jugador
         if (player != null) {
             UUID playerId = player.getUniqueId();
 
-            // Owners tienen acceso completo (excepto DENY explícito)
             if (region.isOwner(playerId)) {
                 RegionFlagType flagType = region.getFlagType(flag);
                 return flagType != RegionFlagType.DENY;
             }
 
-            // Members tienen acceso a flags básicas
             if (region.isMember(playerId)) {
                 if (flag.affectsBuilding() || flag == RegionFlag.INTERACT) {
                     RegionFlagType flagType = region.getFlagType(flag);
@@ -148,22 +121,18 @@ public class FlagManager {
                 }
             }
 
-            // OPTIMIZACIÓN 3: Cache de permisos (evitar lookup repetido)
             String flagPermission = flag.getRequiredPermission(region.getId());
             if (player.hasPermission(flagPermission)) {
                 return true;
             }
         }
 
-        // OPTIMIZACIÓN 4: Obtener valor de flag directamente
         boolean flagValue = region.getFlagValue(flag);
 
-        // OPTIMIZACIÓN 5: Skip verificación de incompatibilidades para flags comunes
         if (!flag.requiresSpecialPermission()) {
             return flagValue;
         }
 
-        // Verificar incompatibilidades solo para flags especiales
         if (hasIncompatibleFlags(region, flag)) {
             return false;
         }
@@ -171,41 +140,32 @@ public class FlagManager {
         return flagValue;
     }
 
-    /**
-     * OPTIMIZADO: Verificación especial para PvP con cache
-     */
     public boolean isPvpAllowed(Player attacker, Player target) {
-        // OPTIMIZACIÓN 1: Verificar invencibilidad primero (más rápido)
+         
         if (isPlayerInvincible(target)) {
             return false;
         }
 
-        // OPTIMIZACIÓN 2: Cache de PvP por par de jugadores
         String pvpCacheKey = getPvpCacheKey(attacker, target);
         Boolean cachedPvp = optimizedCache.getCachedPvpResult(pvpCacheKey);
         if (cachedPvp != null) {
             return cachedPvp;
         }
 
-        // Obtener ubicaciones
         Location attackerLoc = attacker.getLocation();
         Location targetLoc = target.getLocation();
 
-        // Obtener regiones usando spatial index optimizado
         List<Region> attackerRegions = RegionManager.getInstance().getRegionsAt(attackerLoc);
         List<Region> targetRegions = RegionManager.getInstance().getRegionsAt(targetLoc);
 
-        // Si ninguno está en regiones, usar valor por defecto
         if (attackerRegions.isEmpty() && targetRegions.isEmpty()) {
             boolean result = RegionFlag.PVP.isDefaultValue();
             optimizedCache.cachePvpResult(pvpCacheKey, result);
             return result;
         }
 
-        // OPTIMIZACIÓN 3: Verificar solo la región de mayor prioridad de cada jugador
         boolean pvpAllowed = true;
 
-        // Verificar región del atacante
         if (!attackerRegions.isEmpty()) {
             Region attackerRegion = attackerRegions.get(0);
             if (!checkPvpInRegion(attackerRegion, attacker, target, attackerLoc, targetLoc)) {
@@ -213,10 +173,9 @@ public class FlagManager {
             }
         }
 
-        // Verificar región del objetivo (si es diferente)
         if (pvpAllowed && !targetRegions.isEmpty()) {
             Region targetRegion = targetRegions.get(0);
-            if (!attackerRegions.contains(targetRegion)) { // Evitar verificación duplicada
+            if (!attackerRegions.contains(targetRegion)) {  
                 if (!checkPvpInRegion(targetRegion, attacker, target, attackerLoc, targetLoc)) {
                     pvpAllowed = false;
                 }
@@ -227,11 +186,8 @@ public class FlagManager {
         return pvpAllowed;
     }
 
-    /**
-     * Verifica PvP en una región específica
-     */
     private boolean checkPvpInRegion(Region region, Player attacker, Player target, Location attackerLoc, Location targetLoc) {
-        // Si la región tiene REGION_MEMBERS_ONLY activo
+         
         if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
             boolean attackerInRegion = region.contains(attackerLoc);
             boolean targetInRegion = region.contains(targetLoc);
@@ -241,18 +197,13 @@ public class FlagManager {
             }
         }
 
-        // Verificar si PvP está permitido en la región
         return region.getFlagValue(RegionFlag.PVP);
     }
 
-    /**
-     * Genera clave de cache para PvP
-     */
     private String getPvpCacheKey(Player attacker, Player target) {
         UUID attackerId = attacker.getUniqueId();
         UUID targetId = target.getUniqueId();
 
-        // Ordenar UUIDs para cache bidireccional
         if (attackerId.compareTo(targetId) < 0) {
             return attackerId + ":" + targetId;
         } else {
@@ -261,7 +212,7 @@ public class FlagManager {
     }
 
     private boolean hasIncompatibleFlags(Region region, RegionFlag flag) {
-        // Cache de incompatibilidades por región
+         
         String incompatibleKey = region.getId() + ":" + flag.name();
         Boolean cachedIncompatible = optimizedCache.getCachedIncompatibility(incompatibleKey);
         if (cachedIncompatible != null) {
@@ -270,16 +221,15 @@ public class FlagManager {
 
         boolean hasIncompatible = region.getConfiguredFlags().keySet().stream()
                 .anyMatch(configuredFlag -> {
-                    // Verificar incompatibilidad tradicional
+                     
                     if (flag.isIncompatibleWith(configuredFlag) && region.getFlagValue(configuredFlag)) {
                         return true;
                     }
 
-                    // NUEVO: Verificar dependencias
                     if (flag == RegionFlag.RE_GIVE_BLOCKS &&
                             configuredFlag == RegionFlag.TEMPORARY_BLOCKS &&
                             !region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
-                        return true; // RE_GIVE_BLOCKS no puede estar activo sin TEMPORARY_BLOCKS
+                        return true;  
                     }
 
                     return false;
@@ -289,9 +239,6 @@ public class FlagManager {
         return hasIncompatible;
     }
 
-    /**
-     * Verifica permisos administrativos con cache
-     */
     private boolean hasAdminPermission(Player player, RegionFlag flag) {
         String adminCacheKey = player.getUniqueId() + ":admin:" + flag.name();
         Boolean cachedAdmin = optimizedCache.getCachedAdminPermission(adminCacheKey);
@@ -307,17 +254,12 @@ public class FlagManager {
         return hasAdmin;
     }
 
-    /**
-     * Cachea resultado de validación
-     */
     private void cacheResult(Player player, Location location, RegionFlag flag, boolean result) {
         if (player != null) {
             optimizedCache.cacheResult(player, location.getBlockX(), location.getBlockY(),
                     location.getBlockZ(), flag, result);
         }
     }
-
-    // ===== APLICACIÓN DE EFECTOS (sin cambios significativos) =====
 
     public void applyRegionEffects(Player player, Region region) {
         FlagState state = getOrCreatePlayerState(player);
@@ -440,8 +382,6 @@ public class FlagManager {
         state.removeAppliedFlag(flag);
     }
 
-    // ===== EFECTOS ESPECIALES =====
-
     private void startHealEffect(Player player, Region region) {
         String effectKey = "heal";
         stopEffect(player, effectKey);
@@ -502,8 +442,6 @@ public class FlagManager {
         return UUID.nameUUIDFromBytes((player.getUniqueId().toString() + ":" + effectName).getBytes());
     }
 
-    // ===== GESTIÓN DE ESTADOS =====
-
     private FlagState getOrCreatePlayerState(Player player) {
         return playerStates.computeIfAbsent(player.getUniqueId(),
                 k -> new FlagState(player.getUniqueId()));
@@ -525,11 +463,8 @@ public class FlagManager {
             return false;
         });
 
-        // Limpiar del cache optimizado
         optimizedCache.invalidatePlayer(player);
     }
-
-    // ===== CACHE MANAGEMENT =====
 
     public void invalidateFlagCache(RegionFlag flag) {
         optimizedCache.invalidateFlag(flag);
@@ -547,14 +482,10 @@ public class FlagManager {
         optimizedCache.invalidateRegionFlag(region, flag);
     }
 
-    // ===== VERIFICACIONES ESPECIALES =====
-
     public boolean isPlayerInvincible(Player player) {
         FlagState state = playerStates.get(player.getUniqueId());
         return state != null && state.hasAppliedFlag(RegionFlag.INVINCIBLE);
     }
-
-    // ===== TAREAS OPTIMIZADAS =====
 
     private void startOptimizedCleanupTask() {
         new BukkitRunnable() {
@@ -562,12 +493,9 @@ public class FlagManager {
             public void run() {
                 optimizedCache.performMaintenance();
             }
-        }.runTaskTimerAsynchronously(plugin, 100L, 100L); // Cada 5 segundos
+        }.runTaskTimerAsynchronously(plugin, 100L, 100L);  
     }
 
-    /**
-     * Obtiene estadísticas del sistema de flags
-     */
     public FlagManagerStats getStats() {
         return new FlagManagerStats(
                 playerStates.size(),
@@ -579,18 +507,12 @@ public class FlagManager {
         );
     }
 
-    /**
-     * Reinicia estadísticas
-     */
     public void resetStats() {
         cacheHits.set(0);
         cacheMisses.set(0);
         validationCalls.set(0);
     }
 
-    /**
-     * Estadísticas del FlagManager
-     */
     @Getter
     public static class FlagManagerStats {
         private final int activePlayerStates;
@@ -626,17 +548,16 @@ public class FlagManager {
     }
 
     private boolean validateFlagConfiguration(Region region, RegionFlag flag, boolean newValue) {
-        // Validar RE_GIVE_BLOCKS
+         
         if (flag == RegionFlag.RE_GIVE_BLOCKS && newValue) {
-            // RE_GIVE_BLOCKS requiere TEMPORARY_BLOCKS
+             
             if (!region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
                 return false;
             }
         }
 
-        // Validar TEMPORARY_BLOCKS
         if (flag == RegionFlag.TEMPORARY_BLOCKS && !newValue) {
-            // Si se desactiva TEMPORARY_BLOCKS, también desactivar RE_GIVE_BLOCKS
+             
             if (region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS)) {
                 region.setFlag(RegionFlag.RE_GIVE_BLOCKS, RegionFlagType.DEFAULT);
                 logInternalDebug(String.format(

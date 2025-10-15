@@ -3,17 +3,13 @@ package net.exylia.commons.item.expiration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * Configuración para el sistema de expiración automática
- */
 public class ExpirationConfig {
     
     private final JavaPlugin plugin;
     private final String configSection = "item-expiration";
     
-    // Valores por defecto
     private boolean enabled = true;
-    private double checkIntervalSeconds = 5.0; // 5 segundos
+    private double checkIntervalSeconds = 5.0;  
     private boolean enableDebugMessages = false;
     private boolean notifyOnRemoval = true;
     private boolean notifyOnDisable = true;
@@ -26,13 +22,9 @@ public class ExpirationConfig {
         this.plugin = plugin;
     }
 
-    /**
-     * Carga la configuración desde el archivo config.yml
-     */
     public void loadFromConfig() {
         FileConfiguration config = plugin.getConfig();
         
-        // Crear sección por defecto si no existe
         if (!config.contains(configSection)) {
             setDefaults();
             plugin.saveConfig();
@@ -51,15 +43,11 @@ public class ExpirationConfig {
         checkOnInventoryClick = config.getBoolean(section + "triggers.on-inventory-click", checkOnInventoryClick);
         updatePlaceholders = config.getBoolean(section + "update-placeholders", updatePlaceholders);
 
-        // Validaciones
         if (checkIntervalSeconds < 0.1) {
             checkIntervalSeconds = 0.1;
         }
     }
 
-    /**
-     * Establece valores por defecto en la configuración
-     */
     public void setDefaults() {
         FileConfiguration config = plugin.getConfig();
         String section = configSection + ".";
@@ -74,7 +62,6 @@ public class ExpirationConfig {
         config.set(section + "triggers.on-inventory-click", checkOnInventoryClick);
         config.set(section + "update-placeholders", updatePlaceholders);
         
-        // Agregar comentarios
         config.setComments(configSection, java.util.Arrays.asList(
             "Configuración del sistema de expiración automática de items",
             "Este sistema verifica periódicamente los inventarios de los jugadores",
@@ -82,9 +69,6 @@ public class ExpirationConfig {
         ));
     }
 
-    /**
-     * Guarda la configuración actual al archivo
-     */
     public void saveToConfig() {
         FileConfiguration config = plugin.getConfig();
         String section = configSection + ".";
@@ -102,9 +86,6 @@ public class ExpirationConfig {
         plugin.saveConfig();
     }
 
-    /**
-     * Aplica la configuración al ExpirationManager
-     */
     public void applyToManager() {
         ExpirationManager manager = ExpirationManager.getInstance();
         if (manager != null) {
@@ -115,7 +96,6 @@ public class ExpirationConfig {
         }
     }
 
-    // Getters y Setters
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 

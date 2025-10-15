@@ -15,5 +15,3 @@ public class ExportMetadata {
     private ExportOptions options;
 
 }
-
-

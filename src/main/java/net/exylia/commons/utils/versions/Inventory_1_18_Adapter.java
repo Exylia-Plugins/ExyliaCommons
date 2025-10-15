@@ -8,7 +8,7 @@ public class Inventory_1_18_Adapter implements InventoryAdapter {
 
     @Override
     public Inventory createInventory(int size, Component title) {
-        // En 1.17+ se puede usar directamente el componente
+         
         return Bukkit.createInventory(null, size, title);
     }
 }

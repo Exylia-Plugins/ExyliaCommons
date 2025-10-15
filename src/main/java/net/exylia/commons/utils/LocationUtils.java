@@ -195,13 +195,10 @@ public class  LocationUtils {
 
         World world = location.getWorld();
 
-        // Verificar el bloque donde están los pies del jugador
         Block feetBlock = world.getBlockAt(location);
 
-        // Verificar el bloque donde está la cabeza del jugador (1 bloque arriba)
         Block headBlock = world.getBlockAt(location.clone().add(0, 1, 0));
 
-        // El jugador está dentro de un bloque si cualquiera de estos bloques es sólido
         return feetBlock.getType().isSolid() || headBlock.getType().isSolid();
     }
 
@@ -213,30 +210,26 @@ public class  LocationUtils {
         Location playerLoc = player.getLocation();
         World world = playerLoc.getWorld();
 
-        // Hitbox del jugador: 0.6 bloques de ancho, 1.8 bloques de alto
         double playerWidth = 0.6;
         double playerHeight = 1.8;
 
-        // Verificar múltiples puntos del hitbox del jugador
         double halfWidth = playerWidth / 2;
 
-        // Puntos a verificar en el hitbox
         Location[] checkPoints = {
-                playerLoc.clone(), // Centro
-                playerLoc.clone().add(halfWidth, 0, halfWidth), // Esquina NE
-                playerLoc.clone().add(-halfWidth, 0, halfWidth), // Esquina NW
-                playerLoc.clone().add(halfWidth, 0, -halfWidth), // Esquina SE
-                playerLoc.clone().add(-halfWidth, 0, -halfWidth), // Esquina SW
-                playerLoc.clone().add(0, playerHeight - 0.1, 0), // Cabeza
-                playerLoc.clone().add(halfWidth, playerHeight - 0.1, halfWidth), // Cabeza NE
-                playerLoc.clone().add(-halfWidth, playerHeight - 0.1, -halfWidth) // Cabeza SW
+                playerLoc.clone(),  
+                playerLoc.clone().add(halfWidth, 0, halfWidth),  
+                playerLoc.clone().add(-halfWidth, 0, halfWidth),  
+                playerLoc.clone().add(halfWidth, 0, -halfWidth),  
+                playerLoc.clone().add(-halfWidth, 0, -halfWidth),  
+                playerLoc.clone().add(0, playerHeight - 0.1, 0),  
+                playerLoc.clone().add(halfWidth, playerHeight - 0.1, halfWidth),  
+                playerLoc.clone().add(-halfWidth, playerHeight - 0.1, -halfWidth)  
         };
 
-        // Verificar si todos los puntos están dentro de bloques sólidos
         for (Location point : checkPoints) {
             Block block = world.getBlockAt(point);
             if (!block.getType().isSolid()) {
-                return false; // Si algún punto no está en un bloque sólido, no está completamente dentro
+                return false;  
             }
         }
 
@@ -251,10 +244,9 @@ public class  LocationUtils {
         Location playerLoc = player.getLocation();
         World world = playerLoc.getWorld();
 
-        // Verificar los bloques principales donde puede estar el jugador
         Block feetBlock = world.getBlockAt(playerLoc);
         Block headBlock = world.getBlockAt(playerLoc.clone().add(0, 1, 0));
-        Block eyeBlock = world.getBlockAt(playerLoc.clone().add(0, 1.6, 0)); // Altura de los ojos
+        Block eyeBlock = world.getBlockAt(playerLoc.clone().add(0, 1.6, 0));  
 
         return feetBlock.getType().isSolid() ||
                 headBlock.getType().isSolid() ||
@@ -263,16 +255,15 @@ public class  LocationUtils {
 
     public static boolean extractPlayerFromBlock(Player player) {
         if (!isPlayerInsideBlock(player)) {
-            return false; // No está dentro de un bloque
+            return false;  
         }
 
         Location currentLoc = player.getLocation();
 
-        // Intentar encontrar una ubicación segura cercana
         Location safeLoc = findSafeLocation(currentLoc, 5);
 
         if (safeLoc != null) {
-            // Mantener la rotación del jugador
+             
             safeLoc.setYaw(currentLoc.getYaw());
             safeLoc.setPitch(currentLoc.getPitch());
 
@@ -280,7 +271,6 @@ public class  LocationUtils {
             return true;
         }
 
-        // Si no se puede encontrar una ubicación segura cerca, teleportar hacia arriba
         return teleportToSafeHeightUp(player);
     }
 

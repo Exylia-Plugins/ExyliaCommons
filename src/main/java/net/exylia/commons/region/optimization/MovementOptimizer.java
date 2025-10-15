@@ -7,21 +7,15 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * MovementOptimizer CORREGIDO - Detección inmediata y precisa de cambios de región
- * Elimina los filtros agresivos que causaban detección tardía
- */
 public class MovementOptimizer {
     private final Map<UUID, PlayerMovementState> playerStates;
     private final RegionSpatialIndex spatialIndex;
 
-    // CONFIGURACIÓN MENOS AGRESIVA PARA MEJOR DETECCIÓN
-    private static final double MICRO_MOVEMENT_SQUARED = 0.01; // Solo 0.1 bloques - muy pequeño
-    private static final long MAX_MOVEMENT_AGE_MS = 10000; // 10 segundos
+    private static final double MICRO_MOVEMENT_SQUARED = 0.01;  
+    private static final long MAX_MOVEMENT_AGE_MS = 10000;  
 
-    // Estadísticas para monitoring
     private volatile long totalMovements = 0;
-    private volatile long processedMovements = 0; // Cambio: contar los que procesamos, no los que saltamos
+    private volatile long processedMovements = 0;  
     private volatile long regionChanges = 0;
 
     public MovementOptimizer(RegionSpatialIndex spatialIndex) {
@@ -29,23 +23,19 @@ public class MovementOptimizer {
         this.spatialIndex = spatialIndex;
     }
 
-    /**
-     * CORREGIDO: Verifica movimiento con detección más sensible
-     */
     public MovementResult checkMovement(Player player, Location from, Location to) {
         UUID playerId = player.getUniqueId();
         PlayerMovementState state = playerStates.get(playerId);
 
         totalMovements++;
 
-        // Verificación de validez básica
         if (from == null || to == null || !from.getWorld().equals(to.getWorld())) {
             return new MovementResult(false, Collections.emptySet(), Collections.emptySet());
         }
 
         if (state == null) {
-            // Primera vez que vemos a este jugador - inicializar estado
-            List<Region> initialRegions = spatialIndex.getRegionsAt(to); // CORREGIDO: usar 'to' no 'from'
+             
+            List<Region> initialRegions = spatialIndex.getRegionsAt(to);  
             state = new PlayerMovementState(to, initialRegions);
             playerStates.put(playerId, state);
             processedMovements++;
@@ -53,7 +43,6 @@ public class MovementOptimizer {
             return new MovementResult(true, new HashSet<>(initialRegions), Collections.emptySet());
         }
 
-        // CORREGIDO: Solo filtrar micro-movimientos extremadamente pequeños (0.1 bloque)
         if (isMicroMovement(from, to)) {
             state.updateLastSeen();
             return new MovementResult(false, state.getCurrentRegionsAsSet(), state.getCurrentRegionsAsSet());
@@ -61,11 +50,9 @@ public class MovementOptimizer {
 
         processedMovements++;
 
-        // SIEMPRE obtener regiones nuevas - no usar cache agresivo
         List<Region> newRegions = spatialIndex.getRegionsAt(to);
         Set<Region> newRegionSet = new LinkedHashSet<>(newRegions);
 
-        // DETECCIÓN MÁS SENSIBLE: Comparar sets completos, no solo el más prioritario
         Set<Region> oldRegionSet = state.getCurrentRegionsAsSet();
         boolean regionsChanged = !newRegionSet.equals(oldRegionSet);
 
@@ -75,21 +62,14 @@ public class MovementOptimizer {
             return new MovementResult(true, newRegionSet, oldRegionSet);
         }
 
-        // Las regiones no cambiaron, actualizar ubicación
         state.updateLocation(to);
         return new MovementResult(false, newRegionSet, newRegionSet);
     }
 
-    /**
-     * Obtiene el estado actual de un jugador
-     */
     public PlayerMovementState getPlayerState(UUID playerId) {
         return playerStates.get(playerId);
     }
 
-    /**
-     * Fuerza una actualización del estado de un jugador
-     */
     public MovementResult forceUpdate(Player player) {
         UUID playerId = player.getUniqueId();
         Location location = player.getLocation();
@@ -109,16 +89,10 @@ public class MovementOptimizer {
         return new MovementResult(true, new HashSet<>(currentRegions), oldRegions);
     }
 
-    /**
-     * Limpia el estado de un jugador
-     */
     public void cleanupPlayer(UUID playerId) {
         playerStates.remove(playerId);
     }
 
-    /**
-     * Limpia estados de jugadores inactivos
-     */
     public int cleanupInactivePlayers() {
         long currentTime = System.currentTimeMillis();
         int cleaned = 0;
@@ -137,16 +111,10 @@ public class MovementOptimizer {
         return cleaned;
     }
 
-    /**
-     * CORREGIDO: Solo micro-movimientos extremadamente pequeños
-     */
     private boolean isMicroMovement(Location from, Location to) {
         return from.distanceSquared(to) <= MICRO_MOVEMENT_SQUARED;
     }
 
-    /**
-     * Obtiene estadísticas del optimizador
-     */
     public MovementOptimizerStats getStats() {
         return new MovementOptimizerStats(
                 totalMovements,
@@ -156,18 +124,12 @@ public class MovementOptimizer {
         );
     }
 
-    /**
-     * Reinicia las estadísticas
-     */
     public void resetStats() {
         totalMovements = 0;
         processedMovements = 0;
         regionChanges = 0;
     }
 
-    /**
-     * Estado de movimiento de un jugador - Thread-safe
-     */
     public static class PlayerMovementState {
         private volatile Location lastCheckedLocation;
         private volatile List<Region> currentRegions;
@@ -237,15 +199,11 @@ public class MovementOptimizer {
         }
     }
 
-    /**
-     * Resultado de verificación de movimiento
-     */
     public static class MovementResult {
         public final boolean requiresUpdate;
         public final Set<Region> currentRegions;
         public final Set<Region> previousRegions;
 
-        // Caches para evitar recálculo
         private Set<Region> enterRegions;
         private Set<Region> exitRegions;
 
@@ -287,9 +245,6 @@ public class MovementOptimizer {
         }
     }
 
-    /**
-     * Estadísticas del optimizador de movimiento
-     */
     public static class MovementOptimizerStats {
         private final long totalMovements;
         private final long processedMovements;
@@ -309,16 +264,10 @@ public class MovementOptimizer {
         public long getRegionChanges() { return regionChanges; }
         public int getActivePlayerStates() { return activePlayerStates; }
 
-        /**
-         * Porcentaje de movimientos que fueron procesados
-         */
         public double getProcessedMovementRatio() {
             return totalMovements > 0 ? (double) processedMovements / totalMovements : 0.0;
         }
 
-        /**
-         * Porcentaje de movimientos procesados que resultaron en cambios de región
-         */
         public double getRegionChangeRatio() {
             return processedMovements > 0 ? (double) regionChanges / processedMovements : 0.0;
         }

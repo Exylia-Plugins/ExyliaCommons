@@ -22,7 +22,6 @@ public class ItemInventoryHandler {
                         player.getInventory().getItemInMainHand() :
                         player.getInventory().getItemInOffHand();
 
-
                 if (currentHandItem.getAmount() > 1) {
                     int newAmount = currentHandItem.getAmount() - 1;
                     currentHandItem.setAmount(newAmount);
@@ -52,7 +51,6 @@ public class ItemInventoryHandler {
         }
     }
 
-    // Fix para ItemInventoryHandler.removeOrReduceItemByEquipmentSlot
     public static void removeOrReduceItemByEquipmentSlot(Player player, ItemStack itemStack, EquipmentSlot hand) {
         ItemStack actualItem = hand == EquipmentSlot.HAND ?
                 player.getInventory().getItemInMainHand() :
@@ -80,7 +78,6 @@ public class ItemInventoryHandler {
         player.updateInventory();
     }
 
-
     public static void removeOrReduceItemFromInventory(InventoryClickEvent event) {
         ItemStack currentItem = event.getCurrentItem();
         if (currentItem == null) return;
@@ -102,7 +99,6 @@ public class ItemInventoryHandler {
                 currentItem.setAmount(currentItem.getAmount() - 1);
                 event.setCurrentItem(currentItem);
 
-                // Agregar el item actualizado al inventario si hay espacio
                 ItemStack updatedStack = interactiveItem.getItemStack();
                 updatedStack.setAmount(1);
                 Player player = (Player) event.getWhoClicked();
@@ -119,17 +115,14 @@ public class ItemInventoryHandler {
         Player player = (Player) event.getWhoClicked();
         ClickType click = event.getClick();
 
-        // El modo creativo siempre permite movimiento
         if (player.getGameMode() == GameMode.CREATIVE) {
             return true;
         }
 
-        // Si no permite movimiento básico, denegar la mayoría de operaciones
         if (!config.isAllowMovement()) {
             return false;
         }
 
-        // Validar cada tipo de clic específicamente
         return switch (click) {
             case SHIFT_LEFT, SHIFT_RIGHT -> config.isAllowShiftClick();
             case NUMBER_KEY -> config.isAllowNumberKeys();
@@ -148,27 +141,22 @@ public class ItemInventoryHandler {
         ItemStack clicked = event.getCurrentItem();
         Player player = (Player) event.getWhoClicked();
 
-        // Si tiene algo en el cursor, está intentando colocar
         if (cursor != null && !cursor.getType().isAir()) {
             return true;
         }
 
-        // Si no hay nada clickeado, no hay restricción
         if (clicked == null || clicked.getType().isAir()) {
             return true;
         }
 
-        // Si está clickeando en un inventario que no es el suyo, permitir
         if (event.getClickedInventory() != player.getInventory()) {
             return true;
         }
 
-        // En modo creativo, siempre permitir
         if (player.getGameMode() == GameMode.CREATIVE) {
             return true;
         }
 
-        // Para items restringidos, verificar si permite movimiento
         boolean allowed = config.isAllowMovement();
         if (!allowed) {
         } else {
@@ -182,7 +170,6 @@ public class ItemInventoryHandler {
             return true;
         }
 
-        // Si no es un item interactivo, permitir movimiento
         net.exylia.commons.item.InteractiveItem interactiveItem =
                 net.exylia.commons.item.ItemManager.getItemFromStack(itemStack);
 
@@ -192,12 +179,10 @@ public class ItemInventoryHandler {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Modo creativo siempre permite
         if (player.getGameMode() == GameMode.CREATIVE) {
             return true;
         }
 
-        // Verificar según el tipo de clic
         return switch (clickType) {
             case SHIFT_LEFT, SHIFT_RIGHT -> config.isAllowShiftClick();
             case NUMBER_KEY -> config.isAllowNumberKeys();
@@ -264,12 +249,10 @@ public class ItemInventoryHandler {
 
         ItemConfiguration config = interactiveItem.getConfiguration();
 
-        // Modo creativo siempre permite
         if (player.getGameMode() == GameMode.CREATIVE) {
             return true;
         }
 
-        // Si no permite movimiento básico, denegar arrastre
         if (!config.isAllowMovement()) {
             return false;
         }

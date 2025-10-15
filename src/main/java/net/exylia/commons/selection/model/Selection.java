@@ -8,9 +8,6 @@ import org.bukkit.entity.Player;
 
 import java.util.UUID;
 
-/**
- * Representa una selección de área entre dos puntos
- */
 @Getter
 public class Selection {
     private UUID playerId;

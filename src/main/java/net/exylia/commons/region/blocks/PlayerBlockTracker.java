@@ -17,10 +17,6 @@ import java.util.stream.Collectors;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
-/**
- * Sistema MEJORADO para rastrear bloques colocados por jugadores en regiones
- * Incluye cache inteligente que NO pierde información crítica
- */
 public class PlayerBlockTracker {
     private static PlayerBlockTracker instance;
 
@@ -28,21 +24,18 @@ public class PlayerBlockTracker {
     private final Map<String, Set<BlockPosition>> regionPlayerBlocks;
     private final File dataFile;
 
-    // ===== CACHE INTELIGENTE MEJORADO =====
     private final Map<String, CacheEntry> intelligentCache;
-    private static final int MAX_CACHE_SIZE = 100000; // Aumentado significativamente
-    private static final long CACHE_EXPIRE_TIME = 300000; // 5 minutos para datos NO críticos
-    private static final long CRITICAL_DATA_PROTECT_TIME = 30000; // 30 segundos protección para datos críticos
+    private static final int MAX_CACHE_SIZE = 100000;  
+    private static final long CACHE_EXPIRE_TIME = 300000;  
+    private static final long CRITICAL_DATA_PROTECT_TIME = 30000;  
 
-    // Estadísticas del cache
     private final AtomicLong cacheHits = new AtomicLong();
     private final AtomicLong cacheMisses = new AtomicLong();
     private final AtomicLong criticalDataProtected = new AtomicLong();
 
-    // Auto-guardado mejorado
     private volatile boolean isDirty = false;
     private long lastAutoSave = System.currentTimeMillis();
-    private static final long AUTO_SAVE_INTERVAL = 60000; // 1 minuto
+    private static final long AUTO_SAVE_INTERVAL = 60000;  
 
     private PlayerBlockTracker(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -67,8 +60,6 @@ public class PlayerBlockTracker {
         return instance;
     }
 
-    // ===== MÉTODOS PRINCIPALES MEJORADOS =====
-
     public void addPlayerBlock(String regionKey, Location location, Material material, UUID playerId, String playerName) {
         String worldName = location.getWorld().getName();
         BlockPosition blockPos = new BlockPosition(
@@ -81,36 +72,26 @@ public class PlayerBlockTracker {
                 playerName
         );
 
-        // Añadir a datos principales
         regionPlayerBlocks.computeIfAbsent(regionKey, k -> ConcurrentHashMap.newKeySet()).add(blockPos);
 
-        // CACHE INTELIGENTE: Marcar como EXISTS y CRÍTICO
         String cacheKey = getCacheKey(regionKey, location);
         intelligentCache.put(cacheKey, new CacheEntry(true, System.currentTimeMillis(), true));
 
         markDirty();
 
-//        checkAutoSave();
-
-//        logInternalDebug(String.format(
-//                "Bloque registrado con cache inteligente: %s colocó %s en región %s en %s",
-//                playerName, material.name(), regionKey, location
-//        ));
     }
 
     public boolean isPlayerPlacedBlock(String regionKey, Location location) {
         String cacheKey = getCacheKey(regionKey, location);
 
-        // PASO 1: Cache inteligente - RÁPIDO
         CacheEntry cached = intelligentCache.get(cacheKey);
         if (cached != null) {
-            // Si es dato crítico reciente, SIEMPRE confiar en el cache
+             
             if (cached.isCritical && (System.currentTimeMillis() - cached.timestamp) < CRITICAL_DATA_PROTECT_TIME) {
                 cacheHits.incrementAndGet();
                 return cached.exists;
             }
 
-            // Si no ha expirado, usar valor del cache
             if (!cached.isExpired()) {
                 cacheHits.incrementAndGet();
                 return cached.exists;
@@ -119,30 +100,27 @@ public class PlayerBlockTracker {
 
         cacheMisses.incrementAndGet();
 
-        // PASO 2: Verificar en datos reales - OPTIMIZADO
         Set<BlockPosition> blocks = regionPlayerBlocks.get(regionKey);
         boolean exists = false;
 
         if (blocks != null && !blocks.isEmpty()) {
-            // OPTIMIZACIÓN: Usar coordenadas directas para comparación más rápida
+             
             int blockX = location.getBlockX();
             int blockY = location.getBlockY();
             int blockZ = location.getBlockZ();
             String worldName = location.getWorld().getName();
 
-            // Búsqueda optimizada - evitar métodos costosos
             for (BlockPosition block : blocks) {
                 if (block.getX() == blockX &&
                         block.getY() == blockY &&
                         block.getZ() == blockZ &&
                         block.getWorld().equals(worldName)) {
                     exists = true;
-                    break; // Salir inmediatamente al encontrar
+                    break;  
                 }
             }
         }
 
-        // PASO 3: Actualizar cache con resultado REAL
         intelligentCache.put(cacheKey, new CacheEntry(exists, System.currentTimeMillis(), exists));
 
         if (exists) {
@@ -152,9 +130,6 @@ public class PlayerBlockTracker {
         return exists;
     }
 
-    /**
-     * MEJORADO: Remueve un bloque con actualización inteligente del cache
-     */
     public void removePlayerBlock(String regionKey, Location location) {
         Set<BlockPosition> blocks = regionPlayerBlocks.get(regionKey);
         if (blocks != null) {
@@ -170,28 +145,19 @@ public class PlayerBlockTracker {
                 blocks.remove(toRemove);
                 markDirty();
 
-                // CACHE INTELIGENTE: Marcar como NO EXISTS pero CRÍTICO (para evitar falsos positivos)
                 String cacheKey = getCacheKey(regionKey, location);
                 intelligentCache.put(cacheKey, new CacheEntry(false, System.currentTimeMillis(), true));
 
-//                logInternalDebug(String.format(
-//                        "Bloque removido y cache actualizado: %s en región %s",
-//                        location, regionKey
-//                ));
             }
         }
     }
 
-    /**
-     * MEJORADO: Limpia bloques de región con actualización masiva de cache
-     */
     public void clearRegionBlocks(String regionKey) {
         Set<BlockPosition> removed = regionPlayerBlocks.remove(regionKey);
         if (removed != null) {
-            // CACHE INTELIGENTE: Actualizar en lote todas las entradas relacionadas
+             
             long currentTime = System.currentTimeMillis();
 
-            // Marcar todas las ubicaciones de la región como NO EXISTS y CRÍTICAS
             for (BlockPosition block : removed) {
                 String cacheKey = getCacheKey(regionKey,
                         new Location(Bukkit.getWorld(block.getWorld()),
@@ -204,24 +170,16 @@ public class PlayerBlockTracker {
         }
     }
 
-    // ===== GESTIÓN INTELIGENTE DEL CACHE =====
-
-    /**
-     * NUEVO: Inicia el administrador inteligente del cache
-     */
     private void startIntelligentCacheManager() {
         Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
             performIntelligentCacheCleanup();
             checkAutoSave();
-        }, 20L * 10, 20L * 10); // Cada 10 segundos
+        }, 20L * 10, 20L * 10);  
     }
 
-    /**
-     * NUEVO: Limpieza inteligente que PROTEGE datos críticos
-     */
     private void performIntelligentCacheCleanup() {
         if (intelligentCache.size() <= MAX_CACHE_SIZE) {
-            return; // No necesita limpieza
+            return;  
         }
 
         long currentTime = System.currentTimeMillis();
@@ -234,19 +192,16 @@ public class PlayerBlockTracker {
             Map.Entry<String, CacheEntry> entry = iterator.next();
             CacheEntry cacheEntry = entry.getValue();
 
-            // PROTECCIÓN 1: NUNCA eliminar datos críticos recientes
             if (cacheEntry.isCritical && (currentTime - cacheEntry.timestamp) < CRITICAL_DATA_PROTECT_TIME) {
                 criticalProtected++;
                 continue;
             }
 
-            // PROTECCIÓN 2: NUNCA eliminar datos que confirman existencia de bloques
             if (cacheEntry.exists && (currentTime - cacheEntry.timestamp) < CRITICAL_DATA_PROTECT_TIME) {
                 criticalProtected++;
                 continue;
             }
 
-            // Eliminar solo datos expirados no críticos o muy antiguos
             if (cacheEntry.isExpired() || (!cacheEntry.isCritical && (currentTime - cacheEntry.timestamp) > CACHE_EXPIRE_TIME)) {
                 iterator.remove();
                 removed++;
@@ -261,11 +216,6 @@ public class PlayerBlockTracker {
         }
     }
 
-    // ===== AUTO-GUARDADO MEJORADO =====
-
-    /**
-     * NUEVO: Verifica si necesita auto-guardado
-     */
     private void checkAutoSave() {
         if (isDirty && (System.currentTimeMillis() - lastAutoSave) > AUTO_SAVE_INTERVAL) {
             saveDataAsync().thenRun(() -> {
@@ -276,14 +226,9 @@ public class PlayerBlockTracker {
         }
     }
 
-    /**
-     * NUEVO: Marca los datos como modificados
-     */
     private void markDirty() {
         this.isDirty = true;
     }
-
-    // ===== MÉTODOS AUXILIARES MEJORADOS =====
 
     public Set<BlockPosition> getPlayerBlocks(String regionKey) {
         Set<BlockPosition> blocks = regionPlayerBlocks.get(regionKey);
@@ -347,7 +292,6 @@ public class PlayerBlockTracker {
                 iterator.remove();
                 removedCount++;
 
-                // Actualizar cache
                 String cacheKey = getCacheKey(regionKey,
                         new Location(Bukkit.getWorld(block.getWorld()),
                                 block.getX(), block.getY(), block.getZ()));
@@ -365,8 +309,6 @@ public class PlayerBlockTracker {
 
         return removedCount;
     }
-
-    // ===== MÉTODOS DE CONVENIENCIA MEJORADOS =====
 
     public void addPlayerBlock(String regionKey, Location location, Material material) {
         addPlayerBlock(regionKey, location, material, null, "unknown");
@@ -388,8 +330,6 @@ public class PlayerBlockTracker {
         return getPlayerBlocks(regionKey, playerId).size();
     }
 
-    // ===== ESTADÍSTICAS MEJORADAS =====
-
     public BlockTrackerStats getStats() {
         int totalRegions = regionPlayerBlocks.size();
         int totalBlocks = regionPlayerBlocks.values().stream().mapToInt(Set::size).sum();
@@ -403,7 +343,6 @@ public class PlayerBlockTracker {
         int totalBlocks = regionPlayerBlocks.values().stream().mapToInt(Set::size).sum();
         int cacheSize = intelligentCache.size();
 
-        // Contar jugadores únicos
         Set<UUID> uniquePlayers = new HashSet<>();
         Map<String, Integer> materialCounts = new HashMap<>();
 
@@ -416,7 +355,6 @@ public class PlayerBlockTracker {
             }
         }
 
-        // Estadísticas del cache inteligente
         long criticalEntries = intelligentCache.values().stream()
                 .mapToLong(entry -> entry.isCritical ? 1 : 0)
                 .sum();
@@ -434,14 +372,12 @@ public class PlayerBlockTracker {
         );
     }
 
-    // ===== PERSISTENCIA MEJORADA =====
-
     public CompletableFuture<Void> saveDataAsync() {
         return CompletableFuture.runAsync(this::saveData);
     }
 
     private void saveData() {
-        // ??
+         
     }
 
     @SuppressWarnings("unchecked")
@@ -465,8 +401,6 @@ public class PlayerBlockTracker {
         }
     }
 
-    // ===== UTILIDADES =====
-
     private String getCacheKey(String regionKey, Location location) {
         return regionKey + ":" + location.getBlockX() + "," +
                 location.getBlockY() + "," + location.getBlockZ();
@@ -475,7 +409,6 @@ public class PlayerBlockTracker {
     public void shutdown() {
         logInternalDebug("Cerrando PlayerBlockTracker...");
 
-        // Guardado final
         if (isDirty) {
             saveData();
         }
@@ -486,15 +419,10 @@ public class PlayerBlockTracker {
         logInternalDebug("PlayerBlockTracker cerrado con guardado final");
     }
 
-    // ===== CLASES INTERNAS MEJORADAS =====
-
-    /**
-     * NUEVA: Entrada de cache inteligente
-     */
     private static class CacheEntry {
         final boolean exists;
         final long timestamp;
-        final boolean isCritical; // Datos críticos que no deben perderse
+        final boolean isCritical;  
 
         CacheEntry(boolean exists, long timestamp, boolean isCritical) {
             this.exists = exists;
@@ -504,7 +432,7 @@ public class PlayerBlockTracker {
 
         boolean isExpired() {
             long age = System.currentTimeMillis() - timestamp;
-            // Los datos críticos tienen tiempo de vida más largo
+             
             long maxAge = isCritical ? CRITICAL_DATA_PROTECT_TIME : CACHE_EXPIRE_TIME;
             return age > maxAge;
         }
@@ -548,7 +476,6 @@ public class PlayerBlockTracker {
         }
     }
 
-    // BlockPosition y BlockTrackerStats permanecen igual que en el código original
     @Getter
     public static class BlockPosition implements Serializable {
         @Serial

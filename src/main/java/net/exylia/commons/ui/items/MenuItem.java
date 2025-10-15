@@ -61,17 +61,13 @@ public class MenuItem {
 
     private final Map<String, Integer> rawEnchantments = new HashMap<>();
 
-    // Player skull async loading
     private boolean awaitingPlayerSkull = false;
     private String pendingPlayerName;
 
-    // Nueva configuración de pociones
     private PotionConfig potionConfig;
 
-    // Sound configuration
     private List<String> clickSounds = new ArrayList<>();
 
-    // Flag to remember if attributes should be hidden
     private boolean shouldHideAttributes = false;
 
     public MenuItem(Material material) {
@@ -324,7 +320,7 @@ public class MenuItem {
     }
 
     public void process(Player player) {
-        // Check for pending player skull updates first
+         
         if (awaitingPlayerSkull && pendingPlayerName != null) {
             checkPlayerSkullUpdate();
         }
@@ -359,7 +355,6 @@ public class MenuItem {
         processEnchantments(player);
         processPotionConfig(player);
 
-        // Re-apply hide attributes after all processing
         applyHideAttributes();
     }
 
@@ -577,7 +572,7 @@ public class MenuItem {
     }
 
     private void refreshMenuIfDisplayed() {
-        // todo
+         
     }
     
     private void checkPlayerSkullUpdate() {

@@ -4,10 +4,6 @@ import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/**
- * Sistema principal de expiración automática de items
- * Se encarga de inicializar y coordinar todos los componentes
- */
 public class ExpirationSystem {
 
     private static ExpirationSystem instance;
@@ -21,9 +17,6 @@ public class ExpirationSystem {
         this.plugin = plugin;
     }
 
-    /**
-     * Inicializa el sistema de expiración
-     */
     public static void initialize(JavaPlugin plugin) {
         if (instance == null) {
             instance = new ExpirationSystem(plugin);
@@ -31,34 +24,25 @@ public class ExpirationSystem {
         instance.start();
     }
 
-    /**
-     * Obtiene la instancia del sistema
-     */
     public static ExpirationSystem getInstance() {
         return instance;
     }
 
-    /**
-     * Inicia todos los componentes del sistema
-     */
     public void start() {
         if (initialized) {
             return;
         }
 
         try {
-            // Inicializar configuración
+             
             config = new ExpirationConfig(plugin);
             config.loadFromConfig();
             
-            // Inicializar manager
             ExpirationManager.initialize(plugin);
             manager = ExpirationManager.getInstance();
             
-            // Aplicar configuración al manager
             config.applyToManager();
             
-            // Registrar listener
             listener = new ExpirationListener();
             Bukkit.getPluginManager().registerEvents(listener, plugin);
             manager.start();
@@ -71,9 +55,6 @@ public class ExpirationSystem {
         }
     }
 
-    /**
-     * Detiene el sistema de expiración
-     */
     public void stop() {
         if (!initialized) {
             return;
@@ -93,9 +74,6 @@ public class ExpirationSystem {
         }
     }
 
-    /**
-     * Recarga la configuración
-     */
     public void reload() {
         if (!initialized) {
             return;
@@ -111,7 +89,6 @@ public class ExpirationSystem {
         }
     }
 
-    // Getters para acceso a componentes
     public ExpirationManager getManager() { return manager; }
     public ExpirationListener getListener() { return listener; }
     public ExpirationConfig getConfig() { return config; }

@@ -42,11 +42,9 @@ public class RegionListener implements Listener {
     private final AllowedBlocksManager allowedBlocksManager;
     private final TemporaryBlocksManager temporaryBlocksManager;
 
-    // ===== CACHE DE VALIDACIONES (mantener solo este cache) =====
     private final ConcurrentHashMap<String, CachedValidation> validationCache;
-    private static final long VALIDATION_CACHE_EXPIRE = 1000; // REDUCIDO a 1 segundo para mejor respuesta
+    private static final long VALIDATION_CACHE_EXPIRE = 1000;  
 
-    // ===== ESTADÍSTICAS =====
     private volatile long totalEvents = 0;
     private volatile long cachedValidations = 0;
     private volatile long immediateMovements = 0;
@@ -59,19 +57,14 @@ public class RegionListener implements Listener {
         this.allowedBlocksManager = AllowedBlocksManager.getInstance();
         this.temporaryBlocksManager = TemporaryBlocksManager.getInstance();
 
-        // Solo cache de validaciones - SIN batching
         this.validationCache = new ConcurrentHashMap<>();
 
-        // Registrar eventos
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
-        // Solo tarea de limpieza de cache
         startCacheCleanupTask();
 
         logInternalDebug("UnifiedRegionListener iniciado con procesamiento inmediato");
     }
-
-    // ===== EVENTOS DE CONSTRUCCIÓN (sin cambios significativos) =====
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onBlockPlace(BlockPlaceEvent event) {
@@ -81,7 +74,6 @@ public class RegionListener implements Listener {
         Location location = event.getBlock().getLocation();
         Material material = event.getBlock().getType();
 
-        // Cache de validación (reducido a 1 segundo)
         String cacheKey = getValidationCacheKey(player, location, "place", material.name());
         CachedValidation cached = validationCache.get(cacheKey);
 
@@ -156,10 +148,7 @@ public class RegionListener implements Listener {
 
         if (!result.isAllowed()) {
             event.setCancelled(true);
-//            logInternalDebug(String.format(
-//                    "Rotura de bloque denegada: %s intentó romper bloque en región %s - Razón: %s",
-//                    player.getName(), region.getId(), result.getReason()
-//            ));
+ 
         } else {
             executePostBreakEffects(player, region, location);
         }
@@ -172,9 +161,8 @@ public class RegionListener implements Listener {
         Location location = event.getLocation();
         String regionId = event.getRegionId();
 
-        // Si tenemos un regionId válido, notificar al PlayerBlockTracker
         if (regionId != null) {
-            // Verificar si el bloque estaba siendo rastreado
+             
             if (blockTracker.isPlayerPlacedBlock(regionId, location)) {
                 blockTracker.removePlayerBlock(regionId, location);
 
@@ -229,8 +217,6 @@ public class RegionListener implements Listener {
         }
     }
 
-    // ===== EVENTOS DE COMBATE (sin cambios) =====
-
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
         if (!(event.getEntity() instanceof Player target)) return;
@@ -284,14 +270,11 @@ public class RegionListener implements Listener {
         }
     }
 
-    // ===== EVENTOS DE MOVIMIENTO CORREGIDOS =====
-
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerMove(PlayerMoveEvent event) {
         Location from = event.getFrom();
         Location to = event.getTo();
 
-        // CORRECCIÓN 1: Filtro menos agresivo - solo si es exactamente el mismo bloque
         if (from.getBlockX() == to.getBlockX() &&
                 from.getBlockY() == to.getBlockY() &&
                 from.getBlockZ() == to.getBlockZ() &&
@@ -301,7 +284,6 @@ public class RegionListener implements Listener {
 
         immediateMovements++;
 
-        // CORRECCIÓN 2: PROCESAR INMEDIATAMENTE - Sin batching
         boolean movementAllowed = regionManager.processPlayerMovement(event.getPlayer(), from, to);
 
         if (!movementAllowed) {
@@ -317,7 +299,7 @@ public class RegionListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = false)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
-        // Los teleports siempre se procesan inmediatamente
+         
         Location from = event.getFrom();
         Location to = event.getTo();
 
@@ -352,7 +334,7 @@ public class RegionListener implements Listener {
                     event.getEntityType().name(), region.getId(), result.getReason()
             ));
         } else {
-            // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
+             
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
             } else if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
@@ -381,7 +363,7 @@ public class RegionListener implements Listener {
                     region.getId(), result.getReason()
             ));
         } else {
-            // Si BREAK está deshabilitado, solo limpiar la lista de bloques (mantener efectos de explosión)
+             
             if (!region.getFlagValue(RegionFlag.BREAK)) {
                 event.blockList().clear();
                 logInternalDebug(String.format(
@@ -509,11 +491,9 @@ public class RegionListener implements Listener {
 
         Region region = regions.get(0);
 
-        // Solo procesar si la región tiene tracking activo
         if (!region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
             return;
         }
-
 
             logInternalDebug(String.format(
                     "Bloque formado cerca de jugador: %s causó posible formación de %s en %s",
@@ -522,11 +502,9 @@ public class RegionListener implements Listener {
                     location
             ));
 
-            // Registrar el bloque formado
             blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType(),
                     null, "N/A");
 
-            // Si la región tiene bloques temporales, programar remoción
             if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
                 temporaryBlocksManager.scheduleBlockRemoval(
                         region, location, event.getNewState().getType(), null
@@ -534,11 +512,6 @@ public class RegionListener implements Listener {
             }
     }
 
-
-
-    /**
-     * Maneja la propagación de bloques (como fuego)
-     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onBlockSpread(BlockSpreadEvent event) {
         totalEvents++;
@@ -552,17 +525,14 @@ public class RegionListener implements Listener {
 
         Region region = regions.get(0);
 
-        // Solo procesar si la región tiene tracking activo
         if (!region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS)) {
             return;
         }
 
-        // OPTIMIZADO: Solo verificar si el bloque fuente fue colocado por jugador
         Location sourceLocation = event.getSource().getLocation();
 
-        // CACHE CHECK RÁPIDO: Solo verificar si ya sabemos que es de jugador
         if (blockTracker.isPlayerPlacedBlock(region.getId(), sourceLocation)) {
-            // SIMPLIFICADO: Registrar propagación sin buscar jugador específico
+             
             blockTracker.addPlayerBlock(region.getId(), location, event.getNewState().getType());
 
             logInternalDebug(String.format(
@@ -572,9 +542,8 @@ public class RegionListener implements Listener {
                     location
             ));
 
-            // Si la región tiene bloques temporales, programar remoción
             if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
-                // Sin jugador específico, usar tiempo estándar
+                 
                 temporaryBlocksManager.scheduleBlockRemoval(
                         region, location, event.getNewState().getType(), null
                 );
@@ -582,24 +551,20 @@ public class RegionListener implements Listener {
         }
     }
 
-    // ===== EVENTOS DE LIMPIEZA =====
-
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         UUID playerId = event.getPlayer().getUniqueId();
 
-        // Limpiar cache de validaciones del jugador
         String playerPrefix = playerId.toString();
         validationCache.entrySet().removeIf(entry -> entry.getKey().contains(playerPrefix));
 
-        // Limpiar estado en los managers
         regionManager.cleanupPlayer(event.getPlayer());
         flagManager.cleanupPlayerState(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerKick(PlayerKickEvent event) {
-        // Misma lógica que quit
+         
         onPlayerQuit(new PlayerQuitEvent(event.getPlayer(), ""));
     }
 
@@ -608,14 +573,11 @@ public class RegionListener implements Listener {
         Player player = event.getPlayer();
         Location location = player.getLocation();
 
-        // Simular movimiento para detectar regiones al conectarse
         Location emptyLocation = new Location(location.getWorld(), 0, -1000, 0);
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () ->
                 regionManager.processPlayerMovement(player, emptyLocation, player.getLocation()), 1L);
     }
-
-    // ===== MÉTODOS DE VALIDACIÓN (sin cambios) =====
 
     private ActionResult validateBlockPlacement(Player player, Region region, Location location, Material material) {
         if (!flagManager.canPlayerPerformActionAt(player, location, RegionFlag.BUILD)) {
@@ -744,8 +706,6 @@ public class RegionListener implements Listener {
         return ActionResult.allow();
     }
 
-    // ===== MÉTODOS DE EFECTOS POST-VALIDACIÓN =====
-
     private void executePostPlacementEffects(Player player, Region region, Location location, Material material) {
         if (region == null) return;
 
@@ -813,8 +773,6 @@ public class RegionListener implements Listener {
         }
     }
 
-    // ===== CACHE DE VALIDACIONES (solo cache ligero) =====
-
     private String getValidationCacheKey(Player player, Location location, String action, String extra) {
         return String.format("%s:%d:%d:%d:%s:%s",
                 player.getUniqueId().toString(),
@@ -839,13 +797,10 @@ public class RegionListener implements Listener {
     private void cacheValidation(String key, boolean allowed, Region region) {
         validationCache.put(key, new CachedValidation(allowed, region, System.currentTimeMillis()));
 
-        // Limitar tamaño del cache (más conservador)
-        if (validationCache.size() > 500) { // Reducido de 1000 a 500
+        if (validationCache.size() > 500) {  
             cleanupValidationCache();
         }
     }
-
-    // ===== LIMPIEZA DE CACHE =====
 
     private void startCacheCleanupTask() {
         new BukkitRunnable() {
@@ -853,7 +808,7 @@ public class RegionListener implements Listener {
             public void run() {
                 cleanupValidationCache();
             }
-        }.runTaskTimerAsynchronously(plugin, 20L, 20L); // Cada segundo
+        }.runTaskTimerAsynchronously(plugin, 20L, 20L);  
     }
 
     private void cleanupValidationCache() {
@@ -861,8 +816,6 @@ public class RegionListener implements Listener {
         validationCache.entrySet().removeIf(entry ->
                 currentTime - entry.getValue().timestamp > VALIDATION_CACHE_EXPIRE);
     }
-
-    // ===== MÉTODOS AUXILIARES =====
 
     private boolean isChestOrContainer(Material material) {
         return material == Material.CHEST ||
@@ -885,15 +838,13 @@ public class RegionListener implements Listener {
                 material.name().contains("PRESSURE_PLATE");
     }
 
-    // ===== ESTADÍSTICAS =====
-
     public ListenerStats getStats() {
         return new ListenerStats(
                 totalEvents,
                 cachedValidations,
                 immediateMovements,
-                0, // No more pending movements
-                0, // No more pending actions
+                0,  
+                0,  
                 validationCache.size()
         );
     }
@@ -904,13 +855,9 @@ public class RegionListener implements Listener {
         immediateMovements = 0;
     }
 
-    // ===== LIMPIEZA =====
-
     public void shutdown() {
         validationCache.clear();
     }
-
-    // ===== CLASES AUXILIARES =====
 
     @Getter
     private static class ActionResult {
@@ -989,17 +936,6 @@ public class RegionListener implements Listener {
     }
 
     private void logBlockPlacementInfo(Player player, Region region, Location location, Material material, String context) {
-//        logInternalDebug(String.format(
-//                "%s - Jugador: %s, Material: %s, Región: %s, Ubicación: (%d,%d,%d), Tracking: %s, Temporal: %s",
-//                context,
-//                player.getName(),
-//                material.name(),
-//                region.getId(),
-//                location.getBlockX(),
-//                location.getBlockY(),
-//                location.getBlockZ(),
-//                region.getFlagValue(RegionFlag.TRACK_PLAYER_BLOCKS) ? "SÍ" : "NO",
-//                region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS) ? "SÍ" : "NO"
-//        ));
+ 
     }
 }

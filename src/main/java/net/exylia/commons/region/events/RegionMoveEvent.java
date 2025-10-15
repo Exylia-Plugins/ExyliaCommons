@@ -10,9 +10,6 @@ import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 import org.bukkit.Location;
 
-/**
- * Evento llamado cuando un jugador se mueve dentro de una región
- */
 @Getter
 public class RegionMoveEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();

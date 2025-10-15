@@ -20,7 +20,7 @@ public class CooldownEvent extends Event {
     private final long timestamp;
 
     public CooldownEvent(CooldownEventType type, UUID playerId, String itemId, double seconds) {
-        super(true); // async = true para mejor performance
+        super(true);  
         this.type = type;
         this.playerId = playerId;
         this.itemId = itemId;

@@ -32,7 +32,6 @@ public class LicenseConfig {
         try {
             configFile.createNewFile();
 
-            // Escribir el archivo YAML manualmente con comentarios
             try (FileWriter writer = new FileWriter(configFile)) {
                 writer.write("# =================================================\n");
                 writer.write("# LICENSE CONFIGURATION - " + plugin.getName().toUpperCase() + "\n");
@@ -51,7 +50,6 @@ public class LicenseConfig {
                 writer.write("  key: \"\"\n");
             }
 
-            // Cargar la configuración después de escribirla
             config = YamlConfiguration.loadConfiguration(configFile);
 
             DebugUtils.logInternalSuccess("Archivo de licencia creado: " + configFile.getPath());

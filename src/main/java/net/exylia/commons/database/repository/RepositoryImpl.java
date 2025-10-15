@@ -302,7 +302,6 @@ public class RepositoryImpl<T> implements Repository<T> {
         return CompletableFuture.runAsync(() -> deleteAll(entities), executor);
     }
 
-    // Helper method to get primary key value from entity
     private Object getPrimaryKeyValue(Object entity, String primaryKeyField) throws Exception {
         Field[] fields = entity.getClass().getDeclaredFields();
         for (Field field : fields) {
@@ -318,7 +317,6 @@ public class RepositoryImpl<T> implements Repository<T> {
         return null;
     }
 
-    // Helper method to get primary key field name
     private String getPrimaryKeyField(Class<?> entityClass) {
         Field[] fields = entityClass.getDeclaredFields();
         for (Field field : fields) {
@@ -329,7 +327,7 @@ public class RepositoryImpl<T> implements Repository<T> {
                 }
             }
         }
-        return "id"; // fallback
+        return "id";  
     }
 
     @Override

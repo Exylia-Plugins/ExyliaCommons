@@ -16,11 +16,6 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Gestor automático de expiración de items
- * Se encarga de verificar periódicamente los inventarios de los jugadores
- * y aplicar los comportamientos de expiración correspondientes
- */
 public class ExpirationManager {
 
     @Getter
@@ -65,9 +60,6 @@ public class ExpirationManager {
         }
     }
 
-    /**
-     * Detiene el sistema de monitoreo
-     */
     public void stop() {
         if (schedulerTask != null) {
             schedulerTask.cancel();
@@ -79,18 +71,12 @@ public class ExpirationManager {
         }
     }
 
-    /**
-     * Verifica todos los jugadores conectados en busca de items expirados
-     */
     private void checkAllPlayersForExpiredItems() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             checkPlayerInventoryForExpiredItems(player);
         }
     }
 
-    /**
-     * Verifica el inventario de un jugador específico
-     */
     public void checkPlayerInventoryForExpiredItems(Player player) {
         if (player == null || !player.isOnline()) {
             return;
@@ -104,9 +90,6 @@ public class ExpirationManager {
         processExpirationResults(player, results);
     }
 
-    /**
-     * Verifica un inventario específico
-     */
     private void checkInventoryForExpiredItems(Inventory inventory, List<ExpirationResult> results) {
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack item = inventory.getItem(slot);
@@ -119,7 +102,6 @@ public class ExpirationManager {
                 continue;
             }
 
-            // Actualizar placeholders si está habilitado
             if (updatePlaceholders) {
                 ItemStack updatedItem = InteractiveItem.updateExpirationPlaceholders(item);
                 if (updatedItem != item) {
@@ -137,9 +119,6 @@ public class ExpirationManager {
         }
     }
 
-    /**
-     * Procesa los resultados de expiración
-     */
     private void processExpirationResults(Player player, List<ExpirationResult> results) {
         if (results.isEmpty()) {
             return;
@@ -166,9 +145,6 @@ public class ExpirationManager {
         }
     }
 
-    /**
-     * Verifica un item específico al intentar usarlo
-     */
     public boolean canUseItem(ItemStack item, Player player) {
         if (!InteractiveItem.hasExpirationTime(item)) {
             return true;
@@ -196,7 +172,6 @@ public class ExpirationManager {
         };
     }
 
-    // Getters y Setters para configuración
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (enabled) {
@@ -209,7 +184,7 @@ public class ExpirationManager {
     public void setCheckIntervalTicks(long ticks) {
         this.checkIntervalTicks = Math.max(1L, ticks);
         if (enabled) {
-            start(); // Reiniciar con nuevo intervalo
+            start();  
         }
     }
 
@@ -229,10 +204,6 @@ public class ExpirationManager {
         return updatePlaceholders;
     }
 
-    /**
-     * Actualiza solo los placeholders de expiración en el inventario de un jugador
-     * sin verificar si están expirados
-     */
     public void updatePlaceholdersForPlayer(Player player) {
         if (player == null || !player.isOnline() || !updatePlaceholders) {
             return;

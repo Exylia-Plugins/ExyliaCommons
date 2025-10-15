@@ -1,15 +1,7 @@
 package net.exylia.commons.ui.commons;
 
-/**
- * Utility class for working with inventory slots
- */
 public class SlotUtils {
 
-    /**
-     * Gets all border slots for a menu
-     * @param rows Number of rows
-     * @return Array of border slots
-     */
     public static int[] getBorderSlots(int rows) {
         if (rows <= 1) return new int[0];
 
@@ -17,28 +9,21 @@ public class SlotUtils {
         int[] slots = new int[rows * 2 + (rows - 2) * 2];
         int index = 0;
 
-        // Top and bottom rows
         for (int i = 0; i < 9; i++) {
             slots[index++] = i;
             slots[index++] = size - 9 + i;
         }
 
-        // Side columns (excluding corners already added)
         for (int row = 1; row < rows - 1; row++) {
-            slots[index++] = row * 9;      // Left side
-            slots[index++] = row * 9 + 8;  // Right side
+            slots[index++] = row * 9;       
+            slots[index++] = row * 9 + 8;   
         }
 
         return slots;
     }
 
-    /**
-     * Gets all center slots for a menu (excluding borders)
-     * @param rows Number of rows
-     * @return Array of center slots
-     */
     public static int[] getCenterSlots(int rows) {
-        if (rows <= 2) return new int[]{4}; // Center slot for small menus
+        if (rows <= 2) return new int[]{4};  
 
         int[] slots = new int[(rows - 2) * 7];
         int index = 0;
@@ -52,12 +37,6 @@ public class SlotUtils {
         return slots;
     }
 
-    /**
-     * Gets a specific pattern of slots
-     * @param rows Number of rows
-     * @param pattern The pattern type
-     * @return Array of slots matching the pattern
-     */
     public static int[] getPatternSlots(int rows, SlotPattern pattern) {
         return switch (pattern) {
             case BORDER -> getBorderSlots(rows);
@@ -68,11 +47,6 @@ public class SlotUtils {
         };
     }
 
-    /**
-     * Gets checkerboard pattern slots
-     * @param rows Number of rows
-     * @return Array of checkerboard slots
-     */
     public static int[] getCheckerboardSlots(int rows) {
         int[] slots = new int[(rows * 9) / 2];
         int index = 0;
@@ -88,73 +62,41 @@ public class SlotUtils {
         return java.util.Arrays.copyOf(slots, index);
     }
 
-    /**
-     * Gets corner slots
-     * @param rows Number of rows
-     * @return Array of corner slots
-     */
     public static int[] getCornerSlots(int rows) {
         if (rows == 1) return new int[]{0, 8};
 
         return new int[]{
-                0,                    // Top-left
-                8,                    // Top-right
-                (rows - 1) * 9,       // Bottom-left
-                (rows - 1) * 9 + 8    // Bottom-right
+                0,                     
+                8,                     
+                (rows - 1) * 9,        
+                (rows - 1) * 9 + 8     
         };
     }
 
-    /**
-     * Gets edge slots (first and last columns)
-     * @param rows Number of rows
-     * @return Array of edge slots
-     */
     public static int[] getEdgeSlots(int rows) {
         int[] slots = new int[rows * 2];
         int index = 0;
 
         for (int row = 0; row < rows; row++) {
-            slots[index++] = row * 9;      // Left edge
-            slots[index++] = row * 9 + 8;  // Right edge
+            slots[index++] = row * 9;       
+            slots[index++] = row * 9 + 8;   
         }
 
         return slots;
     }
 
-    /**
-     * Converts row and column to slot index
-     * @param row The row (0-based)
-     * @param col The column (0-based)
-     * @return The slot index
-     */
     public static int toSlot(int row, int col) {
         return row * 9 + col;
     }
 
-    /**
-     * Converts slot index to row
-     * @param slot The slot index
-     * @return The row (0-based)
-     */
     public static int toRow(int slot) {
         return slot / 9;
     }
 
-    /**
-     * Converts slot index to column
-     * @param slot The slot index
-     * @return The column (0-based)
-     */
     public static int toColumn(int slot) {
         return slot % 9;
     }
 
-    /**
-     * Checks if a slot is in the border
-     * @param slot The slot index
-     * @param rows Number of rows
-     * @return True if the slot is a border slot
-     */
     public static boolean isBorderSlot(int slot, int rows) {
         int row = toRow(slot);
         int col = toColumn(slot);
@@ -162,12 +104,6 @@ public class SlotUtils {
         return row == 0 || row == rows - 1 || col == 0 || col == 8;
     }
 
-    /**
-     * Parses a slot string into an array of slot indices
-     * @param slotsString The slot string (e.g., "10-16,19-25,28-34")
-     * @param rows Number of rows for validation
-     * @return Array of slot indices
-     */
     public static int[] parseSlots(String slotsString, int rows) {
         if (slotsString == null || slotsString.isEmpty()) {
             return new int[0];
@@ -181,7 +117,7 @@ public class SlotUtils {
             part = part.trim();
 
             if (part.contains("-")) {
-                // Range: "10-16"
+                 
                 String[] range = part.split("-");
                 if (range.length == 2) {
                     try {
@@ -192,18 +128,18 @@ public class SlotUtils {
                             slots.add(i);
                         }
                     } catch (NumberFormatException ignored) {
-                        // Skip invalid ranges
+                         
                     }
                 }
             } else {
-                // Single slot
+                 
                 try {
                     int slot = Integer.parseInt(part);
                     if (slot >= 0 && slot <= maxSlot) {
                         slots.add(slot);
                     }
                 } catch (NumberFormatException ignored) {
-                    // Skip invalid slots
+                     
                 }
             }
         }

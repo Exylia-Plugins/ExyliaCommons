@@ -25,10 +25,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Static Selection Wizard Manager for selecting block areas
- * Simple, lightweight and customizable - works with the existing SelectionManager
- */
 public final class SelectionWizard implements Listener {
 
     private static SelectionWizard instance;
@@ -39,10 +35,6 @@ public final class SelectionWizard implements Listener {
 
     private SelectionWizard() {}
 
-    /**
-     * Initialize the SelectionWizard
-     * Requires SelectionManager to be already initialized
-     */
     public static void init(ExyliaPlugin pluginInstance) {
         if (instance != null) {
             return;
@@ -55,14 +47,6 @@ public final class SelectionWizard implements Listener {
 
     }
 
-    /**
-     * Start selection wizard - player selects an area using wands
-     *
-     * @param player The player
-     * @param selectionsNeeded Number of selections needed (1, 2, 3, etc.)
-     * @param handler Custom handler to process selections
-     * @return CompletableFuture with the result
-     */
     public static <T> CompletableFuture<T> startWizard(Player player, int selectionsNeeded, SelectionWizardHandler<T> handler) {
         if (instance == null) {
             throw new IllegalStateException("SelectionWizard not initialized");
@@ -76,28 +60,17 @@ public final class SelectionWizard implements Listener {
             throw new IllegalArgumentException("Selections needed must be at least 1");
         }
 
-        // Cancel existing session if any
         cancelWizard(player);
 
         SelectionWizardSession session = new SelectionWizardSession(player, selectionsNeeded, handler);
         instance.activeSessions.put(player.getUniqueId(), session);
 
-        // Start the wizard
         handler.onStart(player, selectionsNeeded);
         startSelectionProcess(player, session);
 
         return session.getFuture();
     }
 
-    /**
-     * Start selection wizard with automatic wand giving
-     *
-     * @param player The player
-     * @param selectionsNeeded Number of selections needed
-     * @param handler Custom handler to process selections
-     * @param giveWand Whether to give the player a wand automatically
-     * @return CompletableFuture with the result
-     */
     public static <T> CompletableFuture<T> startWizard(Player player, int selectionsNeeded, SelectionWizardHandler<T> handler, boolean giveWand) {
         CompletableFuture<T> future = startWizard(player, selectionsNeeded, handler);
 
@@ -108,9 +81,6 @@ public final class SelectionWizard implements Listener {
         return future;
     }
 
-    /**
-     * Give a wand to the player for selections
-     */
     public static void giveWand(Player player) {
         if (selectionManager == null) {
             return;
@@ -128,9 +98,6 @@ public final class SelectionWizard implements Listener {
         MessageUtils.sendMessage(player, "{primary}You have been given a selection wand!");
     }
 
-    /**
-     * Cancel active wizard for player
-     */
     public static boolean cancelWizard(Player player) {
         if (instance == null) {
             return false;
@@ -138,7 +105,7 @@ public final class SelectionWizard implements Listener {
 
         SelectionWizardSession session = instance.activeSessions.remove(player.getUniqueId());
         if (session != null) {
-            // Clear any active selections created during the wizard
+             
             clearWizardSelections(player, session);
             session.cancel();
             player.resetTitle();
@@ -147,16 +114,10 @@ public final class SelectionWizard implements Listener {
         return false;
     }
 
-    /**
-     * Check if player has active wizard
-     */
     public static boolean hasActiveWizard(Player player) {
         return instance != null && instance.activeSessions.containsKey(player.getUniqueId());
     }
 
-    /**
-     * Get remaining selections for player
-     */
     public static int getRemainingSelections(Player player) {
         if (instance == null) {
             return 0;
@@ -166,9 +127,6 @@ public final class SelectionWizard implements Listener {
         return session != null ? session.getRemainingSelections() : 0;
     }
 
-    /**
-     * Get current session for player
-     */
     public static SelectionWizardSession getSession(Player player) {
         if (instance == null) {
             return null;
@@ -176,10 +134,6 @@ public final class SelectionWizard implements Listener {
         return instance.activeSessions.get(player.getUniqueId());
     }
 
-    /**
-     * Called when a selection is completed in SelectionManager
-     * This marks the selection as ready but doesn't process it until player confirms
-     */
     public static void notifySelectionReady(Player player, Selection selection) {
         if (instance == null) {
             return;
@@ -190,17 +144,11 @@ public final class SelectionWizard implements Listener {
             return;
         }
 
-        // Mark selection as ready for confirmation
         session.setCurrentSelection(selection);
 
-        // Update instructions to show confirmation step
         sendConfirmationInstructions(player, session, selection);
     }
 
-    /**
-     * Manually complete current selection and move to next
-     * This is called when player confirms with SHIFT + LEFT CLICK
-     */
     public static void confirmCurrentSelection(Player player, SelectionWizardSession session) {
         Selection currentSelection = session.getCurrentSelection();
         if (currentSelection == null || !currentSelection.isComplete()) {
@@ -210,7 +158,7 @@ public final class SelectionWizard implements Listener {
 
         try {
             session.addSelection(currentSelection);
-            session.setCurrentSelection(null); // Clear current selection
+            session.setCurrentSelection(null);  
 
             @SuppressWarnings("unchecked")
             SelectionWizardHandler<Object> handler = (SelectionWizardHandler<Object>) session.getHandler();
@@ -259,8 +207,6 @@ public final class SelectionWizard implements Listener {
         }
     }
 
-    // ===== EVENT HANDLERS =====
-
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
@@ -270,7 +216,6 @@ public final class SelectionWizard implements Listener {
             return;
         }
 
-        // Check for SHIFT + LEFT CLICK to confirm current selection
         if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {
             if (player.isSneaking()) {
                 event.setCancelled(true);
@@ -284,7 +229,6 @@ public final class SelectionWizard implements Listener {
         Player player = event.getPlayer();
         UUID playerId = player.getUniqueId();
 
-        // Clean up wizard sessions to prevent memory leaks
         SelectionWizardSession session = instance.activeSessions.remove(playerId);
         if (session != null) {
             clearWizardSelections(player, session);
@@ -295,33 +239,28 @@ public final class SelectionWizard implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onSelectionComplete(SelectionCompleteEvent event) {
-        // Solo procesar si el jugador tiene un wizard activo
+         
         if (!SelectionWizard.hasActiveWizard(event.getPlayer())) {
             return;
         }
 
-        // Verificar si la selección pertenece al wizard actual
         String selectionId = event.getSelection().getSelectionId();
         if (selectionId != null && selectionId.startsWith("wizard_")) {
-            // Notificar al wizard que la selección está lista (pero no la confirma automáticamente)
+             
             SelectionWizard.notifySelectionReady(event.getPlayer(), event.getSelection());
         }
     }
 
-    // ===== PRIVATE METHODS =====
-
     private static void startSelectionProcess(Player player, SelectionWizardSession session) {
         sendInstructions(player, session);
 
-        // Create the first selection ID for the player
         String currentSelectionId = getCurrentSelectionId(player, session);
         selectionManager.createSelection(player, currentSelectionId, SelectionType.CUBOID);
         selectionManager.setActiveSelection(player, currentSelectionId);
 
-        // Set up callback to listen for selection completion (but not auto-confirm)
         selectionManager.setSelectionCallback(player, selection -> {
             if (selection.isComplete() && selection.getSelectionId().equals(currentSelectionId)) {
-                // Don't auto-confirm, just notify that selection is ready
+                 
                 notifySelectionReady(player, selection);
             }
         });
@@ -334,15 +273,13 @@ public final class SelectionWizard implements Listener {
 
         sendInstructions(player, session);
 
-        // Create next selection
         String nextSelectionId = getCurrentSelectionId(player, session);
         selectionManager.createSelection(player, nextSelectionId, SelectionType.CUBOID);
         selectionManager.setActiveSelection(player, nextSelectionId);
 
-        // Update callback for new selection
         selectionManager.setSelectionCallback(player, selection -> {
             if (selection.isComplete() && selection.getSelectionId().equals(nextSelectionId)) {
-                // Don't auto-confirm, just notify that selection is ready
+                 
                 notifySelectionReady(player, selection);
             }
         });
@@ -359,7 +296,6 @@ public final class SelectionWizard implements Listener {
         int total = session.getTotalSelections();
         int current = total - remaining + 1;
 
-        // Send title with progress
         TitleUtils.sendTitle(player,
                 "selection_wizard",
                 new TitleConfig(
@@ -384,7 +320,6 @@ public final class SelectionWizard implements Listener {
         int total = session.getTotalSelections();
         int current = total - remaining + 1;
 
-        // Send title with confirmation instructions
         TitleUtils.sendTitle(player,
                 "confirm_selection_wizard",
                 new TitleConfig(
@@ -401,25 +336,20 @@ public final class SelectionWizard implements Listener {
                         20L),
                 ExyliaContext.create());
 
-        // Optional: Send chat message with selection info
         MessageUtils.sendMessage(player, "{success}Selection completed! Volume: {info}" + selection.getVolume() + " blocks");
         MessageUtils.sendMessage(player, "{warning}Use SHIFT + LEFT CLICK to confirm and continue");
     }
 
     private static void clearWizardSelections(Player player, SelectionWizardSession session) {
-        // Clear all selections created during this wizard session
+         
         for (int i = 1; i <= (session.getTotalSelections() - session.getRemainingSelections()); i++) {
             String selectionId = "wizard_" + player.getUniqueId().toString().substring(0, 8) + "_" + i;
             selectionManager.clearSelection(player, selectionId);
         }
 
-        // Remove selection callback
         selectionManager.removeSelectionCallback(player);
     }
 
-    /**
-     * Shutdown the SelectionWizard
-     */
     public static void shutdown() {
         if (instance != null) {
             instance.activeSessions.values().forEach(session -> {

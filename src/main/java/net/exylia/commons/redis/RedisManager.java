@@ -21,10 +21,6 @@ import java.util.function.Function;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
-/**
- * Gestor principal de Redis para ExyliaCommons
- * Proporciona una interfaz simple y optimizada para todas las operaciones de Redis
- */
 public class RedisManager {
 
     private static RedisManager instance;
@@ -51,9 +47,6 @@ public class RedisManager {
         });
     }
 
-    /**
-     * Inicializa el sistema de Redis
-     */
     public static synchronized void start(ExyliaPlugin plugin, RedisConfig config) {
         if (instance != null) {
             logInternalError("RedisManager ya está inicializado!");
@@ -64,9 +57,6 @@ public class RedisManager {
         instance.startup();
     }
 
-    /**
-     * Obtiene la instancia del RedisManager
-     */
     public static RedisManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("RedisManager no ha sido inicializado! Llama a initialize() primero.");
@@ -74,9 +64,6 @@ public class RedisManager {
         return instance;
     }
 
-    /**
-     * Verifica si Redis está disponible
-     */
     public static boolean isAvailable() {
         return instance != null && instance.initialized;
     }
@@ -85,7 +72,6 @@ public class RedisManager {
         try {
             connectionManager.initialize();
 
-            // Probar conexión
             try (Jedis jedis = connectionManager.getConnection()) {
                 jedis.ping();
                 logInternalInfo("Conexión a Redis establecida correctamente");
@@ -94,7 +80,6 @@ public class RedisManager {
             pubSubManager.initialize();
             initialized = true;
 
-            // Iniciar tarea de mantenimiento
             startMaintenanceTask();
 
             logInternalInfo("RedisManager inicializado correctamente");
@@ -105,23 +90,18 @@ public class RedisManager {
         }
     }
 
-    /**
-     * Cierra el sistema de Redis
-     */
     public synchronized void shutdown() {
         if (!initialized) return;
 
         logInternalInfo("Cerrando RedisManager...");
 
         try {
-            // Cerrar caches
+             
             caches.values().forEach(RedisCache::close);
             caches.clear();
 
-            // Cerrar pub/sub
             pubSubManager.shutdown();
 
-            // Cerrar conexiones
             connectionManager.shutdown();
 
             initialized = false;
@@ -134,11 +114,6 @@ public class RedisManager {
         }
     }
 
-    // ==================== OPERACIONES BÁSICAS ====================
-
-    /**
-     * Ejecuta una operación de Redis de forma síncrona
-     */
     public <T> T execute(Function<Jedis, T> operation) {
         if (!initialized) {
             throw new IllegalStateException("RedisManager no está inicializado");
@@ -152,16 +127,10 @@ public class RedisManager {
         }
     }
 
-    /**
-     * Ejecuta una operación de Redis de forma asíncrona
-     */
     public <T> CompletableFuture<T> executeAsync(Function<Jedis, T> operation) {
         return CompletableFuture.supplyAsync(() -> execute(operation), asyncExecutor);
     }
 
-    /**
-     * Ejecuta una operación sin retorno de forma asíncrona
-     */
     public CompletableFuture<Void> executeAsync(Consumer<Jedis> operation) {
         return CompletableFuture.runAsync(() -> execute(jedis -> {
             operation.accept(jedis);
@@ -169,59 +138,34 @@ public class RedisManager {
         }), asyncExecutor);
     }
 
-    // ==================== OPERACIONES DE STRING ====================
-
-    /**
-     * Establece un valor string
-     */
     public void set(String key, String value) {
         execute(jedis -> jedis.set(key, value));
     }
 
-    /**
-     * Establece un valor string con expiración
-     */
     public void set(String key, String value, int seconds) {
         execute(jedis -> jedis.setex(key, seconds, value));
     }
 
-    /**
-     * Obtiene un valor string
-     */
     public String get(String key) {
         return execute(jedis -> jedis.get(key));
     }
 
-    /**
-     * Establece un objeto serializado
-     */
     public <T> void setObject(String key, T object) {
         String serialized = defaultSerializer.serialize(object);
         set(key, serialized);
     }
 
-    /**
-     * Establece un objeto serializado con expiración
-     */
     public <T> void setObject(String key, T object, int seconds) {
         String serialized = defaultSerializer.serialize(object);
         set(key, serialized, seconds);
     }
 
-    /**
-     * Obtiene un objeto deserializado
-     */
     public <T> T getObject(String key, Class<T> type) {
         String serialized = get(key);
         if (serialized == null) return null;
         return defaultSerializer.deserialize(serialized, type);
     }
 
-    // ==================== OPERACIONES ASÍNCRONAS ====================
-
-    /**
-     * Establece un valor de forma asíncrona
-     */
     public CompletableFuture<Void> setAsync(String key, String value) {
         return CompletableFuture.runAsync(() -> {
             execute(jedis -> {
@@ -231,104 +175,60 @@ public class RedisManager {
         }, asyncExecutor);
     }
 
-    /**
-     * Obtiene un valor de forma asíncrona
-     */
     public CompletableFuture<String> getAsync(String key) {
         return CompletableFuture.supplyAsync(() -> {
             return execute(jedis -> jedis.get(key));
         }, asyncExecutor);
     }
 
-    /**
-     * Establece un objeto de forma asíncrona
-     */
     public <T> CompletableFuture<Void> setObjectAsync(String key, T object) {
         return CompletableFuture.runAsync(() -> setObject(key, object), asyncExecutor);
     }
 
-    /**
-     * Obtiene un objeto de forma asíncrona
-     */
     public <T> CompletableFuture<T> getObjectAsync(String key, Class<T> type) {
         return CompletableFuture.supplyAsync(() -> getObject(key, type), asyncExecutor);
     }
 
-    // ==================== UTILIDADES ====================
-
-    /**
-     * Verifica si una clave existe
-     */
     public boolean exists(String key) {
         return execute(jedis -> jedis.exists(key));
     }
 
-    /**
-     * Elimina una clave
-     */
     public boolean delete(String key) {
         return execute(jedis -> jedis.del(key) > 0);
     }
 
-    /**
-     * Establece expiración a una clave
-     */
     public boolean expire(String key, int seconds) {
         return execute(jedis -> jedis.expire(key, seconds) == 1);
     }
 
-    /**
-     * Obtiene el TTL de una clave
-     */
     public long getTTL(String key) {
         return execute(jedis -> jedis.ttl(key));
     }
 
-    // ==================== GESTIÓN DE CACHÉ ====================
-
-    /**
-     * Crea o obtiene una caché tipada
-     */
     @SuppressWarnings("unchecked")
     public <T> RedisCache<T> getCache(String name, Class<T> type) {
         return (RedisCache<T>) caches.computeIfAbsent(name,
                 k -> new RedisCache<>(this, name, type, defaultSerializer));
     }
 
-    /**
-     * Crea o obtiene una caché tipada con serializer personalizado
-     */
     @SuppressWarnings("unchecked")
     public <T> RedisCache<T> getCache(String name, Class<T> type, RedisSerializer serializer) {
         return (RedisCache<T>) caches.computeIfAbsent(name,
                 k -> new RedisCache<>(this, name, type, serializer));
     }
 
-    // ==================== PUB/SUB ====================
-
-    /**
-     * Obtiene el manager de Pub/Sub
-     */
     public RedisPubSubManager getPubSub() {
         return pubSubManager;
     }
 
-    /**
-     * Publica un mensaje en un canal
-     */
     public void publish(String channel, String message) {
         pubSubManager.publish(channel, message);
     }
 
-    /**
-     * Publica un objeto serializado en un canal
-     */
     public <T> void publishObject(String channel, T object) {
         String serialized = defaultSerializer.serialize(object);
         publish(channel, serialized);
     }
-
-    // ==================== GETTERS ====================
 
     public RedisConfig getConfig() {
         return config;
@@ -346,8 +246,6 @@ public class RedisManager {
         return initialized;
     }
 
-    // ==================== MANTENIMIENTO ====================
-
     private void startMaintenanceTask() {
         new BukkitRunnable() {
             @Override
@@ -358,16 +256,15 @@ public class RedisManager {
                 }
 
                 try {
-                    // Limpiar caches caducadas
+                     
                     caches.values().forEach(RedisCache::cleanup);
 
-                    // Verificar conexión
                     connectionManager.validateConnections();
 
                 } catch (Exception e) {
                     logInternalError("Error en tarea de mantenimiento Redis: " + e.getMessage());
                 }
             }
-        }.runTaskTimerAsynchronously(plugin, 20L * 60, 20L * 60); // Cada minuto
+        }.runTaskTimerAsynchronously(plugin, 20L * 60, 20L * 60);  
     }
 }

@@ -66,7 +66,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
             mongoClient = MongoClients.create(connectionString);
             database = mongoClient.getDatabase(databaseName);
 
-            // Test connection
             database.runCommand(new Document("ping", 1));
             logInternalInfo("MongoDB connection established successfully to " + host + ":" + port + "/" + databaseName);
 
@@ -111,13 +110,11 @@ public class MongoDBAdapter implements DatabaseAdapter {
             String collectionName = getTableName(entity.getClass());
             MongoCollection<Document> collection = database.getCollection(collectionName);
 
-            // Generate auto-increment ID if needed
             setAutoIncrementId(entity, collectionName);
 
             Document document = entityToDocument(entity);
             collection.insertOne(document);
 
-            // If has _id field and is ObjectId, set it back in the entity
             setIdFromDocument(entity, document);
 
             logInternalDebug("Entity saved successfully to MongoDB collection: " + collectionName);
@@ -155,12 +152,10 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 try {
                     Object id = getEntityId(entity);
 
-                    // Check if entity is new (id is 0 or null)
                     boolean isNew = id == null ||
                             (id instanceof Integer && (Integer) id == 0) ||
                             (id instanceof Long && (Long) id == 0L);
 
-                    // Generate auto-increment ID if needed
                     if (isNew) {
                         setAutoIncrementId(entity, collectionName);
                         id = getEntityId(entity);
@@ -169,14 +164,14 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     Document document = entityToDocument(entity);
 
                     if (id != null) {
-                        // If has ID, do upsert (update or insert)
+                         
                         Document filter = new Document("_id", convertToObjectId(id));
                         ReplaceOptions options = new ReplaceOptions().upsert(true);
                         operations.add(new ReplaceOneModel<>(filter, document, options));
                     } else {
-                        // If no ID, it's an insert (MongoDB will generate _id)
+                         
                         operations.add(new ReplaceOneModel<>(
-                                new Document("_id", new ObjectId()), // Filter that will never match
+                                new Document("_id", new ObjectId()),  
                                 document,
                                 new ReplaceOptions().upsert(true)
                         ));
@@ -250,7 +245,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     Document filter = new Document("_id", convertToObjectId(id));
                     Document updateDocument = entityToDocument(entity);
 
-                    // Remove _id from update document to avoid errors
                     updateDocument.remove("_id");
 
                     Document update = new Document("$set", updateDocument);
@@ -495,7 +489,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
         String entityClassName = entityClass.getSimpleName();
 
         try {
-            // For MongoDB, interpret query as JSON filter
+             
             String collectionName = getTableName(entityClass);
             MongoCollection<Document> collection = database.getCollection(collectionName);
 
@@ -541,7 +535,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public int executeUpdate(String query, Object... params) throws Exception {
-        // For bulk update operations in MongoDB
+         
         throw new UnsupportedOperationException("executeUpdate is not implemented for MongoDB. Use specific repository methods.");
     }
 
@@ -550,10 +544,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
         String entityClassName = entityClass.getSimpleName();
 
         try {
-            // MongoDB creates collections automatically, but we can create indexes here
+             
             String collectionName = getTableName(entityClass);
 
-            // Check if collection already exists
             boolean exists = false;
             for (String name : database.listCollectionNames()) {
                 if (name.equals(collectionName)) {
@@ -572,7 +565,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 }
             }
 
-            // Create indexes for unique fields
             MongoCollection<Document> collection = database.getCollection(collectionName);
             Field[] fields = entityClass.getDeclaredFields();
 
@@ -607,7 +599,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public void updateTable(Class<?> entityClass) throws Exception {
-        // MongoDB is schema-less, so we only need to ensure collection exists
+         
         try {
             createTable(entityClass);
         } catch (Exception e) {
@@ -658,7 +650,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public List<String> getTableColumns(Class<?> entityClass) throws Exception {
-        // In MongoDB, return fields defined in the entity
+         
         List<String> fields = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
@@ -674,20 +666,19 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public void beginTransaction() throws Exception {
-        // MongoDB supports transactions only in replica sets
-        // For simplicity, we don't implement transactions in this version
+         
         throw new UnsupportedOperationException("Transactions not implemented for MongoDB in this version");
     }
 
     @Override
     public void commit() throws Exception {
-        // Not implemented
+         
         throw new UnsupportedOperationException("Transaction commit not implemented for MongoDB");
     }
 
     @Override
     public void rollback() throws Exception {
-        // Not implemented
+         
         throw new UnsupportedOperationException("Transaction rollback not implemented for MongoDB");
     }
 
@@ -700,7 +691,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return entityClass.getSimpleName().toLowerCase();
     }
 
-    // Enhanced entityToMap with better error handling
     @Override
     public Map<String, Object> entityToMap(Object entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
@@ -716,7 +706,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // AUTO-SERIALIZATION with enhanced error handling
                     if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -767,7 +756,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                             Object emptyCollection = CollectionUtils.createEmptyCollection(field);
                             if (emptyCollection != null) {
                                 field.set(entity, emptyCollection);
-                                continue; // Skip further processing for this field
+                                continue;  
                             }
                         } catch (Exception e) {
                             errorHandler.logWarning("MapToEntity", entityClassName,
@@ -788,7 +777,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                 } catch (SerializationException e) {
                                     errorHandler.handleError(e);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -802,7 +790,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                             "Failed to auto-deserialize field during mapToEntity", e);
                                     errorHandler.handleError(serException);
 
-                                    // FALLBACK: Si falla la deserialización de una colección, crear una vacía
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
                                         errorHandler.logWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
@@ -841,7 +828,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return this.getClass().getSimpleName().replace("Adapter", "");
     }
 
-    // MongoDB-specific methods with enhanced error handling
     private Document entityToDocument(Object entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
         Document document = new Document();
@@ -876,7 +862,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 try {
                     Object value = field.get(entity);
 
-                    // Skip autoIncrement fields with value 0 (not yet generated)
                     if (column.autoIncrement() && value != null) {
                         if ((value instanceof Integer && (Integer) value == 0) ||
                             (value instanceof Long && (Long) value == 0L)) {
@@ -885,7 +870,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     }
 
                     if (value != null && value.getClass().isEnum()) {
-                        value = ((Enum<?>) value).name(); // Convertir a string
+                        value = ((Enum<?>) value).name();  
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -903,11 +888,11 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                     if (value != null) {
                         if (fieldName.equals("_id") && value instanceof String) {
-                            // Convert String to ObjectId if necessary
+                             
                             try {
                                 document.put(fieldName, new ObjectId(value.toString()));
                             } catch (IllegalArgumentException e) {
-                                // If not a valid ObjectId, use as String
+                                 
                                 document.put(fieldName, value);
                             }
                         } else {
@@ -993,7 +978,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     }
                     if (value != null) {
                         try {
-                            // Manejo especial para enums
+                             
                             if (field.getType().isEnum() && value instanceof String) {
                                 value = EnumSafetyHandler.handleEnumDeserialization(value, field,
                                         entityClassName, fieldName, errorHandler);
@@ -1013,7 +998,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                 }
                             } else {
                                 if (fieldName.equals("_id") && value instanceof ObjectId && field.getType() == String.class) {
-                                    // Convert ObjectId to String
+                                     
                                     value = value.toString();
                                 } else {
                                     value = convertValue(value, field.getType());
@@ -1108,8 +1093,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                 if (id instanceof Number) {
                                     field.set(entity, ((Number) id).intValue());
                                 } else if (id instanceof ObjectId) {
-                                    // For autoIncrement int fields, MongoDB generates ObjectId
-                                    // We need a different strategy - use a counter collection
+                                     
                                     field.set(entity, id.hashCode());
                                 }
                             } else if (field.getType() == long.class || field.getType() == Long.class) {
@@ -1458,7 +1442,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             String collectionName = getTableName(entityClass);
 
             try {
-                // Check if collection exists before dropping
+                 
                 boolean exists = false;
                 for (String name : database.listCollectionNames()) {
                     if (name.equals(collectionName)) {
@@ -1523,7 +1507,6 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     field.setAccessible(true);
                     Object currentValue = field.get(entity);
 
-                    // Only generate ID if current value is 0
                     if (currentValue != null &&
                         ((currentValue instanceof Integer && (Integer) currentValue == 0) ||
                          (currentValue instanceof Long && (Long) currentValue == 0L))) {

@@ -9,14 +9,8 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utilidades para trabajar con selecciones
- */
 public class SelectionUtils {
 
-    /**
-     * Obtiene todos los bloques dentro de una selección
-     */
     public static List<Block> getBlocks(Selection selection) {
         List<Block> blocks = new ArrayList<>();
 
@@ -38,9 +32,6 @@ public class SelectionUtils {
         return blocks;
     }
 
-    /**
-     * Obtiene todos los bloques de un tipo específico
-     */
     public static List<Block> getBlocksByType(Selection selection, Material material) {
         List<Block> blocks = new ArrayList<>();
 
@@ -53,53 +44,39 @@ public class SelectionUtils {
         return blocks;
     }
 
-    /**
-     * Cuenta los bloques de un tipo específico
-     */
     public static int countBlocksByType(Selection selection, Material material) {
         return getBlocksByType(selection, material).size();
     }
 
-    /**
-     * Verifica si el jugador puede modificar el área seleccionada
-     */
     public static boolean canModify(Player player, Selection selection) {
         if (!selection.isComplete()) {
             return false;
         }
 
-        // Verificar permisos básicos
         if (!player.hasPermission("exylia.selection.modify")) {
             return false;
         }
 
-        // Verificar límites de volumen si es necesario
         long volume = selection.getVolume();
         return volume <= getMaxVolume(player);
     }
 
-    /**
-     * Obtiene el volumen máximo permitido para un jugador
-     */
     public static long getMaxVolume(Player player) {
         if (player.hasPermission("exylia.selection.unlimited")) {
             return Long.MAX_VALUE;
         }
 
         if (player.hasPermission("exylia.selection.large")) {
-            return 1000000; // 1 millón de bloques
+            return 1000000;  
         }
 
         if (player.hasPermission("exylia.selection.medium")) {
-            return 100000; // 100k bloques
+            return 100000;  
         }
 
-        return 10000; // 10k bloques por defecto
+        return 10000;  
     }
 
-    /**
-     * Formatea la información de una selección
-     */
     public static String formatSelectionInfo(Selection selection) {
         if (!selection.isComplete()) {
             return "Selección incompleta";
@@ -117,9 +94,6 @@ public class SelectionUtils {
         );
     }
 
-    /**
-     * Verifica si dos selecciones se superponen
-     */
     public static boolean intersects(Selection selection1, Selection selection2) {
         if (!selection1.isComplete() || !selection2.isComplete()) {
             return false;
@@ -139,9 +113,6 @@ public class SelectionUtils {
                 min1.getBlockZ() <= max2.getBlockZ() && max1.getBlockZ() >= min2.getBlockZ();
     }
 
-    /**
-     * Calcula el volumen de intersección entre dos selecciones
-     */
     public static long getIntersectionVolume(Selection selection1, Selection selection2) {
         if (!intersects(selection1, selection2)) {
             return 0;
@@ -162,9 +133,6 @@ public class SelectionUtils {
         return (long)(maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
     }
 
-    /**
-     * Expande una selección en todas las direcciones
-     */
     public static void expandSelection(Selection selection, int amount) {
         if (!selection.isComplete()) {
             return;
@@ -180,9 +148,6 @@ public class SelectionUtils {
         selection.setPos2(max);
     }
 
-    /**
-     * Contrae una selección en todas las direcciones
-     */
     public static void contractSelection(Selection selection, int amount) {
         if (!selection.isComplete()) {
             return;
@@ -194,11 +159,10 @@ public class SelectionUtils {
         min.add(amount, amount, amount);
         max.add(-amount, -amount, -amount);
 
-        // Verificar que la selección sigue siendo válida
         if (min.getBlockX() > max.getBlockX() ||
                 min.getBlockY() > max.getBlockY() ||
                 min.getBlockZ() > max.getBlockZ()) {
-            return; // No aplicar cambios si la selección se vuelve inválida
+            return;  
         }
 
         selection.setPos1(min);

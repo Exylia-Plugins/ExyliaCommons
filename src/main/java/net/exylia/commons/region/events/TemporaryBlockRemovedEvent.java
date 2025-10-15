@@ -45,16 +45,10 @@ public class TemporaryBlockRemovedEvent extends Event implements Cancellable {
         return handlers;
     }
 
-    /**
-     * Obtiene cuánto tiempo estuvo el bloque colocado (en milisegundos)
-     */
     public long getLifetimeMillis() {
         return System.currentTimeMillis() - placementTime;
     }
 
-    /**
-     * Obtiene cuánto tiempo estuvo el bloque colocado (en segundos)
-     */
     public int getLifetimeSeconds() {
         return (int) (getLifetimeMillis() / 1000);
     }
