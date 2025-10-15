@@ -847,6 +847,16 @@ public class MongoDBAdapter implements DatabaseAdapter {
         Document document = new Document();
         Field[] fields = entity.getClass().getDeclaredFields();
 
+        List<Field> primaryKeyFields = new ArrayList<>();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.primaryKey()) {
+                    primaryKeyFields.add(field);
+                }
+            }
+        }
+
         for (Field field : fields) {
             if (field.isAnnotationPresent(Column.class)) {
                 field.setAccessible(true);
@@ -854,7 +864,11 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 String fieldName;
 
                 if (column.primaryKey()) {
-                    fieldName = "_id";
+                    if (primaryKeyFields.size() > 1) {
+                        fieldName = column.name().isEmpty() ? field.getName() : column.name();
+                    } else {
+                        fieldName = "_id";
+                    }
                 } else {
                     fieldName = column.name().isEmpty() ? field.getName() : column.name();
                 }
@@ -908,6 +922,27 @@ public class MongoDBAdapter implements DatabaseAdapter {
             }
         }
 
+        if (primaryKeyFields.size() > 1) {
+            StringBuilder compositeId = new StringBuilder();
+            for (int i = 0; i < primaryKeyFields.size(); i++) {
+                Field pkField = primaryKeyFields.get(i);
+                pkField.setAccessible(true);
+                try {
+                    Object pkValue = pkField.get(entity);
+                    if (pkValue != null) {
+                        if (i > 0) {
+                            compositeId.append(":");
+                        }
+                        compositeId.append(pkValue.toString());
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("EntityToDocument", entityClassName, "MongoDB",
+                            "Failed to build composite ID", e);
+                }
+            }
+            document.put("_id", compositeId.toString());
+        }
+
         return document;
     }
 
@@ -918,19 +953,44 @@ public class MongoDBAdapter implements DatabaseAdapter {
             T entity = entityClass.getDeclaredConstructor().newInstance();
             Field[] fields = entityClass.getDeclaredFields();
 
+            List<Field> primaryKeyFields = new ArrayList<>();
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    Column column = field.getAnnotation(Column.class);
+                    if (column.primaryKey()) {
+                        primaryKeyFields.add(field);
+                    }
+                }
+            }
+
+            String[] compositeIdParts = null;
+            if (primaryKeyFields.size() > 1) {
+                Object idValue = document.get("_id");
+                if (idValue != null) {
+                    compositeIdParts = idValue.toString().split(":", primaryKeyFields.size());
+                }
+            }
+
+            int pkIndex = 0;
             for (Field field : fields) {
                 if (field.isAnnotationPresent(Column.class)) {
                     field.setAccessible(true);
                     Column column = field.getAnnotation(Column.class);
                     String fieldName;
+                    Object value;
 
                     if (column.primaryKey()) {
-                        fieldName = "_id";
+                        if (primaryKeyFields.size() > 1 && compositeIdParts != null && pkIndex < compositeIdParts.length) {
+                            value = compositeIdParts[pkIndex++];
+                            fieldName = column.name().isEmpty() ? field.getName() : column.name();
+                        } else {
+                            fieldName = "_id";
+                            value = document.get(fieldName);
+                        }
                     } else {
                         fieldName = column.name().isEmpty() ? field.getName() : column.name();
+                        value = document.get(fieldName);
                     }
-
-                    Object value = document.get(fieldName);
                     if (value != null) {
                         try {
                             // Manejo especial para enums
@@ -985,22 +1045,49 @@ public class MongoDBAdapter implements DatabaseAdapter {
     private Object getEntityId(Object entity) throws Exception {
         Field[] fields = entity.getClass().getDeclaredFields();
 
+        List<Field> primaryKeyFields = new ArrayList<>();
         for (Field field : fields) {
             if (field.isAnnotationPresent(Column.class)) {
                 Column column = field.getAnnotation(Column.class);
                 if (column.primaryKey()) {
-                    field.setAccessible(true);
-                    try {
-                        return field.get(entity);
-                    } catch (IllegalAccessException e) {
-                        throw new DatabaseException("GetEntityId", entity.getClass().getSimpleName(), "MongoDB",
-                                "Failed to access primary key field", e);
-                    }
+                    primaryKeyFields.add(field);
                 }
             }
         }
 
-        return null;
+        if (primaryKeyFields.isEmpty()) {
+            return null;
+        }
+
+        if (primaryKeyFields.size() == 1) {
+            Field pkField = primaryKeyFields.get(0);
+            pkField.setAccessible(true);
+            try {
+                return pkField.get(entity);
+            } catch (IllegalAccessException e) {
+                throw new DatabaseException("GetEntityId", entity.getClass().getSimpleName(), "MongoDB",
+                        "Failed to access primary key field", e);
+            }
+        } else {
+            StringBuilder compositeId = new StringBuilder();
+            for (int i = 0; i < primaryKeyFields.size(); i++) {
+                Field pkField = primaryKeyFields.get(i);
+                pkField.setAccessible(true);
+                try {
+                    Object pkValue = pkField.get(entity);
+                    if (pkValue != null) {
+                        if (i > 0) {
+                            compositeId.append(":");
+                        }
+                        compositeId.append(pkValue.toString());
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new DatabaseException("GetEntityId", entity.getClass().getSimpleName(), "MongoDB",
+                            "Failed to access composite primary key field", e);
+                }
+            }
+            return compositeId.toString();
+        }
     }
 
     private void setIdFromDocument(Object entity, Document document) throws Exception {

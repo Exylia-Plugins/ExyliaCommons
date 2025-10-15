@@ -12,6 +12,7 @@ import org.bukkit.scoreboard.Team;
 import java.util.Set;
 import java.util.HashSet;
 
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 /**
@@ -107,7 +108,7 @@ public class PlayerScoreboardInstance {
             renderer.updateScoreboard(rendered, player, config, context);
             lastUpdate = System.currentTimeMillis();
         } catch (Exception e) {
-            logInternalWarn("Error actualizando scoreboard de " + player.getName() + ": " + e.getMessage());
+            logInternalDebug("Error actualizando scoreboard de " + player.getName() + ": " + e.getMessage());
         }
     }
 
