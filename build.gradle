@@ -49,6 +49,7 @@ dependencies {
     compileOnly 'com.fastasyncworldedit:FastAsyncWorldEdit-Bukkit:2.8.4'
     compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.7'
     compileOnly 'com.comphenix.protocol:ProtocolLib:5.0.0'
+    compileOnly 'com.github.ben-manes.caffeine:caffeine:3.2.2'
     implementation 'com.github.lalyos:jfiglet:0.0.9'
     implementation 'com.hapangama:SunLicenseAPI:1.0.3'
 }
@@ -59,6 +60,11 @@ java {
 }
 
 publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
     repositories {
         mavenLocal()
     }
