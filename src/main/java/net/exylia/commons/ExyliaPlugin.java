@@ -52,6 +52,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     @Override
     public final void onEnable() {
+        onPreExyliaEnable();
         try {
             this.adventure = BukkitAudiences.create(this);
             this.reloadManager = new ReloadManager(this);
@@ -178,6 +179,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
                 onAllConfigurationsReload();
             }
         });
+    }
+
+    protected void onPreExyliaEnable() {
     }
 
     protected abstract void onExyliaEnable();
