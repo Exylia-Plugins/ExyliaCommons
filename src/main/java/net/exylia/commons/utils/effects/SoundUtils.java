@@ -2,7 +2,7 @@ package net.exylia.commons.utils.effects;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -26,7 +26,7 @@ public class SoundUtils {
         if (Bukkit.isPrimaryThread()) {
             soundTask.run();
         } else {
-            Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), soundTask);
+            Schedulers.sync(soundTask);
         }
 
         return true;
@@ -41,7 +41,7 @@ public class SoundUtils {
         if (Bukkit.isPrimaryThread()) {
             soundTask.run();
         } else {
-            Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), soundTask);
+            Schedulers.sync(soundTask);
         }
 
         return true;

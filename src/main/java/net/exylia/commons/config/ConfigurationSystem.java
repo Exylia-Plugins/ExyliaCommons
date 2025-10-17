@@ -1,12 +1,12 @@
 package net.exylia.commons.config;
 
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.ColorUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
-import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -391,7 +391,7 @@ public class ConfigurationSystem {
 
                 logInternalSuccess("Reloaded " + configInstances.size() + " configs");
 
-                Bukkit.getScheduler().runTask(plugin, this::notifyReloadListeners);
+                Schedulers.sync(this::notifyReloadListeners);
                 return true;
 
             } catch (Exception e) {

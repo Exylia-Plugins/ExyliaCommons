@@ -15,6 +15,7 @@ import net.exylia.commons.item.registry.ItemRegistryImpl;
 import net.exylia.commons.item.vanilla.VanillaItemCooldownManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -554,7 +555,7 @@ public class ItemManager implements Listener {
             final ItemStack finalItemClone = (hand == EquipmentSlot.HAND ? mainHand : offHand).clone();
             final InteractiveItem finalInteractiveItem = interactiveItem.clone();
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            Schedulers.sync(() -> {
                 org.bukkit.Location eyeLocation = player.getEyeLocation();
                 org.bukkit.util.Vector direction = eyeLocation.getDirection().multiply(1.5);
 
@@ -827,7 +828,7 @@ public class ItemManager implements Listener {
 
         if (!event.isCancelled()) {
             holdHandler.stopAllSessionsForPlayer(player);
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Schedulers.syncLater(() -> {
                 ItemStack newMainHand = player.getInventory().getItemInMainHand();
                 ItemStack newOffHand = player.getInventory().getItemInOffHand();
                 
@@ -853,9 +854,9 @@ public class ItemManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
-        
+
         holdHandler.stopAllSessionsForPlayer(player);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             ItemStack newItem = player.getInventory().getItem(event.getNewSlot());
             if (newItem != null && newItem.getType() != Material.AIR) {
                 InteractiveItem interactiveItem = getItemFromStack(newItem);
@@ -878,19 +879,19 @@ public class ItemManager implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onInventoryClickForHold(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player)) return;
-        
-        if (event.getSlot() >= 0 && event.getSlot() <= 8) {  
-            Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 1L);
-        } else if (event.getSlot() == 40) {  
-            Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 1L);
+
+        if (event.getSlot() >= 0 && event.getSlot() <= 8) {
+            Schedulers.syncLater(() -> checkAndStartHoldSessions(player), 1L);
+        } else if (event.getSlot() == 40) {
+            Schedulers.syncLater(() -> checkAndStartHoldSessions(player), 1L);
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerPickupItem(PlayerPickupItemEvent event) {
         Player player = event.getPlayer();
-        
-        Bukkit.getScheduler().runTaskLater(plugin, () -> checkAndStartHoldSessions(player), 2L);
+
+        Schedulers.syncLater(() -> checkAndStartHoldSessions(player), 2L);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -943,7 +944,7 @@ public class ItemManager implements Listener {
     }
 
     private static void startClickTimeCleanupTask() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        Schedulers.asyncTimer(() -> {
             long currentTime = System.currentTimeMillis();
             lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);
             lastDropTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DROP_INTERACTION_PREVENTION_MS);

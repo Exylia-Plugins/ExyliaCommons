@@ -1,6 +1,6 @@
 package net.exylia.commons.utils.effects;
 
-import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -47,7 +47,7 @@ public class ParticleUtils {
             if (Bukkit.isPrimaryThread()) {
                 particleTask.run();
             } else {
-                Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), particleTask);
+                Schedulers.sync(particleTask);
             }
 
             return true;
@@ -107,7 +107,7 @@ public class ParticleUtils {
             if (Bukkit.isPrimaryThread()) {
                 particleTask.run();
             } else {
-                Bukkit.getScheduler().runTask(ExyliaPlugin.getInstance(), particleTask);
+                Schedulers.sync(particleTask);
             }
 
             return true;

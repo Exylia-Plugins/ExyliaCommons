@@ -1,6 +1,7 @@
 package net.exylia.commons.region.blocks;
 
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -171,10 +172,10 @@ public class PlayerBlockTracker {
     }
 
     private void startIntelligentCacheManager() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        Schedulers.asyncTimer(() -> {
             performIntelligentCacheCleanup();
             checkAutoSave();
-        }, 20L * 10, 20L * 10);  
+        }, 20L * 10, 20L * 10);
     }
 
     private void performIntelligentCacheCleanup() {

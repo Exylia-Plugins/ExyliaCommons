@@ -8,12 +8,13 @@ import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.utils.TimeFormatter;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.io.File;
 import java.io.FileReader;
@@ -43,8 +44,8 @@ public class CooldownManager {
     private final Map<String, Consumer<CooldownEvent>> cooldownCallbacks;
     private final File cooldownDataFile;
 
-    private BukkitTask saveTask;
-    private BukkitTask cleanupTask;
+    private ScheduledTask saveTask;
+    private ScheduledTask cleanupTask;
     private boolean initialized = false;
 
     private CooldownManager(JavaPlugin plugin, CooldownConfiguration configuration) {
@@ -121,7 +122,7 @@ public class CooldownManager {
 
         triggerCooldownEvent(CooldownEventType.SET, playerId, itemId, cooldownSeconds);
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             Player player = Bukkit.getPlayer(playerId);
             if (player != null) {
                 Material material = getMaterialFromItemId(itemId, player);
@@ -326,10 +327,10 @@ public class CooldownManager {
         if (itemId != null) {
             Consumer<CooldownEvent> callback = cooldownCallbacks.get(itemId.toLowerCase());
             if (callback != null) {
-                Bukkit.getScheduler().runTask(plugin, () -> callback.accept(event));
+                Schedulers.sync(() -> callback.accept(event));
             }
         }
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> Bukkit.getPluginManager().callEvent(event));
+        Schedulers.async(() -> Bukkit.getPluginManager().callEvent(event));
     }
 
     public void saveCooldowns() {
@@ -495,10 +496,10 @@ public class CooldownManager {
         logInternalDebug("Starting periodic tasks - save interval: " + configuration.getSaveIntervalTicks() +
                         " ticks, cleanup interval: " + configuration.getCleanupIntervalTicks() + " ticks");
 
-        saveTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
+        saveTask = Schedulers.asyncTimer(
                 this::saveCooldowns, configuration.getSaveIntervalTicks(), configuration.getSaveIntervalTicks());
 
-        cleanupTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin,
+        cleanupTask = Schedulers.asyncTimer(
                 this::cleanupExpiredCooldowns, configuration.getCleanupIntervalTicks(), configuration.getCleanupIntervalTicks());
     }
 

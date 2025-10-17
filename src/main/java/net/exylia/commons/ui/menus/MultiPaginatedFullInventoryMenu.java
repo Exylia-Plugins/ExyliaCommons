@@ -1,5 +1,7 @@
 package net.exylia.commons.ui.menus;
 
+import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.async.ScheduledTask;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
@@ -20,7 +22,7 @@ public class MultiPaginatedFullInventoryMenu extends FullInventoryMenu {
 
     private final Map<String, PaginationSection> sections = new LinkedHashMap<>();
     private final Map<UUID, Map<String, Integer>> playerPages = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<String, Map<Integer, Integer>>> playerItemTasks = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, Map<Integer, ScheduledTask>>> playerItemTasks = new ConcurrentHashMap<>();
 
     private BiConsumer<String, Integer> onSectionUpdate;
     private Consumer<Player> externalCloseHandler;
@@ -395,7 +397,7 @@ public class MultiPaginatedFullInventoryMenu extends FullInventoryMenu {
                 e.printStackTrace();
             }
         }).thenRun(() -> {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            Schedulers.sync(() -> {
                 if (inventory != null && viewer == player) {
                     updateInventoryDisplay();
                 }
@@ -603,12 +605,12 @@ public class MultiPaginatedFullInventoryMenu extends FullInventoryMenu {
         UUID playerId = player.getUniqueId();
         playerPages.remove(playerId);
 
-        Map<String, Map<Integer, Integer>> sectionTasks = playerItemTasks.remove(playerId);
+        Map<String, Map<Integer, ScheduledTask>> sectionTasks = playerItemTasks.remove(playerId);
         if (sectionTasks != null) {
             sectionTasks.values().forEach(itemTasks ->
-                    itemTasks.values().forEach(taskId -> {
-                        if (taskId != null && taskId != -1) {
-                            Bukkit.getScheduler().cancelTask(taskId);
+                    itemTasks.values().forEach(task -> {
+                        if (task != null) {
+                            task.cancel();
                         }
                     })
             );
@@ -634,9 +636,9 @@ public class MultiPaginatedFullInventoryMenu extends FullInventoryMenu {
 
         playerItemTasks.values().forEach(sectionTasks ->
                 sectionTasks.values().forEach(itemTasks ->
-                        itemTasks.values().forEach(taskId -> {
-                            if (taskId != null && taskId != -1) {
-                                Bukkit.getScheduler().cancelTask(taskId);
+                        itemTasks.values().forEach(task -> {
+                            if (task != null) {
+                                task.cancel();
                             }
                         })
                 )

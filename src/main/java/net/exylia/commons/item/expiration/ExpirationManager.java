@@ -2,6 +2,8 @@ package net.exylia.commons.item.expiration;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.item.ExpirationBehavior;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.utils.DebugUtils;
@@ -11,7 +13,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +22,7 @@ public class ExpirationManager {
     @Getter
     private static ExpirationManager instance;
     private final JavaPlugin plugin;
-    private BukkitTask schedulerTask;
+    private ScheduledTask schedulerTask;
     @Getter
     private boolean enabled = true;
     @Getter
@@ -51,7 +52,7 @@ public class ExpirationManager {
             return;
         }
 
-        schedulerTask = Bukkit.getScheduler().runTaskTimer(plugin, this::checkAllPlayersForExpiredItems, 
+        schedulerTask = Schedulers.syncTimer(this::checkAllPlayersForExpiredItems,
                 checkIntervalTicks, checkIntervalTicks);
         
         if (enableDebugMessages) {

@@ -16,6 +16,8 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.async.ScheduledTask;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
 import net.exylia.commons.region.model.Region;
 import net.exylia.commons.selection.model.Selection;
@@ -27,7 +29,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -51,8 +52,8 @@ public class RegionRegenerationManager {
     private final PriorityBlockingQueue<RegenerationTask> taskQueue;
     private final ExecutorService asyncExecutor;
 
-    private BukkitRunnable taskProcessor;
-    private BukkitRunnable memoryMonitor;
+    private ScheduledTask taskProcessor;
+    private ScheduledTask memoryMonitor;
     private final AtomicInteger activeTasks;
     private final AtomicBoolean isShuttingDown;
 
@@ -112,26 +113,18 @@ public class RegionRegenerationManager {
     }
 
     private void startTaskProcessor() {
-        taskProcessor = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (isShuttingDown.get()) {
-                    return;
-                }
-                processNextTask();
+        taskProcessor = Schedulers.syncTimer(() -> {
+            if (isShuttingDown.get()) {
+                return;
             }
-        };
-        taskProcessor.runTaskTimer(plugin, TASK_PROCESS_INTERVAL_TICKS, TASK_PROCESS_INTERVAL_TICKS);
+            processNextTask();
+        }, TASK_PROCESS_INTERVAL_TICKS, TASK_PROCESS_INTERVAL_TICKS);
     }
 
     private void startMemoryMonitor() {
-        memoryMonitor = new BukkitRunnable() {
-            @Override
-            public void run() {
-                checkMemoryAndCleanup();
-            }
-        };
-        memoryMonitor.runTaskTimerAsynchronously(plugin, MEMORY_CHECK_INTERVAL_TICKS, MEMORY_CHECK_INTERVAL_TICKS);
+        memoryMonitor = Schedulers.asyncTimer(() -> {
+            checkMemoryAndCleanup();
+        }, MEMORY_CHECK_INTERVAL_TICKS, MEMORY_CHECK_INTERVAL_TICKS);
     }
 
     private void checkMemoryAndCleanup() {
@@ -534,44 +527,45 @@ public class RegionRegenerationManager {
     }
 
     public CompletableFuture<Integer> cleanRegionEntities(Region region) {
-        return CompletableFuture.supplyAsync(() -> {
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+
+        Schedulers.sync(() -> {
             try {
-                return Bukkit.getScheduler().callSyncMethod(plugin, () -> {
-                    int removed = 0;
-                    Location min = region.getMinimumPoint();
-                    Location max = region.getMaximumPoint();
+                int removed = 0;
+                Location min = region.getMinimumPoint();
+                Location max = region.getMaximumPoint();
 
-                    double minX = Math.min(min.getX(), max.getX());
-                    double maxX = Math.max(min.getX(), max.getX());
-                    double minY = Math.min(min.getY(), max.getY());
-                    double maxY = Math.max(min.getY(), max.getY());
-                    double minZ = Math.min(min.getZ(), max.getZ());
-                    double maxZ = Math.max(min.getZ(), max.getZ());
+                double minX = Math.min(min.getX(), max.getX());
+                double maxX = Math.max(min.getX(), max.getX());
+                double minY = Math.min(min.getY(), max.getY());
+                double maxY = Math.max(min.getY(), max.getY());
+                double minZ = Math.min(min.getZ(), max.getZ());
+                double maxZ = Math.max(min.getZ(), max.getZ());
 
-                    for (Entity entity : min.getWorld().getEntities()) {
-                        if (entity instanceof Player) continue;
+                for (Entity entity : min.getWorld().getEntities()) {
+                    if (entity instanceof Player) continue;
 
-                        Location loc = entity.getLocation();
-                        if (loc.getX() >= minX && loc.getX() <= maxX &&
-                            loc.getY() >= minY && loc.getY() <= maxY &&
-                            loc.getZ() >= minZ && loc.getZ() <= maxZ) {
+                    Location loc = entity.getLocation();
+                    if (loc.getX() >= minX && loc.getX() <= maxX &&
+                        loc.getY() >= minY && loc.getY() <= maxY &&
+                        loc.getZ() >= minZ && loc.getZ() <= maxZ) {
 
-                            if (shouldRemoveEntity(entity)) {
-                                entity.remove();
-                                removed++;
-                            }
+                        if (shouldRemoveEntity(entity)) {
+                            entity.remove();
+                            removed++;
                         }
                     }
+                }
 
-                    logInternalDebug("Cleaned " + removed + " entities in region " + region.getId());
-                    return removed;
-
-                }).get();
+                logInternalDebug("Cleaned " + removed + " entities in region " + region.getId());
+                future.complete(removed);
             } catch (Exception e) {
                 DebugUtils.logInternalError("Error cleaning entities: " + e.getMessage());
-                return 0;
+                future.complete(0);
             }
-        }, asyncExecutor);
+        });
+
+        return future;
     }
 
     public CompletableFuture<Boolean> copyRegionStructure(Region sourceRegion, Location targetCenter) {

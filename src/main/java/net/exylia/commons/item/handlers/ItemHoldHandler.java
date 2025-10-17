@@ -8,6 +8,8 @@ import net.exylia.commons.actions.GlobalActionManager;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.item.config.TriggerType;
 import net.exylia.commons.item.exceptions.ItemHoldSessionException;
 import net.exylia.commons.utils.DebugUtils;
@@ -17,7 +19,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -68,16 +69,16 @@ public class ItemHoldHandler {
         
         HoldSession session = new HoldSession(player, interactiveItem, hand, allowedHand);
         activeSessions.put(sessionKey, session);
-        
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+
+        ScheduledTask task = Schedulers.syncTimer(() -> {
             if (!isSessionValid(session)) {
                 stopHoldSession(player, hand);
                 return;
             }
-            
+
             executeHoldAction(session);
         }, 0, intervalTicks);
-        
+
         session.setTask(task);
     }
     
@@ -249,8 +250,8 @@ public class ItemHoldHandler {
         private final EquipmentSlot hand;
         private final String allowedHand;
         @Setter
-        private BukkitTask task;
-        
+        private ScheduledTask task;
+
         public HoldSession(Player player, InteractiveItem interactiveItem, EquipmentSlot hand, String allowedHand) {
             this.player = player;
             this.interactiveItem = interactiveItem;

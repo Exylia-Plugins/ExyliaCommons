@@ -4,6 +4,7 @@ import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.Bukkit;
@@ -205,7 +206,7 @@ public class VanillaItemCooldownManager implements Listener {
         recentlyConsumed.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet())
                 .add(material);
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             Set<Material> playerConsumed = recentlyConsumed.get(player.getUniqueId());
             if (playerConsumed != null) {
                 playerConsumed.remove(material);
@@ -272,7 +273,7 @@ public class VanillaItemCooldownManager implements Listener {
             String itemId = getItemId(material);
             CooldownManager.getInstance().setCooldown(player, itemId, cooldownSeconds);
 
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Schedulers.syncLater(() -> {
                 player.setCooldown(material, (int) (cooldownSeconds * 20));
             }, 1L);
         }
@@ -547,7 +548,7 @@ public class VanillaItemCooldownManager implements Listener {
     }
 
     private void startCleanupTask() {
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
+        Schedulers.asyncTimer(() -> {
             long currentTime = System.currentTimeMillis();
 
             lastClickTime.entrySet().removeIf(entry -> (currentTime - entry.getValue()) > DOUBLE_CLICK_PREVENTION_MS);

@@ -2,13 +2,13 @@ package net.exylia.commons;
 
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.ReloadResult;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.configSimple.Configs;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.simpleredis.SimpleRedis;
 import net.exylia.commons.utils.DateFormatter;
 import net.exylia.commons.utils.TimeFormatter;
-import org.bukkit.Bukkit;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -148,8 +148,8 @@ public class ReloadManager {
                 componentTimes.put("TimeFormatter", System.currentTimeMillis() - timeFormatterStart);
 
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
-                    plugin.callAllConfigurationsReloadHook();
-                }, task -> Bukkit.getScheduler().runTask(plugin, task));
+                    Schedulers.sync(() -> plugin.callAllConfigurationsReloadHook());
+                });
 
                 try {
                     hookFuture.get();
@@ -202,8 +202,8 @@ public class ReloadManager {
                 }
 
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
-                    plugin.callDatabaseReloadHook();
-                }, task -> Bukkit.getScheduler().runTask(plugin, task));
+                    Schedulers.sync(() -> plugin.callDatabaseReloadHook());
+                });
 
                 try {
                     hookFuture.get();
@@ -249,8 +249,8 @@ public class ReloadManager {
                 }
 
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
-                    plugin.callRedisReloadHook();
-                }, task -> Bukkit.getScheduler().runTask(plugin, task));
+                    Schedulers.sync(() -> plugin.callRedisReloadHook());
+                });
 
                 try {
                     hookFuture.get();
@@ -269,8 +269,8 @@ public class ReloadManager {
                 e.printStackTrace();
 
                 CompletableFuture<Void> errorHookFuture = CompletableFuture.runAsync(() -> {
-                    plugin.callRedisReloadHook();
-                }, task -> Bukkit.getScheduler().runTask(plugin, task));
+                    Schedulers.sync(() -> plugin.callRedisReloadHook());
+                });
 
                 try {
                     errorHookFuture.get();
@@ -294,13 +294,13 @@ public class ReloadManager {
                 long pluginStart = System.currentTimeMillis();
                 CompletableFuture<Boolean> pluginFuture = CompletableFuture.supplyAsync(() -> {
                     try {
-                        plugin.callPluginReloadHook();
+                        Schedulers.sync(() -> plugin.callPluginReloadHook());
                         return true;
                     } catch (Exception e) {
                         logInternalError("Error en reload personalizado: " + e.getMessage());
                         return false;
                     }
-                }, task -> Bukkit.getScheduler().runTask(plugin, task));
+                });
 
                 Boolean success = pluginFuture.get();
 

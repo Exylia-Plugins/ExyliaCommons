@@ -1,6 +1,7 @@
 package net.exylia.commons.ui.menus;
 
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.core.InventorySnapshot;
 import net.exylia.commons.ui.core.Menu;
@@ -246,7 +247,7 @@ public class FullInventoryMenu extends Menu {
     private void restorePlayerInventory(Player player) {
         InventorySnapshot snapshot = playerSnapshots.get(player.getUniqueId());
         if (snapshot != null) {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            Schedulers.sync(() -> {
                 snapshot.restore(player);
             });
         }

@@ -3,6 +3,7 @@ package net.exylia.commons.simpleredis;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -438,11 +439,11 @@ public class SimpleRedis {
     }
 
     public void runSync(Runnable task) {
-        Bukkit.getScheduler().runTask(plugin, task);
+        Schedulers.sync(task);
     }
 
     public void runAsync(Runnable task) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, task);
+        Schedulers.async(task);
     }
 
     Plugin getPlugin() {

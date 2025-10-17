@@ -1,5 +1,6 @@
 package net.exylia.commons.item.expiration;
 
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.item.InteractiveItem;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,12 +24,11 @@ public class ExpirationListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-         
+
         if (expirationManager != null && expirationManager.isEnabled()) {
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
+            Schedulers.syncLater(
                 () -> expirationManager.checkPlayerInventoryForExpiredItems(event.getPlayer()),
-                20L  
+                20L
             );
         }
     }
@@ -73,15 +73,14 @@ public class ExpirationListener implements Listener {
         if (item == null) return;
 
         if (InteractiveItem.hasExpirationTime(item) && InteractiveItem.isItemStackExpired(item)) {
-             
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
+
+            Schedulers.syncLater(
                 () -> {
                     if (expirationManager != null) {
                         expirationManager.checkPlayerInventoryForExpiredItems(player);
                     }
                 },
-                1L  
+                1L
             );
         }
 
@@ -94,14 +93,13 @@ public class ExpirationListener implements Listener {
     @EventHandler
     public void onInventoryOpen(InventoryOpenEvent event) {
         if (!(event.getPlayer() instanceof Player)) return;
-        
+
         Player player = (Player) event.getPlayer();
-        
+
         if (expirationManager != null && expirationManager.isUpdatePlaceholders()) {
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                org.bukkit.Bukkit.getPluginManager().getPlugin("ExyliaCommons"),  
+            Schedulers.syncLater(
                 () -> expirationManager.updatePlaceholdersForPlayer(player),
-                3L  
+                3L
             );
         }
     }

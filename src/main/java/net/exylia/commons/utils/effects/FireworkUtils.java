@@ -1,5 +1,6 @@
 package net.exylia.commons.utils.effects;
 
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Location;
@@ -79,7 +80,7 @@ public class FireworkUtils {
             if (org.bukkit.Bukkit.isPrimaryThread()) {
                 fireworkTask.run();
             } else {
-                org.bukkit.Bukkit.getScheduler().runTask(net.exylia.commons.ExyliaPlugin.getInstance(), fireworkTask);
+                Schedulers.sync(fireworkTask);
             }
 
             return true;

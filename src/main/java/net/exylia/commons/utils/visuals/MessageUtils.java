@@ -1,5 +1,6 @@
 package net.exylia.commons.utils.visuals;
 
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.effects.FireworkUtils;
@@ -478,8 +479,7 @@ public class MessageUtils {
         if (bossBar == null) return null;
         showPlayerBossBar(player, bossBar);
 
-        Bukkit.getScheduler().runTaskLater(
-                Bukkit.getPluginManager().getPlugins()[0],
+        Schedulers.syncLater(
                 () -> hidePlayerBossBar(player, bossBar),
                 seconds * 20L
         );
@@ -493,8 +493,7 @@ public class MessageUtils {
         if (bossBar == null) return null;
         showPlayersBossBar(bossBar);
 
-        Bukkit.getScheduler().runTaskLater(
-                Bukkit.getPluginManager().getPlugins()[0],
+        Schedulers.syncLater(
                 () -> hidePlayersBossBar(bossBar),
                 seconds * 20L
         );
@@ -610,10 +609,10 @@ public class MessageUtils {
         long iterations = durationTicks / intervalTicks;
 
         for (long i = 0; i < iterations; i++) {
-            Bukkit.getScheduler().runTaskLater(
-                    Bukkit.getPluginManager().getPlugins()[0],
+            final long delay = i * intervalTicks;
+            Schedulers.syncLater(
                     () -> sendMessage(player, component),
-                    i * intervalTicks
+                    delay
             );
         }
     }
@@ -625,10 +624,10 @@ public class MessageUtils {
         long iterations = durationTicks / intervalTicks;
 
         for (long i = 0; i < iterations; i++) {
-            Bukkit.getScheduler().runTaskLater(
-                    Bukkit.getPluginManager().getPlugins()[0],
+            final long delay = i * intervalTicks;
+            Schedulers.syncLater(
                     () -> sendActionBar(player, component),
-                    i * intervalTicks
+                    delay
             );
         }
     }
@@ -646,16 +645,15 @@ public class MessageUtils {
 
         for (long i = 1; i <= iterations; i++) {
             final float progress = decreasing ? (1.0f - (progressChange * i)) : (progressChange * i);
+            final long delay = i * updateInterval;
 
-            Bukkit.getScheduler().runTaskLater(
-                    Bukkit.getPluginManager().getPlugins()[0],
+            Schedulers.syncLater(
                     () -> bossBar.progress(Math.max(0, Math.min(1, progress))),
-                    i * updateInterval
+                    delay
             );
         }
 
-        Bukkit.getScheduler().runTaskLater(
-                Bukkit.getPluginManager().getPlugins()[0],
+        Schedulers.syncLater(
                 () -> hidePlayerBossBar(player, bossBar),
                 durationTicks + 5
         );
@@ -680,10 +678,10 @@ public class MessageUtils {
         for (int i = 0; i < messages.size(); i++) {
             final String message = messages.get(i);
             if (message != null && !message.trim().isEmpty()) {
-                Bukkit.getScheduler().runTaskLater(
-                        Bukkit.getPluginManager().getPlugins()[0],
+                final long delay = i * delayBetweenMessages;
+                Schedulers.syncLater(
                         () -> sendMessage(player, message),
-                        i * delayBetweenMessages
+                        delay
                 );
             }
         }
@@ -696,10 +694,10 @@ public class MessageUtils {
         for (int i = 0; i < titles.size(); i++) {
             final Pair<String, String> title = titles.get(i);
             if (title != null && ((title.key() != null && !title.key().trim().isEmpty()) || (title.value() != null && !title.value().trim().isEmpty()))) {
-                Bukkit.getScheduler().runTaskLater(
-                        Bukkit.getPluginManager().getPlugins()[0],
+                final long delay = i * totalDelay;
+                Schedulers.syncLater(
                         () -> sendTitle(player, title.key(), title.value(), fadeIn, stay, fadeOut),
-                        i * totalDelay
+                        delay
                 );
             }
         }

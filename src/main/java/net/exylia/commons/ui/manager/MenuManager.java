@@ -1,6 +1,7 @@
 package net.exylia.commons.ui.manager;
 
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
@@ -149,7 +150,7 @@ public class MenuManager implements Listener {
     }
 
     private void handleEditableSlotClick(InventoryClickEvent event, EditableMenu menu, int slot) {
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             syncEditableSlotState(menu, slot);
         }, 1L);
     }
@@ -251,7 +252,7 @@ public class MenuManager implements Listener {
             if (!menu.isAllowPlayerInventoryInteraction()) {
                 event.setCancelled(true);
             } else {
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                Schedulers.syncLater(() -> {
                     syncFullInventorySlotState(menu, slot);
                 }, 1L);
             }
@@ -336,7 +337,7 @@ public class MenuManager implements Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             for (int rawSlot : event.getRawSlots()) {
                 if (rawSlot >= topSize) {
                     int playerSlot = menu.convertToPlayerSlot(rawSlot);
@@ -368,7 +369,7 @@ public class MenuManager implements Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             for (int slot : event.getRawSlots()) {
                 if (slot < topSize && menu.isSlotEditable(slot)) {
                     syncEditableSlotState(menu, slot);

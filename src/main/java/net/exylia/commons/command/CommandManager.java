@@ -1,5 +1,6 @@
 package net.exylia.commons.command;
 
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -54,9 +55,9 @@ public class CommandManager {
                 retryCount.put(cmdName, currentRetries + 1);
                 logInternalWarn("Reintentando registro de " + cmdName + " (intento " + (currentRetries + 1) + "/" + maxRetries + ")");
 
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                Schedulers.syncLater(() -> {
                     registerCommand(command);
-                }, 20L * (currentRetries + 1));  
+                }, 20L * (currentRetries + 1));
 
                 return false;
             } else {
@@ -92,21 +93,21 @@ public class CommandManager {
     }
 
     private void scheduleVerification(ExyliaCommand command) {
-         
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+
+        Schedulers.syncLater(() -> {
             if (!command.isRegistered()) {
                 logInternalError("Verificación post-registro falló para " + command.getName());
-                 
+
                 if (retryCount.getOrDefault(command.getName().toLowerCase(), 0) < maxRetries) {
                     logInternalInfo("Iniciando re-registro automático para " + command.getName());
                     registerCommand(command);
                 }
             }
-        }, 40L);  
+        }, 40L);
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             verifyPlayerAccess(command);
-        }, 100L);  
+        }, 100L);
     }
 
     private void verifyPlayerAccess(ExyliaCommand command) {
@@ -120,11 +121,11 @@ public class CommandManager {
                 try {
                     player.updateCommands();
                 } catch (Exception e) {
-                    player.sendMessage("");  
+                    player.sendMessage("");
                 }
             }
 
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Schedulers.syncLater(() -> {
                 boolean accessible = testCommandAccessibility(command);
                 if (!accessible) {
                     logInternalWarn("Comando " + command.getName() + " no accesible para jugadores, forzando sincronización completa...");
@@ -160,25 +161,25 @@ public class CommandManager {
             int delay = 0;
             for (ExyliaCommand command : commands.values()) {
                 final int currentDelay = delay;
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                Schedulers.syncLater(() -> {
                     try {
                         command.unregister();
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        Schedulers.syncLater(() -> {
                             attemptRegistration(command);
                         }, 2L);
                     } catch (Exception e) {
                         logInternalError("Error en sincronización global para " + command.getName());
                     }
                 }, currentDelay);
-                delay += 3;  
+                delay += 3;
             }
 
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Schedulers.syncLater(() -> {
                 for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                     try {
                         player.updateCommands();
                     } catch (Exception e) {
-                         
+
                     }
                 }
                 logInternalInfo("Sincronización global completada");
@@ -294,8 +295,8 @@ public class CommandManager {
             }
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-             
+        Schedulers.syncLater(() -> {
+
             for (ExyliaCommand command : new ArrayList<>(commands.values())) {
                 try {
                     if (attemptRegistration(command)) {
@@ -356,30 +357,30 @@ public class CommandManager {
     public void emergencyCommandSync() {
         logInternalInfo("Iniciando sincronización de emergencia de comandos...");
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Schedulers.sync(() -> {
             try {
-                 
+
                 for (ExyliaCommand command : commands.values()) {
                     command.unregister();
                 }
 
-                System.gc();  
+                System.gc();
 
                 AtomicInteger delay = new AtomicInteger(5);
                 for (ExyliaCommand command : commands.values()) {
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    Schedulers.syncLater(() -> {
                         attemptRegistration(command);
 
-                        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        Schedulers.syncLater(() -> {
                             for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                                 try {
                                     player.updateCommands();
                                 } catch (Exception e) {
                                     try {
-                                         
-                                        player.performCommand("help");  
+
+                                        player.performCommand("help");
                                     } catch (Exception ex) {
-                                         
+
                                         player.sendMessage("§aComandos actualizados. Si tienes problemas, usa §e/" +
                                                 plugin.getName().toLowerCase() + ":" + command.getName());
                                     }
@@ -390,7 +391,7 @@ public class CommandManager {
                     }, delay.getAndAdd(10));
                 }
 
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                Schedulers.syncLater(() -> {
                     CommandVerificationResult result = verifyAllCommands();
                     logInternalInfo("Sincronización de emergencia completada: " + result);
 

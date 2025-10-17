@@ -1,5 +1,6 @@
 package net.exylia.commons.item.handlers;
 
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.configSimple.Messages;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
@@ -200,7 +201,7 @@ public class ItemInteractionHandler {
             if (interactiveItem.hasForceId()) {
                 Material material = itemStack.getType();
 
-                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                Schedulers.syncLater(() -> {
                     player.setCooldown(material, (int) (cooldownSeconds * 20));
                 }, 1);
 
@@ -213,7 +214,7 @@ public class ItemInteractionHandler {
 
         boolean hasUsesLeft = interactiveItem.consumeUse();
 
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        Schedulers.sync(() -> {
             if (hasUsesLeft) {
                  
                 ItemStack currentItem = hand == EquipmentSlot.HAND ?
@@ -350,7 +351,7 @@ public class ItemInteractionHandler {
         }
 
         if (!actionExecuted && !interactiveItem.getCommands().isEmpty()) {
-            Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
+            Schedulers.sync(() -> interactiveItem.executeCommands(player));
         }
 
         if (interactiveItem.clickHandler() != null) {
@@ -369,7 +370,7 @@ public class ItemInteractionHandler {
         }
 
         if (!actionExecuted && !interactiveItem.getCommands().isEmpty()) {
-            Bukkit.getScheduler().runTask(plugin, () -> interactiveItem.executeCommands(player));
+            Schedulers.sync(() -> interactiveItem.executeCommands(player));
         }
 
         if (interactiveItem.clickHandler() != null) {

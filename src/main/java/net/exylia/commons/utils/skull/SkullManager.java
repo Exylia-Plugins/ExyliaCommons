@@ -7,6 +7,8 @@ import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import lombok.Getter;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -219,7 +221,7 @@ public class SkullManager {
             if (name != null && !name.isEmpty()) {
                 int delay = i * 50;
                 if (plugin != null) {
-                    Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+                    Schedulers.asyncLater(() -> {
                         createPlayerSkullAsync(name);
                     }, delay / 50L);
                 } else {
@@ -414,16 +416,14 @@ public class SkullManager {
     void startCleanupTask() {
         if (plugin == null) return;
 
-        Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, () -> {
-             
+        Schedulers.asyncTimer(() -> {
             textureCache.entrySet().removeIf(entry -> entry.getValue().isExpired());
-             
             if (textureCache.size() > MAX_CACHE_SIZE) {
                 textureCache.entrySet().stream()
                         .limit(textureCache.size() - MAX_CACHE_SIZE)
                         .forEach(entry -> textureCache.remove(entry.getKey()));
             }
-            
+
             if (playerCache.size() > MAX_PLAYER_CACHE_SIZE) {
                 var entries = new ArrayList<>(playerCache.entrySet());
                 entries.stream()

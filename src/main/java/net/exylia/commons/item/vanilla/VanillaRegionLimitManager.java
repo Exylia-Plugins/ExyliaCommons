@@ -1,5 +1,6 @@
 package net.exylia.commons.item.vanilla;
 
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.item.vanilla.events.RegionLimitEvent;
 import net.exylia.commons.item.vanilla.events.RegionLimitEventType;
 import net.exylia.commons.utils.WorldGuardUtils;
@@ -168,7 +169,7 @@ public class VanillaRegionLimitManager implements Listener {
         }
 
         if (previousRegion != null && !previousRegions.contains(currentRegion)) {
-            Bukkit.getScheduler().runTask(plugin, () -> resetPlayerRegionUsage(player, previousRegion));
+            Schedulers.sync(() -> resetPlayerRegionUsage(player, previousRegion));
         }
     }
 
@@ -184,7 +185,7 @@ public class VanillaRegionLimitManager implements Listener {
     private void fireRegionLimitEvent(RegionLimitEventType eventType, UUID playerId,
                                       String regionName, Material material, int currentUsage, int maxUsage) {
         RegionLimitEvent event = new RegionLimitEvent(eventType, playerId, regionName, material, currentUsage, maxUsage);
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        Schedulers.async(() -> {
             Bukkit.getPluginManager().callEvent(event);
         });
     }

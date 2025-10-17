@@ -1,6 +1,8 @@
 package net.exylia.commons.region;
 
 import lombok.Getter;
+import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.async.ScheduledTask;
 import net.exylia.commons.region.blocks.AllowedBlocksManager;
 import net.exylia.commons.region.blocks.TemporaryBlocksManager;
 import net.exylia.commons.region.cloning.RegionCloner;
@@ -20,7 +22,6 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import net.exylia.commons.region.flags.FlagManager;
 import net.exylia.commons.region.regeneration.RegionRegenerationManager;
 import net.exylia.commons.region.blocks.PlayerBlockTracker;
@@ -59,7 +60,7 @@ public class RegionManager implements Listener {
 
     private RegionListener unifiedListener;
 
-    private BukkitRunnable cleanupTask;
+    private ScheduledTask cleanupTask;
 
     private RegionManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -114,7 +115,7 @@ public class RegionManager implements Listener {
         if (Bukkit.isPrimaryThread()) {
             Bukkit.getPluginManager().callEvent(createEvent);
         } else {
-            Bukkit.getScheduler().runTask(plugin, () -> {
+            Schedulers.sync(() -> {
                 Bukkit.getPluginManager().callEvent(createEvent);
             });
         }
@@ -581,18 +582,14 @@ public class RegionManager implements Listener {
             return;
         }
 
-        cleanupTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                 
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    regions.values().forEach(Region::cleanupOfflinePlayers);
-                }
+        cleanupTask = Schedulers.asyncTimer(() -> {
 
-                movementOptimizer.cleanupInactivePlayers();
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                regions.values().forEach(Region::cleanupOfflinePlayers);
             }
-        };
-        cleanupTask.runTaskTimerAsynchronously(plugin, 20L * 30, 20L * 30);  
+
+            movementOptimizer.cleanupInactivePlayers();
+        }, 20L * 30, 20L * 30);
     }
 
     private void stopCleanupTask() {

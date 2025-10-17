@@ -2,14 +2,14 @@ package net.exylia.commons.utils.visuals;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.config.components.TitleConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -41,7 +41,7 @@ public class TitleUtils {
 
         TitleInstance instance = new TitleInstance(titleId, config, enrichedContext);
 
-        BukkitTask task = executeTitle(player, instance);
+        ScheduledTask task = executeTitle(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -70,7 +70,7 @@ public class TitleUtils {
 
         TitleInstance instance = new TitleInstance(titleId, config, enrichedContext);
 
-        BukkitTask task = executeTitle(player, instance);
+        ScheduledTask task = executeTitle(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -104,7 +104,7 @@ public class TitleUtils {
 
         CountdownTitleInstance instance = new CountdownTitleInstance(titleId, countdownConfig, enrichedContext, durationTicks);
 
-        BukkitTask task = executeCountdownTitle(player, instance);
+        ScheduledTask task = executeCountdownTitle(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -125,10 +125,10 @@ public class TitleUtils {
         return sendCountdownTitle(player, generateTitleId(), config, durationSeconds * 20L, ExyliaContext.create());
     }
 
-    private static BukkitTask executeCountdownTitle(Player player, CountdownTitleInstance instance) {
+    private static ScheduledTask executeCountdownTitle(Player player, CountdownTitleInstance instance) {
         TitleConfig config = instance.getConfig();
 
-        return new BukkitRunnable() {
+        return Schedulers.syncTimer(new Runnable() {
             private long ticksRemaining = instance.getDurationTicks();
             private long updateCount = 0;
 
@@ -136,11 +136,14 @@ public class TitleUtils {
             public void run() {
                 if (!player.isOnline()) {
                     removeTitleInstance(player, instance.getId());
-                    cancel();
+                    TitleInstance inst = getTitleInstance(player, instance.getId());
+                    if (inst != null && inst.getTask() != null) {
+                        inst.getTask().cancel();
+                    }
                     return;
                 }
 
-                long secondsRemaining = (ticksRemaining + 19) / 20;  
+                long secondsRemaining = (ticksRemaining + 19) / 20;
 
                 ExyliaContext currentContext = instance.getContext().copy()
                         .put("time", secondsRemaining)
@@ -160,21 +163,22 @@ public class TitleUtils {
                 updateCount++;
 
                 if (ticksRemaining < 0) {
-                     
                     if (instance.getOnComplete() != null) {
                         try {
                             instance.getOnComplete().run();
                         } catch (Exception e) {
-                             
                             logInternalWarn("Error ejecutando callback de countdown: " + e.getMessage());
                         }
                     }
 
                     removeTitleInstance(player, instance.getId());
-                    cancel();
+                    TitleInstance inst = getTitleInstance(player, instance.getId());
+                    if (inst != null && inst.getTask() != null) {
+                        inst.getTask().cancel();
+                    }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 1L);  
+        }, 0L, 1L);
     }
 
     @Getter
@@ -263,19 +267,21 @@ public class TitleUtils {
                 .collect(Collectors.toSet());
     }
 
-    private static BukkitTask executeTitle(Player player, TitleInstance instance) {
+    private static ScheduledTask executeTitle(Player player, TitleInstance instance) {
         TitleConfig config = instance.getConfig();
 
         if (config.isPermanent()) {
-             
-            return new BukkitRunnable() {
+            return Schedulers.syncTimer(new Runnable() {
                 private long updateCount = 0;
 
                 @Override
                 public void run() {
                     if (!player.isOnline()) {
                         removeTitleInstance(player, instance.getId());
-                        cancel();
+                        TitleInstance inst = getTitleInstance(player, instance.getId());
+                        if (inst != null && inst.getTask() != null) {
+                            inst.getTask().cancel();
+                        }
                         return;
                     }
 
@@ -292,9 +298,8 @@ public class TitleUtils {
 
                     updateCount++;
                 }
-            }.runTaskTimer(plugin, 0L, config.getUpdateInterval());
+            }, 0L, config.getUpdateInterval());
         } else {
-             
             String processedTitle = processPlaceholders(config.getTitle(), player, instance.getContext());
             String processedSubtitle = processPlaceholders(config.getSubtitle(), player, instance.getContext());
 
@@ -302,7 +307,7 @@ public class TitleUtils {
                     config.getFadeIn(), config.getStay(), config.getFadeOut());
 
             long totalTime = config.getFadeIn() + config.getStay() + config.getFadeOut() + 10;
-            return Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            return Schedulers.syncLater(() -> {
                 removeTitleInstance(player, instance.getId());
             }, totalTime);
         }
@@ -314,7 +319,7 @@ public class TitleUtils {
         private final TitleConfig config;
         private ExyliaContext context;
         @Setter
-        private BukkitTask task;
+        private ScheduledTask task;
         private final long createdAt;
 
         TitleInstance(String id, TitleConfig config, ExyliaContext context) {

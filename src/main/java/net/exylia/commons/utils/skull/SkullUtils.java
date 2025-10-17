@@ -1,5 +1,6 @@
 package net.exylia.commons.utils.skull;
 
+import net.exylia.commons.async.Schedulers;
 import org.bukkit.inventory.ItemStack;
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
@@ -24,7 +25,7 @@ public class SkullUtils {
 
     public static void acceptSyncPlayerSkull(String playerName, java.util.function.Consumer<ItemStack> consumer) {
         SkullManager.getInstance().createPlayerSkullAsync(playerName).thenAccept(skull ->
-                org.bukkit.Bukkit.getScheduler().runTask(SkullManager.getPlugin(), () -> consumer.accept(skull))
+                Schedulers.sync(() -> consumer.accept(skull))
         );
     }
 

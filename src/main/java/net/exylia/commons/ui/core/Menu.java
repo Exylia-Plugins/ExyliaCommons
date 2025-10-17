@@ -2,6 +2,8 @@ package net.exylia.commons.ui.core;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.async.ScheduledTask;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
@@ -12,7 +14,6 @@ import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.effects.SoundUtils;
 import net.exylia.commons.utils.versions.InventoryAdapter;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -55,7 +56,7 @@ public class Menu {
     protected boolean dynamicUpdates = false;
     protected JavaPlugin plugin = ExyliaPlugin.getInstance();
     protected long updateInterval = 20L;
-    protected int updateTaskId = -1;
+    protected ScheduledTask updateTask = null;
 
     @Getter
     protected boolean autoRefreshOnClick = true;  
@@ -429,10 +430,9 @@ public class Menu {
     }
 
     protected void startUpdates() {
-        if (!dynamicUpdates || plugin == null || updateTaskId != -1) return;
+        if (!dynamicUpdates || plugin == null || updateTask != null) return;
 
-        updateTaskId = Bukkit.getScheduler().scheduleSyncRepeatingTask(
-                plugin,
+        updateTask = Schedulers.syncTimer(
                 this::updateDynamicItems,
                 updateInterval,
                 updateInterval
@@ -440,9 +440,9 @@ public class Menu {
     }
 
     protected void stopUpdates() {
-        if (updateTaskId != -1) {
-            Bukkit.getScheduler().cancelTask(updateTaskId);
-            updateTaskId = -1;
+        if (updateTask != null) {
+            updateTask.cancel();
+            updateTask = null;
         }
     }
 
@@ -511,7 +511,7 @@ public class Menu {
             item.handleClick(event);
         }
 
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+        Schedulers.syncLater(() -> {
             performAutoRefresh(event.getSlot());
         }, 1);
     }

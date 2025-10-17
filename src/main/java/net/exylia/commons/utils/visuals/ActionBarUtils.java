@@ -2,14 +2,14 @@ package net.exylia.commons.utils.visuals;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.config.components.ActionBarConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -40,7 +40,7 @@ public class ActionBarUtils {
 
         ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
 
-        BukkitTask task = executeActionBar(player, instance);
+        ScheduledTask task = executeActionBar(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -69,7 +69,7 @@ public class ActionBarUtils {
 
         ActionBarInstance instance = new ActionBarInstance(actionBarId, config, enrichedContext);
 
-        BukkitTask task = executeActionBar(player, instance);
+        ScheduledTask task = executeActionBar(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -100,7 +100,7 @@ public class ActionBarUtils {
 
         CountdownActionBarInstance instance = new CountdownActionBarInstance(actionBarId, countdownConfig, enrichedContext, durationTicks);
 
-        BukkitTask task = executeCountdownActionBar(player, instance);
+        ScheduledTask task = executeCountdownActionBar(player, instance);
         if (task != null) {
             instance.setTask(task);
         }
@@ -121,10 +121,10 @@ public class ActionBarUtils {
         return sendCountdownActionBar(player, generateActionBarId(), config, durationSeconds * 20L, ExyliaContext.create());
     }
 
-    private static BukkitTask executeCountdownActionBar(Player player, CountdownActionBarInstance instance) {
+    private static ScheduledTask executeCountdownActionBar(Player player, CountdownActionBarInstance instance) {
         ActionBarConfig config = instance.getConfig();
 
-        return new BukkitRunnable() {
+        return Schedulers.syncTimer(new Runnable() {
             private long ticksRemaining = instance.getDurationTicks();
             private long updateCount = 0;
 
@@ -132,11 +132,14 @@ public class ActionBarUtils {
             public void run() {
                 if (!player.isOnline()) {
                     removeActionBarInstance(player, instance.getId());
-                    cancel();
+                    ActionBarInstance inst = getActionBarInstance(player, instance.getId());
+                    if (inst != null && inst.getTask() != null) {
+                        inst.getTask().cancel();
+                    }
                     return;
                 }
 
-                long secondsRemaining = (ticksRemaining + 19) / 20;  
+                long secondsRemaining = (ticksRemaining + 19) / 20;
 
                 ExyliaContext currentContext = instance.getContext().copy()
                         .put("time", secondsRemaining)
@@ -153,7 +156,6 @@ public class ActionBarUtils {
                 updateCount++;
 
                 if (ticksRemaining < 0) {
-                     
                     if (instance.getOnComplete() != null) {
                         try {
                             instance.getOnComplete().run();
@@ -163,10 +165,13 @@ public class ActionBarUtils {
                     }
 
                     removeActionBarInstance(player, instance.getId());
-                    cancel();
+                    ActionBarInstance inst = getActionBarInstance(player, instance.getId());
+                    if (inst != null && inst.getTask() != null) {
+                        inst.getTask().cancel();
+                    }
                 }
             }
-        }.runTaskTimer(plugin, 0L, 1L);  
+        }, 0L, 1L);
     }
 
     @Getter
@@ -255,19 +260,21 @@ public class ActionBarUtils {
                 .collect(Collectors.toSet());
     }
 
-    private static BukkitTask executeActionBar(Player player, ActionBarInstance instance) {
+    private static ScheduledTask executeActionBar(Player player, ActionBarInstance instance) {
         ActionBarConfig config = instance.getConfig();
 
         if (config.isPermanent()) {
-             
-            return new BukkitRunnable() {
+            return Schedulers.syncTimer(new Runnable() {
                 private long updateCount = 0;
 
                 @Override
                 public void run() {
                     if (!player.isOnline()) {
                         removeActionBarInstance(player, instance.getId());
-                        cancel();
+                        ActionBarInstance inst = getActionBarInstance(player, instance.getId());
+                        if (inst != null && inst.getTask() != null) {
+                            inst.getTask().cancel();
+                        }
                         return;
                     }
 
@@ -281,15 +288,14 @@ public class ActionBarUtils {
 
                     updateCount++;
                 }
-            }.runTaskTimer(plugin, 0L, config.getUpdateInterval());
+            }, 0L, config.getUpdateInterval());
         } else {
-             
             String processedText = processPlaceholders(config.getText(), player, instance.getContext());
             MessageUtils.sendActionBar(player, processedText);
 
-            return Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            return Schedulers.syncLater(() -> {
                 removeActionBarInstance(player, instance.getId());
-            }, 60L);  
+            }, 60L);
         }
     }
 
@@ -299,7 +305,7 @@ public class ActionBarUtils {
         private final ActionBarConfig config;
         private ExyliaContext context;
         @Setter
-        private BukkitTask task;
+        private ScheduledTask task;
         private final long createdAt;
 
         ActionBarInstance(String id, ActionBarConfig config, ExyliaContext context) {

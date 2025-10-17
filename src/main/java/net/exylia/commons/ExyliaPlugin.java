@@ -14,6 +14,7 @@ import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.SunLicenseUtil;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.redis.RedisIntegration;
+import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.utils.*;
 import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.visuals.ActionBarUtils;
@@ -76,7 +77,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             }
             api.validate();
 
-            Bukkit.getScheduler().runTask(this, this::enablePlugin);
+            SchedulerManager.getInstance().runTask(this::enablePlugin);
         } catch (Exception e) {
             DebugUtils.logInternalError("License validation failed: " + e.getMessage());
             DebugUtils.logInternalError("You need support? Join our Discord: https://discord.exylia.net/");
@@ -188,7 +189,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     protected abstract void onExyliaDisable();
 
-    protected abstract Class<? extends ConfigBase>[] getConfigurationClasses();
+    protected Class<? extends ConfigBase>[] getConfigurationClasses() {
+        return new Class[0];
+    };
 
     protected Map<String, String> getCustomColorPresets() {
         return new LinkedHashMap<>();
@@ -206,7 +209,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         ReloadResult.sendStartMessage(sender);
         return reloadManager.reloadAllAsync()
                 .thenApply(result -> {
-                    org.bukkit.Bukkit.getScheduler().runTask(this, () ->
+                    SchedulerManager.getInstance().runTask(() ->
                         ReloadResult.sendDetailedReloadResult(sender, result));
                     return result;
                 });
@@ -220,7 +223,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         ReloadResult.sendStartMessage(sender);
         return reloadManager.reloadAllAsync(timeoutSeconds)
                 .thenApply(result -> {
-                    org.bukkit.Bukkit.getScheduler().runTask(this, () ->
+                    SchedulerManager.getInstance().runTask(() ->
                         ReloadResult.sendDetailedReloadResult(sender, result));
                     return result;
                 });
@@ -305,6 +308,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     private void initializeExylia() {
         try {
+            SchedulerManager.initialize(this);
             ConfigInitializer.init(this);
             PlaceholderSystemManager.initialize(this);
             AdapterFactory.initialize(this);
@@ -353,6 +357,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     private void shutdownExylia() {
+        if (SchedulerManager.isInitialized()) {
+            SchedulerManager.getInstance().shutdown();
+        }
         if (DatabaseManager.getInstance() != null) {
             DatabaseManager.getInstance().shutdown();
         }
