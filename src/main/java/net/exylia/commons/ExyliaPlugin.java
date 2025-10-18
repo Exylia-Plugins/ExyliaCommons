@@ -54,13 +54,13 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onEnable() {
         onPreExyliaEnable();
+        initializeExylia();
         try {
             this.adventure = BukkitAudiences.create(this);
             this.reloadManager = new ReloadManager(this);
             registeredPlugins.add(this);
 
             if (!initialized) {
-                initializeExylia();
                 instance = this;
                 initialized = true;
             }
@@ -308,8 +308,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     private void initializeExylia() {
         try {
-            SchedulerManager.initialize(this);
             ConfigInitializer.init(this);
+            SchedulerManager.initialize(this);
             PlaceholderSystemManager.initialize(this);
             AdapterFactory.initialize(this);
             ActionBarUtils.init(this);

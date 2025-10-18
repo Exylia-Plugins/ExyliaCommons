@@ -33,14 +33,14 @@ public class FoliaSchedulerAdapter implements SchedulerAdapter {
 
     @Override
     public ScheduledTask runTaskLater(Plugin plugin, Runnable task, long delay, TimeUnit timeUnit) {
-        long ticks = timeUnit.toMillis(delay) / 50;
+        long ticks = Math.max(1, timeUnit.toMillis(delay) / 50);
         return new FoliaScheduledTask(globalScheduler.runDelayed(plugin, scheduledTask -> task.run(), ticks), plugin);
     }
 
     @Override
     public ScheduledTask runTaskTimer(Plugin plugin, Runnable task, long delay, long period, TimeUnit timeUnit) {
-        long delayTicks = timeUnit.toMillis(delay) / 50;
-        long periodTicks = timeUnit.toMillis(period) / 50;
+        long delayTicks = Math.max(1, timeUnit.toMillis(delay) / 50);
+        long periodTicks = Math.max(1, timeUnit.toMillis(period) / 50);
         return new FoliaScheduledTask(
             globalScheduler.runAtFixedRate(plugin, scheduledTask -> task.run(), delayTicks, periodTicks),
             plugin
@@ -78,7 +78,7 @@ public class FoliaSchedulerAdapter implements SchedulerAdapter {
 
     @Override
     public ScheduledTask runAtLocationLater(Plugin plugin, Location location, Runnable task, long delay, TimeUnit timeUnit) {
-        long ticks = timeUnit.toMillis(delay) / 50;
+        long ticks = Math.max(1, timeUnit.toMillis(delay) / 50);
         return new FoliaScheduledTask(
             regionScheduler.runDelayed(plugin, location, scheduledTask -> task.run(), ticks),
             plugin
@@ -95,7 +95,7 @@ public class FoliaSchedulerAdapter implements SchedulerAdapter {
 
     @Override
     public ScheduledTask runAtEntityLater(Plugin plugin, Entity entity, Runnable task, long delay, TimeUnit timeUnit) {
-        long ticks = timeUnit.toMillis(delay) / 50;
+        long ticks = Math.max(1, timeUnit.toMillis(delay) / 50);
         return new FoliaScheduledTask(
             entity.getScheduler().runDelayed(plugin, scheduledTask -> task.run(), null, ticks),
             plugin
