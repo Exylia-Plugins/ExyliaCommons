@@ -689,6 +689,8 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
+                    } else if (value instanceof java.util.UUID) {
+                        value = value.toString();
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -898,6 +900,11 @@ public class YAMLAdapter implements DatabaseAdapter {
                     return value;
                 }
                 return Boolean.valueOf(value.toString());
+            } else if (targetType == java.util.UUID.class) {
+                if (value instanceof String) {
+                    return java.util.UUID.fromString((String) value);
+                }
+                return java.util.UUID.fromString(value.toString());
             } else if (targetType.isEnum() && value instanceof String) {
                 @SuppressWarnings("unchecked")
                 Class<Enum> enumClass = (Class<Enum>) targetType;

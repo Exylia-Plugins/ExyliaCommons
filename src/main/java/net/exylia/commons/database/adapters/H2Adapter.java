@@ -1028,6 +1028,8 @@ public class H2Adapter implements DatabaseAdapter {
 
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
+                    } else if (value instanceof java.util.UUID) {
+                        value = value.toString();
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -1071,6 +1073,8 @@ public class H2Adapter implements DatabaseAdapter {
 
                     if (value != null && value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
+                    } else if (value instanceof java.util.UUID) {
+                        value = value.toString();
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -1271,8 +1275,9 @@ public class H2Adapter implements DatabaseAdapter {
             return "BOOLEAN";
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "TIMESTAMP";
+        } else if (javaType == java.util.UUID.class) {
+            return "CHAR(36)";
         } else {
-             
             return "TEXT";
         }
     }
@@ -1318,6 +1323,11 @@ public class H2Adapter implements DatabaseAdapter {
                     return value;
                 }
                 return Boolean.valueOf(value.toString());
+            } else if (targetType == java.util.UUID.class) {
+                if (value instanceof String) {
+                    return java.util.UUID.fromString((String) value);
+                }
+                return java.util.UUID.fromString(value.toString());
             } else if (targetType.isEnum() && value instanceof String) {
                 @SuppressWarnings("unchecked")
                 Class<Enum> enumClass = (Class<Enum>) targetType;

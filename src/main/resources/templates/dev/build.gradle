@@ -10,7 +10,7 @@ def fullPackage = "${mainPackage}.nombreDelPlugin"
 def outputDirectory = "target/"
 
 group = mainPackage
-version = '1.0.3'
+version = '1.0.0'
 
 repositories {
     mavenCentral()

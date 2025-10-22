@@ -1055,7 +1055,9 @@ public class MySQLAdapter implements DatabaseAdapter {
                     }
 
                     if (value != null && value.getClass().isEnum()) {
-                        value = ((Enum<?>) value).name();  
+                        value = ((Enum<?>) value).name();
+                    } else if (value instanceof java.util.UUID) {
+                        value = value.toString();
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -1227,9 +1229,11 @@ public class MySQLAdapter implements DatabaseAdapter {
         } else if (javaType == float.class || javaType == Float.class) {
             return "FLOAT";
         } else if (javaType == boolean.class || javaType == Boolean.class) {
-            return "TINYINT(1)";  
+            return "TINYINT(1)";
         } else if (javaType == Date.class || javaType == java.sql.Date.class) {
             return "DATETIME";
+        } else if (javaType == java.util.UUID.class) {
+            return "CHAR(36)";
         } else {
             return "TEXT";
         }
@@ -1276,6 +1280,11 @@ public class MySQLAdapter implements DatabaseAdapter {
                     return ((Number) value).intValue() != 0;
                 }
                 return Boolean.valueOf(value.toString());
+            } else if (targetType == java.util.UUID.class) {
+                if (value instanceof String) {
+                    return java.util.UUID.fromString((String) value);
+                }
+                return java.util.UUID.fromString(value.toString());
             }
 
             return value;
@@ -1616,6 +1625,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                     if (value.getClass().isEnum()) {
                         value = ((Enum<?>) value).name();
                         map.put(columnName, value);
+                    } else if (value instanceof java.util.UUID) {
+                        map.put(columnName, value.toString());
                     } else if (column.autoSerialize()) {
                         try {
                             Object serialized = SerializationHelper.autoSerializeValue(value, field, column.serializationType());

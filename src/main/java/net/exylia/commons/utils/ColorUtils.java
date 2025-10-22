@@ -1,5 +1,6 @@
 package net.exylia.commons.utils;
 
+import lombok.Getter;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.configSimple.Configs;
 import net.kyori.adventure.text.Component;
@@ -36,8 +37,18 @@ public class ColorUtils {
     private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("&#([0-9a-fA-F]{6})");
     private static JavaPlugin pluginInstance;
     private static boolean presetsInitialized = false;
-    
+
     private static final Cache<String, String> PROCESSED_STRING_CACHE = new Cache<>(1800000, 300, 300000);
+
+    private static final Pattern STRIP_HEX_AMPERSAND = Pattern.compile("&#[0-9a-fA-F]{6}");
+    private static final Pattern STRIP_HEX_BRACKETS = Pattern.compile("<#[0-9a-fA-F]{6}>");
+    private static final Pattern STRIP_NAMED_COLORS = Pattern.compile("</?(?:black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|aqua|red|light_purple|yellow|white)>");
+    private static final Pattern STRIP_FORMATTING = Pattern.compile("</?(?:obfuscated|bold|strikethrough|underlined|italic|reset)>");
+    private static final Pattern STRIP_LEGACY_COLORS = Pattern.compile("&[0-9a-fA-FklmnoprKLMNOPR]");
+    private static final Pattern STRIP_SHORT_TAGS = Pattern.compile("</?(?:b|i|u|st|obf|r)>");
+    private static final Pattern STRIP_HEX_BRACES = Pattern.compile("\\{#[0-9a-fA-F]{6}[^}]*}");
+    private static final Pattern STRIP_PRESETS = Pattern.compile("\\{[a-zA-Z_][a-zA-Z0-9_]*\\}");
+    private static final Cache<String, String> STRIP_COLORS_CACHE = new Cache<>(1800000, 500, 300000);
     
     private static final Map<String, String> SMALL_FONT_MAP = new HashMap<>();
     private static final Map<String, String> FRAKTUR_FONT_MAP = new HashMap<>();
@@ -191,8 +202,6 @@ public class ColorUtils {
             config.set("gradient_error", "<gradient:#a33b53:#ff6b9d>");
 
             config.save(configFile);
-            logInternalInfo("ColorUtils: Archivo colors.yml creado con presets por defecto");
-
         } catch (IOException e) {
             if (pluginInstance != null) {
                 pluginInstance.getLogger().severe("ColorUtils: Error creando archivo colors.yml: " + e.getMessage());
@@ -363,25 +372,20 @@ public class ColorUtils {
             return "";
         }
 
-        message = message.replace('§', '&');
+        return STRIP_COLORS_CACHE.get(message, key -> {
+            String result = key.replace('§', '&');
 
-        message = message.replaceAll("&#[0-9a-fA-F]{6}", "");
+            result = STRIP_HEX_AMPERSAND.matcher(result).replaceAll("");
+            result = STRIP_HEX_BRACKETS.matcher(result).replaceAll("");
+            result = STRIP_NAMED_COLORS.matcher(result).replaceAll("");
+            result = STRIP_FORMATTING.matcher(result).replaceAll("");
+            result = STRIP_LEGACY_COLORS.matcher(result).replaceAll("");
+            result = STRIP_SHORT_TAGS.matcher(result).replaceAll("");
+            result = STRIP_HEX_BRACES.matcher(result).replaceAll("");
+            result = STRIP_PRESETS.matcher(result).replaceAll("");
 
-        message = message.replaceAll("<#[0-9a-fA-F]{6}>", "");
-
-        message = message.replaceAll("</?(?:black|dark_blue|dark_green|dark_aqua|dark_red|dark_purple|gold|gray|dark_gray|blue|green|aqua|red|light_purple|yellow|white)>", "");
-
-        message = message.replaceAll("</?(?:obfuscated|bold|strikethrough|underlined|italic|reset)>", "");
-
-        message = message.replaceAll("&[0-9a-fA-FklmnoprKLMNOPR]", "");
-
-        message = message.replaceAll("</?(?:b|i|u|st|obf|r)>", "");
-
-        message = message.replaceAll("\\{#[0-9a-fA-F]{6}[^}]*}", "");
-
-        message = message.replaceAll("\\{[a-zA-Z_][a-zA-Z0-9_]*\\}", "");
-
-        return message;
+            return result;
+        });
     }
     public static String stripColors(Component component) {
         if (component == null) {
@@ -432,6 +436,7 @@ public class ColorUtils {
 
     public static void clearCache() {
         COMPONENT_CACHE.clear();
+        STRIP_COLORS_CACHE.clear();
     }
 
     private static void initializeFontMaps() {
@@ -619,6 +624,7 @@ public class ColorUtils {
     public static void shutdown() {
         COMPONENT_CACHE.shutdown();
         PROCESSED_STRING_CACHE.shutdown();
+        STRIP_COLORS_CACHE.shutdown();
         colorPresets.clear();
         presetsInitialized = false;
         pluginInstance = null;
@@ -641,5 +647,134 @@ public class ColorUtils {
 
     private static boolean isTooDark(int red, int green, int blue) {
         return (red + green + blue) < 200;
+    }
+
+    public static String centerMessage(String message) {
+        if (message == null || message.isEmpty()) {
+            return message;
+        }
+
+       String processedMessage = parseToString(message.replace('§', '&'));
+
+
+        int messagePxSize = 0;
+        boolean isBold = false;
+
+        for (int i = 0; i < processedMessage.length(); i++) {
+            char c = processedMessage.charAt(i);
+
+            if (c == '<') {
+                int closeIndex = findMatchingCloseBracket(processedMessage, i);
+                if (closeIndex != -1) {
+                    String tagName = extractTagName(processedMessage.substring(i + 1, closeIndex)).toLowerCase();
+
+                    if (tagName.equals("bold") || tagName.equals("b")) {
+                        isBold = true;
+                    } else if (tagName.equals("/bold") || tagName.equals("/b") || tagName.equals("reset") || tagName.equals("r")) {
+                        isBold = false;
+                    }
+
+                    i = closeIndex;
+                    continue;
+                }
+            }
+
+            DefaultFontInfo dFI = DefaultFontInfo.getDefaultFontInfo(c);
+            messagePxSize += isBold ? dFI.getBoldLength() : dFI.getLength();
+            messagePxSize++;
+        }
+
+        int halvedMessageSize = messagePxSize / 2;
+        int toCompensate = 154 - halvedMessageSize;
+        int spaceLength = DefaultFontInfo.SPACE.getLength() + 1;
+        int compensated = 0;
+
+        StringBuilder sb = new StringBuilder();
+        while (compensated < toCompensate) {
+            sb.append(" ");
+            compensated += spaceLength;
+        }
+
+        return sb.toString() + message;
+    }
+
+    private static int findMatchingCloseBracket(String text, int openIndex) {
+        int depth = 0;
+        boolean inQuote = false;
+        char quoteChar = 0;
+
+        for (int i = openIndex; i < text.length(); i++) {
+            char c = text.charAt(i);
+
+            if ((c == '\'' || c == '"') && (i == 0 || text.charAt(i - 1) != '\\')) {
+                if (!inQuote) {
+                    inQuote = true;
+                    quoteChar = c;
+                } else if (c == quoteChar) {
+                    inQuote = false;
+                }
+            }
+
+            if (!inQuote) {
+                if (c == '<') {
+                    depth++;
+                } else if (c == '>') {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static String extractTagName(String tagContent) {
+        int colonIndex = tagContent.indexOf(':');
+        if (colonIndex != -1) {
+            return tagContent.substring(0, colonIndex);
+        }
+        return tagContent;
+    }
+
+    @Getter
+    private enum DefaultFontInfo {
+        A('A', 5), a('a', 5), B('B', 5), b('b', 5), C('C', 5), c('c', 5), D('D', 5), d('d', 5),
+        E('E', 5), e('e', 5), F('F', 5), f('f', 4), G('G', 5), g('g', 5), H('H', 5), h('h', 5),
+        I('I', 3), i('i', 1), J('J', 5), j('j', 5), K('K', 5), k('k', 4), L('L', 5), l('l', 1),
+        M('M', 5), m('m', 5), N('N', 5), n('n', 5), O('O', 5), o('o', 5), P('P', 5), p('p', 5),
+        Q('Q', 5), q('q', 5), R('R', 5), r('r', 5), S('S', 5), s('s', 5), T('T', 5), t('t', 4),
+        U('U', 5), u('u', 5), V('V', 5), v('v', 5), W('W', 5), w('w', 5), X('X', 5), x('x', 5),
+        Y('Y', 5), y('y', 5), Z('Z', 5), z('z', 5), NUM_1('1', 5), NUM_2('2', 5), NUM_3('3', 5),
+        NUM_4('4', 5), NUM_5('5', 5), NUM_6('6', 5), NUM_7('7', 5), NUM_8('8', 5), NUM_9('9', 5),
+        NUM_0('0', 5), EXCLAMATION_POINT('!', 1), AT_SYMBOL('@', 6), NUM_SIGN('#', 5),
+        DOLLAR_SIGN('$', 5), PERCENT('%', 5), UP_ARROW('^', 5), AMPERSAND('&', 5),
+        ASTERISK('*', 5), LEFT_PARENTHESIS('(', 4), RIGHT_PARENTHESIS(')', 4), MINUS('-', 5),
+        UNDERSCORE('_', 5), PLUS_SIGN('+', 5), EQUALS_SIGN('=', 5), LEFT_CURL_BRACE('{', 4),
+        RIGHT_CURL_BRACE('}', 4), LEFT_BRACKET('[', 3), RIGHT_BRACKET(']', 3), COLON(':', 1),
+        SEMI_COLON(';', 1), DOUBLE_QUOTE('"', 3), SINGLE_QUOTE('\'', 1), LEFT_ARROW('<', 4),
+        RIGHT_ARROW('>', 4), QUESTION_MARK('?', 5), SLASH('/', 5), BACK_SLASH('\\', 5),
+        LINE('|', 1), TILDE('~', 5), TICK('`', 2), PERIOD('.', 1), COMMA(',', 1),
+        SPACE(' ', 3), DEFAULT('a', 4);
+
+        private final char character;
+        private final int length;
+
+        DefaultFontInfo(char character, int length) {
+            this.character = character;
+            this.length = length;
+        }
+
+        public int getBoldLength() {
+            if (this == DefaultFontInfo.SPACE) return this.getLength();
+            return this.length + 1;
+        }
+
+        public static DefaultFontInfo getDefaultFontInfo(char c) {
+            for (DefaultFontInfo dFI : DefaultFontInfo.values()) {
+                if (dFI.getCharacter() == c) return dFI;
+            }
+            return DefaultFontInfo.DEFAULT;
+        }
     }
 }

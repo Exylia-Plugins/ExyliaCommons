@@ -870,7 +870,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     }
 
                     if (value != null && value.getClass().isEnum()) {
-                        value = ((Enum<?>) value).name();  
+                        value = ((Enum<?>) value).name();
+                    } else if (value instanceof java.util.UUID) {
+                        value = value.toString();
                     } else if (value != null && column.autoSerialize()) {
                         try {
                             value = SerializationHelper.autoSerializeValue(value, field, column.serializationType());
@@ -1165,6 +1167,11 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 return Float.valueOf(value.toString());
             } else if (targetType == boolean.class || targetType == Boolean.class) {
                 return Boolean.valueOf(value.toString());
+            } else if (targetType == java.util.UUID.class) {
+                if (value instanceof String) {
+                    return java.util.UUID.fromString((String) value);
+                }
+                return java.util.UUID.fromString(value.toString());
             }
 
             return value;

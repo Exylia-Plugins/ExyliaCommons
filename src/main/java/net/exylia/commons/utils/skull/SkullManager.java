@@ -65,14 +65,6 @@ public class SkullManager {
         if (isInitialized) return;
         plugin = pluginInstance;
         instance = new SkullManager();
-
-        if (IS_PAPER) {
-            DebugUtils.logInternalInfo("Paper detected for texture skulls");
-        } else {
-            DebugUtils.logInternalWarn("Paper not detected; falling back to CraftBukkit reflection for texture skulls");
-        }
-
-        DebugUtils.logInternalInfo("SkullManager initialized with Mojang API integration");
         instance.startCleanupTask();
         isInitialized = true;
     }
