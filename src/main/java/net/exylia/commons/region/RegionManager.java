@@ -84,11 +84,13 @@ public class RegionManager implements Listener {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
 
         if (asyncMovementChecking) {
-            startCleanupTask();  
+            startCleanupTask();
         }
         if (slowMovementDetection) {
-            positionTracker.start();  
+            positionTracker.start();
         }
+
+        scheduleDelayedFlagRepair(plugin);
 
         logInternalDebug("RegionManager inicializado con detección inmediata optimizada");
     }
@@ -799,5 +801,12 @@ public class RegionManager implements Listener {
         return regions.values().stream()
                 .filter(region -> region.getId().startsWith(clonePrefix))
                 .collect(Collectors.toList());
+    }
+
+    private void scheduleDelayedFlagRepair(JavaPlugin plugin) {
+        plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+            logInternalDebug("Starting automatic flag repair check...");
+            net.exylia.commons.region.flags.FlagRepair.repairBuildingFlags();
+        }, 40L);
     }
 }
