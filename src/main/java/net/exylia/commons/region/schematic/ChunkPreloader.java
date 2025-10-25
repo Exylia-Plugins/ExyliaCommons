@@ -124,7 +124,7 @@ public class ChunkPreloader {
                 Chunk chunk = world.getChunkAt(chunkX, chunkZ, true);
                 long chunkDuration = System.currentTimeMillis() - chunkStartTime;
 
-                DebugUtils.logInternalDebug("[ChunkPreloader] Chunk (" + chunkX + "," + chunkZ + ") - WasLoaded: " + isLoaded + " | Check: " + checkTime + "ms | Load: " + chunkDuration + "ms");
+//                DebugUtils.logInternalDebug("[ChunkPreloader] Chunk (" + chunkX + "," + chunkZ + ") - WasLoaded: " + isLoaded + " | Check: " + checkTime + "ms | Load: " + chunkDuration + "ms");
 
                 future.complete(chunk);
             } catch (Exception e) {

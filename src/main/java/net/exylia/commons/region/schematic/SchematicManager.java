@@ -21,25 +21,34 @@ public class SchematicManager {
     private final BlockPlacer blockPlacer;
     private final RegenerationScheduler scheduler;
 
-    private SchematicManager(JavaPlugin plugin) {
+    private SchematicManager(JavaPlugin plugin, BlockPlacementConfig config) {
         this.plugin = plugin;
 
         Path schemsFolder = Paths.get(plugin.getDataFolder().getAbsolutePath(), "schematics");
         SchematicIOManager.initialize(schemsFolder);
         this.ioManager = SchematicIOManager.getInstance();
 
-        this.blockPlacer = new BlockPlacer();
+        this.blockPlacer = new BlockPlacer(plugin, config != null ? config : BlockPlacementConfig.getDefault());
         this.scheduler = new RegenerationScheduler(plugin, blockPlacer, ioManager);
 
         SchemMigration.migrateOldSchematics(schemsFolder);
 
-        DebugUtils.logInternalInfo("SchematicManager initialized");
+        BlockPlacementStrategy strategy = blockPlacer.getConfig().getStrategy();
+        DebugUtils.logInternalInfo("SchematicManager initialized with strategy: " + strategy.name() + " - " + strategy.description);
     }
 
     public static void initialize(JavaPlugin plugin) {
+        initialize(plugin, BlockPlacementConfig.getDefault());
+    }
+
+    public static void initialize(JavaPlugin plugin, BlockPlacementConfig config) {
         if (instance == null) {
-            instance = new SchematicManager(plugin);
+            instance = new SchematicManager(plugin, config);
         }
+    }
+
+    public static void initialize(JavaPlugin plugin, BlockPlacementStrategy strategy) {
+        initialize(plugin, BlockPlacementConfig.fromStrategy(strategy));
     }
 
     public static SchematicManager getInstance() {
@@ -47,6 +56,18 @@ public class SchematicManager {
             throw new IllegalStateException("SchematicManager not initialized");
         }
         return instance;
+    }
+
+    public void setBlockPlacementStrategy(BlockPlacementStrategy strategy) {
+        blockPlacer.setConfig(BlockPlacementConfig.fromStrategy(strategy));
+        BlockPlacementStrategy currentStrategy = blockPlacer.getConfig().getStrategy();
+        DebugUtils.logInternalInfo("BlockPlacement strategy changed to: " + currentStrategy.name() + " - " + currentStrategy.description);
+    }
+
+    public void setBlockPlacementConfig(BlockPlacementConfig config) {
+        blockPlacer.setConfig(config);
+        BlockPlacementStrategy currentStrategy = blockPlacer.getConfig().getStrategy();
+        DebugUtils.logInternalInfo("BlockPlacement config updated: " + currentStrategy.name() + " - " + currentStrategy.description);
     }
 
     public CompletableFuture<Boolean> saveSchematic(String id, Block minBlock, Block maxBlock) {
