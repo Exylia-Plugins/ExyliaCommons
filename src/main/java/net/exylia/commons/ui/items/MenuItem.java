@@ -3,6 +3,7 @@ package net.exylia.commons.ui.items;
 import lombok.Getter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
+import net.exylia.commons.ui.items.provider.CustomItemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.DebugUtils;
@@ -511,10 +512,21 @@ public class MenuItem {
             this.awaitingPlayerSkull = true;
             this.pendingPlayerName = playerName;
             this.dynamicUpdate = true;
-            
+
             loadPlayerSkullAsync(playerName);
             return cachedSkull;
         }
+
+        if (materialString.contains(":")) {
+            DebugUtils.logInternalDebug("MenuItem: Attempting to load custom item: " + materialString);
+            ItemStack customItem = CustomItemManager.getInstance().getCustomItem(materialString);
+            if (customItem != null) {
+                DebugUtils.logInternalDebug("MenuItem: Successfully loaded custom item: " + materialString);
+                return customItem.clone();
+            }
+            DebugUtils.logInternalWarn("MenuItem: Custom item not found: " + materialString + ", falling back to STONE");
+        }
+
         try {
             Material material = Material.valueOf(materialString.toUpperCase());
             return new ItemStack(material);
