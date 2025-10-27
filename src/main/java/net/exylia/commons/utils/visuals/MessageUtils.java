@@ -28,36 +28,32 @@ public class MessageUtils {
 
     public static void sendMessage(Player player, Component component) {
         if (component == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
-        if (plainText.trim().isEmpty()) return;
         AdapterFactory.getMessageAdapter().sendMessage(player, component);
     }
 
     public static void sendMessage(CommandSender sender, Component component) {
         if (component == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
-        if (plainText.trim().isEmpty()) return;
         AdapterFactory.getMessageAdapter().sendMessage(sender, component);
     }
 
     public static void sendMessage(Player player, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
 
         String cleanMessage = processEffectsAndGetMessage(player, message);
-        if (cleanMessage == null || cleanMessage.trim().isEmpty()) return;
+        if (cleanMessage == null || cleanMessage.isEmpty()) return;
 
         Component component = ColorUtils.parse(cleanMessage);
         sendMessage(player, component);
     }
 
     public static void sendMessage(CommandSender sender, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
 
         if (sender instanceof Player player) {
-             
+
             sendMessage(player, message);
         } else {
-             
+
             String cleanMessage = message;
             if (message.startsWith("[")) {
                 int effectsEnd = message.indexOf(']');
@@ -86,7 +82,7 @@ public class MessageUtils {
     }
 
     public static void broadcastMessage(String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             sendMessage(player, message);
         }
@@ -94,15 +90,13 @@ public class MessageUtils {
 
     public static void broadcastMessage(Component component) {
         if (component == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
-        if (plainText.trim().isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             sendMessage(player, component);
         }
     }
 
     public static void sendMessage(Collection<Player> players, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : players) {
             sendMessage(player, message);
         }
@@ -116,7 +110,7 @@ public class MessageUtils {
     }
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!excludePlayers.contains(player)) {
                 sendMessage(player, message);
@@ -125,7 +119,7 @@ public class MessageUtils {
     }
 
     public static void broadcastMessageExcluding(Player excludePlayer, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!player.equals(excludePlayer)) {
                 sendMessage(player, message);
@@ -135,8 +129,6 @@ public class MessageUtils {
 
     public static void broadcastMessageExcluding(Collection<Player> excludePlayers, Component component) {
         if (component == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
-        if (plainText.trim().isEmpty()) return;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!excludePlayers.contains(player)) {
@@ -147,8 +139,6 @@ public class MessageUtils {
 
     public static void broadcastMessageExcluding(Player excludePlayer, Component component) {
         if (component == null) return;
-        String plainText = PlainTextComponentSerializer.plainText().serialize(component);
-        if (plainText.trim().isEmpty()) return;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!player.equals(excludePlayer)) {
@@ -158,7 +148,7 @@ public class MessageUtils {
     }
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
                 sendMessage(player, message);
@@ -167,7 +157,7 @@ public class MessageUtils {
     }
 
     public static void sendMessageToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
                 sendMessage(player, message);
@@ -234,7 +224,7 @@ public class MessageUtils {
     }
 
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Collection<Player> excludePlayers, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!excludePlayers.contains(player)) {
@@ -244,7 +234,7 @@ public class MessageUtils {
     }
 
     public static void sendActionBarToCollectionExcluding(Collection<Player> recipients, Player excludePlayer, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
         for (Player player : recipients) {
             if (!player.equals(excludePlayer)) {
@@ -397,7 +387,7 @@ public class MessageUtils {
     }
 
     public static void sendActionBar(Player player, String message) {
-        if (message == null) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
         sendActionBar(player, component);
     }
@@ -410,7 +400,7 @@ public class MessageUtils {
     }
 
     public static void broadcastActionBar(String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
         broadcastActionBar(component);
     }
@@ -423,7 +413,7 @@ public class MessageUtils {
     }
 
     public static void sendActionBar(Collection<Player> players, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
         sendActionBar(players, component);
     }
@@ -502,8 +492,8 @@ public class MessageUtils {
     }
 
     public static void sendMessageWithSound(Player player, String message, Sound sound, float volume, float pitch) {
-        if ((message == null || message.trim().isEmpty()) && sound == null) return;
-        if (message != null && !message.trim().isEmpty()) {
+        if ((message == null || message.isEmpty()) && sound == null) return;
+        if (message != null && !message.isEmpty()) {
             sendMessage(player, message);
         }
         if (sound != null) {
@@ -512,7 +502,7 @@ public class MessageUtils {
     }
 
     public static void sendMessageToFiltered(Predicate<Player> condition, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (condition.test(player)) {
                 sendMessage(player, message);
@@ -551,7 +541,7 @@ public class MessageUtils {
     }
 
     public static void sendActionBarToFiltered(Predicate<Player> condition, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
 
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -589,12 +579,12 @@ public class MessageUtils {
 
     public static void sendPaginatedMessage(Player player, String header, String footer, int pageNumber, int itemsPerPage, List<String> items) {
         if (items == null || items.isEmpty()) return;
-        Component headerComponent = header != null && !header.trim().isEmpty() ? ColorUtils.parse(header) : null;
-        Component footerComponent = footer != null && !footer.trim().isEmpty() ? ColorUtils.parse(footer) : null;
+        Component headerComponent = header != null && !header.isEmpty() ? ColorUtils.parse(header) : null;
+        Component footerComponent = footer != null && !footer.isEmpty() ? ColorUtils.parse(footer) : null;
 
         List<Component> components = new java.util.ArrayList<>();
         for (String item : items) {
-            if (item != null && !item.trim().isEmpty()) {
+            if (item != null && !item.isEmpty()) {
                 components.add(ColorUtils.parse(item));
             }
         }
@@ -603,7 +593,7 @@ public class MessageUtils {
     }
 
     public static void sendRepeatedMessage(Player player, String message, long intervalTicks, long durationTicks) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
 
         long iterations = durationTicks / intervalTicks;
@@ -618,7 +608,7 @@ public class MessageUtils {
     }
 
     public static void sendRepeatedActionBar(Player player, String message, long intervalTicks, long durationTicks) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         Component component = ColorUtils.parse(message);
 
         long iterations = durationTicks / intervalTicks;
@@ -633,7 +623,7 @@ public class MessageUtils {
     }
 
     public static BossBar showProgressBossBar(Player player, String text, BossBar.Color color, BossBar.Overlay style, long durationTicks, boolean decreasing) {
-        if (text == null || text.trim().isEmpty()) return null;
+        if (text == null || text.isEmpty()) return null;
         Component component = ColorUtils.parse(text);
         BossBar bossBar = BossBar.bossBar(component, decreasing ? 1.0f : 0.0f, color, style);
 
@@ -707,7 +697,7 @@ public class MessageUtils {
     }
 
     public static void sendCenteredMessage(Player player, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         sendMessage(player, message);
     }
 
@@ -717,7 +707,7 @@ public class MessageUtils {
     }
 
     public static void sendDecoratedMessage(Player player, String message, char barSymbol, String barColor, int barLength) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
         String bar = createBar(barSymbol, barLength, barColor);
         sendMessage(player, bar + " &r" + message + " " + bar);
     }
@@ -725,14 +715,14 @@ public class MessageUtils {
     public static void sendMultiLineMessage(Player player, List<String> messages) {
         if (messages == null || messages.isEmpty()) return;
         for (String message : messages) {
-            if (message != null && !message.trim().isEmpty()) {
+            if (message != null && !message.isEmpty()) {
                 sendMessage(player, message);
             }
         }
     }
 
     public static void sendMessageInRadius(org.bukkit.Location origin, double radius, String message) {
-        if (message == null || message.trim().isEmpty() || origin == null) return;
+        if (message == null || message.isEmpty() || origin == null) return;
         double radiusSquared = radius * radius;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -841,21 +831,21 @@ public class MessageUtils {
     }
 
     public static void sendEnhancedMessage(Player player, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
 
         String cleanMessage = processEffectsAndGetMessage(player, message);
-        if (cleanMessage != null && !cleanMessage.trim().isEmpty()) {
+        if (cleanMessage != null && !cleanMessage.isEmpty()) {
             sendMessage(player, cleanMessage);
         }
     }
 
     public static void sendEnhancedMessage(CommandSender sender, String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
 
         if (sender instanceof Player player) {
             sendEnhancedMessage(player, message);
         } else {
-             
+
             String cleanMessage = message;
             if (message.startsWith("[")) {
                 int effectsEnd = message.indexOf(']');
@@ -868,7 +858,7 @@ public class MessageUtils {
     }
 
     public static void broadcastEnhancedMessage(String message) {
-        if (message == null || message.trim().isEmpty()) return;
+        if (message == null || message.isEmpty()) return;
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             sendEnhancedMessage(player, message);
@@ -876,7 +866,7 @@ public class MessageUtils {
     }
 
     public static void sendEnhancedMessage(Collection<Player> players, String message) {
-        if (message == null || message.trim().isEmpty() || players == null) return;
+        if (message == null || message.isEmpty() || players == null) return;
 
         for (Player player : players) {
             sendEnhancedMessage(player, message);
