@@ -36,8 +36,6 @@ public class PaginationMenu extends Menu {
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
         this.titleTemplate = title;
-
-        initializeDefaultNavigation(rows);
     }
 
     public PaginationMenu(String title, int rows, String itemSlotsString) {
@@ -46,8 +44,6 @@ public class PaginationMenu extends Menu {
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
         this.titleTemplate = title;
-
-        initializeDefaultNavigation(rows);
     }
 
     public PaginationMenu(String title, int rows, int[] itemSlots, ExyliaContext context) {
@@ -55,8 +51,6 @@ public class PaginationMenu extends Menu {
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
         this.titleTemplate = title;
-
-        initializeDefaultNavigation(rows);
     }
 
     public PaginationMenu(String title, int rows, String itemSlotsString, ExyliaContext context) {
@@ -65,8 +59,6 @@ public class PaginationMenu extends Menu {
         this.itemSlots = itemSlots.clone();
         this.itemsPerPage = itemSlots.length;
         this.titleTemplate = title;
-
-        initializeDefaultNavigation(rows);
     }
 
     private void initializeDefaultNavigation(int rows) {
