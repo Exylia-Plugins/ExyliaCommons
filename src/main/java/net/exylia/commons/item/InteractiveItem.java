@@ -591,10 +591,10 @@ public class InteractiveItem {
         if (meta == null) return;
 
         if (glowing) {
-            meta.addEnchant(Enchantment.DURABILITY, 1, true);
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
-            meta.removeEnchant(Enchantment.DURABILITY);
+            meta.removeEnchant(Enchantment.UNBREAKING);
         }
 
         item.setItemMeta(meta);
@@ -609,7 +609,6 @@ public class InteractiveItem {
                 ItemFlag.HIDE_DYE,
                 ItemFlag.HIDE_ENCHANTS,
                 ItemFlag.HIDE_PLACED_ON,
-                ItemFlag.HIDE_POTION_EFFECTS,
                 ItemFlag.HIDE_UNBREAKABLE);
         item.setItemMeta(meta);
     }

@@ -212,6 +212,35 @@ public class MenuItemBuilder {
                 item.addClickSound(config.getString("click_sounds"));
             }
         }
+
+        if (config.contains("item_model")) {
+            item.setItemModel(config.getString("item_model"));
+        }
+
+        if (config.contains("armor_trim")) {
+            ConfigurationSection trimSection = config.getConfigurationSection("armor_trim");
+            if (trimSection != null) {
+                net.exylia.commons.ui.items.ArmorTrimConfig trimConfig = net.exylia.commons.ui.items.ArmorTrimConfig.fromConfig(trimSection);
+                if (trimConfig != null) {
+                    item.setArmorTrim(trimConfig);
+                }
+            }
+        }
+
+        if (config.contains("leather_color")) {
+            ConfigurationSection leatherSection = config.getConfigurationSection("leather_color");
+            if (leatherSection != null) {
+                net.exylia.commons.ui.items.LeatherArmorConfig leatherConfig = net.exylia.commons.ui.items.LeatherArmorConfig.fromConfig(leatherSection);
+                if (leatherConfig != null) {
+                    item.setLeatherArmorColor(leatherConfig);
+                }
+            } else {
+                String colorString = config.getString("leather_color");
+                if (colorString != null && !colorString.isEmpty()) {
+                    item.setLeatherArmorColor(colorString);
+                }
+            }
+        }
     }
 
     private static void executeCommands(java.util.List<String> commands, Player player, ExyliaContext context) {
@@ -400,6 +429,41 @@ public class MenuItemBuilder {
 
         public FluentMenuItemBuilder potionColor(int r, int g, int b) {
             return potionColor(Color.fromRGB(r, g, b));
+        }
+
+        public FluentMenuItemBuilder itemModel(String itemModel) {
+            item.setItemModel(itemModel);
+            return this;
+        }
+
+        public FluentMenuItemBuilder armorTrim(String material, String pattern) {
+            item.setArmorTrim(material, pattern);
+            return this;
+        }
+
+        public FluentMenuItemBuilder armorTrim(net.exylia.commons.ui.items.ArmorTrimConfig config) {
+            item.setArmorTrim(config);
+            return this;
+        }
+
+        public FluentMenuItemBuilder leatherArmorColor(String color) {
+            item.setLeatherArmorColor(color);
+            return this;
+        }
+
+        public FluentMenuItemBuilder leatherArmorColor(int r, int g, int b) {
+            item.setLeatherArmorColor(r, g, b);
+            return this;
+        }
+
+        public FluentMenuItemBuilder leatherArmorColor(Color color) {
+            item.setLeatherArmorColor(color);
+            return this;
+        }
+
+        public FluentMenuItemBuilder leatherArmorColor(net.exylia.commons.ui.items.LeatherArmorConfig config) {
+            item.setLeatherArmorColor(config);
+            return this;
         }
 
         public FluentMenuItemBuilder click(java.util.function.Consumer<MenuClickEvent> handler) {

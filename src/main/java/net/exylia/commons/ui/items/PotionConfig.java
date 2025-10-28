@@ -201,13 +201,13 @@ public class PotionConfig {
             return PotionType.valueOf(name.toUpperCase());
         } catch (Exception e) {
             return switch (name.toLowerCase()) {
-                case "speed", "swiftness" -> PotionType.SPEED;
+                case "speed", "swiftness" -> PotionType.SWIFTNESS;
                 case "slowness", "slow" -> PotionType.SLOWNESS;
                 case "strength" -> PotionType.STRENGTH;
-                case "instant_health", "healing", "heal" -> PotionType.INSTANT_HEAL;
-                case "instant_damage", "harming", "harm" -> PotionType.INSTANT_DAMAGE;
-                case "jump_boost", "jump" -> PotionType.JUMP;
-                case "regeneration", "regen" -> PotionType.REGEN;
+                case "instant_health", "healing", "heal" -> PotionType.HEALING;
+                case "instant_damage", "harming", "harm" -> PotionType.HARMING;
+                case "jump_boost", "jump" -> PotionType.LEAPING;
+                case "regeneration", "regen" -> PotionType.REGENERATION;
                 case "fire_resistance", "fire_resist" -> PotionType.FIRE_RESISTANCE;
                 case "water_breathing" -> PotionType.WATER_BREATHING;
                 case "invisibility", "invis" -> PotionType.INVISIBILITY;

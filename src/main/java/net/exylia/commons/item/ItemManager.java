@@ -22,6 +22,7 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -1120,8 +1121,8 @@ public class ItemManager implements Listener {
             case EGG -> org.bukkit.entity.EntityType.EGG;
             case SNOWBALL -> org.bukkit.entity.EntityType.SNOWBALL;
             case ENDER_PEARL -> org.bukkit.entity.EntityType.ENDER_PEARL;
-            case EXPERIENCE_BOTTLE -> org.bukkit.entity.EntityType.THROWN_EXP_BOTTLE;
-            case SPLASH_POTION, LINGERING_POTION -> org.bukkit.entity.EntityType.SPLASH_POTION;
+            case EXPERIENCE_BOTTLE -> EntityType.EXPERIENCE_BOTTLE;
+            case SPLASH_POTION, LINGERING_POTION -> EntityType.POTION;
             case TRIDENT -> org.bukkit.entity.EntityType.TRIDENT;
             case BOW, CROSSBOW -> org.bukkit.entity.EntityType.ARROW;
             default -> org.bukkit.entity.EntityType.EGG;  

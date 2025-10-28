@@ -4,12 +4,10 @@ import lombok.Getter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.provider.CustomItemManager;
-import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.effects.SoundUtils;
 import net.exylia.commons.utils.skull.SkullManager;
-import net.exylia.commons.utils.versions.ItemMetaAdapter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -39,7 +37,6 @@ public class MenuItem {
 
     @Getter
     private final String id;
-    private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
 
     private ItemStack itemStack;
     @Getter
@@ -71,6 +68,12 @@ public class MenuItem {
 
     private boolean shouldHideAttributes = false;
 
+    @Getter
+    private String rawItemModel;
+
+    private ArmorTrimConfig armorTrimConfig;
+    private LeatherArmorConfig leatherArmorConfig;
+
     public MenuItem(Material material) {
         this(material.name());
     }
@@ -95,7 +98,7 @@ public class MenuItem {
     public MenuItem setName(Component name) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            adapter.setDisplayName(meta, name);
+            meta.displayName(name);
             itemStack.setItemMeta(meta);
         }
         return this;
@@ -122,7 +125,7 @@ public class MenuItem {
     public MenuItem setLore(List<Component> lore) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            adapter.setLore(meta, lore);
+            meta.lore(lore);
             itemStack.setItemMeta(meta);
         }
         this.rawLore = null;
@@ -238,10 +241,10 @@ public class MenuItem {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
             if (glowing) {
-                meta.addEnchant(Enchantment.DURABILITY, 1, true);
+                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             } else {
-                meta.removeEnchant(Enchantment.DURABILITY);
+                meta.removeEnchant(Enchantment.UNBREAKING);
             }
             itemStack.setItemMeta(meta);
         }
@@ -269,7 +272,7 @@ public class MenuItem {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
             meta.addAttributeModifier(
-                    Attribute.GENERIC_LUCK,
+                    Attribute.LUCK,
                     new AttributeModifier(UUID.randomUUID(), "luck_boost", 0.0, AttributeModifier.Operation.ADD_NUMBER)
             );
             meta.addItemFlags(ItemFlag.values());
@@ -312,6 +315,58 @@ public class MenuItem {
         return !clickSounds.isEmpty();
     }
 
+    public MenuItem setItemModel(String itemModel) {
+        this.rawItemModel = itemModel;
+        return this;
+    }
+
+    public MenuItem setArmorTrim(ArmorTrimConfig config) {
+        this.armorTrimConfig = config;
+        return this;
+    }
+
+    public MenuItem setArmorTrim(String material, String pattern) {
+        this.armorTrimConfig = new ArmorTrimConfig().setMaterial(material).setPattern(pattern);
+        return this;
+    }
+
+    public MenuItem setLeatherArmorColor(LeatherArmorConfig config) {
+        this.leatherArmorConfig = config;
+        return this;
+    }
+
+    public MenuItem setLeatherArmorColor(String color) {
+        if (this.leatherArmorConfig == null) {
+            this.leatherArmorConfig = new LeatherArmorConfig();
+        }
+        this.leatherArmorConfig.setColor(color);
+        return this;
+    }
+
+    public MenuItem setLeatherArmorColor(int r, int g, int b) {
+        if (this.leatherArmorConfig == null) {
+            this.leatherArmorConfig = new LeatherArmorConfig();
+        }
+        this.leatherArmorConfig.setColor(r, g, b);
+        return this;
+    }
+
+    public MenuItem setLeatherArmorColor(org.bukkit.Color color) {
+        if (this.leatherArmorConfig == null) {
+            this.leatherArmorConfig = new LeatherArmorConfig();
+        }
+        this.leatherArmorConfig.setColor(color);
+        return this;
+    }
+
+    public ArmorTrimConfig getArmorTrimConfig() {
+        return armorTrimConfig;
+    }
+
+    public LeatherArmorConfig getLeatherArmorConfig() {
+        return leatherArmorConfig;
+    }
+
     public void playClickSounds(Player player) {
         if (player != null && !clickSounds.isEmpty()) {
             for (String sound : clickSounds) {
@@ -321,11 +376,11 @@ public class MenuItem {
     }
 
     public void process(Player player) {
-         
+
         if (awaitingPlayerSkull && pendingPlayerName != null) {
             checkPlayerSkullUpdate();
         }
-        
+
         if (rawMaterial != null) {
             String processedMaterial = context.processPlaceholders(rawMaterial, player);
             if (!processedMaterial.equals(rawMaterial)) {
@@ -355,6 +410,9 @@ public class MenuItem {
 
         processEnchantments(player);
         processPotionConfig(player);
+        applyItemModel(player);
+        processArmorMeta(player);
+        processLeatherArmorColor(player);
 
         applyHideAttributes();
     }
@@ -425,6 +483,58 @@ public class MenuItem {
         itemStack.setItemMeta(potionMeta);
     }
 
+    private void applyItemModel(Player player) {
+        if (rawItemModel == null || rawItemModel.isEmpty()) return;
+
+        String processedModel = rawItemModel;
+        if (player != null) {
+            processedModel = context.processPlaceholders(rawItemModel, player);
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        try {
+            String[] parts = processedModel.split(":", 2);
+            if (parts.length == 2) {
+                String namespace = parts[0];
+                String key = parts[1];
+                meta.setItemModel(new NamespacedKey(namespace, key));
+                itemStack.setItemMeta(meta);
+            }
+        } catch (Exception e) {
+            DebugUtils.logInternalWarn("MenuItem: Failed to apply item model: " + processedModel);
+        }
+    }
+
+    private void processArmorMeta(Player player) {
+        if (armorTrimConfig == null || !armorTrimConfig.hasConfiguration()) return;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (!(meta instanceof org.bukkit.inventory.meta.ArmorMeta armorMeta)) return;
+
+        try {
+            armorTrimConfig.applyTrim(armorMeta);
+            itemStack.setItemMeta(meta);
+        } catch (Exception e) {
+            DebugUtils.logInternalWarn("MenuItem: Failed to apply armor trim");
+        }
+    }
+
+    private void processLeatherArmorColor(Player player) {
+        if (leatherArmorConfig == null || !leatherArmorConfig.hasConfiguration()) return;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (!(meta instanceof org.bukkit.inventory.meta.LeatherArmorMeta leatherMeta)) return;
+
+        try {
+            leatherArmorConfig.applyColor(leatherMeta, player, context);
+            itemStack.setItemMeta(meta);
+        } catch (Exception e) {
+            DebugUtils.logInternalWarn("MenuItem: Failed to apply leather armor color");
+        }
+    }
+
     private List<String> getCurrentLore() {
         if (loreDynamicSupplier != null) {
             try {
@@ -444,10 +554,10 @@ public class MenuItem {
             ItemMeta newMeta = newStack.getItemMeta();
             if (newMeta != null) {
                 if (currentMeta.hasDisplayName()) {
-                    adapter.setDisplayName(newMeta, adapter.getDisplayName(currentMeta));
+                    newMeta.displayName(currentMeta.displayName());
                 }
                 if (currentMeta.hasLore()) {
-                    adapter.setLore(newMeta, adapter.getLore(currentMeta));
+                    newMeta.lore(currentMeta.lore());
                 }
 
                 newMeta.addItemFlags(currentMeta.getItemFlags().toArray(new ItemFlag[0]));
@@ -465,7 +575,7 @@ public class MenuItem {
     private void updateName(String name) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            adapter.setDisplayName(meta, ColorUtils.parse(name));
+            meta.displayName(ColorUtils.parse(name));
             itemStack.setItemMeta(meta);
         }
     }
@@ -473,7 +583,7 @@ public class MenuItem {
     private void updateLore(List<Component> lore) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            adapter.setLore(meta, lore);
+            meta.lore(lore);
             itemStack.setItemMeta(meta);
         }
     }
@@ -554,13 +664,13 @@ public class MenuItem {
             DebugUtils.logInternalDebug("isRealPlayerSkull: Not a player head");
             return false;
         }
-        
+
         SkullMeta meta = (SkullMeta) skull.getItemMeta();
         if (meta == null) {
             DebugUtils.logInternalDebug("isRealPlayerSkull: No skull meta");
             return false;
         }
-        
+
         try {
             return isPlayerSkullCached(expectedPlayerName);
         } catch (Exception e) {
@@ -584,9 +694,9 @@ public class MenuItem {
     }
 
     private void refreshMenuIfDisplayed() {
-         
+
     }
-    
+
     private void checkPlayerSkullUpdate() {
         if (pendingPlayerName == null) return;
         ItemStack updatedSkull = createPlayerSkull(pendingPlayerName);
@@ -623,6 +733,9 @@ public class MenuItem {
         clone.pendingPlayerName = this.pendingPlayerName;
         clone.clickSounds = new ArrayList<>(this.clickSounds);
         clone.shouldHideAttributes = this.shouldHideAttributes;
+        clone.rawItemModel = this.rawItemModel;
+        clone.armorTrimConfig = this.armorTrimConfig;
+        clone.leatherArmorConfig = this.leatherArmorConfig;
 
         if (this.rawLore != null) {
             clone.rawLore = new ArrayList<>(this.rawLore);
@@ -742,6 +855,35 @@ public class MenuItem {
                 item.setClickSounds(config.getStringList("click_sounds"));
             } else {
                 item.addClickSound(config.getString("click_sounds"));
+            }
+        }
+
+        if (config.contains("item_model")) {
+            item.setItemModel(config.getString("item_model"));
+        }
+
+        if (config.contains("armor_trim")) {
+            org.bukkit.configuration.ConfigurationSection trimSection = config.getConfigurationSection("armor_trim");
+            if (trimSection != null) {
+                ArmorTrimConfig trimConfig = ArmorTrimConfig.fromConfig(trimSection);
+                if (trimConfig != null) {
+                    item.setArmorTrim(trimConfig);
+                }
+            }
+        }
+
+        if (config.contains("leather_color")) {
+            org.bukkit.configuration.ConfigurationSection leatherSection = config.getConfigurationSection("leather_color");
+            if (leatherSection != null) {
+                LeatherArmorConfig leatherConfig = LeatherArmorConfig.fromConfig(leatherSection);
+                if (leatherConfig != null) {
+                    item.setLeatherArmorColor(leatherConfig);
+                }
+            } else {
+                String colorString = config.getString("leather_color");
+                if (colorString != null && !colorString.isEmpty()) {
+                    item.setLeatherArmorColor(colorString);
+                }
             }
         }
 

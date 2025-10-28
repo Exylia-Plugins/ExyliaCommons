@@ -4,6 +4,7 @@ import net.exylia.commons.utils.OldColorUtils;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
@@ -54,5 +55,9 @@ public class ItemMeta_1_17_Adapter implements ItemMetaAdapter {
         }
 
         return componentLore;
+    }
+
+    @Override
+    public void setItemModel(ItemMeta meta, NamespacedKey itemModel) {
     }
 }

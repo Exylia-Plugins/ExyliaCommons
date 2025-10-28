@@ -31,11 +31,15 @@ public class ParticleUtils {
             Particle particle = Particle.valueOf(particleName);
 
             Runnable particleTask = () -> {
-                if (parts.length > 6 && (particle == Particle.REDSTONE || particle == Particle.SPELL_MOB)) {
+                if (parts.length > 6) {
                     Color color = parseColor(parts[6]);
                     if (color != null) {
-                        Particle.DustOptions dustOptions = new Particle.DustOptions(color, 1.0f);
-                        location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, dustOptions);
+                        try {
+                            Particle.DustOptions dustOptions = new Particle.DustOptions(color, 1.0f);
+                            location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra, dustOptions);
+                        } catch (Exception e) {
+                            location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
+                        }
                     } else {
                         location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
                     }
@@ -89,7 +93,7 @@ public class ParticleUtils {
             Particle particle = Particle.valueOf(particleName);
             Color color = null;
 
-            if (parts.length > 6 && (particle == Particle.REDSTONE || particle == Particle.SPELL_MOB)) {
+            if (parts.length > 6) {
                 color = parseColor(parts[6]);
             }
 
@@ -99,8 +103,14 @@ public class ParticleUtils {
             Runnable particleTask = () -> {
                 switch (finalScope) {
                     case PLAYER -> spawnParticleForPlayer(player, location, particle, count, offsetX, offsetY, offsetZ, extra, finalColor);
-                    case NEARBY -> location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra,
-                            finalColor != null ? new Particle.DustOptions(finalColor, 1.0f) : null);
+                    case NEARBY -> {
+                        try {
+                            location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra,
+                                    finalColor != null ? new Particle.DustOptions(finalColor, 1.0f) : null);
+                        } catch (Exception e) {
+                            location.getWorld().spawnParticle(particle, location, count, offsetX, offsetY, offsetZ, extra);
+                        }
+                    }
                 }
             };
 
