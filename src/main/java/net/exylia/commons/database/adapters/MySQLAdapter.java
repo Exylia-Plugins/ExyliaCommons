@@ -117,7 +117,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void save(T entity) throws Exception {
+    public <T> T save(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -163,6 +163,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                     }
                 }
 
+                return entity;
+
             } catch (SQLException e) {
                 throw new DatabaseException("Save", entityClassName, "MySQL",
                         "SQL error during save operation: " + e.getMessage(), e);
@@ -182,9 +184,9 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
+    public <T> List<T> saveOrUpdateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -343,6 +345,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                 }
             }
 
+            return entities;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -357,9 +361,9 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void updateAll(List<T> entities) throws Exception {
+    public <T> List<T> updateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -427,6 +431,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
                 }
 
+                return entities;
+
             } catch (SQLException e) {
                 throw new DatabaseException("UpdateAll", entityClassName, "MySQL",
                         "SQL error during batch update operation", e);
@@ -446,7 +452,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void update(T entity) throws Exception {
+    public <T> T update(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -492,6 +498,8 @@ public class MySQLAdapter implements DatabaseAdapter {
                             "No rows were updated for primary key: " + primaryKeyValue);
                 }
 
+                return entity;
+
             } catch (SQLException e) {
                 throw new DatabaseException("Update", entityClassName, "MySQL",
                         "SQL error during update operation for primary key: " + primaryKeyValue, e);
@@ -511,7 +519,7 @@ public class MySQLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void delete(T entity) throws Exception {
+    public <T> boolean delete(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -535,7 +543,10 @@ public class MySQLAdapter implements DatabaseAdapter {
                 if (result == 0) {
                     errorHandler.logWarning("Delete", entityClassName,
                             "No rows were deleted for primary key: " + primaryKeyValue);
+                    return false;
                 }
+
+                return true;
 
             } catch (SQLException e) {
                 throw new DatabaseException("Delete", entityClassName, "MySQL",

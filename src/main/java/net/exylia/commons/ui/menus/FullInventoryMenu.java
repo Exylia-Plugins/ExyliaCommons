@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class FullInventoryMenu extends Menu {
 
     private static final Map<UUID, InventorySnapshot> playerSnapshots = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> menuDepth = new ConcurrentHashMap<>();
     private static final int PLAYER_INVENTORY_SIZE = 36;
     private static final int HOTBAR_START = 0;
     private static final int HOTBAR_END = 8;
@@ -163,7 +164,14 @@ public class FullInventoryMenu extends Menu {
 
     @Override
     public void open(Player player, ExyliaContext additionalContext) {
-        capturePlayerInventory(player);
+        UUID playerId = player.getUniqueId();
+
+        if (!hasSnapshot(player)) {
+            capturePlayerInventory(player);
+            menuDepth.put(playerId, 1);
+        } else {
+            menuDepth.put(playerId, menuDepth.getOrDefault(playerId, 0) + 1);
+        }
 
         super.open(player, additionalContext);
 
@@ -177,12 +185,24 @@ public class FullInventoryMenu extends Menu {
     @Override
     protected void onClose() {
         if (viewer != null) {
-            if (restoreInventoryOnClose) {
-                restorePlayerInventory(viewer);
+            UUID playerId = viewer.getUniqueId();
+            int depth = menuDepth.getOrDefault(playerId, 1);
+            depth--;
+
+            if (depth <= 0) {
+                if (restoreInventoryOnClose) {
+                    restorePlayerInventory(viewer);
+                } else {
+                    clearNonEditablePlayerSlots();
+                }
+                playerSnapshots.remove(playerId);
+                menuDepth.remove(playerId);
             } else {
-                clearNonEditablePlayerSlots();
+                menuDepth.put(playerId, depth);
+                if (!restoreInventoryOnClose) {
+                    clearNonEditablePlayerSlots();
+                }
             }
-            playerSnapshots.remove(viewer.getUniqueId());
         }
 
         super.onClose();

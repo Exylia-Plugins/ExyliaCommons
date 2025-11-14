@@ -9,6 +9,7 @@ import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOneModel;
+import com.mongodb.client.result.DeleteResult;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.database.annotations.Column;
 import net.exylia.commons.database.annotations.Table;
@@ -103,7 +104,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void save(T entity) throws Exception {
+    public <T> T save(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -119,6 +120,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
             logInternalDebug("Entity saved successfully to MongoDB collection: " + collectionName);
 
+            return entity;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -133,9 +136,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
+    public <T> List<T> saveOrUpdateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -202,6 +205,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
+            return entities;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -216,9 +221,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void updateAll(List<T> entities) throws Exception {
+    public <T> List<T> updateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -273,6 +278,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
+            return entities;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -287,7 +294,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void update(T entity) throws Exception {
+    public <T> T update(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -306,6 +313,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             try {
                 collection.replaceOne(filter, document, new ReplaceOptions().upsert(false));
                 logInternalDebug("Entity updated successfully in MongoDB collection: " + collectionName);
+                return entity;
             } catch (Exception e) {
                 throw new DatabaseException("Update", entityClassName, "MongoDB",
                         "MongoDB update operation failed for ID: " + id, e);
@@ -325,7 +333,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void delete(T entity) throws Exception {
+    public <T> boolean delete(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -341,8 +349,17 @@ public class MongoDBAdapter implements DatabaseAdapter {
             Document filter = new Document("_id", convertToObjectId(id));
 
             try {
-                collection.deleteOne(filter);
-                logInternalDebug("Entity deleted successfully from MongoDB collection: " + collectionName);
+                DeleteResult result = collection.deleteOne(filter);
+                boolean deleted = result.getDeletedCount() > 0;
+
+                if (deleted) {
+                    logInternalDebug("Entity deleted successfully from MongoDB collection: " + collectionName);
+                } else {
+                    errorHandler.logWarning("Delete", entityClassName,
+                            "No document was deleted for ID: " + id);
+                }
+
+                return deleted;
             } catch (Exception e) {
                 throw new DatabaseException("Delete", entityClassName, "MongoDB",
                         "MongoDB delete operation failed for ID: " + id, e);

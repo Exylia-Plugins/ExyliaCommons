@@ -13,7 +13,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -409,13 +411,44 @@ public class MenuManager implements Listener {
         Menu menu = openMenus.remove(playerId);
         if (menu != null) {
             try {
+                if (menu instanceof FullInventoryMenu) {
+                    FullInventoryMenu.forceRestoreInventory(player);
+                }
                 menu.handleClose();
             } catch (Exception e) {
             }
+        } else if (FullInventoryMenu.hasSnapshot(player)) {
+            FullInventoryMenu.forceRestoreInventory(player);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        Player player = event.getPlayer();
+        Menu menu = openMenus.get(player.getUniqueId());
+
+        if (menu instanceof FullInventoryMenu) {
+            Schedulers.sync(() -> {
+                player.closeInventory();
+            });
+        }
+    }
+
+    @EventHandler
+    public void onPlayerMove(PlayerMoveEvent event) {
+        if (event.getFrom().getBlockX() == event.getTo().getBlockX() &&
+            event.getFrom().getBlockY() == event.getTo().getBlockY() &&
+            event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
+            return;
         }
 
-        if (FullInventoryMenu.hasSnapshot(player)) {
-            FullInventoryMenu.clearSnapshot(player);
+        Player player = event.getPlayer();
+        Menu menu = openMenus.get(player.getUniqueId());
+
+        if (menu instanceof FullInventoryMenu) {
+            Schedulers.sync(() -> {
+                player.closeInventory();
+            });
         }
     }
 

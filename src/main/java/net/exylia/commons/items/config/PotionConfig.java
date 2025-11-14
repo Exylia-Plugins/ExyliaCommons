@@ -1,4 +1,4 @@
-package net.exylia.commons.ui.items;
+package net.exylia.commons.items.config;
 
 import lombok.Getter;
 import org.bukkit.Color;
@@ -201,13 +201,13 @@ public class PotionConfig {
             return PotionType.valueOf(name.toUpperCase());
         } catch (Exception e) {
             return switch (name.toLowerCase()) {
-                case "speed", "swiftness" -> PotionType.SWIFTNESS;
+                case "speed", "swiftness" -> PotionType.SPEED;
                 case "slowness", "slow" -> PotionType.SLOWNESS;
                 case "strength" -> PotionType.STRENGTH;
-                case "instant_health", "healing", "heal" -> PotionType.HEALING;
-                case "instant_damage", "harming", "harm" -> PotionType.HARMING;
-                case "jump_boost", "jump" -> PotionType.LEAPING;
-                case "regeneration", "regen" -> PotionType.REGENERATION;
+                case "instant_health", "healing", "heal" -> PotionType.INSTANT_HEAL;
+                case "instant_damage", "harming", "harm" -> PotionType.STRONG_HARMING;
+                case "jump_boost", "jump" -> PotionType.STRONG_LEAPING;
+                case "regeneration", "regen" -> PotionType.REGEN;
                 case "fire_resistance", "fire_resist" -> PotionType.FIRE_RESISTANCE;
                 case "water_breathing" -> PotionType.WATER_BREATHING;
                 case "invisibility", "invis" -> PotionType.INVISIBILITY;

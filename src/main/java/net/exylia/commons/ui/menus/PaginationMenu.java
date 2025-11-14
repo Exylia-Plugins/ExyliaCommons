@@ -61,17 +61,17 @@ public class PaginationMenu extends Menu {
         this.titleTemplate = title;
     }
 
-    private void initializeDefaultNavigation(int rows) {
+    public void initializeDefaultNavigation(int rows) {
         this.previousButton = new MenuItem("headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZGExZDU1YjNmOTg5NDEwYTM0NzUyNjUwZTI0OGM5YjZjMTc4M2E3ZWMyYWEzZmQ3Nzg3YmRjNGQwZTYzN2QzOSJ9fX0=")
                 .setName("{error}◀ Previous Page")
                 .setLore("{letters}Click to go to the previous page");
 
-        this.nextButton = new MenuItem("headurl-http://textures.minecraft.net/texture/fa87e3d96e1cfeb9ccfb3ba53a217faf5249e285533b271a2fb284c30dbd9829")
+        this.nextButton = new MenuItem("headbase-eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvZmE4N2UzZDk2ZTFjZmViOWNjZmIzYmE1M2EyMTdmYWY1MjQ5ZTI4NTUzM2IyNzFhMmZiMjg0YzMwZGJkOTgyOSJ9fX0=")
                 .setName("{success}▶ Next Page")
                 .setLore("{letters}Click to go to the next page");
 
-        this.previousButtonSlot = rows * 9 - 6;  
-        this.nextButtonSlot = rows * 9 - 4;     
+        this.previousButtonSlot = rows * 9 - 6;
+        this.nextButtonSlot = rows * 9 - 4;
         this.globalFiller = new MenuItem("BLACK_STAINED_GLASS_PANE")
                 .setName(" ")
                 .hideAllAttributes();

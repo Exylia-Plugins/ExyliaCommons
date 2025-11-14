@@ -1,27 +1,22 @@
 package net.exylia.commons.item.config;
 
 import net.exylia.commons.item.ExpirationBehavior;
+import net.exylia.commons.items.model.ItemData;
+import net.exylia.commons.items.processor.ConfigurationParser;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
+
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ItemConfigurationBuilder {
 
-    protected String material = "STONE";
-    protected String name = null;
-    protected String displayName = null;
-    protected List<String> lore = new ArrayList<>();
-    protected int amount = 1;
-    protected boolean glowing = false;
-    protected boolean hideAttributes = true;
+    protected ItemData itemData = ItemData.builder().build();
+
     protected int slot = -1;
     protected List<String> commands = new ArrayList<>();
     protected String action = null;
@@ -54,49 +49,49 @@ public class ItemConfigurationBuilder {
 
     protected TriggerType triggerType = TriggerType.IMMEDIATE;
     protected String forceId = null;
-    
-    protected Map<Enchantment, Integer> enchantments = new HashMap<>();
-    
+
     protected long expirationTimeMillis = 0L;
     protected String expirationBehavior = "keep";
 
     public ItemConfigurationBuilder material(String material) {
-        this.material = material;
+        itemData.setRawMaterial(material);
         return this;
     }
 
     public ItemConfigurationBuilder name(String name) {
-        this.name = name;
+        itemData.setRawName(name);
         return this;
     }
 
     public ItemConfigurationBuilder displayName(String displayName) {
-        this.displayName = displayName;
+        if (displayName != null && !displayName.isEmpty()) {
+            itemData.setRawDisplayName(displayName);
+        }
         return this;
     }
 
     public ItemConfigurationBuilder lore(List<String> lore) {
-        this.lore = new ArrayList<>(lore);
+        itemData.setRawLore(new ArrayList<>(lore));
         return this;
     }
 
     public ItemConfigurationBuilder lore(String... lore) {
-        this.lore = List.of(lore);
+        itemData.setRawLore(new ArrayList<>(Arrays.asList(lore)));
         return this;
     }
 
     public ItemConfigurationBuilder amount(int amount) {
-        this.amount = amount;
+        itemData.setRawAmount(String.valueOf(amount));
         return this;
     }
 
     public ItemConfigurationBuilder glowing(boolean glowing) {
-        this.glowing = glowing;
+        itemData.setGlowing(glowing);
         return this;
     }
 
     public ItemConfigurationBuilder hideAttributes(boolean hideAttributes) {
-        this.hideAttributes = hideAttributes;
+        itemData.setHideAttributes(hideAttributes);
         return this;
     }
 
@@ -111,7 +106,7 @@ public class ItemConfigurationBuilder {
     }
 
     public ItemConfigurationBuilder commands(String... commands) {
-        this.commands = List.of(commands);
+        this.commands = new ArrayList<>(Arrays.asList(commands));
         return this;
     }
 
@@ -226,47 +221,50 @@ public class ItemConfigurationBuilder {
         this.forceId = forceId;
         return this;
     }
-    
+
     public ItemConfigurationBuilder enchantments(Map<Enchantment, Integer> enchantments) {
-        this.enchantments = new HashMap<>(enchantments);
+        itemData.getRawEnchantments().clear();
+        for (Map.Entry<Enchantment, Integer> entry : enchantments.entrySet()) {
+            itemData.getRawEnchantments().put(entry.getKey().getKey().getKey(), entry.getValue());
+        }
         return this;
     }
-    
+
     public ItemConfigurationBuilder enchantment(Enchantment enchantment, int level) {
-        this.enchantments.put(enchantment, level);
+        itemData.getRawEnchantments().put(enchantment.getKey().getKey(), level);
         return this;
     }
-    
+
     public ItemConfigurationBuilder addEnchantment(Enchantment enchantment, int level) {
-        this.enchantments.put(enchantment, level);
+        itemData.getRawEnchantments().put(enchantment.getKey().getKey(), level);
         return this;
     }
-    
+
     public ItemConfigurationBuilder removeEnchantment(Enchantment enchantment) {
-        this.enchantments.remove(enchantment);
+        itemData.getRawEnchantments().remove(enchantment.getKey().getKey());
         return this;
     }
-    
+
     public ItemConfigurationBuilder clearEnchantments() {
-        this.enchantments.clear();
+        itemData.getRawEnchantments().clear();
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationTime(long expirationTimeMillis) {
         this.expirationTimeMillis = expirationTimeMillis;
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationFromNow(long durationMillis) {
         this.expirationTimeMillis = System.currentTimeMillis() + durationMillis;
         return this;
     }
-    
+
     public ItemConfigurationBuilder noExpiration() {
         this.expirationTimeMillis = 0L;
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationDate(String dateString) {
         try {
             long timestamp = parseDateString(dateString);
@@ -276,30 +274,30 @@ public class ItemConfigurationBuilder {
         }
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationBehavior(ExpirationBehavior behavior) {
         this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationBehavior(String behaviorString) {
         ExpirationBehavior behavior = ExpirationBehavior.fromString(behaviorString);
         this.expirationBehavior = behavior.getConfigName();
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationWithBehavior(long expirationTimeMillis, ExpirationBehavior behavior) {
         this.expirationTimeMillis = expirationTimeMillis;
         this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationFromNowWithBehavior(long durationMillis, ExpirationBehavior behavior) {
         this.expirationTimeMillis = System.currentTimeMillis() + durationMillis;
         this.expirationBehavior = behavior != null ? behavior.getConfigName() : ExpirationBehavior.KEEP.getConfigName();
         return this;
     }
-    
+
     public ItemConfigurationBuilder expirationDateWithBehavior(String dateString, ExpirationBehavior behavior) {
         try {
             long timestamp = parseDateString(dateString);
@@ -335,7 +333,7 @@ public class ItemConfigurationBuilder {
         this.regionEntries = new ArrayList<>(entries);
         this.regionList = entries.stream()
                 .map(RegionEntry::getRegionName)
-                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                .toList();
         return this;
     }
 
@@ -379,12 +377,12 @@ public class ItemConfigurationBuilder {
         this.regionList = new ArrayList<>(regions);
         this.regionEntries = regions.stream()
                 .map(RegionEntry::forAnyWorld)
-                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                .toList();
         return this;
     }
 
     public ItemConfigurationBuilder regionList(String... regions) {
-        return regionList(List.of(regions));
+        return regionList(Arrays.asList(regions));
     }
 
     public ItemConfigurationBuilder addRegion(String regionName) {
@@ -446,7 +444,7 @@ public class ItemConfigurationBuilder {
         this.worldEntries = new ArrayList<>(entries);
         this.worldList = entries.stream()
                 .map(WorldEntry::getWorldName)
-                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                .toList();
         return this;
     }
 
@@ -490,12 +488,12 @@ public class ItemConfigurationBuilder {
         this.worldList = new ArrayList<>(worlds);
         this.worldEntries = worlds.stream()
                 .map(WorldEntry::forWorld)
-                .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                .toList();
         return this;
     }
 
     public ItemConfigurationBuilder worldList(String... worlds) {
-        return worldList(List.of(worlds));
+        return worldList(Arrays.asList(worlds));
     }
 
     public ItemConfigurationBuilder addWorld(String worldName) {
@@ -579,38 +577,30 @@ public class ItemConfigurationBuilder {
     }
 
     public ItemConfigurationBuilder loadFromConfig(ConfigurationSection config) {
-        if (config.contains("material")) {
-            material(config.getString("material"));
+        if (config == null) {
+            return this;
         }
 
-        if (config.contains("name")) {
-            name(config.getString("name"));
-        }
+        ItemData parsedItemData = ConfigurationParser.parseFromConfig(config);
+        this.itemData = parsedItemData;
 
-        if (config.contains("display-name")) {
-            displayName(config.getString("display-name"));
-        }
+        parseInteractiveItemSpecificConfig(config);
 
-        if (config.contains("lore")) {
-            if (config.isList("lore")) {
-                lore(config.getStringList("lore"));
-            } else {
-                lore(config.getString("lore"));
+        detectAndSetPlaceholders();
+
+        if (config.contains("item-type")) {
+            String itemType = config.getString("item-type", "user");
+            if (itemType.equalsIgnoreCase("lobby")) {
+                lobbyItem();
+            } else if (itemType.equalsIgnoreCase("user")) {
+                userItem();
             }
         }
 
-        if (config.contains("amount")) {
-            amount(config.getInt("amount"));
-        }
+        return this;
+    }
 
-        if (config.contains("glow") || config.contains("glowing")) {
-            glowing(config.getBoolean("glow", config.getBoolean("glowing")));
-        }
-
-        if (config.contains("hide-attributes")) {
-            hideAttributes(config.getBoolean("hide-attributes"));
-        }
-
+    private void parseInteractiveItemSpecificConfig(ConfigurationSection config) {
         if (config.contains("slot")) {
             slot(config.getInt("slot"));
         }
@@ -644,16 +634,7 @@ public class ItemConfigurationBuilder {
         }
 
         if (config.contains("cooldown")) {
-            Object cooldownValue = config.get("cooldown");
-            if (cooldownValue instanceof Number) {
-                cooldownSeconds(((Number) cooldownValue).doubleValue());
-            } else if (cooldownValue instanceof String) {
-                try {
-                    cooldownSeconds(Double.parseDouble((String) cooldownValue));
-                } catch (NumberFormatException e) {
-                    cooldownSeconds(config.getInt("cooldown", 0));
-                }
-            }
+            parseAndSetCooldown(config);
         }
 
         if (config.contains("effects-on-use")) {
@@ -680,6 +661,26 @@ public class ItemConfigurationBuilder {
             allowNumberKeys(config.getBoolean("allow-number-keys"));
         }
 
+        parseRegionConfig(config);
+        parseWorldConfig(config);
+        parseTriggerAndIdConfig(config);
+        parseActionConfig(config);
+    }
+
+    private void parseAndSetCooldown(ConfigurationSection config) {
+        Object cooldownValue = config.get("cooldown");
+        if (cooldownValue instanceof Number) {
+            cooldownSeconds(((Number) cooldownValue).doubleValue());
+        } else if (cooldownValue instanceof String) {
+            try {
+                cooldownSeconds(Double.parseDouble((String) cooldownValue));
+            } catch (NumberFormatException e) {
+                cooldownSeconds(config.getInt("cooldown", 0));
+            }
+        }
+    }
+
+    private void parseRegionConfig(ConfigurationSection config) {
         if (config.contains("region.type")) {
             regionType(config.getString("region.type"));
         }
@@ -689,45 +690,109 @@ public class ItemConfigurationBuilder {
         }
 
         if (config.contains("region.list")) {
-            if (config.isList("region.list")) {
-                List<String> regionStrings = config.getStringList("region.list");
-                regionEntriesFromStrings(regionStrings);
-            } else {
-                String regionString = config.getString("region.list");
-                if (regionString != null && !regionString.trim().isEmpty()) {
-                    String[] regions = regionString.split(",");
-                    List<String> regionList = new ArrayList<>();
-                    for (String region : regions) {
-                        String trimmed = region.trim();
-                        if (!trimmed.isEmpty()) {
-                            regionList.add(trimmed);
-                        }
-                    }
-                    regionEntriesFromStrings(regionList);
-                }
-            }
+            parseRegionList(config);
         }
 
         if (config.contains("region.cooldowns")) {
-            ConfigurationSection cooldownSection = config.getConfigurationSection("region.cooldowns");
-            if (cooldownSection != null) {
-                Map<String, Double> cooldowns = new HashMap<>();
-                for (String regionName : cooldownSection.getKeys(false)) {
-                    Object cooldownValue = cooldownSection.get(regionName);
-                    if (cooldownValue instanceof Number) {
-                        cooldowns.put(regionName, ((Number) cooldownValue).doubleValue());
-                    } else if (cooldownValue instanceof String) {
-                        try {
-                            cooldowns.put(regionName, Double.parseDouble((String) cooldownValue));
-                        } catch (NumberFormatException e) {
-                            cooldowns.put(regionName, (double) cooldownSection.getInt(regionName));
-                        }
+            parseRegionCooldowns(config);
+        }
+    }
+
+    private void parseRegionList(ConfigurationSection config) {
+        if (config.isList("region.list")) {
+            List<String> regionStrings = config.getStringList("region.list");
+            regionEntriesFromStrings(regionStrings);
+        } else {
+            String regionString = config.getString("region.list");
+            if (regionString != null && !regionString.trim().isEmpty()) {
+                String[] regions = regionString.split(",");
+                List<String> regionList = new ArrayList<>();
+                for (String region : regions) {
+                    String trimmed = region.trim();
+                    if (!trimmed.isEmpty()) {
+                        regionList.add(trimmed);
                     }
                 }
-                regionCooldowns(cooldowns);
+                regionEntriesFromStrings(regionList);
             }
         }
+    }
 
+    private void parseRegionCooldowns(ConfigurationSection config) {
+        ConfigurationSection cooldownSection = config.getConfigurationSection("region.cooldowns");
+        if (cooldownSection != null) {
+            Map<String, Double> cooldowns = new HashMap<>();
+            for (String regionName : cooldownSection.getKeys(false)) {
+                Object cooldownValue = cooldownSection.get(regionName);
+                if (cooldownValue instanceof Number) {
+                    cooldowns.put(regionName, ((Number) cooldownValue).doubleValue());
+                } else if (cooldownValue instanceof String) {
+                    try {
+                        cooldowns.put(regionName, Double.parseDouble((String) cooldownValue));
+                    } catch (NumberFormatException e) {
+                        cooldowns.put(regionName, (double) cooldownSection.getInt(regionName));
+                    }
+                }
+            }
+            regionCooldowns(cooldowns);
+        }
+    }
+
+    private void parseWorldConfig(ConfigurationSection config) {
+        if (config.contains("world.type")) {
+            worldType(config.getString("world.type"));
+        }
+
+        if (config.contains("world.list")) {
+            parseWorldList(config);
+        }
+
+        if (config.contains("world.cooldowns")) {
+            parseWorldCooldowns(config);
+        }
+    }
+
+    private void parseWorldList(ConfigurationSection config) {
+        if (config.isList("world.list")) {
+            List<String> worldStrings = config.getStringList("world.list");
+            worldEntriesFromStrings(worldStrings);
+        } else {
+            String worldString = config.getString("world.list");
+            if (worldString != null && !worldString.trim().isEmpty()) {
+                String[] worlds = worldString.split(",");
+                List<String> worldList = new ArrayList<>();
+                for (String world : worlds) {
+                    String trimmed = world.trim();
+                    if (!trimmed.isEmpty()) {
+                        worldList.add(trimmed);
+                    }
+                }
+                worldEntriesFromStrings(worldList);
+            }
+        }
+    }
+
+    private void parseWorldCooldowns(ConfigurationSection config) {
+        ConfigurationSection cooldownSection = config.getConfigurationSection("world.cooldowns");
+        if (cooldownSection != null) {
+            Map<String, Double> cooldowns = new HashMap<>();
+            for (String worldName : cooldownSection.getKeys(false)) {
+                Object cooldownValue = cooldownSection.get(worldName);
+                if (cooldownValue instanceof Number) {
+                    cooldowns.put(worldName, ((Number) cooldownValue).doubleValue());
+                } else if (cooldownValue instanceof String) {
+                    try {
+                        cooldowns.put(worldName, Double.parseDouble((String) cooldownValue));
+                    } catch (NumberFormatException e) {
+                        cooldowns.put(worldName, (double) cooldownSection.getInt(worldName));
+                    }
+                }
+            }
+            worldCooldowns(cooldowns);
+        }
+    }
+
+    private void parseTriggerAndIdConfig(ConfigurationSection config) {
         if (config.contains("trigger-type")) {
             triggerType(config.getString("trigger-type"));
         }
@@ -735,112 +800,9 @@ public class ItemConfigurationBuilder {
         if (config.contains("force-id")) {
             forceId(config.getString("force-id"));
         }
-        
-        if (config.contains("enchantments")) {
-            ConfigurationSection enchantmentSection = config.getConfigurationSection("enchantments");
-            if (enchantmentSection != null) {
-                Map<Enchantment, Integer> enchantmentMap = new HashMap<>();
-                for (String enchantName : enchantmentSection.getKeys(false)) {
-                    try {
-                        Enchantment enchantment = Enchantment.getByName(enchantName.toUpperCase());
-                        if (enchantment != null) {
-                            int level = enchantmentSection.getInt(enchantName, 1);
-                            enchantmentMap.put(enchantment, level);
-                        } else {
-                            DebugUtils.logInternalError("Unknown enchantment: " + enchantName);
-                        }
-                    } catch (Exception e) {
-                        DebugUtils.logInternalError("Error parsing enchantment '" + enchantName + "': " + e.getMessage());
-                    }
-                }
-                enchantments(enchantmentMap);
-            }
-        }
-        
-        if (config.contains("expiration")) {
-            Object expirationValue = config.get("expiration");
-            if (expirationValue instanceof Number) {
-                 
-                expirationFromNow(((Number) expirationValue).longValue());
-            } else if (expirationValue instanceof String) {
-                String expirationStr = (String) expirationValue;
-                try {
-                     
-                    long duration = Long.parseLong(expirationStr);
-                    expirationFromNow(duration);
-                } catch (NumberFormatException e) {
-                     
-                    try {
-                        expirationDate(expirationStr);
-                    } catch (DateTimeParseException dateE) {
-                        DebugUtils.logInternalError("Invalid expiration value: " + expirationValue + 
-                            ". Expected either milliseconds (number) or date format like '24/12/2025 15:00'");
-                    }
-                }
-            }
-        }
-        
-        if (config.contains("expiration-behavior")) {
-            expirationBehavior(config.getString("expiration-behavior"));
-        }
+    }
 
-        if (config.contains("world.type")) {
-            worldType(config.getString("world.type"));
-        }
-
-        if (config.contains("world.list")) {
-            if (config.isList("world.list")) {
-                List<String> worldStrings = config.getStringList("world.list");
-                worldEntriesFromStrings(worldStrings);
-            } else {
-                String worldString = config.getString("world.list");
-                if (worldString != null && !worldString.trim().isEmpty()) {
-                    String[] worlds = worldString.split(",");
-                    List<String> worldList = new ArrayList<>();
-                    for (String world : worlds) {
-                        String trimmed = world.trim();
-                        if (!trimmed.isEmpty()) {
-                            worldList.add(trimmed);
-                        }
-                    }
-                    worldEntriesFromStrings(worldList);
-                }
-            }
-        }
-
-        if (config.contains("world.cooldowns")) {
-            ConfigurationSection cooldownSection = config.getConfigurationSection("world.cooldowns");
-            if (cooldownSection != null) {
-                Map<String, Double> cooldowns = new HashMap<>();
-                for (String worldName : cooldownSection.getKeys(false)) {
-                    Object cooldownValue = cooldownSection.get(worldName);
-                    if (cooldownValue instanceof Number) {
-                        cooldowns.put(worldName, ((Number) cooldownValue).doubleValue());
-                    } else if (cooldownValue instanceof String) {
-                        try {
-                            cooldowns.put(worldName, Double.parseDouble((String) cooldownValue));
-                        } catch (NumberFormatException e) {
-                            cooldowns.put(worldName, (double) cooldownSection.getInt(worldName));
-                        }
-                    }
-                }
-                worldCooldowns(cooldowns);
-            }
-        }
-
-        boolean autoDetectPlaceholders = false;
-        String nameText = config.getString("name", "");
-        String displayNameText = config.getString("display-name", "");
-        List<String> loreList = config.getStringList("lore");
-
-        if (containsPlaceholders(nameText) ||
-                containsPlaceholders(displayNameText) ||
-                loreList.stream().anyMatch(this::containsPlaceholders)) {
-            autoDetectPlaceholders = true;
-        }
-
-        usePlaceholders(config.getBoolean("use-placeholders", autoDetectPlaceholders));
-
+    private void parseActionConfig(ConfigurationSection config) {
         if (config.contains("action-config")) {
             if (config.isConfigurationSection("action-config")) {
                 Map<String, Object> actionConfigMap = new HashMap<>();
@@ -852,16 +814,7 @@ public class ItemConfigurationBuilder {
                     actionConfig(actionConfigMap);
 
                     if (actionConfigSection.contains("radius")) {
-                        Object radiusValue = actionConfigSection.get("radius");
-                        if (radiusValue instanceof Number) {
-                            radius(((Number) radiusValue).doubleValue());
-                        } else if (radiusValue instanceof String) {
-                            try {
-                                radius(Double.parseDouble((String) radiusValue));
-                            } catch (NumberFormatException e) {
-                                 
-                            }
-                        }
+                        parseRadiusConfig(actionConfigSection);
                     }
 
                     if (actionConfigSection.contains("affect-self")) {
@@ -890,50 +843,53 @@ public class ItemConfigurationBuilder {
                 }
             }
         }
+    }
 
-        if (config.contains("item-type")) {
-            String itemType = config.getString("item-type", "user");
-            if (itemType.equalsIgnoreCase("lobby")) {
-                lobbyItem();
-            } else if (itemType.equalsIgnoreCase("user")) {
-                userItem();
+    private void parseRadiusConfig(ConfigurationSection actionConfigSection) {
+        Object radiusValue = actionConfigSection.get("radius");
+        if (radiusValue instanceof Number) {
+            radius(((Number) radiusValue).doubleValue());
+        } else if (radiusValue instanceof String) {
+            try {
+                radius(Double.parseDouble((String) radiusValue));
+            } catch (NumberFormatException ignored) {
             }
         }
-        return this;
     }
 
-    protected boolean containsPlaceholders(String text) {
-        return text != null && (text.contains("%") || text.contains("{") || text.contains("<"));
+    private void detectAndSetPlaceholders() {
+        if (ConfigurationParser.detectPlaceholdersInItemData(itemData)) {
+            usePlaceholders(true);
+        }
     }
-    
+
     private long parseDateString(String dateString) throws DateTimeParseException {
         if (dateString == null || dateString.trim().isEmpty()) {
             throw new DateTimeParseException("Empty date string", dateString, 0);
         }
-        
+
         dateString = dateString.trim();
-        
+
         DateTimeFormatter[] formatters = {
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),       
-            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),    
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),       
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),    
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),       
-            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),    
-            DateTimeFormatter.ofPattern("dd/MM/yyyy"),             
-            DateTimeFormatter.ofPattern("yyyy-MM-dd"),             
-            DateTimeFormatter.ofPattern("dd-MM-yyyy")              
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("dd-MM-yyyy")
         };
-        
+
         for (DateTimeFormatter formatter : formatters) {
             try {
                 LocalDateTime dateTime = LocalDateTime.parse(dateString, formatter);
                 return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-            } catch (DateTimeParseException e) {
-                 
+            } catch (DateTimeParseException ignored) {
             }
         }
-        
+
         throw new DateTimeParseException("Unable to parse date: " + dateString, dateString, 0);
     }
 

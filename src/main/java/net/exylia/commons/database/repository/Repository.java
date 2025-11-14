@@ -6,9 +6,9 @@ import java.util.concurrent.CompletableFuture;
 
 public interface Repository<T> {
 
-    void saveOrUpdate(T entity);
-    void saveOrUpdateAll(List<T> entities);
-    void delete(T entity);
+    T saveOrUpdate(T entity);
+    List<T> saveOrUpdateAll(List<T> entities);
+    boolean delete(T entity);
     void deleteAll(List<T> entities);
 
     Optional<T> findById(Object id);
@@ -17,9 +17,9 @@ public interface Repository<T> {
     boolean exists(Object id);
     long count();
 
-    CompletableFuture<Void> saveOrUpdateAsync(T entity);
-    CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities);
-    CompletableFuture<Void> deleteAsync(T entity);
+    CompletableFuture<T> saveOrUpdateAsync(T entity);
+    CompletableFuture<List<T>> saveOrUpdateAllAsync(List<T> entities);
+    CompletableFuture<Boolean> deleteAsync(T entity);
     CompletableFuture<Void> deleteAllAsync(List<T> entities);
 
     CompletableFuture<Optional<T>> findByIdAsync(Object id);

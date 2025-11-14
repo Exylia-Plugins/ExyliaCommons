@@ -128,7 +128,7 @@ public class YAMLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void save(T entity) throws Exception {
+    public <T> T save(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -159,6 +159,8 @@ public class YAMLAdapter implements DatabaseAdapter {
             saveEntityConfig(entity.getClass());
             logInternalDebug("Entity saved to YAML: " + entityClassName + " with ID: " + primaryKeyValue);
 
+            return entity;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -173,9 +175,9 @@ public class YAMLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void saveOrUpdateAll(List<T> entities) throws Exception {
+    public <T> List<T> saveOrUpdateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -221,6 +223,8 @@ public class YAMLAdapter implements DatabaseAdapter {
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
+            return entities;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -235,9 +239,9 @@ public class YAMLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void updateAll(List<T> entities) throws Exception {
+    public <T> List<T> updateAll(List<T> entities) throws Exception {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         String entityClassName = entities.get(0).getClass().getSimpleName();
@@ -290,6 +294,8 @@ public class YAMLAdapter implements DatabaseAdapter {
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
+            return entities;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -304,7 +310,7 @@ public class YAMLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void update(T entity) throws Exception {
+    public <T> T update(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -333,6 +339,8 @@ public class YAMLAdapter implements DatabaseAdapter {
             saveEntityConfig(entity.getClass());
             logInternalDebug("Entity updated in YAML: " + entityClassName + " with ID: " + primaryKeyValue);
 
+            return entity;
+
         } catch (Exception e) {
             if (e instanceof DatabaseException) {
                 errorHandler.handleError((DatabaseException) e);
@@ -347,7 +355,7 @@ public class YAMLAdapter implements DatabaseAdapter {
     }
 
     @Override
-    public <T> void delete(T entity) throws Exception {
+    public <T> boolean delete(T entity) throws Exception {
         String entityClassName = entity.getClass().getSimpleName();
 
         try {
@@ -365,12 +373,14 @@ public class YAMLAdapter implements DatabaseAdapter {
             if (!yamlConfig.isConfigurationSection(entityPath)) {
                 errorHandler.logWarning("Delete", entityClassName,
                         "Entity with primary key " + primaryKeyValue + " does not exist");
-                return;
+                return false;
             }
 
             yamlConfig.set(entityPath, null);
             saveEntityConfig(entity.getClass());
             logInternalDebug("Entity deleted from YAML: " + entityClassName + " with ID: " + primaryKeyValue);
+
+            return true;
 
         } catch (Exception e) {
             if (e instanceof DatabaseException) {

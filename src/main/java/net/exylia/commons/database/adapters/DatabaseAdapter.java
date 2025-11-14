@@ -12,11 +12,11 @@ public interface DatabaseAdapter {
     void disconnect();
     boolean isConnected();
 
-    <T> void save(T entity) throws Exception;
-    <T> void saveOrUpdateAll(List<T> entities) throws Exception;
-    <T> void updateAll(List<T> entities) throws Exception;
-    <T> void update(T entity) throws Exception;
-    <T> void delete(T entity) throws Exception;
+    <T> T save(T entity) throws Exception;
+    <T> List<T> saveOrUpdateAll(List<T> entities) throws Exception;
+    <T> List<T> updateAll(List<T> entities) throws Exception;
+    <T> T update(T entity) throws Exception;
+    <T> boolean delete(T entity) throws Exception;
     <T> Optional<T> findById(Class<T> entityClass, Object id) throws Exception;
     <T> List<T> findAll(Class<T> entityClass) throws Exception;
     <T> List<T> findBy(Class<T> entityClass, String field, Object value) throws Exception;

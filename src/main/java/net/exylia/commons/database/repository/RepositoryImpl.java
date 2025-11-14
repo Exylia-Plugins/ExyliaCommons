@@ -25,9 +25,10 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public void saveOrUpdate(T entity) {
+    public T saveOrUpdate(T entity) {
         try {
             adapter.saveOrUpdateAll(Collections.singletonList(entity));
+            return entity;
         } catch (Exception e) {
             RepositoryException repoException = new RepositoryException("saveOrUpdate", entityClass.getSimpleName(),
                     "Failed to perform saveOrUpdate operation", e);
@@ -37,13 +38,13 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public void saveOrUpdateAll(List<T> entities) {
+    public List<T> saveOrUpdateAll(List<T> entities) {
         if (entities == null || entities.isEmpty()) {
-            return;
+            return entities;
         }
 
         try {
-            adapter.saveOrUpdateAll(entities);
+            return adapter.saveOrUpdateAll(entities);
         } catch (Exception e) {
             errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
                     "Adapter doesn't support bulk saveOrUpdate, executing individually: " + e.getMessage());
@@ -68,13 +69,15 @@ public class RepositoryImpl<T> implements Repository<T> {
                         successCount, failureCount, entities.size());
                 errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
             }
+
+            return entities;
         }
     }
 
     @Override
-    public void delete(T entity) {
+    public boolean delete(T entity) {
         try {
-            adapter.delete(entity);
+            return adapter.delete(entity);
         } catch (Exception e) {
             RepositoryException repoException = new RepositoryException("delete", entityClass.getSimpleName(),
                     "Failed to delete entity from database", e);
@@ -144,10 +147,10 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public CompletableFuture<Void> saveOrUpdateAsync(T entity) {
-        return CompletableFuture.runAsync(() -> {
+    public CompletableFuture<T> saveOrUpdateAsync(T entity) {
+        return CompletableFuture.supplyAsync(() -> {
             try {
-                saveOrUpdate(entity);
+                return saveOrUpdate(entity);
             } catch (Exception e) {
                 throw new RepositoryException("saveOrUpdateAsync", entityClass.getSimpleName(),
                         "Failed in async saveOrUpdate operation", e);
@@ -156,10 +159,10 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public CompletableFuture<Void> saveOrUpdateAllAsync(List<T> entities) {
-        return CompletableFuture.runAsync(() -> {
+    public CompletableFuture<List<T>> saveOrUpdateAllAsync(List<T> entities) {
+        return CompletableFuture.supplyAsync(() -> {
             try {
-                saveOrUpdateAll(entities);
+                return saveOrUpdateAll(entities);
             } catch (Exception e) {
                 throw new RepositoryException("saveOrUpdateAllAsync", entityClass.getSimpleName(),
                         "Failed in async saveOrUpdateAll operation", e);
@@ -168,10 +171,10 @@ public class RepositoryImpl<T> implements Repository<T> {
     }
 
     @Override
-    public CompletableFuture<Void> deleteAsync(T entity) {
-        return CompletableFuture.runAsync(() -> {
+    public CompletableFuture<Boolean> deleteAsync(T entity) {
+        return CompletableFuture.supplyAsync(() -> {
             try {
-                delete(entity);
+                return delete(entity);
             } catch (Exception e) {
                 throw new RepositoryException("deleteAsync", entityClass.getSimpleName(),
                         "Failed in async delete operation", e);

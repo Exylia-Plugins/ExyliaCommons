@@ -1,10 +1,12 @@
 package net.exylia.commons.ui.builders;
 
+import net.exylia.commons.items.config.ArmorTrimConfig;
+import net.exylia.commons.items.config.LeatherArmorConfig;
+import net.exylia.commons.items.config.PotionConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
-import net.exylia.commons.ui.items.PotionConfig;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.ActionSource;
 import net.exylia.commons.actions.GlobalActionManager;
@@ -220,7 +222,7 @@ public class MenuItemBuilder {
         if (config.contains("armor_trim")) {
             ConfigurationSection trimSection = config.getConfigurationSection("armor_trim");
             if (trimSection != null) {
-                net.exylia.commons.ui.items.ArmorTrimConfig trimConfig = net.exylia.commons.ui.items.ArmorTrimConfig.fromConfig(trimSection);
+                ArmorTrimConfig trimConfig = ArmorTrimConfig.fromConfig(trimSection);
                 if (trimConfig != null) {
                     item.setArmorTrim(trimConfig);
                 }
@@ -230,7 +232,7 @@ public class MenuItemBuilder {
         if (config.contains("leather_color")) {
             ConfigurationSection leatherSection = config.getConfigurationSection("leather_color");
             if (leatherSection != null) {
-                net.exylia.commons.ui.items.LeatherArmorConfig leatherConfig = net.exylia.commons.ui.items.LeatherArmorConfig.fromConfig(leatherSection);
+                LeatherArmorConfig leatherConfig = LeatherArmorConfig.fromConfig(leatherSection);
                 if (leatherConfig != null) {
                     item.setLeatherArmorColor(leatherConfig);
                 }
@@ -441,7 +443,7 @@ public class MenuItemBuilder {
             return this;
         }
 
-        public FluentMenuItemBuilder armorTrim(net.exylia.commons.ui.items.ArmorTrimConfig config) {
+        public FluentMenuItemBuilder armorTrim(ArmorTrimConfig config) {
             item.setArmorTrim(config);
             return this;
         }
@@ -461,7 +463,7 @@ public class MenuItemBuilder {
             return this;
         }
 
-        public FluentMenuItemBuilder leatherArmorColor(net.exylia.commons.ui.items.LeatherArmorConfig config) {
+        public FluentMenuItemBuilder leatherArmorColor(LeatherArmorConfig config) {
             item.setLeatherArmorColor(config);
             return this;
         }

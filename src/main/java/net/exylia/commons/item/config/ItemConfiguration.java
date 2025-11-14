@@ -1,10 +1,12 @@
 package net.exylia.commons.item.config;
 
 import lombok.Getter;
+import net.exylia.commons.items.model.ExyliaItem;
+import net.exylia.commons.items.utils.ItemStackUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,37 +15,27 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Getter
-public class ItemConfiguration {
+public class ItemConfiguration extends ExyliaItem {
 
-    private final String material;
-    private final String name;
-    private final String displayName;
-    private final List<String> lore;
-    private final int amount;
-    private final boolean glowing;
-    private final boolean hideAttributes;
     private final int slot;
-
     private final List<String> commands;
     private final String action;
     private final boolean consumeOnUse;
     private final boolean cancelEvent;
     private final boolean stackable;
-
     private final int maxUses;
     private final double cooldownSeconds;
 
     private final ConfigurationSection effectsOnUse;
 
     private final Map<String, Object> actionConfig;
+    private final boolean usePlaceholders;
 
     private final boolean allowMovement;
     private final boolean allowShiftClick;
     private final boolean allowDrop;
     private final boolean allowSwapToOffhand;
     private final boolean allowNumberKeys;
-
-    private final boolean usePlaceholders;
 
     private final RegionFilterType regionType;
     private final RegionCheckerType regionChecker;
@@ -58,20 +50,13 @@ public class ItemConfiguration {
 
     private final TriggerType triggerType;
     private final String forceId;
-    
-    private final Map<Enchantment, Integer> enchantments;
-    
+
     private final long expirationTimeMillis;
     private final String expirationBehavior;
 
     ItemConfiguration(ItemConfigurationBuilder builder) {
-        this.material = builder.material;
-        this.name = builder.name;
-        this.displayName = builder.displayName;
-        this.lore = new ArrayList<>(builder.lore);
-        this.amount = builder.amount;
-        this.glowing = builder.glowing;
-        this.hideAttributes = builder.hideAttributes;
+        super(builder.itemData);
+
         this.slot = builder.slot;
         this.commands = new ArrayList<>(builder.commands);
         this.action = builder.action;
@@ -105,15 +90,26 @@ public class ItemConfiguration {
 
         this.triggerType = builder.triggerType;
         this.forceId = builder.forceId;
-        
-        this.enchantments = new HashMap<>(builder.enchantments);
-        
+
         this.expirationTimeMillis = builder.expirationTimeMillis;
         this.expirationBehavior = builder.expirationBehavior;
+
+        this.itemStack = ItemStackUtils.createFromString(itemData.getRawMaterial());
+    }
+
+    @Override
+    public ItemStack buildProcessed(org.bukkit.entity.Player player) {
+        processItem(player);
+        return itemStack.clone();
+    }
+
+    @Override
+    public ItemStack build() {
+        return itemStack.clone();
     }
 
     public boolean hasDisplayName() {
-        return displayName != null && !displayName.trim().isEmpty();
+        return itemData.getRawDisplayName() != null && !itemData.getRawDisplayName().trim().isEmpty();
     }
 
     public boolean hasForceId() {
@@ -201,11 +197,25 @@ public class ItemConfiguration {
         return cooldownSeconds > 0.0;
     }
 
-    public boolean isAllowMovement() { return allowMovement; }
-    public boolean isAllowShiftClick() { return allowShiftClick; }
-    public boolean isAllowDrop() { return allowDrop; }
-    public boolean isAllowSwapToOffhand() { return allowSwapToOffhand; }
-    public boolean isAllowNumberKeys() { return allowNumberKeys; }
+    public boolean isAllowMovement() {
+        return allowMovement;
+    }
+
+    public boolean isAllowShiftClick() {
+        return allowShiftClick;
+    }
+
+    public boolean isAllowDrop() {
+        return allowDrop;
+    }
+
+    public boolean isAllowSwapToOffhand() {
+        return allowSwapToOffhand;
+    }
+
+    public boolean isAllowNumberKeys() {
+        return allowNumberKeys;
+    }
 
     @SuppressWarnings("unchecked")
     public <T> T getActionConfigValue(String key, T defaultValue) {
@@ -228,7 +238,8 @@ public class ItemConfiguration {
         if (value instanceof String) {
             try {
                 return Integer.parseInt((String) value);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
         return defaultValue;
     }
@@ -241,7 +252,8 @@ public class ItemConfiguration {
         if (value instanceof String) {
             try {
                 return Double.parseDouble((String) value);
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
         return defaultValue;
     }
@@ -415,33 +427,66 @@ public class ItemConfiguration {
     public List<WorldEntry> getWorldEntries() {
         return new ArrayList<>(worldEntries);
     }
-    
-    public Map<Enchantment, Integer> getEnchantments() {
-        return new HashMap<>(enchantments);
-    }
-    
+
     public boolean hasEnchantments() {
-        return !enchantments.isEmpty();
+        return !itemData.getRawEnchantments().isEmpty();
     }
-    
-    public boolean hasEnchantment(Enchantment enchantment) {
-        return enchantments.containsKey(enchantment);
-    }
-    
-    public int getEnchantmentLevel(Enchantment enchantment) {
-        return enchantments.getOrDefault(enchantment, 0);
-    }
-    
-    public long getExpirationTimeMillis() {
-        return expirationTimeMillis;
-    }
-    
+
     public boolean hasExpiration() {
         return expirationTimeMillis > 0;
     }
-    
-    public String getExpirationBehavior() {
-        return expirationBehavior;
+
+    public String getName() {
+        return itemData.getRawName();
+    }
+
+    public String getDisplayName() {
+        return itemData.getRawDisplayName() != null ? itemData.getRawDisplayName() : itemData.getRawName();
+    }
+
+    public List<String> getLore() {
+        return itemData.getRawLore();
+    }
+
+    public String getMaterial() {
+        return itemData.getRawMaterial();
+    }
+
+    public boolean isUsePlaceholders() {
+        return usePlaceholders;
+    }
+
+    public boolean isConsumeOnUse() {
+        return consumeOnUse;
+    }
+
+    public boolean isCancelEvent() {
+        return cancelEvent;
+    }
+
+    public boolean isGlowing() {
+        return itemData.isGlowing();
+    }
+
+    public boolean isHideAttributes() {
+        return itemData.isHideAttributes();
+    }
+
+    public java.util.Map<String, Integer> getRawEnchantments() {
+        return new HashMap<>(itemData.getRawEnchantments());
+    }
+
+    public java.util.Map<org.bukkit.enchantments.Enchantment, Integer> getEnchantments() {
+        java.util.Map<org.bukkit.enchantments.Enchantment, Integer> result = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : itemData.getRawEnchantments().entrySet()) {
+            org.bukkit.enchantments.Enchantment enchant = org.bukkit.enchantments.Enchantment.getByKey(
+                    org.bukkit.NamespacedKey.minecraft(entry.getKey().toLowerCase())
+            );
+            if (enchant != null) {
+                result.put(enchant, entry.getValue());
+            }
+        }
+        return result;
     }
 
     public int getHitCount() {
@@ -462,9 +507,8 @@ public class ItemConfiguration {
     @Override
     public String toString() {
         return "ItemConfiguration{" +
-                "material='" + material + '\'' +
-                ", name='" + name + '\'' +
-                ", displayName='" + displayName + '\'' +
+                "material='" + itemData.getRawMaterial() + '\'' +
+                ", name='" + itemData.getRawName() + '\'' +
                 ", commands=" + commands.size() +
                 ", action='" + action + '\'' +
                 ", maxUses=" + maxUses +

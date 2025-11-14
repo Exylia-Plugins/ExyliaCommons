@@ -239,8 +239,15 @@ public class ColorUtils {
         return COMPONENT_CACHE.get(message, key -> {
             String processed = applyColorPresets(key);
             processed = preprocessColorCodes(processed);
-            String automaticFont = Configs.string("text.automatic-font");
-            boolean forceUpperCase = Configs.bool("text.force-in-upper-case");
+            String automaticFont = null;
+            boolean forceUpperCase = false;
+
+            try {
+                automaticFont = Configs.string("text.automatic-font");
+                forceUpperCase = Configs.bool("text.force-in-upper-case");
+            } catch (Exception ignored) {
+            }
+
             processed = applyFontTransformation(processed, automaticFont, forceUpperCase);
             return MINI_MESSAGE.deserialize(processed)
                     .decoration(TextDecoration.ITALIC, false);
@@ -266,11 +273,18 @@ public class ColorUtils {
             return "";
         }
 
-        String processed = applyColorPresets(message);  
-        processed = preprocessColorCodes(processed);  
-        String automaticFont = Configs.string("text.automatic-font");
-        boolean forceUpperCase = Configs.bool("text.force-in-upper-case");
-        return applyFontTransformation(processed, automaticFont, forceUpperCase);  
+        String processed = applyColorPresets(message);
+        processed = preprocessColorCodes(processed);
+        String automaticFont = null;
+        boolean forceUpperCase = false;
+
+        try {
+            automaticFont = Configs.string("text.automatic-font");
+            forceUpperCase = Configs.bool("text.force-in-upper-case");
+        } catch (Exception ignored) {
+        }
+
+        return applyFontTransformation(processed, automaticFont, forceUpperCase);
     }
 
     private static String preprocessColorCodes(String message) {

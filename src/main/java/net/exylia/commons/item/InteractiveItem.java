@@ -591,10 +591,10 @@ public class InteractiveItem {
         if (meta == null) return;
 
         if (glowing) {
-            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addEnchant(Enchantment.DURABILITY, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
-            meta.removeEnchant(Enchantment.UNBREAKING);
+            meta.removeEnchant(Enchantment.DURABILITY);
         }
 
         item.setItemMeta(meta);
