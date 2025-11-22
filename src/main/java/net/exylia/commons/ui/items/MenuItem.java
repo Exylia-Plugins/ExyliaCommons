@@ -130,6 +130,14 @@ public class MenuItem extends ExyliaItem {
         return this;
     }
 
+    public MenuItem setItemStack(ItemStack newItemStack) {
+        if (newItemStack != null) {
+            this.itemStack = newItemStack.clone();
+            itemData.setRawMaterial(newItemStack.getType().name());
+        }
+        return this;
+    }
+
     public MenuItem addEnchantment(org.bukkit.enchantments.Enchantment enchantment, int level) {
         return addEnchantment(enchantment.getKey().getKey(), level);
     }

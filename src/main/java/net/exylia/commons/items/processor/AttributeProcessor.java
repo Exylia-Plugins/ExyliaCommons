@@ -27,10 +27,10 @@ public class AttributeProcessor {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
             if (glowing) {
-                meta.addEnchant(Enchantment.DURABILITY, 1, true);
+                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             } else {
-                meta.removeEnchant(Enchantment.DURABILITY);
+                meta.removeEnchant(Enchantment.UNBREAKING);
             }
             itemStack.setItemMeta(meta);
         }

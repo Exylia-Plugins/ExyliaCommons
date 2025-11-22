@@ -14,22 +14,6 @@ system:
       title: "{primary}Enter your input in chat."
       subtitle: "{info}%time%s remaining"
 
-  commands:
-    no_subcommands: "%prefix% {error}This command has no subcommands."
-    usage: "%prefix% {primary}Usage: {info}%usage%{primary}"
-    help:
-      usage: "{success}/%label% {success_light}%usage%"
-      header: |-
-        &f
-        {primary}%plugin_name% &8&l•&r {secondary}Command help
-        &f
-        {warning}<> &8&l•&r {warning_light}Required &8| {info}[] &8&l•&r {info_light}Optional
-        &f
-    reload:
-      starting: "%prefix% {info}ℹ Reloading..."
-      success: "%prefix% {success}✓ Plugin reloaded successfully in {info}%time%ms{success}."
-      error: "%prefix% {error}✘ Reload error: %error%"
-
   items:
     no_uses_remaining: "%prefix% {error}The %item_name%{error} has no uses remaining." # %item_display% # %item_name%
     consumed: "%prefix% {warning}The %item_name%{warning} has been consumed." # %item_display% # %item_name%

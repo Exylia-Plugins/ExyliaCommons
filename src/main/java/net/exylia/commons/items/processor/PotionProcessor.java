@@ -7,8 +7,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.potion.PotionData;
 import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionType;
 
 import java.util.List;
 
@@ -26,8 +26,8 @@ public class PotionProcessor {
         }
 
         if (potionConfig.getBasePotionType() != null) {
-            PotionData potionData = potionConfig.createPotionData();
-            potionMeta.setBasePotionData(potionData);
+            PotionType potionType = potionConfig.createPotionType();
+            potionMeta.setBasePotionType(potionType);
         }
 
         List<PotionEffect> customEffects = potionConfig.createCustomEffects(player, context);

@@ -101,16 +101,10 @@ public class ReloadResult {
         try {
             if (result.isSuccess()) {
                 long duration = result.getDurationMs();
-                MessageUtils.sendMessage(sender,
-                    Messages.message("system.commands.reload.success")
-                        .put("time", duration)
-                        .raw());
+                MessageUtils.sendMessage(sender, "{success}✓ Plugin reloaded successfully in {info}" + duration + "ms{success}.");
             } else {
                 String error = result.getErrorMessage();
-                MessageUtils.sendMessage(sender,
-                    Messages.message("system.commands.reload.error")
-                        .put("error", error)
-                        .raw());
+                MessageUtils.sendMessage(sender, "{error}✘ Reload error: " + error + "{error}.");
             }
         } catch (Exception e) {
             DebugUtils.logInternalError("Error processing reload result: " + e.getMessage());
@@ -126,7 +120,6 @@ public class ReloadResult {
     }
 
     public static void sendStartMessage(org.bukkit.command.CommandSender sender) {
-        MessageUtils.sendMessage(sender,
-            Messages.get("system.commands.reload.starting"));
+        MessageUtils.sendMessage(sender, "{info}ℹ Reloading...");
     }
 }

@@ -50,6 +50,7 @@ public abstract class ExyliaItem {
         applyAttributes();
         applyCustomAttributes();
         applyCustomNBT();
+        applyUnbreakable();
         playClickSounds(player);
     }
 
@@ -66,6 +67,7 @@ public abstract class ExyliaItem {
         applyAttributes();
         applyCustomAttributes();
         applyCustomNBT();
+        applyUnbreakable();
     }
 
     private void processMaterial(Player player) {
@@ -214,6 +216,7 @@ public abstract class ExyliaItem {
         try {
             int amount = Integer.parseInt(amountString.trim());
             itemStack.setAmount(Math.max(1, Math.min(64, amount)));
+            itemStack.getItemMeta().setMaxStackSize(amount);
         } catch (NumberFormatException ignored) {
         }
     }
@@ -268,5 +271,9 @@ public abstract class ExyliaItem {
         } catch (NumberFormatException ignored) {
         }
         return itemStack.getAmount();
+    }
+
+    private void applyUnbreakable() {
+        UnbreakableProcessor.apply(itemStack, itemData.isUnbreakable());
     }
 }

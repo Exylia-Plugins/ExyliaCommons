@@ -667,7 +667,7 @@ public class RegionListener implements Listener {
     }
 
     private ActionResult validateExplosion(Region region, EntityType entityType) {
-        if (entityType == EntityType.PRIMED_TNT || entityType == EntityType.MINECART_TNT) {
+        if (entityType == EntityType.TNT) {
             if (!region.getFlagValue(RegionFlag.TNT)) {
                 return ActionResult.deny("tnt-disabled", null);
             }

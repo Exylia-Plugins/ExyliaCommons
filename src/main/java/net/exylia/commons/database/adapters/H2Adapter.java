@@ -43,7 +43,7 @@ public class H2Adapter implements DatabaseAdapter {
         String password = config.getString("database.h2.password", "");
         int poolSize = config.getInt("database.h2.pool-size", 5);
 
-        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName + ";AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
+        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName;
 
         try {
              

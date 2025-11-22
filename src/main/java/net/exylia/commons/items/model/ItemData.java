@@ -78,6 +78,9 @@ public class ItemData {
     @Builder.Default
     private Map<String, String> customNBT = new HashMap<>();
 
+    @Builder.Default
+    private boolean unbreakable = false;
+
     public ItemData copy() {
         return ItemData.builder()
                 .rawMaterial(this.rawMaterial)
@@ -99,6 +102,7 @@ public class ItemData {
                 .dynamicUpdate(this.dynamicUpdate)
                 .rawAttributes(new ArrayList<>(this.rawAttributes))
                 .customNBT(new HashMap<>(this.customNBT))
+                .unbreakable(this.unbreakable)
                 .build();
     }
 }

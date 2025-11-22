@@ -42,8 +42,6 @@ public class ReloadManager {
                 componentTimes.put("Configuración + Overhead", stepEnd - stepStart);
                 lastStepTime = stepEnd;
 
-                Configs.reloadAll();
-
                 if (!configResult.isSuccess()) {
                     return new ReloadResult(false, System.currentTimeMillis() - startTime,
                             componentTimes, "Error en reload de configuraciones: " + configResult.getErrorMessage());

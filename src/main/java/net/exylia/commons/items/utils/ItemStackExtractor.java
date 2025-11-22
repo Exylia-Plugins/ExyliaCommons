@@ -8,7 +8,7 @@ import org.bukkit.inventory.meta.LeatherArmorMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.potion.PotionData;
+import org.bukkit.potion.PotionType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -150,23 +150,15 @@ public class ItemStackExtractor {
         net.exylia.commons.items.config.PotionConfig potionConfig = new net.exylia.commons.items.config.PotionConfig();
 
         try {
-            java.lang.reflect.Method getBasePotionDataMethod = PotionMeta.class.getMethod("getBasePotionData");
-            PotionData potionData = (PotionData) getBasePotionDataMethod.invoke(potionMeta);
-            if (potionData != null && potionData.getType() != null) {
-                potionConfig.setBasePotionType(potionData.getType().name());
-                if (potionData.isUpgraded()) {
-                    potionConfig.setPotionUpgraded(true);
-                }
-                if (potionData.isExtended()) {
-                    potionConfig.setPotionExtended(true);
-                }
+            PotionType basePotionType = potionMeta.getBasePotionType();
+            if (basePotionType != null) {
+                potionConfig.setBasePotionType(basePotionType.name());
             }
         } catch (Exception ignored) {
         }
 
         try {
-            java.lang.reflect.Method getColorMethod = PotionMeta.class.getMethod("getColor");
-            Color color = (Color) getColorMethod.invoke(potionMeta);
+            Color color = potionMeta.getColor();
             if (color != null) {
                 potionConfig.setPotionColor(color);
             }

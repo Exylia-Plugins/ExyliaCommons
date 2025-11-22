@@ -1,5 +1,6 @@
 package net.exylia.commons.configSimple;
 
+import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -129,6 +130,9 @@ public class Configs {
 
     public static void reloadAll() {
         cache.values().forEach(Config::reload);
+        cache.values().forEach((config) -> {
+            DebugUtils.logInternalInfo("Reloaded config: " + config.getFileName());
+        });
     }
 
     public static void save(String fileName) {

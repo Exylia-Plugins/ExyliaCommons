@@ -39,6 +39,7 @@ public class ConfigurationParser {
         parseDynamicUpdate(config, builder);
         parseAttributes(config, builder);
         parseCustomNBT(config, builder);
+        parseUnbreakable(config, builder);
 
         return builder.build();
     }
@@ -301,5 +302,10 @@ public class ConfigurationParser {
                 builder.customNBT(nbtData);
             }
         }
+    }
+
+    private static void parseUnbreakable(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        boolean unbreakable = config.getBoolean("unbreakable", false);
+        builder.unbreakable(unbreakable);
     }
 }

@@ -90,6 +90,7 @@ public class InteractiveItem {
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
+        this.itemStack.getItemMeta().setMaxStackSize(config.getAmount());
     }
 
     public InteractiveItem(String configId, ItemConfiguration config, Player player) {
@@ -107,6 +108,7 @@ public class InteractiveItem {
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
+        this.itemStack.getItemMeta().setMaxStackSize(config.getAmount());
     }
 
     private InteractiveItem(ItemStack itemStack, String configId, ItemConfiguration config) {
@@ -591,10 +593,10 @@ public class InteractiveItem {
         if (meta == null) return;
 
         if (glowing) {
-            meta.addEnchant(Enchantment.DURABILITY, 1, true);
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
-            meta.removeEnchant(Enchantment.DURABILITY);
+            meta.removeEnchant(Enchantment.UNBREAKING);
         }
 
         item.setItemMeta(meta);

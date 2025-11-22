@@ -3,7 +3,6 @@ package net.exylia.commons.items.config;
 import lombok.Getter;
 import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.potion.PotionData;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.potion.PotionType;
@@ -134,21 +133,13 @@ public class PotionConfig {
         return this;
     }
 
-    public PotionData createPotionData() {
+    public PotionType createPotionType() {
         if (basePotionType == null) {
-            return new PotionData(PotionType.WATER);
+            return PotionType.WATER;
         }
 
         PotionType potionType = getPotionTypeByName(basePotionType);
-        if (potionType == null) {
-            potionType = PotionType.WATER;
-        }
-
-        if (potionUpgraded && potionExtended) {
-            return new PotionData(potionType, false, potionUpgraded);
-        }
-
-        return new PotionData(potionType, potionExtended, potionUpgraded);
+        return potionType != null ? potionType : PotionType.WATER;
     }
 
     public List<PotionEffect> createCustomEffects(org.bukkit.entity.Player player,
@@ -201,13 +192,13 @@ public class PotionConfig {
             return PotionType.valueOf(name.toUpperCase());
         } catch (Exception e) {
             return switch (name.toLowerCase()) {
-                case "speed", "swiftness" -> PotionType.SPEED;
+                case "speed", "swiftness" -> PotionType.SWIFTNESS;
                 case "slowness", "slow" -> PotionType.SLOWNESS;
                 case "strength" -> PotionType.STRENGTH;
-                case "instant_health", "healing", "heal" -> PotionType.INSTANT_HEAL;
+                case "instant_health", "healing", "heal" -> PotionType.HEALING;
                 case "instant_damage", "harming", "harm" -> PotionType.STRONG_HARMING;
                 case "jump_boost", "jump" -> PotionType.STRONG_LEAPING;
-                case "regeneration", "regen" -> PotionType.REGEN;
+                case "regeneration", "regen" -> PotionType.REGENERATION;
                 case "fire_resistance", "fire_resist" -> PotionType.FIRE_RESISTANCE;
                 case "water_breathing" -> PotionType.WATER_BREATHING;
                 case "invisibility", "invis" -> PotionType.INVISIBILITY;
