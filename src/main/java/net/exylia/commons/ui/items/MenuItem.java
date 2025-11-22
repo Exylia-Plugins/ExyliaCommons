@@ -46,6 +46,7 @@ public class MenuItem extends ExyliaItem {
         super();
         this.id = UUID.randomUUID().toString();
         itemData.setRawMaterial(materialString);
+        itemData.setMaxStackSize(99);
         itemStack = ItemStackUtils.createFromString(materialString);
     }
 
@@ -118,6 +119,15 @@ public class MenuItem extends ExyliaItem {
     public MenuItem setAmount(String amountString) {
         itemData.setRawAmount(amountString);
         return this;
+    }
+
+    public MenuItem setMaxStackSize(int maxStackSize) {
+        itemData.setMaxStackSize(Math.max(1, maxStackSize));
+        return this;
+    }
+
+    public int getMaxStackSize() {
+        return itemData.getMaxStackSize();
     }
 
     public MenuItem setMaterial(Material material) {

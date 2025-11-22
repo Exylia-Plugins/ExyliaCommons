@@ -40,6 +40,7 @@ public class ConfigurationParser {
         parseAttributes(config, builder);
         parseCustomNBT(config, builder);
         parseUnbreakable(config, builder);
+        parseMaxStackSize(config, builder);
 
         return builder.build();
     }
@@ -307,5 +308,14 @@ public class ConfigurationParser {
     private static void parseUnbreakable(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
         boolean unbreakable = config.getBoolean("unbreakable", false);
         builder.unbreakable(unbreakable);
+    }
+
+    private static void parseMaxStackSize(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("max_stack_size") || config.contains("maxStackSize")) {
+            int maxStackSize = config.getInt("max_stack_size", config.getInt("maxStackSize", -1));
+            if (maxStackSize > 0) {
+                builder.maxStackSize(maxStackSize);
+            }
+        }
     }
 }

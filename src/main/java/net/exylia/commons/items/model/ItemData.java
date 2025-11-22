@@ -81,6 +81,9 @@ public class ItemData {
     @Builder.Default
     private boolean unbreakable = false;
 
+    @Builder.Default
+    private int maxStackSize = -1;
+
     public ItemData copy() {
         return ItemData.builder()
                 .rawMaterial(this.rawMaterial)
@@ -103,6 +106,7 @@ public class ItemData {
                 .rawAttributes(new ArrayList<>(this.rawAttributes))
                 .customNBT(new HashMap<>(this.customNBT))
                 .unbreakable(this.unbreakable)
+                .maxStackSize(this.maxStackSize)
                 .build();
     }
 }

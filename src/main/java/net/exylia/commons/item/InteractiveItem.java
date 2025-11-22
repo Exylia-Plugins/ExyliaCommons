@@ -90,7 +90,6 @@ public class InteractiveItem {
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
-        this.itemStack.getItemMeta().setMaxStackSize(config.getAmount());
     }
 
     public InteractiveItem(String configId, ItemConfiguration config, Player player) {
@@ -108,7 +107,6 @@ public class InteractiveItem {
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
         }
-        this.itemStack.getItemMeta().setMaxStackSize(config.getAmount());
     }
 
     private InteractiveItem(ItemStack itemStack, String configId, ItemConfiguration config) {
@@ -533,6 +531,20 @@ public class InteractiveItem {
     public InteractiveItem setAmount(int amount) {
         itemStack.setAmount(Math.max(1, Math.min(64, amount)));
         return this;
+    }
+
+    public InteractiveItem setMaxStackSize(int maxStackSize) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            meta.setMaxStackSize(Math.max(1, maxStackSize));
+            itemStack.setItemMeta(meta);
+        }
+        return this;
+    }
+
+    public int getMaxStackSize() {
+        ItemMeta meta = itemStack.getItemMeta();
+        return meta != null ? meta.getMaxStackSize() : 64;
     }
 
     public InteractiveItem setGlowing(boolean glowing) {

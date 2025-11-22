@@ -51,6 +51,7 @@ public abstract class ExyliaItem {
         applyCustomAttributes();
         applyCustomNBT();
         applyUnbreakable();
+        applyMaxStackSize();
         playClickSounds(player);
     }
 
@@ -68,6 +69,7 @@ public abstract class ExyliaItem {
         applyCustomAttributes();
         applyCustomNBT();
         applyUnbreakable();
+        applyMaxStackSize();
     }
 
     private void processMaterial(Player player) {
@@ -275,5 +277,15 @@ public abstract class ExyliaItem {
 
     private void applyUnbreakable() {
         UnbreakableProcessor.apply(itemStack, itemData.isUnbreakable());
+    }
+
+    protected void applyMaxStackSize() {
+        if (itemData.getMaxStackSize() != -1) {
+            ItemMeta meta = itemStack.getItemMeta();
+            if (meta != null) {
+                meta.setMaxStackSize(itemData.getMaxStackSize());
+                itemStack.setItemMeta(meta);
+            }
+        }
     }
 }
