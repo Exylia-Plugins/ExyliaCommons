@@ -46,7 +46,6 @@ public class MenuItem extends ExyliaItem {
         super();
         this.id = UUID.randomUUID().toString();
         itemData.setRawMaterial(materialString);
-        itemData.setMaxStackSize(99);
         itemStack = ItemStackUtils.createFromString(materialString);
     }
 
@@ -606,5 +605,21 @@ public class MenuItem extends ExyliaItem {
         this.itemStack = itemStack.clone();
         this.itemData = extractedData;
         return this;
+    }
+
+    @Override
+    protected void applyMaxStackSize() {
+        if (itemData.getMaxStackSize() != -1) {
+            super.applyMaxStackSize();
+        } else {
+            int amount = getAmount();
+            if (amount > 1) {
+                ItemMeta meta = itemStack.getItemMeta();
+                if (meta != null) {
+                    meta.setMaxStackSize(amount);
+                    itemStack.setItemMeta(meta);
+                }
+            }
+        }
     }
 }

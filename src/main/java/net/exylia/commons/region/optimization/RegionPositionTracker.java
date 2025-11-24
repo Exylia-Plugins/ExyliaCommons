@@ -73,7 +73,12 @@ public class RegionPositionTracker {
         TrackedPosition lastPosition = lastKnownPositions.get(playerId);
 
         if (lastPosition == null) {
-             
+
+            lastKnownPositions.put(playerId, new TrackedPosition(currentLocation));
+            return;
+        }
+
+        if (!lastPosition.location.getWorld().equals(currentLocation.getWorld())) {
             lastKnownPositions.put(playerId, new TrackedPosition(currentLocation));
             return;
         }

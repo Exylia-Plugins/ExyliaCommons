@@ -218,7 +218,9 @@ public abstract class ExyliaItem {
         try {
             int amount = Integer.parseInt(amountString.trim());
             itemStack.setAmount(Math.max(1, Math.min(64, amount)));
-            itemStack.getItemMeta().setMaxStackSize(amount);
+            if (amount > 0) {
+                itemStack.getItemMeta().setMaxStackSize(amount);
+            }
         } catch (NumberFormatException ignored) {
         }
     }
