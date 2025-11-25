@@ -315,7 +315,26 @@ public class VanillaItemCooldownManager implements Listener {
 
         VanillaTriggerType triggerType = config.getTriggerType();
 
-        if (triggerType == VanillaTriggerType.INTERACT ||
+        if (triggerType == VanillaTriggerType.ELYTRA_BOOST ||
+                (triggerType == VanillaTriggerType.AUTO_DETECT && isElytraBoostTrigger(material))) {
+
+            if (!player.isGliding()) {
+                return;
+            }
+
+            if (!event.getAction().name().startsWith("RIGHT_CLICK")) {
+                return;
+            }
+
+            if (!canPlayerUseItem(player, material)) {
+                event.setCancelled(true);
+                handleCooldownMessage(player, material);
+                return;
+            }
+
+            setCooldown(player, material);
+        }
+        else if (triggerType == VanillaTriggerType.INTERACT ||
                 (triggerType == VanillaTriggerType.AUTO_DETECT && isInteractTrigger(material))) {
 
             if (!canPlayerUseItem(player, material)) {
@@ -480,9 +499,23 @@ public class VanillaItemCooldownManager implements Listener {
 
     private boolean isInteractTrigger(Material material) {
         return material == Material.SHIELD ||
-                material == Material.FIREWORK_ROCKET ||
                 material.name().contains("POTION") ||
                 material.name().contains("BUCKET");
+    }
+
+    private boolean isElytraBoostTrigger(Material material) {
+        return material == Material.FIREWORK_ROCKET;
+    }
+
+    private boolean isBlockPlaceTrigger(Material material) {
+        return material.isBlock() && !material.isAir();
+    }
+
+    private boolean isBlockBreakTrigger(Material material) {
+        return material.name().contains("PICKAXE") ||
+                material.name().contains("AXE") ||
+                material.name().contains("SHOVEL") ||
+                material.name().contains("HOE");
     }
 
     private boolean isConsumeTrigger(Material material) {
@@ -660,11 +693,23 @@ public class VanillaItemCooldownManager implements Listener {
                 .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.AFTER_PROJECTILE ? 1 : 0)
                 .sum();
 
+        long elytraBoostCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.ELYTRA_BOOST ? 1 : 0)
+                .sum();
+
+        long blockPlaceCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.BLOCK_PLACE ? 1 : 0)
+                .sum();
+
+        long blockBreakCount = itemConfigs.values().stream()
+                .mapToLong(config -> config.getTriggerType() == VanillaTriggerType.BLOCK_BREAK ? 1 : 0)
+                .sum();
+
         long customDisplayCount = itemConfigs.values().stream()
                 .mapToLong(config -> config.hasDisplayName() ? 1 : 0)
                 .sum();
 
-        return String.format("Vanilla Item Cooldowns - Total: %d, Interact: %d, Consume: %d, Projectile: %d, Custom Display Names: %d",
-                itemConfigs.size(), interactCount, consumeCount, projectileCount, customDisplayCount);
+        return String.format("Vanilla Item Cooldowns - Total: %d, Interact: %d, Consume: %d, Projectile: %d, Elytra: %d, Place: %d, Break: %d, Custom Display Names: %d",
+                itemConfigs.size(), interactCount, consumeCount, projectileCount, elytraBoostCount, blockPlaceCount, blockBreakCount, customDisplayCount);
     }
 }
