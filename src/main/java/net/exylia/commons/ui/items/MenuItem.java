@@ -1,13 +1,13 @@
 package net.exylia.commons.ui.items;
 
 import lombok.Getter;
-import net.exylia.commons.items.config.ArmorTrimConfig;
-import net.exylia.commons.items.config.LeatherArmorConfig;
-import net.exylia.commons.items.config.PotionConfig;
-import net.exylia.commons.items.model.ExyliaItem;
-import net.exylia.commons.items.model.ItemData;
-import net.exylia.commons.items.processor.ConfigurationParser;
-import net.exylia.commons.items.utils.ItemStackUtils;
+import net.exylia.commons.v2.items.config.ArmorTrimConfig;
+import net.exylia.commons.v2.items.config.LeatherArmorConfig;
+import net.exylia.commons.v2.items.config.PotionConfig;
+import net.exylia.commons.v2.items.model.ExyliaItem;
+import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.items.processor.ConfigurationParser;
+import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.utils.DebugUtils;
@@ -61,7 +61,7 @@ public class MenuItem extends ExyliaItem {
         this.id = UUID.randomUUID().toString();
         this.itemStack = itemStack.clone();
         if (extractData) {
-            this.itemData = net.exylia.commons.items.utils.ItemStackExtractor.extractFromItemStack(itemStack);
+            this.itemData = net.exylia.commons.v2.items.utils.ItemStackExtractor.extractFromItemStack(itemStack);
         } else {
             itemData.setRawMaterial(itemStack.getType().name());
         }
@@ -388,10 +388,10 @@ public class MenuItem extends ExyliaItem {
         MenuItem clone = new MenuItem(clonedStack);
         try {
             clone.itemData = (this.itemData == null)
-                    ? net.exylia.commons.items.utils.ItemStackExtractor.extractFromItemStack(clonedStack)
+                    ? net.exylia.commons.v2.items.utils.ItemStackExtractor.extractFromItemStack(clonedStack)
                     : this.itemData.copy();
         } catch (Exception ignored) {
-            clone.itemData = net.exylia.commons.items.utils.ItemStackExtractor.extractFromItemStack(clonedStack);
+            clone.itemData = net.exylia.commons.v2.items.utils.ItemStackExtractor.extractFromItemStack(clonedStack);
         }
         clone.clickHandler = this.clickHandler;
         clone.awaitingPlayerSkull = this.awaitingPlayerSkull;
@@ -601,7 +601,7 @@ public class MenuItem extends ExyliaItem {
     }
 
     public MenuItem extractAndLoad(ItemStack itemStack) {
-        ItemData extractedData = net.exylia.commons.items.utils.ItemStackExtractor.extractFromItemStack(itemStack);
+        ItemData extractedData = net.exylia.commons.v2.items.utils.ItemStackExtractor.extractFromItemStack(itemStack);
         this.itemStack = itemStack.clone();
         this.itemData = extractedData;
         return this;

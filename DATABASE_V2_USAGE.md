@@ -212,10 +212,10 @@ System.out.println("Evictions: " + stats.getEvictions());
 
 ---
 
-## ⚙️ Configuración (database-v2.yml)
+## ⚙️ Configuración (database.yml)
 
 ```yaml
-database-v2:
+database:
   type: MySQL              # H2, MySQL, MongoDB, YAML
   auto-migration: true
   debug: false

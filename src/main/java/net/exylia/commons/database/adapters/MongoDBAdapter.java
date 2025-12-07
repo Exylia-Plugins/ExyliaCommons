@@ -85,7 +85,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 logInternalInfo("MongoDB connection closed successfully");
             }
         } catch (Exception e) {
-            errorHandler.logWarning("Disconnect", "MongoDBAdapter", "Error closing MongoDB connection: " + e.getMessage());
+            errorHandler.logInternalWarning("Disconnect", "MongoDBAdapter", "Error closing MongoDB connection: " + e.getMessage());
         }
     }
 
@@ -182,7 +182,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     successCount++;
                 } catch (Exception e) {
                     failureCount++;
-                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                             "Failed to prepare entity for bulk operation: " + e.getMessage());
                 }
             }
@@ -201,7 +201,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             }
 
             if (failureCount > 0) {
-                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
@@ -242,7 +242,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
                     if (id == null) {
                         failureCount++;
-                        errorHandler.logWarning("UpdateAll", entityClassName,
+                        errorHandler.logInternalWarning("UpdateAll", entityClassName,
                                 "Cannot update entity without ID in updateAll");
                         continue;
                     }
@@ -257,7 +257,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     successCount++;
                 } catch (Exception e) {
                     failureCount++;
-                    errorHandler.logWarning("UpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("UpdateAll", entityClassName,
                             "Failed to prepare entity for bulk update: " + e.getMessage());
                 }
             }
@@ -274,7 +274,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
             }
 
             if (failureCount > 0) {
-                errorHandler.logWarning("UpdateAll", entityClassName,
+                errorHandler.logInternalWarning("UpdateAll", entityClassName,
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
@@ -355,7 +355,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                 if (deleted) {
                     logInternalDebug("Entity deleted successfully from MongoDB collection: " + collectionName);
                 } else {
-                    errorHandler.logWarning("Delete", entityClassName,
+                    errorHandler.logInternalWarning("Delete", entityClassName,
                             "No document was deleted for ID: " + id);
                 }
 
@@ -436,7 +436,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAll", entityClassName,
+                        errorHandler.logInternalWarning("FindAll", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -477,7 +477,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindBy", entityClassName,
+                        errorHandler.logInternalWarning("FindBy", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -526,7 +526,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("ExecuteQuery", entityClassName,
+                        errorHandler.logInternalWarning("ExecuteQuery", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -594,7 +594,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                             collection.createIndex(new Document(fieldName, 1));
                             logInternalInfo("Index created for unique field: " + fieldName);
                         } catch (Exception e) {
-                            errorHandler.logWarning("CreateTable", entityClassName,
+                            errorHandler.logInternalWarning("CreateTable", entityClassName,
                                     "Failed to create index for field " + fieldName + ": " + e.getMessage());
                         }
                     }
@@ -776,7 +776,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                 continue;  
                             }
                         } catch (Exception e) {
-                            errorHandler.logWarning("MapToEntity", entityClassName,
+                            errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                     "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
                     }
@@ -795,7 +795,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(e);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -808,7 +808,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(serException);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -1215,7 +1215,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -1259,7 +1259,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -1303,7 +1303,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPaged", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPaged", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -1349,7 +1349,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPagedOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPagedOrderedBy", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }
@@ -1572,7 +1572,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
                         Document document = cursor.next();
                         results.add(documentToEntity(document, entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindByFieldOrderedBy", entityClassName,
                                 "Failed to map one document to entity: " + e.getMessage());
                     }
                 }

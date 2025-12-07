@@ -2,7 +2,7 @@ package net.exylia.commons.command.types;
 
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.annotation.CommandInfo;
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;

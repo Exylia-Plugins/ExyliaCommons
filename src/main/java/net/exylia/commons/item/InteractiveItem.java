@@ -419,15 +419,15 @@ public class InteractiveItem {
         }
 
         ItemStack item = createItemFromString(materialString);
-
         ItemMeta meta = item.getItemMeta();
+
         if (meta != null) {
             if (config.getName() != null) {
                 String name = config.getName();
                 if (player != null && config.isUsePlaceholders()) {
+                    name = ItemPlaceholderUtils.processAllItemPlaceholders(name, this, player);
                     ExyliaContext fullContext = context.copy().add(this);
                     name = fullContext.processPlaceholders(name, player);
-                    name = ItemPlaceholderUtils.processAllItemPlaceholders(name, this, player);
                 }
                 adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
@@ -437,30 +437,35 @@ public class InteractiveItem {
                 for (String line : config.getLore()) {
                     String processedLine = line;
                     if (player != null && config.isUsePlaceholders()) {
+                        processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(line, this, player);
                         ExyliaContext fullContext = context.copy().add(this);
-                        processedLine = fullContext.processPlaceholders(line, player);
-                        processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, player);
+                        processedLine = fullContext.processPlaceholders(processedLine, player);
                     }
                     loreComponents.add(ColorUtils.parse(processedLine));
                 }
                 adapter.setLore(meta, loreComponents);
             }
 
+            if (config.isGlowing()) {
+                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+
+            if (config.isHideAttributes()) {
+                meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            }
+
+            int maxStackSize = config.getItemData().getMaxStackSize();
+            if (!config.isStackable()) {
+                meta.setMaxStackSize(1);
+            } else if (maxStackSize > 0) {
+                meta.setMaxStackSize(maxStackSize);
+            }
+
             item.setItemMeta(meta);
         }
 
-        if (config.isGlowing()) {
-            setGlowing(item, true);
-        }
 
-        if (config.isHideAttributes()) {
-            hideAllAttributes(item);
-        }
-
-        if (!config.isStackable()) {
-            makeUnique(item);
-        }
-        
         if (config.hasEnchantments()) {
             applyEnchantments(item, config.getEnchantments());
         }
@@ -1002,11 +1007,10 @@ public class InteractiveItem {
     }
 
     public void updatePlaceholders(Player player, EquipmentSlot hand) {
-         
         if (awaitingPlayerSkull && pendingPlayerName != null) {
             updateSkullIfNeeded();
         }
-        
+
         if (!usesPlaceholders()) return;
 
         ItemConfiguration freshConfig = ItemManager.getItemConfiguration(configId);
@@ -1022,8 +1026,8 @@ public class InteractiveItem {
 
         String rawName = getRawName();
         if (rawName != null) {
-            String processedName = fullContext.processPlaceholders(rawName, targetPlayer);
-            processedName = ItemPlaceholderUtils.processAllItemPlaceholders(processedName, this, targetPlayer);
+            String processedName = ItemPlaceholderUtils.processAllItemPlaceholders(rawName, this, targetPlayer);
+            processedName = fullContext.processPlaceholders(processedName, targetPlayer);
             adapter.setDisplayName(meta, ColorUtils.parse(processedName));
         }
 
@@ -1031,8 +1035,8 @@ public class InteractiveItem {
         if (!rawLore.isEmpty()) {
             List<Component> loreComponents = new ArrayList<>();
             for (String line : rawLore) {
-                String processedLine = fullContext.processPlaceholders(line, targetPlayer);
-                processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(processedLine, this, targetPlayer);
+                String processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(line, this, targetPlayer);
+                processedLine = fullContext.processPlaceholders(processedLine, targetPlayer);
                 loreComponents.add(ColorUtils.parse(processedLine));
             }
             adapter.setLore(meta, loreComponents);

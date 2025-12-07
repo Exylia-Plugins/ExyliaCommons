@@ -1,8 +1,8 @@
 package net.exylia.commons.item.config;
 
 import lombok.Getter;
-import net.exylia.commons.items.model.ExyliaItem;
-import net.exylia.commons.items.utils.ItemStackUtils;
+import net.exylia.commons.v2.items.model.ExyliaItem;
+import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -42,6 +42,7 @@ public class ItemConfiguration extends ExyliaItem {
     private final List<RegionEntry> regionEntries;
     private final List<String> regionList;
     private final Map<String, Double> regionCooldowns;
+    private final boolean disableInNonPvpRegions;
 
     private final WorldFilterType worldType;
     private final List<WorldEntry> worldEntries;
@@ -82,6 +83,7 @@ public class ItemConfiguration extends ExyliaItem {
         this.regionEntries = new ArrayList<>(builder.regionEntries);
         this.regionList = new ArrayList<>(builder.regionList);
         this.regionCooldowns = new HashMap<>(builder.regionCooldowns);
+        this.disableInNonPvpRegions = builder.disableInNonPvpRegions;
 
         this.worldType = builder.worldType;
         this.worldEntries = new ArrayList<>(builder.worldEntries);
@@ -122,6 +124,10 @@ public class ItemConfiguration extends ExyliaItem {
 
     public boolean hasRegionConfiguration() {
         return regionType != RegionFilterType.NONE && !regionEntries.isEmpty();
+    }
+
+    public boolean isDisableInNonPvpRegions() {
+        return disableInNonPvpRegions;
     }
 
     public boolean canUseWithChecker(List<String> playerRegions, World playerWorld, String highestPriorityRegion) {

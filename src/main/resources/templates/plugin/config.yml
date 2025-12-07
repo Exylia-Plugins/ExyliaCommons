@@ -9,27 +9,25 @@ text:
   automatic-font: "none" # small or none
   force-in-upper-case: true
 
-date-formatter:
-  default-pattern: "dd/MM/yyyy HH:mm:ss"
-  date-pattern: "dd/MM/yyyy"
-  time-pattern: "HH:mm:ss"
-  language: "en" # en, es
-  use-iso: false
-
-time-formatter:
-  zero-text: "{success}Now"
-  show-milliseconds: true
-  precision: 1
-  language: "en" # en, es
-  compact-mode: false
-  auto-detect-seconds: true
-  force-show-zero-decimals: false
-
-price-formatter:
-  currency-symbol: "$"
-  symbol-before: true
-  decimal-separator: "."
-  thousand-separator: ","
-  decimal-places: 2
-  show-decimals: true
-
+formatters:
+  time:
+    zero-text: "0s"
+    show-milliseconds: false
+    compact-mode: false
+    precision: 2
+    language: "en"
+    force-show-zero-decimals: false
+    decimal-threshold-millis: 15000
+    show-decimals-under-threshold: true
+  date:
+    default-pattern: "dd/MM/yyyy HH:mm:ss"
+    date-pattern: "dd/MM/yyyy"
+    time-pattern: "HH:mm:ss"
+    use-iso-default: false
+  price:
+    currency-symbol: "$"
+    symbol-before: true
+    decimal-separator: "."
+    thousand-separator: ","
+    decimal-places: 2
+    show-decimals: true

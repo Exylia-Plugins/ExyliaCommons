@@ -1,0 +1,92 @@
+package net.exylia.commons.v2.hologram.entity;
+
+import lombok.Getter;
+import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.v2.hologram.model.HologramProperties;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Location;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.TextDisplay;
+
+@Getter
+public class HologramDisplayEntity {
+    private final TextDisplay entity;
+    private final HologramProperties properties;
+
+    private HologramDisplayEntity(TextDisplay entity, HologramProperties properties) {
+        this.entity = entity;
+        this.properties = properties;
+    }
+
+    public static HologramDisplayEntity create(Location location, String text, HologramProperties properties) {
+        TextDisplay display = (TextDisplay) location.getWorld()
+                .spawnEntity(location, EntityType.TEXT_DISPLAY);
+
+        HologramDisplayEntity displayEntity = new HologramDisplayEntity(display, properties);
+        displayEntity.update(text);
+        displayEntity.applyProperties(properties);
+
+        return displayEntity;
+    }
+
+    public void update(String text) {
+        if (entity != null && entity.isValid()) {
+            Component component = ColorUtils.parse(text);
+            entity.text(component);
+        }
+    }
+
+    public void updateComponent(Component component) {
+        if (entity != null && entity.isValid()) {
+            entity.text(component);
+        }
+    }
+
+    public void applyProperties(HologramProperties props) {
+        if (entity == null || !entity.isValid()) {
+            return;
+        }
+
+        entity.setBillboard(props.getBillboard());
+        entity.setAlignment(props.getAlignment());
+
+        org.bukkit.util.Transformation transformation = entity.getTransformation();
+        transformation.getScale().set(props.getScaleX(), props.getScaleY(), props.getScaleZ());
+        entity.setTransformation(transformation);
+
+        entity.setShadowed(props.isShadow());
+        entity.setSeeThrough(props.isSeeThrough());
+        entity.setLineWidth(props.getLineWidth());
+
+        if (props.getBackgroundColor() != null) {
+            entity.setBackgroundColor(props.getBackgroundColor());
+        }
+
+        if (props.getBrightness() >= 0) {
+            int sky = (props.getBrightness() >> 4) & 0xF;
+            int block = props.getBrightness() & 0xF;
+            entity.setBrightness(new Display.Brightness(sky, block));
+        }
+    }
+
+    public void remove() {
+        if (entity != null && entity.isValid()) {
+            entity.remove();
+        }
+    }
+
+    public void teleport(Location location) {
+        if (entity != null && entity.isValid()) {
+            entity.teleport(location);
+        }
+    }
+
+    public boolean isValid() {
+        return entity != null && entity.isValid();
+    }
+
+    public Location getLocation() {
+        return entity != null ? entity.getLocation() : null;
+    }
+}

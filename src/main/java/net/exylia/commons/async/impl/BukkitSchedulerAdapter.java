@@ -27,8 +27,8 @@ public class BukkitSchedulerAdapter implements SchedulerAdapter {
 
     @Override
     public ScheduledTask runTaskTimer(Plugin plugin, Runnable task, long delay, long period, TimeUnit timeUnit) {
-        long delayTicks = timeUnit.toMillis(delay) / 50;
-        long periodTicks = timeUnit.toMillis(period) / 50;
+        long delayTicks = Math.max(1, timeUnit.toMillis(delay) / 50);
+        long periodTicks = Math.max(1, timeUnit.toMillis(period) / 50);
         return new BukkitScheduledTask(Bukkit.getScheduler().runTaskTimer(plugin, task, delayTicks, periodTicks));
     }
 

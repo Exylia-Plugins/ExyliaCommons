@@ -77,7 +77,23 @@ public final class AsyncAPI {
         private CompletableFuture<Void> currentFuture = CompletableFuture.completedFuture(null);
 
         public TaskChain thenSync(Runnable task) {
-            currentFuture = currentFuture.thenRun(() -> Schedulers.sync(task));
+            currentFuture = currentFuture.thenCompose(v -> {
+                if (Schedulers.isMainThread()) {
+                    task.run();
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    Schedulers.sync(() -> {
+                        try {
+                            task.run();
+                            future.complete(null);
+                        } catch (Exception e) {
+                            future.completeExceptionally(e);
+                        }
+                    });
+                    return future;
+                }
+            });
             return this;
         }
 
@@ -88,6 +104,11 @@ public final class AsyncAPI {
 
         public TaskChain thenAsyncDb(Runnable task) {
             currentFuture = currentFuture.thenCompose(v -> AsyncAPI.executeDb(task));
+            return this;
+        }
+
+        public TaskChain thenCompose(Supplier<CompletableFuture<Void>> futureSupplier) {
+            currentFuture = currentFuture.thenCompose(v -> futureSupplier.get());
             return this;
         }
 

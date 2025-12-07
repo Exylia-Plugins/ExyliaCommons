@@ -46,7 +46,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         try {
             return adapter.saveOrUpdateAll(entities);
         } catch (Exception e) {
-            errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+            errorHandler.logInternalWarning("saveOrUpdateAll", entityClass.getSimpleName(),
                     "Adapter doesn't support bulk saveOrUpdate, executing individually: " + e.getMessage());
 
             int successCount = 0;
@@ -58,7 +58,7 @@ public class RepositoryImpl<T> implements Repository<T> {
                     successCount++;
                 } catch (Exception entityException) {
                     failureCount++;
-                    errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(),
+                    errorHandler.logInternalWarning("saveOrUpdateAll", entityClass.getSimpleName(),
                             String.format("Failed to saveOrUpdate entity %d of %d: %s",
                                     successCount + failureCount, entities.size(), entityException.getMessage()));
                 }
@@ -67,7 +67,7 @@ public class RepositoryImpl<T> implements Repository<T> {
             if (failureCount > 0) {
                 String message = String.format("saveOrUpdateAll completed with %d successes and %d failures out of %d total entities",
                         successCount, failureCount, entities.size());
-                errorHandler.logWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
+                errorHandler.logInternalWarning("saveOrUpdateAll", entityClass.getSimpleName(), message);
             }
 
             return entities;
@@ -287,7 +287,7 @@ public class RepositoryImpl<T> implements Repository<T> {
                 successCount++;
             } catch (Exception e) {
                 failureCount++;
-                errorHandler.logWarning("deleteAll", entityClass.getSimpleName(),
+                errorHandler.logInternalWarning("deleteAll", entityClass.getSimpleName(),
                         String.format("Failed to delete entity %d of %d: %s",
                                 successCount + failureCount, entities.size(), e.getMessage()));
             }
@@ -296,7 +296,7 @@ public class RepositoryImpl<T> implements Repository<T> {
         if (failureCount > 0) {
             String message = String.format("deleteAll completed with %d successes and %d failures out of %d total entities",
                     successCount, failureCount, entities.size());
-            errorHandler.logWarning("deleteAll", entityClass.getSimpleName(), message);
+            errorHandler.logInternalWarning("deleteAll", entityClass.getSimpleName(), message);
         }
     }
 

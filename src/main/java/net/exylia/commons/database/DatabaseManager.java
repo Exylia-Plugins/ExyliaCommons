@@ -183,7 +183,7 @@ public class DatabaseManager {
             String errorMsg = String.format("Failed to connect to %s database (%s)", type, connectionInfo);
 
             if (!type.equals("YAML") && !type.equals("H2")) {
-                errorHandler.logWarning("Connection", type, "Primary database connection failed, attempting YAML fallback");
+                errorHandler.logInternalWarning("Connection", type, "Primary database connection failed, attempting YAML fallback");
 
                 try {
                     adapter = new YAMLAdapter(databaseConfig, plugin, errorHandler);
@@ -191,7 +191,7 @@ public class DatabaseManager {
                     errorHandler.logRecovery("Connection", "YAML", "Successfully fell back to YAML database");
 
                 } catch (Exception yamlError) {
-                    errorHandler.logWarning("Connection", "YAML", "YAML fallback failed, attempting H2 fallback");
+                    errorHandler.logInternalWarning("Connection", "YAML", "YAML fallback failed, attempting H2 fallback");
 
                     try {
                         adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
@@ -204,7 +204,7 @@ public class DatabaseManager {
                     }
                 }
             } else if (type.equals("YAML")) {
-                errorHandler.logWarning("Connection", "YAML", "YAML connection failed, attempting H2 fallback");
+                errorHandler.logInternalWarning("Connection", "YAML", "YAML connection failed, attempting H2 fallback");
 
                 try {
                     adapter = new H2Adapter(databaseConfig, plugin, errorHandler);
@@ -293,7 +293,7 @@ public class DatabaseManager {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                errorHandler.logWarning("Table Initialization", "System",
+                errorHandler.logInternalWarning("Table Initialization", "System",
                         "Thread interrupted while waiting for table initialization");
                 return false;
             }
@@ -414,7 +414,7 @@ public class DatabaseManager {
                     repositories.put(entityClass, newRepository);
 
                 } catch (Exception e) {
-                    errorHandler.logWarning("Repository Recreation", entityClass.getSimpleName(),
+                    errorHandler.logInternalWarning("Repository Recreation", entityClass.getSimpleName(),
                             "Failed to recreate repository: " + e.getMessage());
                 }
             }

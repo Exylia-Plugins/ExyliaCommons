@@ -1,10 +1,9 @@
 package net.exylia.commons.ui.builders;
 
-import net.exylia.commons.items.config.ArmorTrimConfig;
-import net.exylia.commons.items.config.LeatherArmorConfig;
-import net.exylia.commons.items.config.PotionConfig;
+import net.exylia.commons.v2.items.config.ArmorTrimConfig;
+import net.exylia.commons.v2.items.config.LeatherArmorConfig;
+import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
-import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.actions.ActionContext;

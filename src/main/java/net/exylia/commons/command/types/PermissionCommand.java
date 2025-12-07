@@ -3,7 +3,7 @@ package net.exylia.commons.command.types;
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.command.ExyliaCommand;
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import org.bukkit.command.CommandSender;
 

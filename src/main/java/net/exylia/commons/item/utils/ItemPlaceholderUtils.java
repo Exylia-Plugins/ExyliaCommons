@@ -9,12 +9,18 @@ import static net.exylia.commons.utils.TimeFormatter.timeFormatter;
 public class ItemPlaceholderUtils {
 
     public static String processUsePlaceholders(String text, InteractiveItem item) {
-        if (!item.hasLimitedUses() || text == null) {
+        if (text == null) {
             return text;
         }
 
-        return text.replace("%current_uses%", String.valueOf(item.getCurrentUses()))
-                .replace("%max_uses%", String.valueOf(item.getMaxUses()));
+        if (!item.hasLimitedUses()) {
+            return text;
+        }
+
+        int currentUses = item.getCurrentUses();
+        int maxUses = item.getMaxUses();
+        return text.replace("%current_uses%", String.valueOf(currentUses))
+                .replace("%max_uses%", String.valueOf(maxUses));
     }
 
     public static String processCooldownPlaceholders(String text, InteractiveItem item, Player player) {

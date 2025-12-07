@@ -1,12 +1,11 @@
 package net.exylia.commons.chat.input;
 
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.config.components.TitleConfig;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.utils.visuals.MessageUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
-import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;

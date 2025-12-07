@@ -1,14 +1,13 @@
 package net.exylia.commons;
 
-import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.ReloadResult;
 import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.config.ConfigManager;
-import net.exylia.commons.configSimple.Configs;
+import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.simpleredis.SimpleRedis;
+import net.exylia.commons.v2.redis.SimpleRedis;
 import net.exylia.commons.utils.DateFormatter;
 import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.v2.formatter.core.FormatterRegistry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -86,9 +85,9 @@ public class ReloadManager {
                 long totalTime = System.currentTimeMillis() - startTime;
 
                 long totalComponentTime = componentTimes.get("Configuración") +
-                                        componentTimes.get("Base de Datos") +
-                                        componentTimes.get("Redis") +
-                                        componentTimes.get("Plugin Custom");
+                        componentTimes.get("Base de Datos") +
+                        componentTimes.get("Redis") +
+                        componentTimes.get("Plugin Custom");
                 long totalOverhead = totalTime - totalComponentTime;
                 componentTimes.put("Total Overhead", totalOverhead);
 
@@ -144,6 +143,10 @@ public class ReloadManager {
                 TimeFormatter.reload();
                 DateFormatter.reload();
                 componentTimes.put("TimeFormatter", System.currentTimeMillis() - timeFormatterStart);
+
+                long formatterV2Start = System.currentTimeMillis();
+                FormatterRegistry.reload();
+                componentTimes.put("FormattersV2", System.currentTimeMillis() - formatterV2Start);
 
                 CompletableFuture<Void> hookFuture = CompletableFuture.runAsync(() -> {
                     Schedulers.sync(() -> plugin.callAllConfigurationsReloadHook());

@@ -3,13 +3,12 @@ package net.exylia.commons;
 import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.command.CommandManager;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.configSimple.ConfigInitializer;
+import net.exylia.commons.v2.config.ConfigInitializer;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.license.SunLicenseUtil;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
@@ -20,16 +19,13 @@ import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.visuals.ActionBarUtils;
 import net.exylia.commons.utils.visuals.BossbarUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
+import net.exylia.commons.v2.visual.api.ColorAPI;
+import net.exylia.commons.v2.visual.core.VisualManager;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -135,16 +131,16 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             allConfigClasses.add(MessagesBase.class);
 
             if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
-                 
+
                 for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
 
                     if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
-                         
+
                         allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
                     }
 
                     if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
-                         
+
                         allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
                     }
 
@@ -160,7 +156,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             ConfigManager.init(configSystem, finalConfigClasses);
             TimeFormatter.init();
             DateFormatter.init();
-            
+
             ColorUtils.initializePresets(this, getCustomColorPresets());
         } catch (Exception e) {
             logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
@@ -210,7 +206,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return reloadManager.reloadAllAsync()
                 .thenApply(result -> {
                     SchedulerManager.getInstance().runTask(() ->
-                        ReloadResult.sendDetailedReloadResult(sender, result));
+                            ReloadResult.sendDetailedReloadResult(sender, result));
                     return result;
                 });
     }
@@ -224,7 +220,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         return reloadManager.reloadAllAsync(timeoutSeconds)
                 .thenApply(result -> {
                     SchedulerManager.getInstance().runTask(() ->
-                        ReloadResult.sendDetailedReloadResult(sender, result));
+                            ReloadResult.sendDetailedReloadResult(sender, result));
                     return result;
                 });
     }
@@ -246,23 +242,23 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     protected void onDatabaseReload() {
-         
+
     }
 
     protected void onRedisReload() {
-         
+
     }
 
     protected void onPluginReload() {
-         
+
     }
 
     protected void onConfigurationFileReload(String fileName) {
-         
+
     }
 
     protected void onAllConfigurationsReload() {
-         
+
     }
 
     final void callDatabaseReloadHook() {
@@ -310,6 +306,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         try {
             ConfigInitializer.init(this);
             SchedulerManager.initialize(this);
+            ColorAPI.initialize(this);
+            VisualManager.getInstance().initialize(this);
             PlaceholderSystemManager.initialize(this);
             AdapterFactory.initialize(this);
             ActionBarUtils.init(this);
@@ -362,6 +360,10 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
         if (DatabaseManager.getInstance() != null) {
             DatabaseManager.getInstance().shutdown();
+        }
+        try {
+            net.exylia.commons.v2.database.api.DatabaseV2.shutdown();
+        } catch (IllegalStateException ignored) {
         }
         RedisIntegration.shutdownRedis();
         ColorUtils.shutdown();

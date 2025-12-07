@@ -1,6 +1,6 @@
 package net.exylia.commons.item.vanilla;
 
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.item.ItemManager;
 import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.utils.DebugUtils;

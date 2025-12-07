@@ -83,7 +83,7 @@ public class AsyncExecutor {
             try {
                 return supplier.get();
             } catch (Exception e) {
-                DebugUtils.logError("Error in async task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in async task: " + e.getMessage());
                 throw e;
             } finally {
                 counter.decrementAndGet();
@@ -104,7 +104,7 @@ public class AsyncExecutor {
             try {
                 runnable.run();
             } catch (Exception e) {
-                DebugUtils.logError("Error in async task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in async task: " + e.getMessage());
                 throw e;
             } finally {
                 counter.decrementAndGet();
@@ -117,7 +117,7 @@ public class AsyncExecutor {
             .orTimeout(timeout, unit)
             .exceptionally(throwable -> {
                 if (throwable instanceof TimeoutException) {
-                    DebugUtils.logWarn("Async task timed out after " + timeout + " " + unit);
+                    DebugUtils.logInternalWarn("Async task timed out after " + timeout + " " + unit);
                 }
                 return null;
             });
@@ -133,7 +133,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logError("Error in scheduled task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -150,7 +150,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logError("Error in scheduled task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -167,7 +167,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logError("Error in scheduled task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -188,7 +188,7 @@ public class AsyncExecutor {
                 int generalQueueSize = generalPool.getQueue().size();
 
                 if (dbActive > DB_POOL_SIZE * 0.8 || generalActive > GENERAL_POOL_SIZE * 0.8) {
-                    DebugUtils.logWarn(String.format(
+                    DebugUtils.logInternalWarn(String.format(
                         "High async load - DB: %d/%d (queue: %d), General: %d/%d (queue: %d), Scheduled: %d",
                         dbActive, DB_POOL_SIZE, dbQueueSize,
                         generalActive, GENERAL_POOL_SIZE, generalQueueSize,
@@ -197,10 +197,10 @@ public class AsyncExecutor {
                 }
 
                 if (dbQueueSize > MAX_QUEUE_SIZE * 0.8 || generalQueueSize > MAX_QUEUE_SIZE * 0.8) {
-                    DebugUtils.logError("Critical: Async task queues near capacity!");
+                    DebugUtils.logInternalError("Critical: Async task queues near capacity!");
                 }
             } catch (Exception e) {
-                DebugUtils.logError("Error in monitoring task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in monitoring task: " + e.getMessage());
             }
         }, 30, 30, TimeUnit.SECONDS);
     }
@@ -226,7 +226,7 @@ public class AsyncExecutor {
         }
 
         isShuttingDown = true;
-        DebugUtils.logInfo("Shutting down AsyncExecutor...");
+        DebugUtils.logInternalInfo("Shutting down AsyncExecutor...");
 
         scheduledExecutor.shutdown();
         databaseExecutor.shutdown();
@@ -234,26 +234,26 @@ public class AsyncExecutor {
 
         try {
             if (!databaseExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                DebugUtils.logWarn("Database executor did not terminate in time, forcing shutdown");
+                DebugUtils.logInternalWarn("Database executor did not terminate in time, forcing shutdown");
                 databaseExecutor.shutdownNow();
             }
             if (!generalExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                DebugUtils.logWarn("General executor did not terminate in time, forcing shutdown");
+                DebugUtils.logInternalWarn("General executor did not terminate in time, forcing shutdown");
                 generalExecutor.shutdownNow();
             }
             if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                DebugUtils.logWarn("Scheduled executor did not terminate in time, forcing shutdown");
+                DebugUtils.logInternalWarn("Scheduled executor did not terminate in time, forcing shutdown");
                 scheduledExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
-            DebugUtils.logError("Interrupted during shutdown, forcing immediate shutdown");
+            DebugUtils.logInternalError("Interrupted during shutdown, forcing immediate shutdown");
             databaseExecutor.shutdownNow();
             generalExecutor.shutdownNow();
             scheduledExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
 
-        DebugUtils.logInfo("AsyncExecutor shutdown complete");
+        DebugUtils.logInternalInfo("AsyncExecutor shutdown complete");
     }
 
     private static class NamedThreadFactory implements ThreadFactory {
@@ -270,7 +270,7 @@ public class AsyncExecutor {
             thread.setDaemon(true);
             thread.setPriority(Thread.NORM_PRIORITY);
             thread.setUncaughtExceptionHandler((t, e) ->
-                DebugUtils.logError("Uncaught exception in thread " + t.getName() + ": " + e.getMessage())
+                DebugUtils.logInternalError("Uncaught exception in thread " + t.getName() + ": " + e.getMessage())
             );
             return thread;
         }

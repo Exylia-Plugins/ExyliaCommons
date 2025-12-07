@@ -176,6 +176,79 @@ public class WorldGuardUtils {
         }
     }
 
+    public static boolean isPvPAllowed(String regionName) {
+        if (!isWorldGuardAvailable() || regionName == null) {
+            return true;
+        }
+
+        try {
+            for (World world : Bukkit.getWorlds()) {
+                RegionManager regionManager = WorldGuard.getInstance()
+                        .getPlatform()
+                        .getRegionContainer()
+                        .get(BukkitAdapter.adapt(world));
+
+                if (regionManager == null) {
+                    continue;
+                }
+
+                ProtectedRegion region = regionManager.getRegion(regionName);
+                if (region != null) {
+                    boolean isPvPDenied = isRegionPvPDenied(region);
+                    return !isPvPDenied;
+                }
+            }
+        } catch (Exception e) {
+            Bukkit.getLogger().warning("[PVP Check] Error checking PVP for region " + regionName + ": " + e.getMessage());
+            e.printStackTrace();
+            return true;
+        }
+
+        return true;
+    }
+
+    public static boolean isPvPAllowed(Location location) {
+        if (!isWorldGuardAvailable() || location.getWorld() == null) {
+            return true;
+        }
+
+        String highestPriorityRegion = getHighestPriorityRegion(location);
+        if (highestPriorityRegion == null) {
+            return true;
+        }
+
+        return isPvPAllowed(highestPriorityRegion);
+    }
+
+    private static boolean isRegionPvPDenied(ProtectedRegion region) {
+        try {
+            com.sk89q.worldguard.protection.flags.Flag<?> pvpFlag = WorldGuard.getInstance().getFlagRegistry().get("pvp");
+
+            if (pvpFlag != null) {
+                Object flagValue = region.getFlag(pvpFlag);
+
+                if (flagValue != null) {
+                    String flagStr = flagValue.toString().toLowerCase();
+
+                    if (flagStr.equals("deny")) {
+                        return true;
+                    }
+                    if (flagStr.equals("allow") || flagStr.equals("true")) {
+                        return false;
+                    }
+                    if (flagValue instanceof Boolean) {
+                        boolean denied = !(Boolean) flagValue;
+                        return denied;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        return false;
+    }
+
     public static String getWorldGuardStatus() {
         if (!worldGuardAvailable) {
             return "WorldGuard no está instalado";

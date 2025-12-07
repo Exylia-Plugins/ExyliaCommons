@@ -95,7 +95,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                 logInternalInfo("MySQL connection pool closed successfully");
             }
         } catch (Exception e) {
-            errorHandler.logWarning("Disconnect", "MySQLAdapter", "Error closing MySQL connection pool: " + e.getMessage());
+            errorHandler.logInternalWarning("Disconnect", "MySQLAdapter", "Error closing MySQL connection pool: " + e.getMessage());
         }
     }
 
@@ -413,7 +413,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                         successCount++;
                     } catch (Exception e) {
                         failureCount++;
-                        errorHandler.logWarning("UpdateAll", entityClassName,
+                        errorHandler.logInternalWarning("UpdateAll", entityClassName,
                                 "Failed to prepare entity for batch update: " + e.getMessage());
                     }
                 }
@@ -427,7 +427,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                 logInternalInfo("updateAll completed: " + updated + " of " + entities.size() + " entities updated");
 
                 if (failureCount > 0) {
-                    errorHandler.logWarning("UpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("UpdateAll", entityClassName,
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
                 }
 
@@ -494,7 +494,7 @@ public class MySQLAdapter implements DatabaseAdapter {
 
                 int result = stmt.executeUpdate();
                 if (result == 0) {
-                    errorHandler.logWarning("Update", entityClassName,
+                    errorHandler.logInternalWarning("Update", entityClassName,
                             "No rows were updated for primary key: " + primaryKeyValue);
                 }
 
@@ -541,7 +541,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                 int result = stmt.executeUpdate();
 
                 if (result == 0) {
-                    errorHandler.logWarning("Delete", entityClassName,
+                    errorHandler.logInternalWarning("Delete", entityClassName,
                             "No rows were deleted for primary key: " + primaryKeyValue);
                     return false;
                 }
@@ -631,7 +631,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAll", entityClassName,
+                        errorHandler.logInternalWarning("FindAll", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -676,7 +676,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindBy", entityClassName,
+                        errorHandler.logInternalWarning("FindBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -720,7 +720,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("ExecuteQuery", entityClassName,
+                        errorHandler.logInternalWarning("ExecuteQuery", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1120,7 +1120,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                                 continue;  
                             }
                         } catch (Exception e) {
-                            errorHandler.logWarning("MapToEntity", entityClassName,
+                            errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                     "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
                     }
@@ -1139,7 +1139,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(e);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -1152,7 +1152,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(serException);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -1325,7 +1325,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1371,7 +1371,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1418,7 +1418,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPaged", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPaged", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1466,7 +1466,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPagedOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPagedOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1715,7 +1715,7 @@ public class MySQLAdapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindByFieldOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }

@@ -1,8 +1,8 @@
 package net.exylia.commons.item.config;
 
 import net.exylia.commons.item.ExpirationBehavior;
-import net.exylia.commons.items.model.ItemData;
-import net.exylia.commons.items.processor.ConfigurationParser;
+import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.items.processor.ConfigurationParser;
 import net.exylia.commons.utils.DebugUtils;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
@@ -41,6 +41,7 @@ public class ItemConfigurationBuilder {
     protected List<RegionEntry> regionEntries = new ArrayList<>();
     protected List<String> regionList = new ArrayList<>();
     protected Map<String, Double> regionCooldowns = new HashMap<>();
+    protected boolean disableInNonPvpRegions = false;
 
     protected WorldFilterType worldType = WorldFilterType.NONE;
     protected List<WorldEntry> worldEntries = new ArrayList<>();
@@ -430,6 +431,11 @@ public class ItemConfigurationBuilder {
                 .regionList(regions);
     }
 
+    public ItemConfigurationBuilder disableInNonPvpRegions(boolean disabled) {
+        this.disableInNonPvpRegions = disabled;
+        return this;
+    }
+
     public ItemConfigurationBuilder worldType(WorldFilterType type) {
         this.worldType = type != null ? type : WorldFilterType.NONE;
         return this;
@@ -695,6 +701,10 @@ public class ItemConfigurationBuilder {
 
         if (config.contains("region.cooldowns")) {
             parseRegionCooldowns(config);
+        }
+
+        if (config.contains("region.disable-in-non-pvp-regions")) {
+            disableInNonPvpRegions(config.getBoolean("region.disable-in-non-pvp-regions"));
         }
     }
 

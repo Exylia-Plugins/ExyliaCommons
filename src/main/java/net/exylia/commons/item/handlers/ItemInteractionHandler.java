@@ -1,7 +1,7 @@
 package net.exylia.commons.item.handlers;
 
 import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.item.InteractiveItem;
 import net.exylia.commons.item.ItemClickInfo;
 import net.exylia.commons.item.config.ItemConfiguration;
@@ -10,7 +10,6 @@ import net.exylia.commons.item.cooldown.CooldownManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -127,8 +126,10 @@ public class ItemInteractionHandler {
                 handleConsumedMessage(player, interactiveItem);
             }
         } else {
-            ItemInventoryHandler.updateItemByEquipmentSlot(player, itemStack, interactiveItem, hand);
+            interactiveItem.placeholderPlayer(player);
             interactiveItem.updatePlaceholders(player, hand);
+            ItemStack updatedItemStack = interactiveItem.getItemStack();
+            ItemInventoryHandler.updateItemByEquipmentSlot(player, updatedItemStack, interactiveItem, hand);
         }
     }
 
@@ -415,6 +416,8 @@ public class ItemInteractionHandler {
                 handleConsumedMessage(player, interactiveItem);
             }
         } else {
+            interactiveItem.placeholderPlayer(player);
+            interactiveItem.updatePlaceholders(player, null);
             ItemInventoryHandler.updateItemInInventory(event, interactiveItem);
         }
     }

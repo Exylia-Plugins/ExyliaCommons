@@ -33,7 +33,7 @@ public class DatabaseErrorHandler {
         handleError(dbException);
     }
 
-    public void logWarning(String operation, String entityClass, String message) {
+    public void logInternalWarning(String operation, String entityClass, String message) {
         String fullMessage = String.format("Database Warning - Operation: %s, Entity: %s, Message: %s",
                 operation, entityClass, message);
         DebugUtils.logInternalWarn(fullMessage);

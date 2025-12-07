@@ -29,14 +29,14 @@ public class EnumSafetyHandler {
                 Enum<?>[] enumConstants = enumClass.getEnumConstants();
                 if (enumConstants.length > 0) {
                     Object defaultValue = enumConstants[0];
-                    errorHandler.logWarning("EnumDeserialization", entityClassName,
+                    errorHandler.logInternalWarning("EnumDeserialization", entityClassName,
                             String.format("Enum value '%s' not found for field '%s', using default: %s",
                                     stringValue, fieldName, defaultValue));
                     return defaultValue;
                 }
             }
 
-            errorHandler.logWarning("EnumDeserialization", entityClassName,
+            errorHandler.logInternalWarning("EnumDeserialization", entityClassName,
                     String.format("Enum value '%s' not found for field '%s', setting to null",
                             stringValue, fieldName));
             return null;

@@ -77,7 +77,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                         entry.getValue().save(file);
                     }
                 } catch (IOException e) {
-                    errorHandler.logWarning("Disconnect", entry.getKey().getSimpleName(),
+                    errorHandler.logInternalWarning("Disconnect", entry.getKey().getSimpleName(),
                             "Failed to save YAML file during disconnect: " + e.getMessage());
                 }
             }
@@ -88,7 +88,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             logInternalInfo("YAML adapter disconnected successfully");
 
         } catch (Exception e) {
-            errorHandler.logWarning("Disconnect", "YAMLAdapter", "Error during YAML adapter disconnect: " + e.getMessage());
+            errorHandler.logInternalWarning("Disconnect", "YAMLAdapter", "Error during YAML adapter disconnect: " + e.getMessage());
         }
     }
 
@@ -210,7 +210,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                     successCount++;
                 } catch (Exception e) {
                     failureCount++;
-                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                             "Failed to process entity in batch: " + e.getMessage());
                 }
             }
@@ -219,7 +219,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             logInternalDebug("saveOrUpdateAll completed: " + successCount + " of " + entities.size() + " entities processed");
 
             if (failureCount > 0) {
-                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
@@ -260,7 +260,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     if (primaryKeyValue == null) {
                         failureCount++;
-                        errorHandler.logWarning("UpdateAll", entityClassName,
+                        errorHandler.logInternalWarning("UpdateAll", entityClassName,
                                 "Cannot update entity without primary key value");
                         continue;
                     }
@@ -269,7 +269,7 @@ public class YAMLAdapter implements DatabaseAdapter {
 
                     if (!yamlConfig.isConfigurationSection(entityPath)) {
                         failureCount++;
-                        errorHandler.logWarning("UpdateAll", entityClassName,
+                        errorHandler.logInternalWarning("UpdateAll", entityClassName,
                                 "Entity with primary key " + primaryKeyValue + " does not exist");
                         continue;
                     }
@@ -281,7 +281,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                     successCount++;
                 } catch (Exception e) {
                     failureCount++;
-                    errorHandler.logWarning("UpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("UpdateAll", entityClassName,
                             "Failed to update entity in batch: " + e.getMessage());
                 }
             }
@@ -290,7 +290,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             logInternalInfo("updateAll completed: " + successCount + " of " + entities.size() + " entities updated");
 
             if (failureCount > 0) {
-                errorHandler.logWarning("UpdateAll", entityClassName,
+                errorHandler.logInternalWarning("UpdateAll", entityClassName,
                         String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
             }
 
@@ -371,7 +371,7 @@ public class YAMLAdapter implements DatabaseAdapter {
             String entityPath = "entities." + primaryKeyValue;
 
             if (!yamlConfig.isConfigurationSection(entityPath)) {
-                errorHandler.logWarning("Delete", entityClassName,
+                errorHandler.logInternalWarning("Delete", entityClassName,
                         "Entity with primary key " + primaryKeyValue + " does not exist");
                 return false;
             }
@@ -457,7 +457,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                             results.add(mapToEntity(entityMap, entityClass));
                         }
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAll", entityClassName,
+                        errorHandler.logInternalWarning("FindAll", entityClassName,
                                 "Failed to map one YAML entity to object: " + e.getMessage());
                     }
                 }
@@ -490,7 +490,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                             Object fieldValue = getFieldValue(entity, field);
                             return Objects.equals(fieldValue, value);
                         } catch (Exception e) {
-                            errorHandler.logWarning("FindBy", entityClassName,
+                            errorHandler.logInternalWarning("FindBy", entityClassName,
                                     "Failed to get field value for filtering: " + e.getMessage());
                             return false;
                         }
@@ -752,7 +752,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                                 continue;
                             }
                         } catch (Exception e) {
-                            errorHandler.logWarning("MapToEntity", entityClassName,
+                            errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                     "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
                     }
@@ -770,7 +770,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(e);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -783,7 +783,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                                     errorHandler.handleError(serException);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -950,7 +950,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                             return order == SortOrder.DESC ? -comparison : comparison;
                             
                         } catch (Exception e) {
-                            errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                            errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                     "Failed to compare field values during sorting: " + e.getMessage());
                             return 0;
                         }
@@ -1124,7 +1124,7 @@ public class YAMLAdapter implements DatabaseAdapter {
                             return order == SortOrder.DESC ? -comparison : comparison;
 
                         } catch (Exception e) {
-                            errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                            errorHandler.logInternalWarning("FindByFieldOrderedBy", entityClassName,
                                     "Failed to compare field values during sorting: " + e.getMessage());
                             return 0;
                         }

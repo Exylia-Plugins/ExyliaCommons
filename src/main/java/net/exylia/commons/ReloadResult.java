@@ -1,7 +1,6 @@
 package net.exylia.commons;
 
-import net.exylia.commons.configSimple.Configs;
-import net.exylia.commons.configSimple.Messages;
+import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.visuals.MessageUtils;
 

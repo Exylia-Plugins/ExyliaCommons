@@ -2,6 +2,7 @@ package net.exylia.commons.item.handlers;
 
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.config.RegionFilterType;
+import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.WorldGuardUtils;
 import org.bukkit.entity.Player;
 
@@ -10,8 +11,20 @@ import java.util.List;
 public class ItemRegionHandler {
 
     public static boolean canPlayerUseItemInCurrentRegion(Player player, ItemConfiguration config) {
+        DebugUtils.logInternalDebug("Item PVP Check - disable-in-non-pvp-regions: " + config.isDisableInNonPvpRegions());
+
+        if (config.isDisableInNonPvpRegions()) {
+            boolean isPvP = PvPRegionValidator.isPlayerInPvPRegion(player);
+            DebugUtils.logInternalDebug("Item PVP Check - Player in PvP region: " + isPvP);
+
+            if (!isPvP) {
+                DebugUtils.logInternalDebug("Item PVP Check - DENIED: Player is in non-PvP region");
+                return false;
+            }
+        }
+
         if (!config.hasRegionConfiguration() || !WorldGuardUtils.isWorldGuardAvailable()) {
-            return true;  
+            return true;
         }
 
         List<String> playerRegions = WorldGuardUtils.getRegionsAtPlayer(player);
@@ -21,6 +34,10 @@ public class ItemRegionHandler {
     }
 
     public static boolean canPlayerUseItemInLocation(org.bukkit.Location location, ItemConfiguration config) {
+        if (config.isDisableInNonPvpRegions() && !PvPRegionValidator.isLocationInPvPRegion(location)) {
+            return false;
+        }
+
         if (!config.hasRegionConfiguration() || !WorldGuardUtils.isWorldGuardAvailable()) {
             return true;
         }

@@ -26,8 +26,8 @@ public class SchedulerManager {
         this.adapter = detectSchedulerType();
         this.asyncExecutor = AsyncExecutor.getInstance();
 
-        DebugUtils.logInfo("SchedulerManager initialized with " +
-            (adapter.isFolia() ? "Folia" : "Bukkit") + " adapter");
+        DebugUtils.logInternalInfo("SchedulerManager initialized with " +
+                (adapter.isFolia() ? "Folia" : "Bukkit") + " adapter");
     }
 
     public static synchronized void initialize(Plugin plugin) {
@@ -48,12 +48,8 @@ public class SchedulerManager {
     }
 
     private SchedulerAdapter detectSchedulerType() {
-        try {
-            Class.forName("io.papermc.paper.threadedregions.scheduler.GlobalRegionScheduler");
-            return new FoliaSchedulerAdapter();
-        } catch (ClassNotFoundException e) {
-            return new BukkitSchedulerAdapter();
-        }
+        DebugUtils.logInternalInfo("Forcing BukkitSchedulerAdapter for compatibility");
+        return new BukkitSchedulerAdapter();
     }
 
     public TaskBuilder task(Runnable runnable) {
@@ -162,9 +158,9 @@ public class SchedulerManager {
         try {
             cancelAllTasks();
             asyncExecutor.shutdown();
-            DebugUtils.logInfo("SchedulerManager shutdown complete");
+            DebugUtils.logInternalInfo("SchedulerManager shutdown complete");
         } catch (Exception e) {
-            DebugUtils.logError("Error during SchedulerManager shutdown: " + e.getMessage());
+            DebugUtils.logInternalError("Error during SchedulerManager shutdown: " + e.getMessage());
         }
     }
 

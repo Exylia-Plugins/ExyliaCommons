@@ -43,7 +43,7 @@ public class H2Adapter implements DatabaseAdapter {
         String password = config.getString("database.h2.password", "");
         int poolSize = config.getInt("database.h2.pool-size", 5);
 
-        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName;
+        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName + ";AUTO_SERVER=TRUE";
 
         try {
              
@@ -92,7 +92,7 @@ public class H2Adapter implements DatabaseAdapter {
                 logInternalInfo("H2 connection pool closed successfully");
             }
         } catch (Exception e) {
-            errorHandler.logWarning("Disconnect", "H2Adapter", "Error closing H2 connection pool: " + e.getMessage());
+            errorHandler.logInternalWarning("Disconnect", "H2Adapter", "Error closing H2 connection pool: " + e.getMessage());
         }
     }
 
@@ -253,7 +253,7 @@ public class H2Adapter implements DatabaseAdapter {
                                 successCount++;
                             } catch (Exception e) {
                                 failureCount++;
-                                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                                errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                                         "Failed to prepare new entity for batch: " + e.getMessage());
                             }
                         }
@@ -303,7 +303,7 @@ public class H2Adapter implements DatabaseAdapter {
                                 successCount++;
                             } catch (Exception e) {
                                 failureCount++;
-                                errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                                errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                                         "Failed to prepare existing entity for batch: " + e.getMessage());
                             }
                         }
@@ -318,7 +318,7 @@ public class H2Adapter implements DatabaseAdapter {
                 }
 
                 if (failureCount > 0) {
-                    errorHandler.logWarning("SaveOrUpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("SaveOrUpdateAll", entityClassName,
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
                 }
 
@@ -395,7 +395,7 @@ public class H2Adapter implements DatabaseAdapter {
                         successCount++;
                     } catch (Exception e) {
                         failureCount++;
-                        errorHandler.logWarning("UpdateAll", entityClassName,
+                        errorHandler.logInternalWarning("UpdateAll", entityClassName,
                                 "Failed to prepare entity for batch update: " + e.getMessage());
                     }
                 }
@@ -409,7 +409,7 @@ public class H2Adapter implements DatabaseAdapter {
                 logInternalInfo("updateAll completed: " + updated + " of " + entities.size() + " entities updated");
 
                 if (failureCount > 0) {
-                    errorHandler.logWarning("UpdateAll", entityClassName,
+                    errorHandler.logInternalWarning("UpdateAll", entityClassName,
                             String.format("Completed with %d failures out of %d entities", failureCount, entities.size()));
                 }
 
@@ -476,7 +476,7 @@ public class H2Adapter implements DatabaseAdapter {
 
                 int result = stmt.executeUpdate();
                 if (result == 0) {
-                    errorHandler.logWarning("Update", entityClassName,
+                    errorHandler.logInternalWarning("Update", entityClassName,
                             "No rows were updated for primary key: " + primaryKeyValue);
                 }
 
@@ -523,7 +523,7 @@ public class H2Adapter implements DatabaseAdapter {
                 int result = stmt.executeUpdate();
 
                 if (result == 0) {
-                    errorHandler.logWarning("Delete", entityClassName,
+                    errorHandler.logInternalWarning("Delete", entityClassName,
                             "No rows were deleted for primary key: " + primaryKeyValue);
                     return false;
                 }
@@ -613,7 +613,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAll", entityClassName,
+                        errorHandler.logInternalWarning("FindAll", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -658,7 +658,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindBy", entityClassName,
+                        errorHandler.logInternalWarning("FindBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -702,7 +702,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("ExecuteQuery", entityClassName,
+                        errorHandler.logInternalWarning("ExecuteQuery", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1172,7 +1172,7 @@ public class H2Adapter implements DatabaseAdapter {
                                 continue;  
                             }
                         } catch (Exception e) {
-                            errorHandler.logWarning("MapToEntity", entityClassName,
+                            errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                     "Failed to initialize empty collection for field " + columnName + ": " + e.getMessage());
                         }
                     }
@@ -1191,7 +1191,7 @@ public class H2Adapter implements DatabaseAdapter {
                                     errorHandler.handleError(e);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -1204,7 +1204,7 @@ public class H2Adapter implements DatabaseAdapter {
                                     errorHandler.handleError(serException);
 
                                     if (CollectionUtils.isCollectionType(field.getType()) && column.initializeEmpty()) {
-                                        errorHandler.logWarning("MapToEntity", entityClassName,
+                                        errorHandler.logInternalWarning("MapToEntity", entityClassName,
                                                 "Deserialization failed for collection " + columnName + ", initializing empty collection");
                                         value = CollectionUtils.createEmptyCollection(field);
                                     } else {
@@ -1372,7 +1372,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1418,7 +1418,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1465,7 +1465,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPaged", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPaged", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1513,7 +1513,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindAllPagedOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindAllPagedOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }
@@ -1646,7 +1646,7 @@ public class H2Adapter implements DatabaseAdapter {
                     try {
                         results.add(mapToEntity(resultSetToMap(rs), entityClass));
                     } catch (Exception e) {
-                        errorHandler.logWarning("FindByFieldOrderedBy", entityClassName,
+                        errorHandler.logInternalWarning("FindByFieldOrderedBy", entityClassName,
                                 "Failed to map one result to entity: " + e.getMessage());
                     }
                 }

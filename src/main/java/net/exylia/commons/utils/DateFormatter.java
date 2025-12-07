@@ -1,6 +1,6 @@
 package net.exylia.commons.utils;
 
-import net.exylia.commons.configSimple.Configs;
+import net.exylia.commons.v2.config.Configs;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;

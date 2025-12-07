@@ -1,7 +1,6 @@
 package net.exylia.commons.utils;
 
-import net.exylia.commons.config.base.MainConfigBase;
-import net.exylia.commons.configSimple.Configs;
+import net.exylia.commons.v2.config.Configs;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;

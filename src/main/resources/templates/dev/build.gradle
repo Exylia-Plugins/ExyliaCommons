@@ -38,13 +38,18 @@ repositories {
 
 dependencies {
     implementation("${mainPackage}:ExyliaCommons:1.0.0")
+
     compileOnly 'com.github.ben-manes.caffeine:caffeine:3.2.2'
+
     compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+
     compileOnly 'me.clip:placeholderapi:2.11.5'
+
     compileOnly 'io.github.revxrsal:lamp.common:4.0.0-rc.14'
     compileOnly 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.14'
     compileOnly 'io.github.revxrsal:lamp.brigadier:4.0.0-rc.14'
-    implementation 'dev.jorel:commandapi-bukkit-shade:10.1.2'
+
+    compileOnly 'com.google.inject:guice:7.0.0'
 }
 
 def targetJavaVersion = 21

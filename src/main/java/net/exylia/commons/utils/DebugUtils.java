@@ -2,7 +2,7 @@ package net.exylia.commons.utils;
 
 import com.github.lalyos.jfiglet.FigletFont;
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.configSimple.Configs;
+import net.exylia.commons.v2.config.Configs;
 import org.bukkit.Bukkit;
 
 import static net.exylia.commons.utils.AnsiComponentLogger.convertHexColors;

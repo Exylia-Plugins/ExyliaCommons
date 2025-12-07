@@ -1,5 +1,7 @@
 package net.exylia.commons.placeholders;
 
+import net.exylia.commons.v2.placeholders.PlaceholdersV2;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -212,11 +214,55 @@ public class ExyliaContext {
     }
 
     public String processPlaceholders(String text, Player player) {
-        return PlaceholderSystemManager.getInstance().process(text, player, this.getAllObjects());
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+
+        String result = text;
+
+        result = PlaceholderSystemManager.getInstance().process(result, player, this.getAllObjects());
+
+        PlaceholderContext context = toPlaceholderContext(player);
+        result = PlaceholdersV2.process(result, player, context);
+
+        return result;
     }
 
     public String processPlaceholders(String text) {
         return processPlaceholders(text, null);
+    }
+
+    private PlaceholderContext toPlaceholderContext(Player player) {
+        PlaceholderContext context = PlaceholderContext.create();
+
+        if (player != null) {
+            context.withPlayer(player);
+        }
+
+        for (Map.Entry<Class<?>, Object> entry : typedData.entrySet()) {
+            addToContextSafe(context, entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, Object> entry : keyedData.entrySet()) {
+            context.put(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, Supplier<Object>> entry : dynamicData.entrySet()) {
+            try {
+                Object value = entry.getValue().get();
+                if (value != null) {
+                    context.put(entry.getKey(), value);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        return context;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> void addToContextSafe(PlaceholderContext context, Class<?> type, Object value) {
+        context.with((Class<T>) type, (T) value);
     }
 
     public Object[] getAllObjects() {
