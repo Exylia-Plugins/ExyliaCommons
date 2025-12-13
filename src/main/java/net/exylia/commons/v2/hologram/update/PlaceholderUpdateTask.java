@@ -2,9 +2,7 @@ package net.exylia.commons.v2.hologram.update;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.hologram.model.Hologram;
-import net.exylia.commons.v2.placeholders.PlaceholdersV2;
 
 import java.util.ArrayList;
 import java.util.List;

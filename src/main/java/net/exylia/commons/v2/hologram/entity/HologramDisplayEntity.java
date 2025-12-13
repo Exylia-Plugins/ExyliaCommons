@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.hologram.entity;
 
 import lombok.Getter;
-import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.v2.hologram.model.HologramProperties;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
@@ -32,7 +32,7 @@ public class HologramDisplayEntity {
 
     public void update(String text) {
         if (entity != null && entity.isValid()) {
-            Component component = ColorUtils.parse(text);
+            Component component = ColorAPI.parse(text);
             entity.text(component);
         }
     }

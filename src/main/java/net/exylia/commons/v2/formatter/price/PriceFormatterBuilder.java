@@ -52,7 +52,7 @@ public class PriceFormatterBuilder {
         return this;
     }
 
-    public PriceFormatterV2 build() {
+    public PriceFormatter build() {
         if (cache == null) {
             cache = FormatterCache.getInstance();
         }
@@ -68,6 +68,6 @@ public class PriceFormatterBuilder {
                 .build();
         }
 
-        return new PriceFormatterV2(cache, config);
+        return new PriceFormatter(cache, config);
     }
 }

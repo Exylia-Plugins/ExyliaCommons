@@ -40,7 +40,7 @@ public class DateFormatterBuilder {
         return this;
     }
 
-    public DateFormatterV2 build() {
+    public DateFormatter build() {
         if (cache == null) {
             cache = FormatterCache.getInstance();
         }
@@ -54,6 +54,6 @@ public class DateFormatterBuilder {
                 .build();
         }
 
-        return new DateFormatterV2(cache, config);
+        return new DateFormatter(cache, config);
     }
 }

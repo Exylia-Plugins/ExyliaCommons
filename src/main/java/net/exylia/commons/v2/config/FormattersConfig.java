@@ -41,25 +41,25 @@ public class FormattersConfig {
             Configs.set("formatters.time.zero-text", "0s");
         }
         if (!Configs.exists("formatters.time.show-milliseconds")) {
-            Configs.set("formatters.time.show-milliseconds", false);
+            Configs.set("formatters.time.show-milliseconds", true);
         }
         if (!Configs.exists("formatters.time.compact-mode")) {
             Configs.set("formatters.time.compact-mode", false);
         }
         if (!Configs.exists("formatters.time.precision")) {
-            Configs.set("formatters.time.precision", 2);
+            Configs.set("formatters.time.precision", 1);
         }
         if (!Configs.exists("formatters.time.language")) {
             Configs.set("formatters.time.language", "en");
         }
         if (!Configs.exists("formatters.time.force-show-zero-decimals")) {
-            Configs.set("formatters.time.force-show-zero-decimals", false);
+            Configs.set("formatters.time.force-show-zero-decimals", true);
         }
         if (!Configs.exists("formatters.time.decimal-threshold-millis")) {
-            Configs.set("formatters.time.decimal-threshold-millis", -1);
+            Configs.set("formatters.time.decimal-threshold-millis", 10000);
         }
         if (!Configs.exists("formatters.time.show-decimals-under-threshold")) {
-            Configs.set("formatters.time.show-decimals-under-threshold", false);
+            Configs.set("formatters.time.show-decimals-under-threshold", true);
         }
 
         if (!Configs.exists("formatters.date.default-pattern")) {

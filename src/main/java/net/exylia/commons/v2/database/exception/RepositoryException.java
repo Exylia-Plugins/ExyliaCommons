@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.database.exception;
 
-public class RepositoryException extends DatabaseV2Exception {
+public class RepositoryException extends DatabaseException {
 
     public RepositoryException(String message) {
         super(message);

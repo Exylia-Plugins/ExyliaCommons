@@ -2,7 +2,9 @@ package net.exylia.commons.v2.hologram.api;
 
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
+import net.exylia.commons.v2.hologram.persistence.HologramConfigLoader;
 import org.bukkit.Location;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Arrays;
@@ -64,5 +66,17 @@ public final class HologramAPI {
 
     public static HologramManager getManager() {
         return HologramManager.getInstance();
+    }
+
+    public static Hologram loadFromConfig(String id, ConfigurationSection section) {
+        return HologramConfigLoader.fromConfig(id, section);
+    }
+
+    public static CompletableFuture<Hologram> loadFromConfigAsync(String id, ConfigurationSection section) {
+        return HologramConfigLoader.fromConfigAsync(id, section);
+    }
+
+    public static void saveToConfig(Hologram hologram, ConfigurationSection section) {
+        HologramConfigLoader.saveToConfig(hologram, section);
     }
 }

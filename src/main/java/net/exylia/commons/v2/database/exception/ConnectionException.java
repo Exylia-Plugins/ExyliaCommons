@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.database.exception;
 
-public class ConnectionException extends DatabaseV2Exception {
+public class ConnectionException extends DatabaseException {
 
     public ConnectionException(String message) {
         super(message);

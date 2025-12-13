@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.config;
 
 import net.exylia.commons.placeholders.ExyliaContext;
-import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import org.bukkit.entity.Player;
@@ -138,7 +138,7 @@ public class Messages {
                 }
             }
 
-            Component component = ColorUtils.parse(message);
+            Component component = ColorAPI.parse(message);
 
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (entry.getValue() instanceof Component) {

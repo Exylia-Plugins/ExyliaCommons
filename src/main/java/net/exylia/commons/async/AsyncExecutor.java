@@ -83,7 +83,7 @@ public class AsyncExecutor {
             try {
                 return supplier.get();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in async task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in async task: " + e.getMessage(), e);
                 throw e;
             } finally {
                 counter.decrementAndGet();
@@ -104,7 +104,7 @@ public class AsyncExecutor {
             try {
                 runnable.run();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in async task: " + e.getMessage());
+                DebugUtils.logInternalError("Error in async task: " + e.getMessage(), e);
                 throw e;
             } finally {
                 counter.decrementAndGet();

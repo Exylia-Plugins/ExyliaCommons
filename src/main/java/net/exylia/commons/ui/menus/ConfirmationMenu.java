@@ -61,7 +61,7 @@ public class ConfirmationMenu extends Menu {
     private void setupItems() {
          
         MenuItem confirmButton = new SimpleItemBuilder(Material.GREEN_WOOL)
-                .name("&a✓ Confirm")
+                .name("&a✔ Confirm")
                 .lore("&7Click to confirm this action")
                 .click(event -> {
                     event.closeMenu();
@@ -72,7 +72,7 @@ public class ConfirmationMenu extends Menu {
                 .build();
 
         MenuItem cancelButton = new SimpleItemBuilder(Material.RED_WOOL)
-                .name("&c✗ Cancel")
+                .name("&c✖ Cancel")
                 .lore("&7Click to cancel this action")
                 .click(event -> {
                     event.closeMenu();

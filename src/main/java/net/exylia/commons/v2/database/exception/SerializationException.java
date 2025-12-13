@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.database.exception;
 
-public class SerializationException extends DatabaseV2Exception {
+public class SerializationException extends DatabaseException {
 
     public SerializationException(String message) {
         super(message);

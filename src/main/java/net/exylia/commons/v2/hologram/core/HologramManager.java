@@ -10,7 +10,7 @@ import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.listener.ChunkListener;
 import net.exylia.commons.v2.hologram.listener.HologramListener;
 import net.exylia.commons.v2.hologram.model.*;
-import net.exylia.commons.v2.database.api.DatabaseV2;
+import net.exylia.commons.v2.database.api.Database;
 import net.exylia.commons.v2.database.repository.Repository;
 import net.exylia.commons.v2.hologram.persistence.HologramEntity;
 import net.exylia.commons.v2.hologram.update.UpdateScheduler;
@@ -60,12 +60,12 @@ public class HologramManager {
     private void initializePersistence() {
         try {
             if (isDatabaseAvailable()) {
-                DatabaseV2.registerEntity(HologramEntity.class);
-                this.repository = DatabaseV2.getRepository(HologramEntity.class);
+                Database.registerEntity(HologramEntity.class);
+                this.repository = Database.getRepository(HologramEntity.class);
                 loadPersistentHolograms();
                 DebugUtils.logInternalInfo("Hologram persistence enabled");
             } else {
-                DebugUtils.logInternalInfo("Hologram persistence disabled (DatabaseV2 not available)");
+                DebugUtils.logInternalInfo("Hologram persistence disabled (Database not available)");
             }
         } catch (Exception e) {
             DebugUtils.logInternalError("Failed to initialize persistence: " + e.getMessage());
@@ -75,7 +75,7 @@ public class HologramManager {
 
     private boolean isDatabaseAvailable() {
         try {
-            Class.forName("net.exylia.commons.v2.database.api.DatabaseV2");
+            Class.forName("net.exylia.commons.v2.database.api.Database");
             return true;
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             return false;

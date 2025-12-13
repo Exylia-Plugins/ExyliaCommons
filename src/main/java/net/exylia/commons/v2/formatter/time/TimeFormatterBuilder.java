@@ -64,7 +64,7 @@ public class TimeFormatterBuilder {
         return this;
     }
 
-    public TimeFormatterV2 build() {
+    public TimeFormatter build() {
         if (cache == null) {
             cache = FormatterCache.getInstance();
         }
@@ -82,6 +82,6 @@ public class TimeFormatterBuilder {
                 .build();
         }
 
-        return new TimeFormatterV2(cache, config);
+        return new TimeFormatter(cache, config);
     }
 }

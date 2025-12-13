@@ -4,6 +4,9 @@ import com.google.gson.Gson;
 import lombok.Getter;
 import net.exylia.commons.v2.database.annotation.Column;
 import net.exylia.commons.v2.database.annotation.SerializationType;
+import net.exylia.commons.v2.database.serialization.Deserializer;
+import net.exylia.commons.v2.database.serialization.Serializer;
+import net.exylia.commons.v2.database.serialization.SerializationRegistry;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
@@ -71,6 +74,10 @@ public class FieldDescriptor {
             return null;
         }
 
+        if (SerializationRegistry.getInstance().hasSerializer(type)) {
+            return SerializationRegistry.getInstance().serialize(value, (Class) type);
+        }
+
         if (serializationType == SerializationType.BASE64) {
             if (type.isArray() && type.getComponentType() == ItemStack.class) {
                 return serializeItemStackArray((ItemStack[]) value);
@@ -128,6 +135,10 @@ public class FieldDescriptor {
     private Object deserializeValue(String value) {
         if (value == null || value.isEmpty()) {
             return null;
+        }
+
+        if (SerializationRegistry.getInstance().hasDeserializer(type)) {
+            return SerializationRegistry.getInstance().deserialize(value, (Class) type);
         }
 
         if (serializationType == SerializationType.BASE64) {

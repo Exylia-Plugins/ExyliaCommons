@@ -25,6 +25,11 @@ public class DebugUtils {
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#a33b53>[ERROR] " + message)));
     }
 
+    public static void logError(String message, Throwable throwable){
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#a33b53>[ERROR] " + message)));
+        throwable.printStackTrace();
+    }
+
     public static void logWarn(String message){
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#ffc58f>[WARN] " + message)));
     }
@@ -49,8 +54,13 @@ public class DebugUtils {
     public static void logInternalError(String message){
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#b36476>[ERROR] " + message)));
     }
-    
-    public static void logInternalWarn(String message){ 
+
+    public static void logInternalError(String message, Throwable throwable){
+        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#b36476>[ERROR] " + message)));
+        throwable.printStackTrace();
+    }
+
+    public static void logInternalWarn(String message){
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#ffd2a8>[WARN] " + message)));
     }
     

@@ -1,0 +1,39 @@
+location:
+  world: world
+  x: 0.5
+  y: 100.0
+  z: 0.5
+  yaw: 0.0
+  pitch: 0.0
+
+lines:
+  - "&6Welcome to &eServer"
+  - "&7Online: &f%players_online%"
+  - "&7Rank: &f%player_rank%"
+
+properties:
+  billboard: CENTER
+  alignment: CENTER
+  scale:
+    x: 1.5
+    y: 1.5
+    z: 1.5
+  shadow: true
+  seeThrough: false
+  lineWidth: 200
+  backgroundColor:
+    r: 0
+    g: 0
+    b: 0
+  lineSpacing: 0.25
+  brightness: -1
+
+config:
+  updateInterval: 20
+  autoUpdate: true
+  spawnOnChunkLoad: true
+  removeOnChunkUnload: true
+
+persistent: true
+perPlayer: false
+viewDistance: 50.0

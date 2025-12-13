@@ -5,7 +5,6 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import net.exylia.commons.actions.ActionContext;
 import net.exylia.commons.actions.GlobalActionManager;
-import net.exylia.commons.command.CommandExecutor;
 import net.exylia.commons.item.config.ItemConfiguration;
 import net.exylia.commons.item.utils.ItemNBTUtils;
 import net.exylia.commons.item.utils.ItemPlaceholderUtils;
@@ -377,10 +376,10 @@ public class InteractiveItem {
         ExyliaContext commandContext = context.copy().add(this);
         if (placeholderPlayer != null) commandContext.add(placeholderPlayer);
 
-        CommandExecutor.builder(player)
-                .withPlaceholderPlayer(placeholderPlayer)
-                .withPlaceholderContext(commandContext.getAllObjects())
-                .execute(getCommands());
+        for (String command : getCommands()) {
+            String processedCommand = commandContext.processPlaceholders(command, player);
+            player.performCommand(processedCommand);
+        }
     }
 
     private void initializeUses() {

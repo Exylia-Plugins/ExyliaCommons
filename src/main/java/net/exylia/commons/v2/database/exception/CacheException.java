@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.database.exception;
 
-public class CacheException extends DatabaseV2Exception {
+public class CacheException extends DatabaseException {
 
     public CacheException(String message) {
         super(message);

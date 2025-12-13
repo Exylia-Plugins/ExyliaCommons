@@ -2,14 +2,14 @@ package net.exylia.commons.v2.formatter.core;
 
 import net.exylia.commons.v2.config.FormattersConfig;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
-import net.exylia.commons.v2.formatter.date.DateFormatterV2;
-import net.exylia.commons.v2.formatter.price.PriceFormatterV2;
-import net.exylia.commons.v2.formatter.time.TimeFormatterV2;
+import net.exylia.commons.v2.formatter.date.DateFormatter;
+import net.exylia.commons.v2.formatter.price.PriceFormatter;
+import net.exylia.commons.v2.formatter.time.TimeFormatter;
 
 public class FormatterRegistry {
-    private static volatile TimeFormatterV2 timeFormatter;
-    private static volatile DateFormatterV2 dateFormatter;
-    private static volatile PriceFormatterV2 priceFormatter;
+    private static volatile TimeFormatter timeFormatter;
+    private static volatile DateFormatter dateFormatter;
+    private static volatile PriceFormatter priceFormatter;
     private static final Object LOCK = new Object();
 
     public static void initialize() {
@@ -18,17 +18,17 @@ public class FormatterRegistry {
             FormatterCache cache = FormatterCache.getInstance();
             FormattersConfig formattersConfig = FormattersConfig.getInstance();
 
-            timeFormatter = TimeFormatterV2.builder()
+            timeFormatter = TimeFormatter.builder()
                 .cache(cache)
                 .config(formattersConfig.getTimeConfig())
                 .build();
 
-            dateFormatter = DateFormatterV2.builder()
+            dateFormatter = DateFormatter.builder()
                 .cache(cache)
                 .config(formattersConfig.getDateConfig())
                 .build();
 
-            priceFormatter = PriceFormatterV2.builder()
+            priceFormatter = PriceFormatter.builder()
                 .cache(cache)
                 .config(formattersConfig.getPriceConfig())
                 .build();
@@ -45,21 +45,21 @@ public class FormatterRegistry {
         }
     }
 
-    public static TimeFormatterV2 getTimeFormatter() {
+    public static TimeFormatter getTimeFormatter() {
         if (timeFormatter == null) {
             initialize();
         }
         return timeFormatter;
     }
 
-    public static DateFormatterV2 getDateFormatter() {
+    public static DateFormatter getDateFormatter() {
         if (dateFormatter == null) {
             initialize();
         }
         return dateFormatter;
     }
 
-    public static PriceFormatterV2 getPriceFormatter() {
+    public static PriceFormatter getPriceFormatter() {
         if (priceFormatter == null) {
             initialize();
         }

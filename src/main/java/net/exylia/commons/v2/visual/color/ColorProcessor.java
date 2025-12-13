@@ -22,7 +22,7 @@ public class ColorProcessor {
     private static final Pattern LEGACY_COLORS = Pattern.compile("&[0-9a-fA-FklmnoprKLMNOPR]");
     private static final Pattern SHORT_TAGS = Pattern.compile("</?(?:b|i|u|st|obf|r)>");
     private static final Pattern HEX_BRACES = Pattern.compile("\\{#[0-9a-fA-F]{6}[^}]*}");
-    private static final Pattern PRESETS = Pattern.compile("\\{[a-zA-Z_][a-zA-Z0-9_]*\\}");
+    private static final Pattern PRESETS = Pattern.compile("\\{[a-zA-Z_][a-zA-Z0-9_]*}");
 
     private static final Cache<String, String> STRIP_CACHE = Caffeine.newBuilder()
             .maximumSize(500)

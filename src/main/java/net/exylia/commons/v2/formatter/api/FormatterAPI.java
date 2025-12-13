@@ -3,11 +3,11 @@ package net.exylia.commons.v2.formatter.api;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 import net.exylia.commons.v2.formatter.cache.FormatterCacheStats;
 import net.exylia.commons.v2.formatter.core.FormatterRegistry;
-import net.exylia.commons.v2.formatter.date.DateFormatterV2;
-import net.exylia.commons.v2.formatter.price.PriceFormatterV2;
+import net.exylia.commons.v2.formatter.date.DateFormatter;
+import net.exylia.commons.v2.formatter.price.PriceFormatter;
 import net.exylia.commons.v2.formatter.time.ClockFormat;
 import net.exylia.commons.v2.formatter.time.TimeComponents;
-import net.exylia.commons.v2.formatter.time.TimeFormatterV2;
+import net.exylia.commons.v2.formatter.time.TimeFormatter;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -160,9 +160,9 @@ public final class FormatterAPI {
     }
 
     public static GlobalFormatterStats getGlobalStats() {
-        TimeFormatterV2 timeFormatter = FormatterRegistry.getTimeFormatter();
-        DateFormatterV2 dateFormatter = FormatterRegistry.getDateFormatter();
-        PriceFormatterV2 priceFormatter = FormatterRegistry.getPriceFormatter();
+        TimeFormatter timeFormatter = FormatterRegistry.getTimeFormatter();
+        DateFormatter dateFormatter = FormatterRegistry.getDateFormatter();
+        PriceFormatter priceFormatter = FormatterRegistry.getPriceFormatter();
 
         return new GlobalFormatterStats(
             FormatterCache.getInstance().getStats(),

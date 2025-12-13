@@ -141,8 +141,8 @@ public class WandListener implements Listener {
     private void handleSelectionInfo(Player player, Selection selection) {
         if (!selection.isComplete()) {
             MessageUtils.sendMessage(player, "{primary}Selection is incomplete.");
-            MessageUtils.sendMessage(player, "{primary}Pos1: {info}" + (selection.getPos1() != null ? "✓" : "✗"));
-            MessageUtils.sendMessage(player, "{primary}Pos2: {info}" + (selection.getPos2() != null ? "✓" : "✗"));
+            MessageUtils.sendMessage(player, "{primary}Pos1: {info}" + (selection.getPos1() != null ? "✔" : "✖"));
+            MessageUtils.sendMessage(player, "{primary}Pos2: {info}" + (selection.getPos2() != null ? "✔" : "✖"));
             return;
         }
 

@@ -19,10 +19,10 @@ libraries:
 
   - 'redis.clients:jedis:5.1.0'
 
-  - 'com.github.ben-manes.caffeine:caffeine:3.2.2'
 
   - 'com.google.inject:guice:7.0.0'
 
+  - 'com.github.ben-manes.caffeine:caffeine:3.2.2'
   - 'io.github.revxrsal:lamp.common:4.0.0-rc.14'
   - 'io.github.revxrsal:lamp.bukkit:4.0.0-rc.14'
   - 'io.github.revxrsal:lamp.brigadier:4.0.0-rc.14'

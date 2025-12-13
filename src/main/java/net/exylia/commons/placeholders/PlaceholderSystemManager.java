@@ -2,7 +2,7 @@ package net.exylia.commons.placeholders;
 
 import lombok.Setter;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.exylia.commons.v2.placeholders.PlaceholdersV2;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlayerPlaceholderResolver;
@@ -47,7 +47,7 @@ public class PlaceholderSystemManager {
     public static void initialize(JavaPlugin plugin) {
         if (instance == null) {
             instance = new PlaceholderSystemManager(plugin);
-            PlaceholdersV2.initialize(plugin);
+            Placeholders.initialize(plugin);
         }
     }
 
@@ -190,13 +190,13 @@ public class PlaceholderSystemManager {
     public void registerGlobal(String name, GlobalPlaceholder placeholder) {
         globalPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
-        PlaceholdersV2.registerGlobal(name, (GlobalPlaceholderResolver) placeholder::resolve);
+        Placeholders.registerGlobal(name, (GlobalPlaceholderResolver) placeholder::resolve);
     }
 
     public void registerContext(String name, ContextPlaceholder placeholder) {
         contextPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
-        PlaceholdersV2.registerContext(name, (context, player) -> {
+        Placeholders.registerContext(name, (context, player) -> {
             Object contextObj = extractFirstContextObject(context);
             return placeholder.resolve(contextObj, player);
         });
@@ -205,7 +205,7 @@ public class PlaceholderSystemManager {
     public void registerPlayer(String name, PlayerPlaceholder placeholder) {
         playerPlaceholders.put(name.toLowerCase(), placeholder);
         cache.invalidatePattern(name);
-        PlaceholdersV2.registerPlayer(name, (PlayerPlaceholderResolver) placeholder::resolve);
+        Placeholders.registerPlayer(name, (PlayerPlaceholderResolver) placeholder::resolve);
     }
 
     private Object extractFirstContextObject(PlaceholderContext context) {

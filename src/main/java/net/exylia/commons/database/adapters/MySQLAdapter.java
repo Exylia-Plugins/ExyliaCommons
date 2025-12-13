@@ -101,8 +101,12 @@ public class MySQLAdapter implements DatabaseAdapter {
 
     @Override
     public boolean isConnected() {
-        try {
-            return dataSource != null && !dataSource.isClosed() && dataSource.getConnection().isValid(2);
+        if (dataSource == null || dataSource.isClosed()) {
+            return false;
+        }
+
+        try (Connection conn = dataSource.getConnection()) {
+            return conn != null && conn.isValid(2);
         } catch (Exception e) {
             return false;
         }

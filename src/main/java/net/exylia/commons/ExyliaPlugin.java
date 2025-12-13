@@ -3,33 +3,23 @@ package net.exylia.commons;
 import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.async.SchedulerManager;
+import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
-import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.base.MainConfigBase;
 import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.v2.config.ConfigInitializer;
-import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.license.SunLicenseUtil;
-import net.exylia.commons.placeholders.PlaceholderSystemManager;
-import net.exylia.commons.redis.RedisIntegration;
-import net.exylia.commons.async.SchedulerManager;
-import net.exylia.commons.utils.*;
-import net.exylia.commons.utils.skull.SkullManager;
-import net.exylia.commons.utils.visuals.ActionBarUtils;
-import net.exylia.commons.utils.visuals.BossbarUtils;
-import net.exylia.commons.utils.visuals.TitleUtils;
-import net.exylia.commons.v2.visual.api.ColorAPI;
-import net.exylia.commons.v2.visual.core.VisualManager;
+import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.utils.DateFormatter;
+import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.v2.lifecycle.LifecycleManager;
+import net.exylia.commons.v2.reload.api.ReloadAPI;
+import net.exylia.commons.v2.reload.api.ReloadContext;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-
-import static net.exylia.commons.utils.DebugUtils.*;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
 
@@ -40,43 +30,47 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     private BukkitAudiences adventure;
     private ConfigurationSystem configSystem;
-    private ReloadManager reloadManager;
+    private LifecycleManager lifecycleManager;
+
     @Getter
     @Setter
-    private SunLicenseAPI api;
+    private SunLicenseAPI sunLicenseAPI;
 
     public abstract int getProductID();
 
     @Override
     public final void onEnable() {
         onPreExyliaEnable();
-        initializeExylia();
+
+        lifecycleManager = new LifecycleManager(this);
+
+        if (!lifecycleManager.executeLicenseValidation()) {
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
         try {
+            net.exylia.commons.utils.DebugUtils.logInternalDebug("Creating BukkitAudiences...");
             this.adventure = BukkitAudiences.create(this);
-            this.reloadManager = new ReloadManager(this);
             registeredPlugins.add(this);
 
             if (!initialized) {
                 instance = this;
                 initialized = true;
             }
-            initializeConfigurationSystem();
 
-            SunLicenseUtil licenseManager = new SunLicenseUtil(this);
+            lifecycleManager.executeBootstrap();
 
-            if (!licenseManager.initializeLicense()) {
-                getServer().getPluginManager().disablePlugin(this);
-            }
-            if (api == null) {
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-            api.validate();
+//            initializeConfigurationSystem();
 
-            SchedulerManager.getInstance().runTask(this::enablePlugin);
+            net.exylia.commons.utils.DebugUtils.logInternalDebug("Initializing ReloadAPI...");
+            ReloadAPI.initialize(this);
+
+            net.exylia.commons.utils.DebugUtils.logInternalDebug("Scheduling plugin enable on main thread...");
+            SchedulerManager.getInstance().runTask(() -> lifecycleManager.executePluginEnable());
+
         } catch (Exception e) {
-            DebugUtils.logInternalError("License validation failed: " + e.getMessage());
-            DebugUtils.logInternalError("You need support? Join our Discord: https://discord.exylia.net/");
+            net.exylia.commons.utils.DebugUtils.logInternalError("Critical error during plugin initialization", e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -84,13 +78,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onDisable() {
         registeredPlugins.remove(this);
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            player.closeInventory();
-            TitleUtils.cancelAllTitles(player);
-            ActionBarUtils.cancelAllActionBars(player);
-            BossbarUtils.cancelAllBossBars(player);
-        }
-        onExyliaDisable();
 
         if (configSystem != null) {
             configSystem.shutdown();
@@ -101,49 +88,33 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             this.adventure = null;
         }
 
+        if (lifecycleManager != null) {
+            lifecycleManager.executeShutdown();
+        }
+
         if (registeredPlugins.isEmpty()) {
-            shutdownExylia();
             initialized = false;
         }
-
-        logInternalInfo("Plugin Exylia deshabilitado: " + getDescription().getName());
     }
 
-    private void enablePlugin() {
-        try {
-            onExyliaEnable();
-        } catch (Exception e) {
-            logInternalError("Error habilitando plugin: " + e.getMessage());
-            e.printStackTrace();
-            getServer().getPluginManager().disablePlugin(this);
-        }
-    }
-
-    private void initializeConfigurationSystem() {
+    public void initializeConfigurationSystem() {
         try {
             configSystem = new ConfigurationSystem(this);
 
             Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
-
             List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
 
             allConfigClasses.add(MainConfigBase.class);
             allConfigClasses.add(MessagesBase.class);
 
             if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
-
                 for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
-
                     if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
-
                         allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
                     }
-
                     if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
-
                         allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
                     }
-
                     allConfigClasses.add(pluginClass);
                 }
             }
@@ -159,23 +130,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
             ColorUtils.initializePresets(this, getCustomColorPresets());
         } catch (Exception e) {
-            logInternalError("Error inicializando sistema de configuración: " + e.getMessage());
             throw new RuntimeException(e);
         }
     }
 
     private void setupConfigurationListeners() {
-        configSystem.addReloadListener(new ConfigurationSystem.ConfigReloadListener() {
-            @Override
-            public void onConfigReload(String fileName) {
-                onConfigurationFileReload(fileName);
-            }
-
-            @Override
-            public void onAllConfigsReload() {
-                onAllConfigurationsReload();
-            }
-        });
     }
 
     protected void onPreExyliaEnable() {
@@ -187,98 +146,25 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     protected Class<? extends ConfigBase>[] getConfigurationClasses() {
         return new Class[0];
-    };
+    }
 
     protected Map<String, String> getCustomColorPresets() {
         return new LinkedHashMap<>();
     }
 
-    public final ReloadManager getReloadManager() {
-        return reloadManager;
+    protected void onReload(ReloadContext context) {
     }
 
-    public final CompletableFuture<ReloadResult> reloadAllAsync() {
-        return reloadManager.reloadAllAsync();
+    public final void callOnExyliaEnable() {
+        onExyliaEnable();
     }
 
-    public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender) {
-        ReloadResult.sendStartMessage(sender);
-        return reloadManager.reloadAllAsync()
-                .thenApply(result -> {
-                    SchedulerManager.getInstance().runTask(() ->
-                            ReloadResult.sendDetailedReloadResult(sender, result));
-                    return result;
-                });
+    public final void callOnExyliaDisable() {
+        onExyliaDisable();
     }
 
-    public final CompletableFuture<ReloadResult> reloadAllAsync(long timeoutSeconds) {
-        return reloadManager.reloadAllAsync(timeoutSeconds);
-    }
-
-    public final CompletableFuture<ReloadResult> reloadAllAsync(org.bukkit.command.CommandSender sender, long timeoutSeconds) {
-        ReloadResult.sendStartMessage(sender);
-        return reloadManager.reloadAllAsync(timeoutSeconds)
-                .thenApply(result -> {
-                    SchedulerManager.getInstance().runTask(() ->
-                            ReloadResult.sendDetailedReloadResult(sender, result));
-                    return result;
-                });
-    }
-
-    public final CompletableFuture<ReloadResult> reloadConfigurationAsync() {
-        return reloadManager.reloadConfigurationAsync();
-    }
-
-    public final CompletableFuture<ReloadResult> reloadDatabaseAsync() {
-        return reloadManager.reloadDatabaseAsync();
-    }
-
-    public final CompletableFuture<ReloadResult> reloadRedisAsync() {
-        return reloadManager.reloadRedisAsync();
-    }
-
-    public final CompletableFuture<ReloadResult> reloadPluginAsync() {
-        return reloadManager.reloadPluginAsync();
-    }
-
-    protected void onDatabaseReload() {
-
-    }
-
-    protected void onRedisReload() {
-
-    }
-
-    protected void onPluginReload() {
-
-    }
-
-    protected void onConfigurationFileReload(String fileName) {
-
-    }
-
-    protected void onAllConfigurationsReload() {
-
-    }
-
-    final void callDatabaseReloadHook() {
-        onDatabaseReload();
-    }
-
-    final void callRedisReloadHook() {
-        onRedisReload();
-    }
-
-    final void callPluginReloadHook() {
-        onPluginReload();
-    }
-
-    final void callConfigurationFileReloadHook(String fileName) {
-        onConfigurationFileReload(fileName);
-    }
-
-    final void callAllConfigurationsReloadHook() {
-        onAllConfigurationsReload();
+    public final void callOnReload(ReloadContext context) {
+        onReload(context);
     }
 
     public BukkitAudiences adventure() {
@@ -300,74 +186,5 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     public static boolean isPlaceholderAPIEnabled() {
         return Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
-    }
-
-    private void initializeExylia() {
-        try {
-            ConfigInitializer.init(this);
-            SchedulerManager.initialize(this);
-            ColorAPI.initialize(this);
-            VisualManager.getInstance().initialize(this);
-            PlaceholderSystemManager.initialize(this);
-            AdapterFactory.initialize(this);
-            ActionBarUtils.init(this);
-            BossbarUtils.init(this);
-            TitleUtils.init(this);
-            SkullManager.initialize(this);
-        } catch (Exception e) {
-            logInternalInfo("Error inicializando un sistema: " + e.getMessage());
-        }
-        checkOptionalDependencies();
-    }
-
-    private void checkOptionalDependencies() {
-        try {
-            Class.forName("redis.clients.jedis.Jedis");
-        } catch (ClassNotFoundException ignored) {
-        }
-        checkDatabaseDrivers();
-    }
-
-    private void checkDatabaseDrivers() {
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException ignored) {
-        }
-
-        try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-        } catch (ClassNotFoundException e) {
-            try {
-                Class.forName("com.mysql.jdbc.Driver");
-            } catch (ClassNotFoundException ignored) {
-            }
-        }
-
-        try {
-            Class.forName("com.mongodb.client.MongoClient");
-        } catch (ClassNotFoundException ignored) {
-        }
-
-        try {
-            Class.forName("com.zaxxer.hikari.HikariDataSource");
-        } catch (ClassNotFoundException ignored) {
-        }
-    }
-
-    private void shutdownExylia() {
-        if (SchedulerManager.isInitialized()) {
-            SchedulerManager.getInstance().shutdown();
-        }
-        if (DatabaseManager.getInstance() != null) {
-            DatabaseManager.getInstance().shutdown();
-        }
-        try {
-            net.exylia.commons.v2.database.api.DatabaseV2.shutdown();
-        } catch (IllegalStateException ignored) {
-        }
-        RedisIntegration.shutdownRedis();
-        ColorUtils.shutdown();
-        OldColorUtils.shutdown();
-        AdapterFactory.close();
     }
 }

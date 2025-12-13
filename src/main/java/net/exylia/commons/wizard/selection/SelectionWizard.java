@@ -323,7 +323,7 @@ public final class SelectionWizard implements Listener {
         TitleUtils.sendTitle(player,
                 "confirm_selection_wizard",
                 new TitleConfig(
-                        "{success}✓ Area " + current + " Ready",
+                        "{success}✔ Area " + current + " Ready",
                         "{warning}SHIFT + LEFT CLICK to confirm",
                         true,
                         20L),

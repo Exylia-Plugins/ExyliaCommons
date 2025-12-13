@@ -4,7 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.v2.items.processor.*;
 import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
-import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.utils.effects.SoundUtils;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -112,7 +112,7 @@ public abstract class ExyliaItem {
             if (player != null && itemData.getContext() != null) {
                 processedLine = itemData.getContext().processPlaceholders(line, player);
             }
-            processedLore.add(ColorUtils.parse(processedLine));
+            processedLore.add(ColorAPI.parse(processedLine));
         }
 
         updateLore(processedLore);
@@ -199,7 +199,7 @@ public abstract class ExyliaItem {
     protected void updateName(String name) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            meta.displayName(ColorUtils.parse(name));
+            meta.displayName(ColorAPI.parse(name));
             itemStack.setItemMeta(meta);
         }
     }

@@ -3,10 +3,10 @@ package net.exylia.commons.v2.hologram.model;
 import lombok.Getter;
 import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
-import net.exylia.commons.v2.placeholders.PlaceholdersV2;
+import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -82,8 +82,8 @@ public class Hologram {
             TextDisplay display = (TextDisplay) location.getWorld()
                     .spawnEntity(currentLoc, EntityType.TEXT_DISPLAY);
 
-            String processed = PlaceholdersV2.process(line.getText());
-            Component component = ColorUtils.parse(processed);
+            String processed = Placeholders.process(line.getText());
+            Component component = ColorAPI.parse(processed);
             display.text(component);
 
             HologramProperties lineProps = line.getPropertiesOrDefault(properties);
@@ -114,8 +114,8 @@ public class Hologram {
             TextDisplay display = (TextDisplay) location.getWorld()
                     .spawnEntity(currentLoc, EntityType.TEXT_DISPLAY);
 
-            String processed = PlaceholdersV2.process(line.getText(), player);
-            Component component = ColorUtils.parse(processed);
+            String processed = Placeholders.process(line.getText(), player);
+            Component component = ColorAPI.parse(processed);
             display.text(component);
 
             HologramProperties lineProps = line.getPropertiesOrDefault(properties);
@@ -179,8 +179,8 @@ public class Hologram {
                 TextDisplay display = globalDisplays.get(i);
 
                 if (display != null && display.isValid()) {
-                    String processed = PlaceholdersV2.process(line.getText());
-                    Component component = ColorUtils.parse(processed);
+                    String processed = Placeholders.process(line.getText());
+                    Component component = ColorAPI.parse(processed);
                     display.text(component);
                 }
             }
@@ -200,8 +200,8 @@ public class Hologram {
                     TextDisplay display = displays.get(i);
 
                     if (display != null && display.isValid()) {
-                        String processed = PlaceholdersV2.process(line.getText(), player);
-                        Component component = ColorUtils.parse(processed);
+                        String processed = Placeholders.process(line.getText(), player);
+                        Component component = ColorAPI.parse(processed);
                         display.text(component);
                     }
                 }

@@ -1,6 +1,6 @@
 package net.exylia.commons.placeholders;
 
-import net.exylia.commons.v2.placeholders.PlaceholdersV2;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 
@@ -206,6 +206,10 @@ public class ExyliaContext {
         return copy();
     }
 
+    public Map<String, Object> getKeyedData() {
+        return new HashMap<>(keyedData);
+    }
+
     public ExyliaContext clear() {
         typedData.clear();
         keyedData.clear();
@@ -223,7 +227,7 @@ public class ExyliaContext {
         result = PlaceholderSystemManager.getInstance().process(result, player, this.getAllObjects());
 
         PlaceholderContext context = toPlaceholderContext(player);
-        result = PlaceholdersV2.process(result, player, context);
+        result = Placeholders.process(result, player, context);
 
         return result;
     }

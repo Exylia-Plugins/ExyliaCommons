@@ -1,0 +1,20 @@
+title: "&6&lMi Servidor"
+enabled: true
+lines:
+  - "&7-----------------"
+  - "&eJugadores: &f%online%"
+  - "&eDinero: &f$%money%"
+  - "&7-----------------"
+update:
+  interval: 20      # ticks
+  smart: true       # smart updates
+  cache: true       # cache enabled
+team:
+  name: "main"
+  prefix: "&a[VIP] "
+  suffix: " &7[Nivel %level%]"
+  color: "GREEN"
+  collision-rule: "ALWAYS"        # ALWAYS, NEVER, FOR_OTHER_TEAMS, FOR_OWN_TEAM
+  nametag-visibility: "ALWAYS"    # ALWAYS, NEVER, HIDE_FOR_OTHER_TEAMS, HIDE_FOR_OWN_TEAM
+  friendly-fire: true
+  see-friendly-invisibles: true
