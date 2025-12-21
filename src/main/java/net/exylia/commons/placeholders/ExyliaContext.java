@@ -236,7 +236,7 @@ public class ExyliaContext {
         return processPlaceholders(text, null);
     }
 
-    private PlaceholderContext toPlaceholderContext(Player player) {
+    public PlaceholderContext toPlaceholderContext(Player player) {
         PlaceholderContext context = PlaceholderContext.create();
 
         if (player != null) {
@@ -262,6 +262,10 @@ public class ExyliaContext {
         }
 
         return context;
+    }
+
+    public PlaceholderContext toPlaceholderContext() {
+        return toPlaceholderContext(get(Player.class));
     }
 
     @SuppressWarnings("unchecked")

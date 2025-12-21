@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.config;
 
-import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
@@ -43,7 +44,7 @@ public class Messages {
         return message(path).replace(replacements).raw();
     }
 
-    public static String get(String path, ExyliaContext context) {
+    public static String get(String path, PlaceholderContext context) {
         return message(path).context(context).raw();
     }
 
@@ -57,7 +58,7 @@ public class Messages {
 
     public static class MessageBuilder {
         private final String path;
-        private ExyliaContext context = ExyliaContext.create();
+        private PlaceholderContext context = PlaceholderContext.create();
         private Player player;
         private final Map<String, Object> replacements = new HashMap<>();
         private boolean usePrefix = true;
@@ -67,18 +68,20 @@ public class Messages {
             this.path = path;
         }
 
-        public MessageBuilder context(ExyliaContext context) {
-            this.context = context != null ? context : ExyliaContext.create();
+        public MessageBuilder context(PlaceholderContext context) {
+            this.context = context != null ? context : PlaceholderContext.create();
             return this;
         }
 
-        public MessageBuilder add(Object object) {
-            this.context.add(object);
+        public MessageBuilder with(Object object) {
+            this.context.with(object);
             return this;
         }
 
-        public MessageBuilder add(Object... objects) {
-            this.context.addAll(objects);
+        public MessageBuilder with(Object... objects) {
+            for (Object obj : objects) {
+                this.context.with(obj);
+            }
             return this;
         }
 
@@ -130,7 +133,11 @@ public class Messages {
                 }
             }
 
-            message = context.processPlaceholders(message, player);
+            PlaceholderContext ctx = context;
+            if (player != null) {
+                ctx = ctx.copy().withPlayer(player);
+            }
+            message = Placeholders.process(message, player, ctx);
 
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (!(entry.getValue() instanceof Component)) {
@@ -167,7 +174,11 @@ public class Messages {
                 }
             }
 
-            message = context.processPlaceholders(message, player);
+            PlaceholderContext ctx = context;
+            if (player != null) {
+                ctx = ctx.copy().withPlayer(player);
+            }
+            message = Placeholders.process(message, player, ctx);
 
             for (Map.Entry<String, Object> entry : replacements.entrySet()) {
                 if (!(entry.getValue() instanceof Component)) {

@@ -2,18 +2,22 @@ package net.exylia.commons.v2.visual.api;
 
 import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.visual.builder.BossBarBuilder;
+import net.exylia.commons.v2.visual.builder.GlobalCountdownBossBarBuilder;
 import net.exylia.commons.v2.visual.config.BossBarConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.visual.core.GlobalVisualRegistry;
 import net.exylia.commons.v2.visual.core.VisualManager;
 import net.exylia.commons.v2.visual.core.VisualRegistry;
 import net.exylia.commons.v2.visual.core.VisualType;
 import net.exylia.commons.v2.visual.instance.CountdownVisualInstance;
+import net.exylia.commons.v2.visual.instance.GlobalCountdownInstance;
 import net.exylia.commons.v2.visual.instance.VisualInstance;
 import net.exylia.commons.v2.visual.renderer.BossBarRenderer;
 import net.kyori.adventure.bossbar.BossBar;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public final class BossBarAPI {
@@ -187,5 +191,51 @@ public final class BossBarAPI {
                         return id;
                     });
         }
+    }
+
+    public static GlobalCountdownBossBarBuilder broadcastCountdown(String id, int durationSeconds) {
+        return new GlobalCountdownBossBarBuilder(id, durationSeconds);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Optional<GlobalCountdownInstance<BossBarConfig>> getGlobalCountdown(String id) {
+        return GlobalVisualRegistry.getInstance().get(id)
+                .map(instance -> (GlobalCountdownInstance<BossBarConfig>) instance);
+    }
+
+    public static boolean cancelGlobalCountdown(String id) {
+        return GlobalVisualRegistry.getInstance().get(id)
+                .map(instance -> {
+                    instance.cancel();
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    public static boolean restartGlobalCountdown(String id) {
+        return GlobalVisualRegistry.getInstance().get(id)
+                .map(instance -> {
+                    instance.restart();
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    public static boolean pauseGlobalCountdown(String id) {
+        return GlobalVisualRegistry.getInstance().get(id)
+                .map(instance -> {
+                    instance.pause();
+                    return true;
+                })
+                .orElse(false);
+    }
+
+    public static boolean resumeGlobalCountdown(String id) {
+        return GlobalVisualRegistry.getInstance().get(id)
+                .map(instance -> {
+                    instance.resume();
+                    return true;
+                })
+                .orElse(false);
     }
 }

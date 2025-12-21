@@ -1,11 +1,13 @@
 package net.exylia.commons.v2.hologram.model;
 
 import lombok.Getter;
+import lombok.Setter;
 import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
 import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -36,12 +38,16 @@ public class Hologram {
     private final Map<UUID, List<TextDisplay>> playerDisplays = new ConcurrentHashMap<>();
     private final List<TextDisplay> globalDisplays = Collections.synchronizedList(new ArrayList<>());
     private final AtomicBoolean spawned = new AtomicBoolean(false);
+    private final AtomicBoolean enabled = new AtomicBoolean(true);
+
+    @Setter
+    private PlaceholderContext placeholderContext;
 
     public Hologram(String id, Location location, List<HologramLine> lines,
                     HologramProperties properties, HologramConfig config,
                     boolean persistent, boolean perPlayer,
                     VisibilityCondition visibilityCondition, double viewDistance,
-                    JavaPlugin plugin) {
+                    JavaPlugin plugin, boolean enabled) {
         this.id = id;
         this.location = location;
         this.lines = lines;
@@ -52,11 +58,16 @@ public class Hologram {
         this.visibilityCondition = visibilityCondition;
         this.viewDistance = viewDistance;
         this.plugin = plugin;
+        this.enabled.set(enabled);
     }
 
     public void spawn() {
         if (!SchedulerManager.getInstance().isMainThread()) {
             throw new IllegalStateException("Hologram must be spawned on main thread");
+        }
+
+        if (!enabled.get()) {
+            return;
         }
 
         if (spawned.get()) {
@@ -82,7 +93,9 @@ public class Hologram {
             TextDisplay display = (TextDisplay) location.getWorld()
                     .spawnEntity(currentLoc, EntityType.TEXT_DISPLAY);
 
-            String processed = Placeholders.process(line.getText());
+            String processed = placeholderContext != null
+                ? Placeholders.process(line.getText(), null, placeholderContext)
+                : Placeholders.process(line.getText());
             Component component = ColorAPI.parse(processed);
             display.text(component);
 
@@ -179,7 +192,9 @@ public class Hologram {
                 TextDisplay display = globalDisplays.get(i);
 
                 if (display != null && display.isValid()) {
-                    String processed = Placeholders.process(line.getText());
+                    String processed = placeholderContext != null
+                        ? Placeholders.process(line.getText(), null, placeholderContext)
+                        : Placeholders.process(line.getText());
                     Component component = ColorAPI.parse(processed);
                     display.text(component);
                 }
@@ -324,6 +339,32 @@ public class Hologram {
 
     public boolean isSpawned() {
         return spawned.get();
+    }
+
+    public boolean isEnabled() {
+        return enabled.get();
+    }
+
+    public void enable() {
+        enabled.set(true);
+    }
+
+    public void disable() {
+        if (!enabled.get()) {
+            return;
+        }
+        enabled.set(false);
+        if (spawned.get()) {
+            despawn();
+        }
+    }
+
+    public void setEnabled(boolean enabled) {
+        if (enabled) {
+            enable();
+        } else {
+            disable();
+        }
     }
 
     public int getLineCount() {

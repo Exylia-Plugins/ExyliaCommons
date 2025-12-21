@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -198,7 +199,7 @@ public class PaginatedFullInventoryMenu extends FullInventoryMenu {
                 processed = context.processPlaceholders(processed, viewer);
             }
 
-            this.title = net.exylia.commons.utils.ColorUtils.parse(processed);
+            this.title = ColorAPI.parse(processed);
         }
     }
 

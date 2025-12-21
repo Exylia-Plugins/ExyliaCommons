@@ -7,5 +7,6 @@ public enum VisualType {
     MESSAGE,
     PARTICLE,
     SOUND,
-    EFFECT
+    EFFECT,
+    FIREWORK
 }

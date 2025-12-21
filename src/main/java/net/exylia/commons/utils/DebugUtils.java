@@ -4,6 +4,7 @@ import com.github.lalyos.jfiglet.FigletFont;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.v2.config.Configs;
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import static net.exylia.commons.utils.AnsiComponentLogger.convertHexColors;
 
@@ -11,7 +12,7 @@ public class DebugUtils {
     private static String prefix = "";
     private static final String internalPrefix = "<#696969>[<#c995fc>ExyliaLib<#696969>] ";
 
-    public static void init(ExyliaPlugin plugin) {
+    public static void init(JavaPlugin plugin) {
         prefix = "<#696969>[<gradient:#aa76de:#8a51c4:#aa76de>" + plugin.getName() + "</gradient><#696969>] ";
         sendPluginMOTD(plugin);
     }
@@ -76,7 +77,7 @@ public class DebugUtils {
         Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff> " + message)));
     }
 
-    public static void sendPluginMOTD(ExyliaPlugin plugin) {
+    public static void sendPluginMOTD(JavaPlugin plugin) {
         try {
             String asciiArt = FigletFont.convertOneLine(plugin.getName());
 

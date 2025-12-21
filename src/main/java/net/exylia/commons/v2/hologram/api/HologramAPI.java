@@ -2,7 +2,9 @@ package net.exylia.commons.v2.hologram.api;
 
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
+import net.exylia.commons.v2.hologram.model.HologramTemplate;
 import net.exylia.commons.v2.hologram.persistence.HologramConfigLoader;
+import net.exylia.commons.v2.hologram.persistence.HologramTemplateLoader;
 import org.bukkit.Location;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -76,7 +78,35 @@ public final class HologramAPI {
         return HologramConfigLoader.fromConfigAsync(id, section);
     }
 
+    public static Hologram loadFromConfig(String id, ConfigurationSection section, Location location) {
+        return HologramConfigLoader.fromConfig(id, section, location);
+    }
+
+    public static CompletableFuture<Hologram> loadFromConfigAsync(String id, ConfigurationSection section, Location location) {
+        return HologramConfigLoader.fromConfigAsync(id, section, location);
+    }
+
     public static void saveToConfig(Hologram hologram, ConfigurationSection section) {
         HologramConfigLoader.saveToConfig(hologram, section);
+    }
+
+    public static HologramTemplate loadTemplateFromConfig(ConfigurationSection section) {
+        return HologramTemplateLoader.fromConfig(section);
+    }
+
+    public static CompletableFuture<HologramTemplate> loadTemplateFromConfigAsync(ConfigurationSection section) {
+        return HologramTemplateLoader.fromConfigAsync(section);
+    }
+
+    public static void saveTemplateToConfig(HologramTemplate template, ConfigurationSection section) {
+        HologramTemplateLoader.saveToConfig(template, section);
+    }
+
+    public static HologramBuilder createFromTemplate(String id, Location location, HologramTemplate template) {
+        return HologramBuilder.fromTemplate(id, location, template);
+    }
+
+    public static CompletableFuture<Hologram> createFromTemplateAsync(String id, Location location, HologramTemplate template) {
+        return HologramBuilder.fromTemplate(id, location, template).buildAsync();
     }
 }

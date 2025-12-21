@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.v2.items.processor.*;
 import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.utils.effects.SoundUtils;
 import org.bukkit.entity.Player;
@@ -76,10 +77,7 @@ public abstract class ExyliaItem {
             return;
         }
 
-        String processedMaterial = rawMaterial;
-        if (player != null && itemData.getContext() != null) {
-            processedMaterial = itemData.getContext().processPlaceholders(rawMaterial, player);
-        }
+        String processedMaterial = processPlaceholdersWithContext(rawMaterial, player);
 
         if (!processedMaterial.equals(rawMaterial)) {
             updateMaterial(processedMaterial);
@@ -92,10 +90,7 @@ public abstract class ExyliaItem {
             return;
         }
 
-        String processedName = rawName;
-        if (player != null && itemData.getContext() != null) {
-            processedName = itemData.getContext().processPlaceholders(rawName, player);
-        }
+        String processedName = processPlaceholdersWithContext(rawName, player);
 
         updateName(processedName);
     }
@@ -108,10 +103,7 @@ public abstract class ExyliaItem {
 
         List<net.kyori.adventure.text.Component> processedLore = new ArrayList<>();
         for (String line : currentLore) {
-            String processedLine = line;
-            if (player != null && itemData.getContext() != null) {
-                processedLine = itemData.getContext().processPlaceholders(line, player);
-            }
+            String processedLine = processPlaceholdersWithContext(line, player);
             processedLore.add(ColorAPI.parse(processedLine));
         }
 
@@ -124,12 +116,33 @@ public abstract class ExyliaItem {
             return;
         }
 
-        String processedAmount = rawAmount;
-        if (player != null && itemData.getContext() != null) {
-            processedAmount = itemData.getContext().processPlaceholders(rawAmount, player);
-        }
+        String processedAmount = processPlaceholdersWithContext(rawAmount, player);
 
         updateAmount(processedAmount);
+    }
+
+    private String processPlaceholdersWithContext(String text, Player player) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+
+        String result = text;
+
+        if (player != null && itemData.getContext() != null) {
+            try {
+                net.exylia.commons.placeholders.ExyliaContext exyliaContext = itemData.getContext().toExyliaContext();
+                if (player != null) {
+                    exyliaContext.withPlayer(player);
+                }
+                result = exyliaContext.processPlaceholders(result, player);
+            } catch (Exception e) {
+                result = Placeholders.process(text, player, itemData.getContext());
+            }
+        } else if (player != null) {
+            result = Placeholders.process(text, player, itemData.getContext());
+        }
+
+        return result;
     }
 
     private void processEnchantments(Player player) {

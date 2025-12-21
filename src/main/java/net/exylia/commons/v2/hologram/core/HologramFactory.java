@@ -22,7 +22,8 @@ public class HologramFactory {
             boolean persistent,
             boolean perPlayer,
             VisibilityCondition visibilityCondition,
-            double viewDistance
+            double viewDistance,
+            boolean enabled
     ) {
         validateParameters(id, location, lineTexts);
 
@@ -43,7 +44,8 @@ public class HologramFactory {
                 perPlayer,
                 visibilityCondition,
                 viewDistance,
-                plugin
+                plugin,
+                enabled
         );
     }
 

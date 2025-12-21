@@ -3,8 +3,15 @@ package net.exylia.commons.v2.visual.renderer;
 import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.v2.visual.api.ColorAPI;
+import net.exylia.commons.v2.visual.cache.CacheManager;
 import net.exylia.commons.v2.visual.color.MessageCenterer;
 import net.exylia.commons.v2.visual.config.MessageConfig;
+import net.exylia.commons.v2.visual.config.SoundConfig;
+import net.exylia.commons.v2.visual.config.ParticleConfig;
+import net.exylia.commons.v2.visual.config.FireworkConfig;
+import net.exylia.commons.v2.visual.config.EffectConfig;
+import net.exylia.commons.v2.visual.core.VisualManager;
+import net.exylia.commons.v2.visual.processor.EffectProcessor;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -28,7 +35,7 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
     @Override
     public CompletableFuture<Void> renderAsync(Player player, MessageConfig config, PlaceholderContext context) {
         return AsyncExecutor.getInstance()
-                .supplyAsync(() -> processMessages(config), false)
+                .supplyAsync(() -> processMessages(player, config, context), false)
                 .thenAcceptAsync(components -> {
                     SchedulerManager.getInstance().runSync(() -> {
                         if (config.isBroadcast()) {
@@ -44,12 +51,35 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
                 }, AsyncExecutor.getInstance().getGeneralExecutor());
     }
 
-    private List<Component> processMessages(MessageConfig config) {
+    private List<Component> processMessages(Player player, MessageConfig config, PlaceholderContext context) {
         List<Component> components = new ArrayList<>();
         List<String> messages = config.getMessages();
 
         for (String message : messages) {
-            String processed = message;
+            EffectProcessor.ParsedMessage parsed = EffectProcessor.parse(message, player, context);
+
+            if (!parsed.getSounds().isEmpty()) {
+                for (SoundConfig sound : parsed.getSounds()) {
+                    VisualManager.getInstance().playSound(player, sound, context);
+                }
+            }
+            if (!parsed.getParticles().isEmpty()) {
+                for (ParticleConfig particle : parsed.getParticles()) {
+                    VisualManager.getInstance().spawnParticle(player, particle, context);
+                }
+            }
+            if (!parsed.getFireworks().isEmpty()) {
+                for (FireworkConfig firework : parsed.getFireworks()) {
+                    VisualManager.getInstance().launchFirework(player, firework, context);
+                }
+            }
+            if (!parsed.getEffects().isEmpty()) {
+                for (EffectConfig effect : parsed.getEffects()) {
+                    VisualManager.getInstance().applyEffect(player, effect, context);
+                }
+            }
+
+            String processed = CacheManager.getInstance().processPlaceholders(parsed.getCleanMessage(), player, context);
 
             if (config.isCentered()) {
                 processed = MessageCenterer.center(processed);

@@ -9,6 +9,7 @@ import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +52,41 @@ public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
                         bossBar.progress((float) Math.max(0.0, Math.min(1.0, data.progress)));
 
                         player.showBossBar(bossBar);
+                    });
+                }, AsyncExecutor.getInstance().getGeneralExecutor());
+    }
+
+    public CompletableFuture<Void> renderBatch(
+            Collection<Player> players,
+            BossBarConfig config,
+            PlaceholderContext context
+    ) {
+        return AsyncExecutor.getInstance()
+                .supplyAsync(() -> {
+                    Component component = CacheManager.getInstance()
+                            .processAndParse(config.getText(), null, context);
+
+                    double progress = config.getProgress();
+                    Object contextProgress = context.get("progress");
+                    if (contextProgress instanceof Number) {
+                        progress = ((Number) contextProgress).doubleValue();
+                    }
+
+                    return new BossBarData(component, progress);
+                }, false)
+                .thenAcceptAsync(data -> {
+                    SchedulerManager.getInstance().runSync(() -> {
+                        for (Player player : players) {
+                            if (!player.isOnline()) continue;
+
+                            String visualId = (String) context.get("visual_id");
+                            BossBar bossBar = getOrCreateBossBar(player, visualId, config);
+
+                            bossBar.name(data.component);
+                            bossBar.progress((float) Math.max(0.0, Math.min(1.0, data.progress)));
+
+                            player.showBossBar(bossBar);
+                        }
                     });
                 }, AsyncExecutor.getInstance().getGeneralExecutor());
     }

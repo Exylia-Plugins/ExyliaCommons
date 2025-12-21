@@ -206,4 +206,63 @@ public final class MessageAPI {
     public static MessageBuilder builder() {
         return MessageBuilder.create();
     }
+
+    public static CompletableFuture<Void> sendRoute(Player player, String route) {
+        return sendRoute(player, route, PlaceholderContext.create());
+    }
+
+    public static CompletableFuture<Void> sendRoute(Player player, String route, PlaceholderContext context) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return send(player, message, context);
+    }
+
+    public static CompletableFuture<Void> sendRoute(CommandSender sender, String route) {
+        if (sender instanceof Player player) {
+            return sendRoute(player, route);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            sender.sendMessage(ColorAPI.parse(message));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    public static CompletableFuture<Void> broadcastRoute(String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return broadcast(message);
+    }
+
+    public static CompletableFuture<Void> broadcastRouteExcluding(String route, Player excludePlayer) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return broadcastExcluding(message, excludePlayer);
+    }
+
+    public static CompletableFuture<Void> broadcastRouteExcluding(String route, Collection<Player> excludePlayers) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return broadcastExcluding(message, excludePlayers);
+    }
+
+    public static CompletableFuture<Void> sendRouteToFiltered(Predicate<Player> filter, String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return sendToFiltered(filter, message);
+    }
+
+    public static CompletableFuture<Void> sendRouteToRecipients(Collection<Player> recipients, String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return sendToRecipients(recipients, message);
+    }
+
+    public static CompletableFuture<Void> sendRouteInRadius(Location origin, double radius, String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return sendInRadius(origin, radius, message);
+    }
+
+    public static CompletableFuture<Void> sendRouteCentered(Player player, String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return sendCentered(player, message);
+    }
+
+    public static CompletableFuture<Void> broadcastRouteCentered(String route) {
+        String message = net.exylia.commons.v2.config.Messages.get(route);
+        return broadcastCentered(message);
+    }
 }

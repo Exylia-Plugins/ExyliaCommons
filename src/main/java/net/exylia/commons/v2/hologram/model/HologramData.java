@@ -26,6 +26,7 @@ public class HologramData {
     private boolean persistent;
     private boolean perPlayer;
     private double viewDistance;
+    private boolean enabled;
 
     public static HologramData fromHologram(Hologram hologram) {
         return new HologramData(
@@ -39,7 +40,8 @@ public class HologramData {
                 .collect(Collectors.toList()),
             hologram.isPersistent(),
             hologram.isPerPlayer(),
-            hologram.getViewDistance()
+            hologram.getViewDistance(),
+            hologram.isEnabled()
         );
     }
 
@@ -67,7 +69,8 @@ public class HologramData {
             perPlayer,
             null,
             viewDistance,
-            plugin
+            plugin,
+                enabled
         );
     }
 }

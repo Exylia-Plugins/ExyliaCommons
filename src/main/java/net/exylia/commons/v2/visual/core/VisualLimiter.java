@@ -12,10 +12,11 @@ public final class VisualLimiter {
             VisualType.ACTIONBAR, 5,
             VisualType.BOSSBAR, 10,
             VisualType.TITLE, 3,
-            VisualType.PARTICLE, 50,
-            VisualType.SOUND, 100,
+            VisualType.PARTICLE, 100,
+            VisualType.SOUND, 50,
             VisualType.MESSAGE, 50,
-            VisualType.EFFECT, 10
+            VisualType.EFFECT, 20,
+            VisualType.FIREWORK, 10
     );
 
     private VisualLimiter() {

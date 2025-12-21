@@ -437,7 +437,7 @@ public class MultiPaginationMenu extends Menu {
 
     @Override
     protected ExyliaContext prepareItemContext(MenuItem item) {
-         
+
         ExyliaContext combinedContext = this.context != null ? this.context.createChild() : ExyliaContext.create();
 
         if (item.getContext() != null && !item.getContext().isEmpty()) {

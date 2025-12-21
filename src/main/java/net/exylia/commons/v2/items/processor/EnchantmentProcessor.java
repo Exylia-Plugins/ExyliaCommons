@@ -1,7 +1,8 @@
 package net.exylia.commons.v2.items.processor;
 
 import net.exylia.commons.v2.items.utils.EnchantmentUtils;
-import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -12,7 +13,7 @@ import java.util.Map;
 public class EnchantmentProcessor {
 
     public static void apply(ItemStack itemStack, Map<String, Integer> enchantments,
-                           Player player, ExyliaContext context) {
+                           Player player, PlaceholderContext context) {
         if (enchantments == null || enchantments.isEmpty()) {
             return;
         }
@@ -27,8 +28,8 @@ public class EnchantmentProcessor {
             String levelStr = String.valueOf(entry.getValue());
 
             if (player != null && context != null) {
-                enchantName = context.processPlaceholders(enchantName, player);
-                levelStr = context.processPlaceholders(levelStr, player);
+                enchantName = Placeholders.process(enchantName, player, context);
+                levelStr = Placeholders.process(levelStr, player, context);
             }
 
             try {

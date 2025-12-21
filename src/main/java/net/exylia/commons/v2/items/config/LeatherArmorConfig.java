@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.items.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.meta.LeatherArmorMeta;
@@ -38,7 +39,7 @@ public class LeatherArmorConfig {
     }
 
     public void applyColor(LeatherArmorMeta meta, org.bukkit.entity.Player player,
-                           net.exylia.commons.placeholders.ExyliaContext context) {
+                           PlaceholderContext context) {
         Color processedColor = getProcessedColor(player, context);
         if (processedColor != null) {
             meta.setColor(processedColor);
@@ -46,11 +47,11 @@ public class LeatherArmorConfig {
     }
 
     public Color getProcessedColor(org.bukkit.entity.Player player,
-                                   net.exylia.commons.placeholders.ExyliaContext context) {
+                                   PlaceholderContext context) {
         if (color == null) return null;
 
         if (player != null && context != null) {
-            String colorString = context.processPlaceholders(color.toString(), player);
+            String colorString = net.exylia.commons.v2.placeholders.Placeholders.process(color.toString(), player, context);
             Color processedColor = parseColor(colorString);
             return processedColor != null ? processedColor : color;
         }

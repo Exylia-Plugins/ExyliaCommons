@@ -4,6 +4,7 @@ import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
 import net.exylia.commons.v2.hologram.model.HologramConfig;
 import net.exylia.commons.v2.hologram.model.HologramProperties;
+import net.exylia.commons.v2.hologram.model.HologramTemplate;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -25,10 +26,53 @@ public class HologramBuilder {
     private boolean perPlayer = false;
     private VisibilityCondition visibilityCondition = null;
     private double viewDistance = 50.0;
+    private boolean enabled = true;
 
     public HologramBuilder(String id, Location location) {
         this.id = id;
         this.location = location;
+    }
+
+    public HologramBuilder(String id, Location location, HologramTemplate template) {
+        this.id = id;
+        this.location = applyOffset(location, template);
+        applyTemplate(template);
+    }
+
+    public static HologramBuilder fromTemplate(String id, Location location, HologramTemplate template) {
+        return new HologramBuilder(id, location, template);
+    }
+
+    private static Location applyOffset(Location location, HologramTemplate template) {
+        if (template.getOffsetX() == 0.0 && template.getOffsetY() == 0.0 && template.getOffsetZ() == 0.0) {
+            return location;
+        }
+        return location.clone().add(template.getOffsetX(), template.getOffsetY(), template.getOffsetZ());
+    }
+
+    public HologramBuilder applyTemplate(HologramTemplate template) {
+        if (template.getLines() != null && !template.getLines().isEmpty()) {
+            this.lines.addAll(template.getLines());
+        }
+
+        if (template.getProperties() != null) {
+//            this.propertiesBuilder = template.getProperties().toBuilder();
+        }
+
+        if (template.getConfig() != null) {
+//            this.configBuilder = template.getConfig().toBuilder();
+        }
+
+        this.persistent = template.isPersistent();
+        this.perPlayer = template.isPerPlayer();
+        this.viewDistance = template.getViewDistance();
+        this.enabled = template.isEnabled();
+
+        if (template.getVisibilityCondition() != null) {
+            this.visibilityCondition = template.getVisibilityCondition();
+        }
+
+        return this;
     }
 
     public HologramBuilder line(String text) {
@@ -131,6 +175,11 @@ public class HologramBuilder {
         return this;
     }
 
+    public HologramBuilder enabled(boolean enabled) {
+        this.enabled = enabled;
+        return this;
+    }
+
     public CompletableFuture<Hologram> buildAsync() {
         return HologramManager.getInstance().createHologramAsync(
                 id,
@@ -141,7 +190,8 @@ public class HologramBuilder {
                 persistent,
                 perPlayer,
                 visibilityCondition,
-                viewDistance
+                viewDistance,
+                enabled
         );
     }
 

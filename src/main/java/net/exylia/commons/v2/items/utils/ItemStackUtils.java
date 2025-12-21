@@ -3,6 +3,8 @@ package net.exylia.commons.v2.items.utils;
 import net.exylia.commons.ui.items.provider.CustomItemManager;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.skull.SkullManager;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.items.skull.SkullParser;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.SkullMeta;
@@ -14,6 +16,10 @@ public class ItemStackUtils {
     public static ItemStack createFromString(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
             return new ItemStack(Material.STONE);
+        }
+
+        if (SkullParser.isSkullString(materialString)) {
+            return SkullParser.parse(materialString, null, PlaceholderContext.create());
         }
 
         if (materialString.startsWith("headbase-")) {
@@ -87,6 +93,10 @@ public class ItemStackUtils {
     public static boolean isValidMaterial(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
             return false;
+        }
+
+        if (SkullParser.isSkullString(materialString)) {
+            return true;
         }
 
         if (materialString.startsWith("headbase-") || materialString.startsWith("headurl-") ||

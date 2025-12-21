@@ -20,6 +20,10 @@ public class PlaceholderCache {
             return "";
         }
 
+        if (player == null) {
+            return Placeholders.process(text, null, context);
+        }
+
         CacheKey key = CacheKey.of(text, player.getUniqueId(), context.hashCode());
 
         return cache.get(key, k -> Placeholders.process(text, player, context));

@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.reload.core;
 
+import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.v2.reload.detector.SystemAvailability;
@@ -15,7 +16,7 @@ public class SystemDetector {
     public SystemAvailability detectAll() {
         SystemAvailability.Builder builder = new SystemAvailability.Builder();
 
-        builder.check("ConfigSystem", true, "Always available");
+        detectConfigSystem(builder);
 
         detectDatabaseV1(builder);
         detectDatabaseV2(builder);
@@ -171,6 +172,14 @@ public class SystemDetector {
             builder.unavailable("VisualManager", "Not initialized");
         } catch (Exception e) {
             builder.unavailable("VisualManager", "Error: " + e.getMessage());
+        }
+    }
+
+    private void detectConfigSystem(SystemAvailability.Builder builder) {
+        if (ConfigManager.isSystemInitialized()) {
+            builder.available("ConfigSystem");
+        } else {
+            builder.unavailable("ConfigSystem", "Using V2 config system only");
         }
     }
 }

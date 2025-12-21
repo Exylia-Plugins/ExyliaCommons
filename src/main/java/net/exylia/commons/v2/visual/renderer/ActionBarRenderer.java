@@ -8,6 +8,7 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 public class ActionBarRenderer implements VisualRenderer<ActionBarConfig> {
@@ -32,6 +33,25 @@ public class ActionBarRenderer implements VisualRenderer<ActionBarConfig> {
                     SchedulerManager.getInstance().runSync(() -> {
                         if (player.isOnline()) {
                             player.sendActionBar(component);
+                        }
+                    });
+                }, AsyncExecutor.getInstance().getGeneralExecutor());
+    }
+
+    public CompletableFuture<Void> renderBatch(
+            Collection<Player> players,
+            ActionBarConfig config,
+            PlaceholderContext context
+    ) {
+        return AsyncExecutor.getInstance()
+                .supplyAsync(() -> CacheManager.getInstance()
+                        .processAndParse(config.getText(), null, context), false)
+                .thenAcceptAsync(component -> {
+                    SchedulerManager.getInstance().runSync(() -> {
+                        for (Player player : players) {
+                            if (player.isOnline()) {
+                                player.sendActionBar(component);
+                            }
                         }
                     });
                 }, AsyncExecutor.getInstance().getGeneralExecutor());

@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
-import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 @Data
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ItemData {
@@ -64,7 +64,7 @@ public class ItemData {
     private List<String> clickSounds = new ArrayList<>();
 
     @Builder.Default
-    private ExyliaContext context = ExyliaContext.create();
+    private PlaceholderContext context = PlaceholderContext.create();
 
     @Builder.Default
     private long updateInterval = 20L;

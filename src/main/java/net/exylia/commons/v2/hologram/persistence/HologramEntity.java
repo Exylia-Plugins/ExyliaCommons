@@ -57,6 +57,9 @@ public class HologramEntity extends Entity {
     @Column(name = "view_distance")
     private double viewDistance;
 
+    @Column(name = "enabled")
+    private boolean enabled;
+
     @Override
     public Object getId() {
         return id;
@@ -104,7 +107,8 @@ public class HologramEntity extends Entity {
                 perPlayer,
                 null,
                 viewDistance,
-                plugin
+                plugin,
+                enabled
         );
     }
 }

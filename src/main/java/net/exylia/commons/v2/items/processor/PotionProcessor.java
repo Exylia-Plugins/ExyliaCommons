@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.items.processor;
 
 import net.exylia.commons.v2.items.config.PotionConfig;
-import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -15,7 +15,7 @@ import java.util.List;
 public class PotionProcessor {
 
     public static void apply(ItemStack itemStack, PotionConfig potionConfig,
-                           Player player, ExyliaContext context) {
+                           Player player, PlaceholderContext context) {
         if (potionConfig == null || !potionConfig.hasConfiguration()) {
             return;
         }

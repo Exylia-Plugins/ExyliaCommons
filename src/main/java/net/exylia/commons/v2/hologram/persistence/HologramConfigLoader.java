@@ -30,9 +30,46 @@ public class HologramConfigLoader {
             loadProperties(section, builder);
             loadConfig(section, builder);
             loadBehavior(section, builder);
+            builder.enabled(section.getBoolean("enabled", true));
 
             return builder.buildAsync().join();
         });
+    }
+
+    public static Hologram fromConfig(String id, ConfigurationSection section, Location location) {
+        return fromConfigAsync(id, section, location).join();
+    }
+
+    public static CompletableFuture<Hologram> fromConfigAsync(String id, ConfigurationSection section, Location location) {
+        return CompletableFuture.supplyAsync(() -> {
+            Location finalLocation = applyOffsetIfPresent(section, location);
+            HologramBuilder builder = new HologramBuilder(id, finalLocation);
+
+            loadLines(section, builder);
+            loadProperties(section, builder);
+            loadConfig(section, builder);
+            loadBehavior(section, builder);
+            builder.enabled(section.getBoolean("enabled", true));
+
+            return builder.buildAsync().join();
+        });
+    }
+
+    private static Location applyOffsetIfPresent(ConfigurationSection section, Location location) {
+        ConfigurationSection offsetSection = section.getConfigurationSection("offset");
+        if (offsetSection == null) {
+            return location;
+        }
+
+        double offsetX = offsetSection.getDouble("x", 0.0);
+        double offsetY = offsetSection.getDouble("y", 0.0);
+        double offsetZ = offsetSection.getDouble("z", 0.0);
+
+        if (offsetX == 0.0 && offsetY == 0.0 && offsetZ == 0.0) {
+            return location;
+        }
+
+        return location.clone().add(offsetX, offsetY, offsetZ);
     }
 
     private static Location loadLocation(ConfigurationSection section) {
@@ -234,6 +271,7 @@ public class HologramConfigLoader {
     }
 
     private static void saveBehavior(Hologram hologram, ConfigurationSection section) {
+        section.set("enabled", hologram.isEnabled());
         section.set("persistent", hologram.isPersistent());
         section.set("perPlayer", hologram.isPerPlayer());
         section.set("viewDistance", hologram.getViewDistance());

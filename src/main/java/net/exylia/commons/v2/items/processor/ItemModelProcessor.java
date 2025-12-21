@@ -1,7 +1,8 @@
 package net.exylia.commons.v2.items.processor;
 
-import net.exylia.commons.placeholders.ExyliaContext;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -10,14 +11,14 @@ import org.bukkit.inventory.meta.ItemMeta;
 public class ItemModelProcessor {
 
     public static void apply(ItemStack itemStack, String rawItemModel,
-                           Player player, ExyliaContext context) {
+                           Player player, PlaceholderContext context) {
         if (rawItemModel == null || rawItemModel.isEmpty()) {
             return;
         }
 
         String processedModel = rawItemModel;
         if (player != null && context != null) {
-            processedModel = context.processPlaceholders(rawItemModel, player);
+            processedModel = Placeholders.process(rawItemModel, player, context);
         }
 
         ItemMeta meta = itemStack.getItemMeta();

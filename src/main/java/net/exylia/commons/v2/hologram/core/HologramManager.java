@@ -142,12 +142,13 @@ public class HologramManager {
             boolean persistent,
             boolean perPlayer,
             VisibilityCondition visibilityCondition,
-            double viewDistance
+            double viewDistance,
+            boolean enabled
     ) {
         return AsyncExecutor.getInstance()
                 .supplyAsync(() -> factory.create(
                         id, location, lines, properties, config,
-                        persistent, perPlayer, visibilityCondition, viewDistance
+                        persistent, perPlayer, visibilityCondition, viewDistance, enabled
                 ), false)
                 .thenCompose(hologram -> {
                     registry.register(hologram);

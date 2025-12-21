@@ -577,7 +577,7 @@ public class ConfigManager {
     }
 
     public static FileConfiguration getFile(String fileName) {
-        return internalSystem.getFile(fileName);
+        return internalSystem != null ? internalSystem.getFile(fileName) : null;
     }
 
     public static FileConfiguration getFile(Class<? extends ConfigBase> configClass) {
@@ -589,10 +589,17 @@ public class ConfigManager {
         return internalSystem;
     }
 
+    public static boolean isSystemInitialized() {
+        return internalSystem != null;
+    }
+
     public static CompletableFuture<Boolean> reloadAllAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                 
+                if (internalSystem == null) {
+                    return true;
+                }
+
                 boolean systemReloadSuccess = internalSystem.reloadAllAsync().join();
                 if (!systemReloadSuccess) {
                     DebugUtils.logInternalError("ERROR: Fallo en reload del sistema interno");
@@ -603,7 +610,6 @@ public class ConfigManager {
 
                 for (Class<? extends ConfigBase> configClass : configClasses) {
                     try {
-                         
                         Object reloadedInstance = internalSystem.getConfig(configClass);
                         if (reloadedInstance != null) {
                             staticConfigs.put(configClass, reloadedInstance);

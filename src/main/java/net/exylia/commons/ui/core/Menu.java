@@ -10,9 +10,9 @@ import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
 import net.exylia.commons.ui.manager.MenuManager;
 import net.exylia.commons.utils.AdapterFactory;
-import net.exylia.commons.utils.ColorUtils;
 import net.exylia.commons.utils.effects.SoundUtils;
 import net.exylia.commons.utils.versions.InventoryAdapter;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -83,7 +83,7 @@ public class Menu {
     public Menu(String id, String title, int rows) {
         this.id = id;
         this.rawTitle = title;
-        this.title = ColorUtils.parse(title);
+        this.title = ColorAPI.parse(title);
         this.rows = Math.max(1, Math.min(6, rows));
         this.size = this.rows * 9;
     }
@@ -274,7 +274,7 @@ public class Menu {
     }
 
     protected ExyliaContext prepareItemContext(MenuItem item) {
-         
+
         ExyliaContext combinedContext = this.context.createChild();
 
         if (item.getContext() != null && !item.getContext().isEmpty()) {
@@ -463,7 +463,7 @@ public class Menu {
     protected void processTitle() {
         if (rawTitle != null && context != null) {
             String processed = context.processPlaceholders(rawTitle, viewer);
-            this.title = ColorUtils.parse(processed);
+            this.title = ColorAPI.parse(processed);
         }
     }
 

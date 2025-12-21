@@ -27,7 +27,7 @@ public class HologramProperties {
     private final float scaleZ = 1.0f;
 
     @Builder.Default
-    private final boolean shadow = false;
+    private final boolean shadow = true;
 
     @Builder.Default
     private final boolean seeThrough = false;

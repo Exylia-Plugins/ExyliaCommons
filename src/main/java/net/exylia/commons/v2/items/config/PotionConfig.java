@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.items.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.potion.PotionEffect;
@@ -143,7 +144,7 @@ public class PotionConfig {
     }
 
     public List<PotionEffect> createCustomEffects(org.bukkit.entity.Player player,
-                                                  net.exylia.commons.placeholders.ExyliaContext context) {
+                                                  PlaceholderContext context) {
         List<PotionEffect> effects = new ArrayList<>();
 
         for (PotionEffectData effectData : customEffects) {
@@ -152,9 +153,9 @@ public class PotionConfig {
             String durationStr = effectData.duration;
 
             if (player != null && context != null) {
-                effectType = context.processPlaceholders(effectType, player);
-                amplifierStr = context.processPlaceholders(amplifierStr, player);
-                durationStr = context.processPlaceholders(durationStr, player);
+                effectType = net.exylia.commons.v2.placeholders.Placeholders.process(effectType, player, context);
+                amplifierStr = net.exylia.commons.v2.placeholders.Placeholders.process(amplifierStr, player, context);
+                durationStr = net.exylia.commons.v2.placeholders.Placeholders.process(durationStr, player, context);
             }
 
             try {
@@ -175,11 +176,11 @@ public class PotionConfig {
     }
 
     public Color getProcessedColor(org.bukkit.entity.Player player,
-                                   net.exylia.commons.placeholders.ExyliaContext context) {
+                                   PlaceholderContext context) {
         if (potionColor == null) return null;
 
         if (player != null && context != null) {
-            String colorString = context.processPlaceholders(potionColor.toString(), player);
+            String colorString = net.exylia.commons.v2.placeholders.Placeholders.process(potionColor.toString(), player, context);
             Color processedColor = parseColor(colorString);
             return processedColor != null ? processedColor : potionColor;
         }

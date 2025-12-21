@@ -6,6 +6,7 @@ import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.ui.core.Menu;
 import net.exylia.commons.ui.events.MenuClickEvent;
 import net.exylia.commons.ui.items.MenuItem;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -194,7 +195,7 @@ public class PaginationMenu extends Menu {
                 processed = context.processPlaceholders(processed, viewer);
             }
 
-            this.title = net.exylia.commons.utils.ColorUtils.parse(processed);
+            this.title = ColorAPI.parse(processed);
         }
     }
 

@@ -190,17 +190,23 @@ public class MenuItem extends ExyliaItem {
     }
 
     public MenuItem withContext(ExyliaContext context) {
-        itemData.setContext(context != null ? context : ExyliaContext.create());
+        if (context != null) {
+            itemData.setContext(context.toPlaceholderContext());
+        } else {
+            itemData.setContext(net.exylia.commons.v2.placeholders.context.PlaceholderContext.create());
+        }
         return this;
     }
 
     public MenuItem addToContext(Object object) {
-        itemData.getContext().add(object);
+        itemData.getContext().with(object);
         return this;
     }
 
     public MenuItem addToContext(Object... objects) {
-        itemData.getContext().addAll(objects);
+        for (Object obj : objects) {
+            itemData.getContext().with(obj);
+        }
         return this;
     }
 
@@ -210,27 +216,48 @@ public class MenuItem extends ExyliaItem {
     }
 
     public <T> MenuItem addToContext(Class<T> type, T object) {
-        itemData.getContext().add(type, object);
+        itemData.getContext().with(type, object);
         return this;
     }
 
     public MenuItem addDynamicToContext(String key, java.util.function.Supplier<Object> supplier) {
-        itemData.getContext().putDynamic(key, supplier);
+        if (key != null && supplier != null) {
+            itemData.getContext().put(key, supplier.get());
+        }
         return this;
     }
 
     public MenuItem clearContext() {
-        itemData.setContext(ExyliaContext.create());
+        itemData.setContext(net.exylia.commons.v2.placeholders.context.PlaceholderContext.create());
         return this;
     }
 
     public MenuItem mergeContext(ExyliaContext otherContext) {
-        itemData.getContext().merge(otherContext);
+        if (otherContext != null) {
+            net.exylia.commons.v2.placeholders.context.PlaceholderContext currentContext = itemData.getContext();
+            net.exylia.commons.v2.placeholders.context.PlaceholderContext otherPlaceholderContext = otherContext.toPlaceholderContext();
+
+            for (String key : otherContext.getKeys()) {
+                Object value = otherContext.get(key);
+                if (value != null) {
+                    currentContext.put(key, value);
+                }
+            }
+
+            for (Class<?> type : otherContext.getTypes()) {
+                Object value = otherContext.get(type);
+                if (value != null) {
+                    @SuppressWarnings("unchecked")
+                    Class<Object> objType = (Class<Object>) type;
+                    currentContext.with(objType, value);
+                }
+            }
+        }
         return this;
     }
 
     public MenuItem createChildContext() {
-        itemData.setContext(itemData.getContext().createChild());
+        itemData.setContext(itemData.getContext().copy());
         return this;
     }
 
@@ -551,7 +578,7 @@ public class MenuItem extends ExyliaItem {
     }
 
     public ExyliaContext getContext() {
-        return itemData.getContext();
+        return itemData.getContext().toExyliaContext();
     }
 
     public long getUpdateInterval() {
