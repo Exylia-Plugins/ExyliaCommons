@@ -29,7 +29,26 @@ public class MySQLAdapter extends SQLAdapter {
     protected String getCreateTableSQL(EntityMetadata metadata) {
         StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + metadata.getTableName() + "` (");
         for (FieldDescriptor field : metadata.getFields()) {
-            sql.append("`").append(field.getColumnName()).append("` ").append(getMySQLType(field.getType()));
+            sql.append("`").append(field.getColumnName()).append("` ");
+
+            String columnType;
+            if (field.isPrimaryKey()) {
+                if (field.getType() == String.class) {
+                    columnType = "VARCHAR(255)";
+                } else if (field.getType() == java.util.UUID.class) {
+                    columnType = "VARCHAR(36)";
+                } else {
+                    columnType = getMySQLType(field.getType());
+                }
+                System.out.println("[DEBUG] Field '" + field.getColumnName() + "' is PRIMARY KEY, type: " +
+                                 field.getType().getSimpleName() + ", using: " + columnType);
+            } else {
+                columnType = getMySQLType(field.getType());
+                System.out.println("[DEBUG] Field '" + field.getColumnName() + "' type: " + field.getType().getSimpleName() +
+                                 ", using: " + columnType);
+            }
+            sql.append(columnType);
+
             if (field.isPrimaryKey()) {
                 sql.append(" PRIMARY KEY");
             }
@@ -49,6 +68,8 @@ public class MySQLAdapter extends SQLAdapter {
         }
         sql.setLength(sql.length() - 1);
         sql.append(") ENGINE=InnoDB DEFAULT CHARSET=" + config.getCharset() + " COLLATE=" + config.getCollation());
+
+        System.out.println("[DEBUG] Generated SQL: " + sql.toString());
         return sql.toString();
     }
 
@@ -57,7 +78,7 @@ public class MySQLAdapter extends SQLAdapter {
         StringBuilder columns = new StringBuilder();
         StringBuilder values = new StringBuilder();
         for (FieldDescriptor field : metadata.getFields()) {
-            if (field.getColumnName().equals("id")) continue;
+            if (field.isAutoIncrement()) continue;
             columns.append("`").append(field.getColumnName()).append("`,");
             values.append("?,");
         }
@@ -107,9 +128,9 @@ public class MySQLAdapter extends SQLAdapter {
     protected <T extends Entity> void bindInsertValues(PreparedStatement stmt, T entity, EntityMetadata metadata) throws SQLException {
         int index = 1;
         for (FieldDescriptor field : metadata.getFields()) {
-            if (field.getColumnName().equals("id")) continue;
+            if (field.isAutoIncrement()) continue;
             Object value = field.getValue(entity);
-            stmt.setObject(index++, value);
+            stmt.setObject(index++, convertToSqlValue(value));
         }
     }
 
@@ -117,11 +138,19 @@ public class MySQLAdapter extends SQLAdapter {
     protected <T extends Entity> void bindUpdateValues(PreparedStatement stmt, T entity, EntityMetadata metadata) throws SQLException {
         int index = 1;
         for (FieldDescriptor field : metadata.getFields()) {
-            if (field.isPrimaryKey() || field.getColumnName().equals("id")) continue;
+            if (field.isPrimaryKey()) continue;
             Object value = field.getValue(entity);
-            stmt.setObject(index++, value);
+            stmt.setObject(index++, convertToSqlValue(value));
         }
-        stmt.setObject(index, entity.getId());
+        Object idValue = entity.getId() instanceof java.util.UUID ? entity.getId().toString() : entity.getId();
+        stmt.setObject(index, idValue);
+    }
+
+    private Object convertToSqlValue(Object value) {
+        if (value instanceof java.util.UUID) {
+            return value.toString();
+        }
+        return value;
     }
 
     @Override
@@ -138,6 +167,7 @@ public class MySQLAdapter extends SQLAdapter {
 
     private String getMySQLType(Class<?> javaType) {
         if (javaType == String.class) return "VARCHAR(255)";
+        if (javaType == java.util.UUID.class) return "VARCHAR(36)";
         if (javaType == int.class || javaType == Integer.class) return "INT";
         if (javaType == long.class || javaType == Long.class) return "BIGINT";
         if (javaType == double.class || javaType == Double.class) return "DOUBLE";

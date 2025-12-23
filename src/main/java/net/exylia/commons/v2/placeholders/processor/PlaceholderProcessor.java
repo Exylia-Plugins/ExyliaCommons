@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.placeholders.processor;
 
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.placeholders.papi.PapiAdapter;
 import net.exylia.commons.v2.placeholders.registry.PlaceholderRegistry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -38,7 +39,16 @@ public class PlaceholderProcessor {
         }
 
         matcher.appendTail(sb);
-        return sb.toString();
+        result = sb.toString();
+
+        if (player != null) {
+            try {
+                result = PapiAdapter.getInstance().setPlaceholders(player, result);
+            } catch (Exception ignored) {
+            }
+        }
+
+        return result;
     }
 
     public static String process(String text, Player player) {

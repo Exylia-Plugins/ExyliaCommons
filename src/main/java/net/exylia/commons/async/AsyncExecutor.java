@@ -1,7 +1,8 @@
 package net.exylia.commons.async;
 
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -83,7 +84,7 @@ public class AsyncExecutor {
             try {
                 return supplier.get();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in async task: " + e.getMessage(), e);
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in async task: " + e.getMessage(), e);
                 throw e;
             } finally {
                 counter.decrementAndGet();
@@ -104,7 +105,7 @@ public class AsyncExecutor {
             try {
                 runnable.run();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in async task: " + e.getMessage(), e);
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in async task: " + e.getMessage(), e);
                 throw e;
             } finally {
                 counter.decrementAndGet();
@@ -117,7 +118,7 @@ public class AsyncExecutor {
             .orTimeout(timeout, unit)
             .exceptionally(throwable -> {
                 if (throwable instanceof TimeoutException) {
-                    DebugUtils.logInternalWarn("Async task timed out after " + timeout + " " + unit);
+                    DebugAPI.logLibWarn(DebugCategory.ASYNC, "Async task timed out after " + timeout + " " + unit);
                 }
                 return null;
             });
@@ -133,7 +134,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -150,7 +151,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -167,7 +168,7 @@ public class AsyncExecutor {
             try {
                 task.run();
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in scheduled task: " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in scheduled task: " + e.getMessage());
             } finally {
                 activeScheduledTasks.decrementAndGet();
             }
@@ -188,7 +189,7 @@ public class AsyncExecutor {
                 int generalQueueSize = generalPool.getQueue().size();
 
                 if (dbActive > DB_POOL_SIZE * 0.8 || generalActive > GENERAL_POOL_SIZE * 0.8) {
-                    DebugUtils.logInternalWarn(String.format(
+                    DebugAPI.logLibWarn(DebugCategory.ASYNC, String.format(
                         "High async load - DB: %d/%d (queue: %d), General: %d/%d (queue: %d), Scheduled: %d",
                         dbActive, DB_POOL_SIZE, dbQueueSize,
                         generalActive, GENERAL_POOL_SIZE, generalQueueSize,
@@ -197,10 +198,10 @@ public class AsyncExecutor {
                 }
 
                 if (dbQueueSize > MAX_QUEUE_SIZE * 0.8 || generalQueueSize > MAX_QUEUE_SIZE * 0.8) {
-                    DebugUtils.logInternalError("Critical: Async task queues near capacity!");
+                    DebugAPI.logLibError(DebugCategory.ASYNC, "Critical: Async task queues near capacity!");
                 }
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error in monitoring task: " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Error in monitoring task: " + e.getMessage());
             }
         }, 30, 30, TimeUnit.SECONDS);
     }
@@ -226,7 +227,7 @@ public class AsyncExecutor {
         }
 
         isShuttingDown = true;
-        DebugUtils.logInternalInfo("Shutting down AsyncExecutor...");
+        DebugAPI.logLibInfo(DebugCategory.ASYNC, "Shutting down AsyncExecutor...");
 
         scheduledExecutor.shutdown();
         databaseExecutor.shutdown();
@@ -234,26 +235,26 @@ public class AsyncExecutor {
 
         try {
             if (!databaseExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                DebugUtils.logInternalWarn("Database executor did not terminate in time, forcing shutdown");
+                DebugAPI.logLibWarn(DebugCategory.ASYNC, "Database executor did not terminate in time, forcing shutdown");
                 databaseExecutor.shutdownNow();
             }
             if (!generalExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-                DebugUtils.logInternalWarn("General executor did not terminate in time, forcing shutdown");
+                DebugAPI.logLibWarn(DebugCategory.ASYNC, "General executor did not terminate in time, forcing shutdown");
                 generalExecutor.shutdownNow();
             }
             if (!scheduledExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
-                DebugUtils.logInternalWarn("Scheduled executor did not terminate in time, forcing shutdown");
+                DebugAPI.logLibWarn(DebugCategory.ASYNC, "Scheduled executor did not terminate in time, forcing shutdown");
                 scheduledExecutor.shutdownNow();
             }
         } catch (InterruptedException e) {
-            DebugUtils.logInternalError("Interrupted during shutdown, forcing immediate shutdown");
+            DebugAPI.logLibError(DebugCategory.ASYNC, "Interrupted during shutdown, forcing immediate shutdown");
             databaseExecutor.shutdownNow();
             generalExecutor.shutdownNow();
             scheduledExecutor.shutdownNow();
             Thread.currentThread().interrupt();
         }
 
-        DebugUtils.logInternalInfo("AsyncExecutor shutdown complete");
+        DebugAPI.logLibInfo(DebugCategory.ASYNC, "AsyncExecutor shutdown complete");
     }
 
     private static class NamedThreadFactory implements ThreadFactory {
@@ -270,7 +271,7 @@ public class AsyncExecutor {
             thread.setDaemon(true);
             thread.setPriority(Thread.NORM_PRIORITY);
             thread.setUncaughtExceptionHandler((t, e) ->
-                DebugUtils.logInternalError("Uncaught exception in thread " + t.getName() + ": " + e.getMessage())
+                DebugAPI.logLibError(DebugCategory.ASYNC, "Uncaught exception in thread " + t.getName() + ": " + e.getMessage())
             );
             return thread;
         }

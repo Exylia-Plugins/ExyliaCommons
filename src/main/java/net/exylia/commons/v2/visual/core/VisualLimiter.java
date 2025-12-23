@@ -1,10 +1,10 @@
 package net.exylia.commons.v2.visual.core;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
-
-import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
 public final class VisualLimiter {
     private static final int DEFAULT_MAX_PER_PLAYER = 20;
@@ -28,7 +28,7 @@ public final class VisualLimiter {
 
         int total = registry.countByPlayer(player);
         if (total >= DEFAULT_MAX_PER_PLAYER) {
-            logInternalWarn("Player " + player.getName() + " has reached max visual limit: " + total);
+            DebugAPI.logLibWarn(DebugCategory.VISUAL, "Player " + player.getName() + " has reached max visual limit: " + total);
             return false;
         }
 
@@ -36,7 +36,7 @@ public final class VisualLimiter {
         int limit = TYPE_LIMITS.getOrDefault(type, 10);
 
         if (typeCount >= limit) {
-            logInternalWarn("Player " + player.getName() + " has reached " + type + " limit: " + typeCount);
+            DebugAPI.logLibWarn(DebugCategory.VISUAL, "Player " + player.getName() + " has reached " + type + " limit: " + typeCount);
             return false;
         }
 

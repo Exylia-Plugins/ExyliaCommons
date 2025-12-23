@@ -10,8 +10,8 @@ import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.listener.ChunkListener;
 import net.exylia.commons.v2.hologram.listener.HologramListener;
 import net.exylia.commons.v2.hologram.model.*;
-import net.exylia.commons.v2.database.api.Database;
-import net.exylia.commons.v2.database.repository.Repository;
+import net.exylia.commons.v2.yaml.api.Yaml;
+import net.exylia.commons.v2.yaml.repository.YamlRepository;
 import net.exylia.commons.v2.hologram.persistence.HologramEntity;
 import net.exylia.commons.v2.hologram.update.UpdateScheduler;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
@@ -23,6 +23,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -37,7 +38,7 @@ public class HologramManager {
     private final UpdateScheduler updateScheduler;
     private final VisibilityManager visibilityManager;
     private final HologramFactory factory;
-    private Repository<HologramEntity> repository;
+    private YamlRepository<HologramEntity> repository;
 
     private ScheduledTask cleanupTask;
     private ScheduledTask updateTask;
@@ -59,13 +60,13 @@ public class HologramManager {
 
     private void initializePersistence() {
         try {
-            if (isDatabaseAvailable()) {
-                Database.registerEntity(HologramEntity.class);
-                this.repository = Database.getRepository(HologramEntity.class);
+            if (isYamlAvailable()) {
+                Yaml.registerEntity(HologramEntity.class);
+                this.repository = Yaml.getRepository(HologramEntity.class);
                 loadPersistentHolograms();
-                DebugUtils.logInternalInfo("Hologram persistence enabled");
+                DebugUtils.logInternalInfo("Hologram persistence enabled (YAML)");
             } else {
-                DebugUtils.logInternalInfo("Hologram persistence disabled (Database not available)");
+                DebugUtils.logInternalInfo("Hologram persistence disabled (YAML not available)");
             }
         } catch (Exception e) {
             DebugUtils.logInternalError("Failed to initialize persistence: " + e.getMessage());
@@ -73,10 +74,10 @@ public class HologramManager {
         }
     }
 
-    private boolean isDatabaseAvailable() {
+    private boolean isYamlAvailable() {
         try {
-            Class.forName("net.exylia.commons.v2.database.api.Database");
-            return true;
+            Class.forName("net.exylia.commons.v2.yaml.api.Yaml");
+            return Yaml.isInitialized();
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             return false;
         }
@@ -96,6 +97,7 @@ public class HologramManager {
                             Hologram hologram = entity.toHologram(plugin);
                             registry.register(hologram);
                             cacheManager.cache(hologram);
+                            visibilityManager.getSpatialChunkManager().addHologram(hologram);
 
                             SchedulerManager.getInstance()
                                     .task(hologram::spawn)
@@ -118,6 +120,7 @@ public class HologramManager {
         synchronized (LOCK) {
             if (instance == null) {
                 instance = new HologramManager(plugin);
+                Yaml.initialize();
             }
         }
     }
@@ -143,16 +146,18 @@ public class HologramManager {
             boolean perPlayer,
             VisibilityCondition visibilityCondition,
             double viewDistance,
-            boolean enabled
+            boolean enabled,
+            net.exylia.commons.v2.placeholders.context.PlaceholderContext placeholderContext
     ) {
         return AsyncExecutor.getInstance()
                 .supplyAsync(() -> factory.create(
                         id, location, lines, properties, config,
-                        persistent, perPlayer, visibilityCondition, viewDistance, enabled
+                        persistent, perPlayer, visibilityCondition, viewDistance, enabled, placeholderContext
                 ), false)
                 .thenCompose(hologram -> {
                     registry.register(hologram);
                     cacheManager.cache(hologram);
+                    visibilityManager.getSpatialChunkManager().addHologram(hologram);
 
                     if (persistent) {
                         return saveHologramAsync(hologram)
@@ -190,6 +195,7 @@ public class HologramManager {
             Hologram hologram = opt.get();
 
             cacheManager.invalidate(id);
+            visibilityManager.getSpatialChunkManager().removeHologram(hologram);
 
             SchedulerManager.getInstance()
                     .task(hologram::despawn)
@@ -216,7 +222,14 @@ public class HologramManager {
     }
 
     public List<Hologram> getHologramsNearby(Location location, double radius) {
-        return cacheManager.getNearby(location, radius);
+        Set<String> nearbyIds = visibilityManager.getSpatialChunkManager()
+                .getNearbyHologramIds(location, radius);
+
+        return nearbyIds.stream()
+                .map(this::getHologram)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .collect(Collectors.toList());
     }
 
     public void removeAllHolograms() {
@@ -227,6 +240,12 @@ public class HologramManager {
                     .run();
         });
 
+        registry.clear();
+        cacheManager.invalidateAll();
+    }
+
+    public void removeAllHologramsSync() {
+        registry.getAll().forEach(Hologram::despawn);
         registry.clear();
         cacheManager.invalidateAll();
     }
@@ -246,7 +265,7 @@ public class HologramManager {
         cleanupTask = SchedulerManager.getInstance()
                 .task(this::cleanup)
                 .async()
-                .periodTicks(20 * 60)
+                .periodTicks(20 * 10)
                 .schedule();
     }
 
@@ -278,21 +297,34 @@ public class HologramManager {
     }
 
     public void shutdown() {
+        shutdown(false);
+    }
+
+    public void shutdown(boolean isServerShutdown) {
         DebugUtils.logInternalInfo("Shutting down HologramManager...");
 
         if (updateTask != null) {
             updateTask.cancel();
+            updateTask = null;
         }
         if (cleanupTask != null) {
             cleanupTask.cancel();
+            cleanupTask = null;
         }
 
-        registry.getAll().forEach(hologram -> {
-            SchedulerManager.getInstance()
-                    .task(hologram::despawn)
-                    .at(hologram.getLocation())
-                    .run();
-        });
+        if (!isServerShutdown) {
+            registry.getAll().forEach(hologram -> {
+                try {
+                    hologram.despawn();
+                } catch (Exception e) {
+                    DebugUtils.logInternalError("Error despawning hologram " + hologram.getId() + ": " + e.getMessage());
+                }
+            });
+        }
+
+        updateScheduler.clear();
+        visibilityManager.getDistanceTracker().clear();
+        visibilityManager.getSpatialChunkManager().clear();
 
         registry.clear();
         cacheManager.invalidateAll();
@@ -333,7 +365,7 @@ public class HologramManager {
                     }
                     return CompletableFuture.completedFuture(null);
                 })
-                .thenRun(() -> DebugUtils.logInternalInfo("Hologram deleted from DB: " + id))
+                .thenRun(() -> DebugUtils.logInternalInfo("Hologram deleted from YAML: " + id))
                 .exceptionally(ex -> {
                     DebugUtils.logInternalError("Failed to delete hologram " + id + ": " + ex.getMessage());
                     return null;

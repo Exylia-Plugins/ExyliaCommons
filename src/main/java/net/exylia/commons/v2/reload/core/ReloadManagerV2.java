@@ -9,6 +9,7 @@ import net.exylia.commons.v2.reload.api.ReloadableSystem;
 import net.exylia.commons.v2.reload.detector.SystemAvailability;
 import net.exylia.commons.v2.reload.stats.ReloadStats;
 import net.exylia.commons.v2.reload.stats.SystemReloadMetrics;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -18,12 +19,12 @@ import static net.exylia.commons.utils.DebugUtils.*;
 
 @Getter
 public class ReloadManagerV2 {
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final SystemDetector detector;
     private final ReloadOrchestrator orchestrator;
     private final Map<String, ReloadableSystem> systems;
 
-    public ReloadManagerV2(ExyliaPlugin plugin) {
+    public ReloadManagerV2(JavaPlugin plugin) {
         this.plugin = plugin;
         this.detector = new SystemDetector();
         this.orchestrator = new ReloadOrchestrator();
@@ -33,16 +34,24 @@ public class ReloadManagerV2 {
     }
 
     private void registerDefaultSystems() {
+        registerSystem("Config", new ConfigAdapter());
         registerSystem("ConfigSystem", new ConfigSystemAdapter());
+        registerSystem("DebugConfig", new DebugConfigAdapter());
+        registerSystem("Messages", new MessagesAdapter());
         registerSystem("DatabaseV1", new DatabaseV1Adapter());
         registerSystem("DatabaseV2", new DatabaseV2Adapter());
         registerSystem("Redis", new RedisAdapter(plugin));
+        registerSystem("ClanManager", new ClanAdapter());
         registerSystem("ScoreboardManager", new ScoreboardAdapter());
         registerSystem("HologramManager", new HologramAdapter());
         registerSystem("ActionManager", new ActionAdapter());
         registerSystem("RegionManager", new RegionAdapter());
         registerSystem("PlaceholderSystem", new PlaceholderAdapter());
+        registerSystem("CommandManager", new CommandAdapter());
+        registerSystem("RewardManager", new RewardAdapter());
+        registerSystem("SkullManager", new SkullAdapter());
         registerSystem("VisualManager", new VisualAdapter());
+        registerSystem("ColorPresetManager", new ColorPresetAdapter());
         registerSystem("FormatterRegistry", new FormatterAdapter());
         registerSystem("ColorSystem", new ColorAdapter());
     }
@@ -58,7 +67,7 @@ public class ReloadManagerV2 {
     public CompletableFuture<ReloadStats> executeReloadAll(org.bukkit.entity.Player player, Set<String> excludedSystems) {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-            logInternalInfo("=== RELOAD SYSTEM V2: Starting Complete Reload ===");
+            logInternalInfo("=== Starting Complete Reload ===");
 
             if (!excludedSystems.isEmpty()) {
                 logInternalInfo("Excluding systems: " + String.join(", ", excludedSystems));
@@ -71,7 +80,7 @@ public class ReloadManagerV2 {
             ReloadStats.Builder statsBuilder = new ReloadStats.Builder();
             ReloadContext context = new ReloadContext(plugin);
 
-            SystemAvailability availability = detector.detectAll();
+            SystemAvailability availability = detector.detectAll(systems);
 
             List<ReloadableSystem> sortedSystems = getSortedSystems();
             int totalSystems = (int) sortedSystems.stream()
@@ -170,7 +179,7 @@ public class ReloadManagerV2 {
                 return statsBuilder.build();
             }
 
-            SystemAvailability availability = detector.detectAll();
+            SystemAvailability availability = detector.detectAll(systems);
             if (!availability.isAvailable(systemName)) {
                 String reason = availability.getReason(systemName);
                 statsBuilder.skip(systemName, reason);
@@ -201,7 +210,12 @@ public class ReloadManagerV2 {
 
     private void callPluginHooks(ReloadContext context) {
         try {
-            Schedulers.sync(() -> plugin.callOnReload(context));
+            Schedulers.sync(() -> {
+                ExyliaPlugin instance = ExyliaPlugin.getInstance();
+                if (instance != null) {
+                    instance.callOnReload(context);
+                }
+            });
         } catch (Exception e) {
             logInternalError("Error calling plugin hooks: " + e.getMessage());
         }
@@ -216,7 +230,7 @@ public class ReloadManagerV2 {
     }
 
     public SystemAvailability detectSystems() {
-        return detector.detectAll();
+        return detector.detectAll(systems);
     }
 
     private List<ReloadableSystem> getSortedSystems() {

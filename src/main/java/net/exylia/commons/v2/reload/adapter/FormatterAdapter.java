@@ -19,4 +19,9 @@ public class FormatterAdapter extends ReloadableSystemAdapter {
     protected void performReload() throws Exception {
         FormatterRegistry.reload();
     }
+
+    @Override
+    public boolean isAvailable() {
+        return true;
+    }
 }

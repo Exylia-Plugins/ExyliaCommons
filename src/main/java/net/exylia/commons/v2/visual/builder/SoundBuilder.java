@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.visual.builder;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Location;
@@ -70,21 +71,21 @@ public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
     public static SoundConfig fromString(String soundString) {
         String[] parts = soundString.split("\\|");
         SoundBuilder builder = create();
-        DebugUtils.logInternalDebug("Sound string: " + soundString);
+        DebugAPI.logLibDebug(DebugCategory.VISUAL, "Sound string: " + soundString);
         if (parts.length >= 1) {
-            DebugUtils.logInternalDebug("Sound name: " + parts[0].trim());
+            DebugAPI.logLibDebug(DebugCategory.VISUAL, "Sound name: " + parts[0].trim());
             builder.sound(parts[0].trim());
         }
         if (parts.length >= 2) {
             try {
-                DebugUtils.logInternalDebug("Volume: " + parts[1].trim());
+                DebugAPI.logLibDebug(DebugCategory.VISUAL, "Volume: " + parts[1].trim());
                 builder.volume(Float.parseFloat(parts[1].trim()));
             } catch (NumberFormatException ignored) {
             }
         }
         if (parts.length >= 3) {
             try {
-                DebugUtils.logInternalDebug("Pitch: " + parts[2].trim());
+                DebugAPI.logLibDebug(DebugCategory.VISUAL, "Pitch: " + parts[2].trim());
                 builder.pitch(Float.parseFloat(parts[2].trim()));
             } catch (NumberFormatException ignored) {
             }

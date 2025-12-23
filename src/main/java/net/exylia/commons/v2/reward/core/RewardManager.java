@@ -96,6 +96,15 @@ public class RewardManager {
         return executor.getStats();
     }
 
+    public void reload() {
+        if (plugin == null) {
+            throw new IllegalStateException("RewardManager not initialized");
+        }
+
+        this.executor = new RewardExecutor();
+        this.configLoader = new RewardConfigLoader();
+    }
+
     public void shutdown() {
         this.plugin = null;
         this.executor = null;

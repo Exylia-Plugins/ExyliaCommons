@@ -31,7 +31,7 @@ public class AdapterConfig {
     }
 
     public AdapterConfig(Config config, String adapterType, Plugin plugin) {
-        String prefix = "database." + adapterType + ".";
+        String prefix = adapterType + ".";
 
         String h = config.string(prefix + "host");
         this.host = h != null ? h : "localhost";
@@ -42,14 +42,14 @@ public class AdapterConfig {
         this.username = u != null ? u : "root";
         String p = config.string(prefix + "password");
         this.password = p != null ? p : "";
-        String f = config.string(prefix + "file");
+        String f = config.string(prefix + "file-path");
         this.file = resolveFilePath(f, plugin);
-        this.poolSize = config.integer(prefix + "pool-size", 10);
-        this.minIdle = config.integer(prefix + "min-idle", 2);
-        this.connectionTimeoutMs = config.longValue(prefix + "connection-timeout-ms", 30000);
-        this.idleTimeoutMs = config.longValue(prefix + "idle-timeout-ms", 600000);
-        this.maxLifetimeMs = config.longValue(prefix + "max-lifetime-ms", 1800000);
-        this.ssl = config.bool(prefix + "ssl", false);
+        this.poolSize = config.integer(prefix + "pool.max-size", 10);
+        this.minIdle = config.integer(prefix + "pool.min-idle", 2);
+        this.connectionTimeoutMs = config.longValue(prefix + "pool.connection-timeout", 30000);
+        this.idleTimeoutMs = config.longValue(prefix + "pool.idle-timeout", 600000);
+        this.maxLifetimeMs = config.longValue(prefix + "pool.max-lifetime", 1800000);
+        this.ssl = config.bool(prefix + "use-ssl", false);
         String c = config.string(prefix + "charset");
         this.charset = c != null ? c : "utf8mb4";
         String col = config.string(prefix + "collation");
@@ -94,7 +94,10 @@ public class AdapterConfig {
     }
 
     public String getJdbcUrl() {
-        return "jdbc:mysql://" + host + ":" + port + "/" + database + "?characterEncoding=" + charset + "&useUnicode=true";
+        return "jdbc:mysql://" + host + ":" + port + "/" + database +
+               "?useUnicode=true&characterEncoding=UTF-8" +
+               (ssl ? "&useSSL=true&requireSSL=true" : "&useSSL=false") +
+               "&serverTimezone=UTC&allowPublicKeyRetrieval=true";
     }
 
     public String getH2Url() {

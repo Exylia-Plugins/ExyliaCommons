@@ -3,6 +3,7 @@ package net.exylia.commons.v2.hologram.core;
 import lombok.RequiredArgsConstructor;
 import net.exylia.commons.v2.hologram.model.*;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -23,7 +24,8 @@ public class HologramFactory {
             boolean perPlayer,
             VisibilityCondition visibilityCondition,
             double viewDistance,
-            boolean enabled
+            boolean enabled,
+            PlaceholderContext placeholderContext
     ) {
         validateParameters(id, location, lineTexts);
 
@@ -34,7 +36,7 @@ public class HologramFactory {
                 .map(HologramLine::new)
                 .collect(Collectors.toList());
 
-        return new Hologram(
+        Hologram hologram = new Hologram(
                 id,
                 location.clone(),
                 lines,
@@ -47,6 +49,12 @@ public class HologramFactory {
                 plugin,
                 enabled
         );
+
+        if (placeholderContext != null) {
+            hologram.setPlaceholderContext(placeholderContext);
+        }
+
+        return hologram;
     }
 
     private void validateParameters(String id, Location location, List<String> lines) {

@@ -36,4 +36,9 @@ public class ConfigSystemAdapter extends ReloadableSystemAdapter {
     public boolean isCritical() {
         return true;
     }
+
+    @Override
+    public boolean isAvailable() {
+        return ConfigManager.isSystemInitialized();
+    }
 }

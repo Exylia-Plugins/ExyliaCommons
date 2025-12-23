@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.hologram.visibility;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.exylia.commons.v2.hologram.cache.HologramCacheManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
@@ -13,6 +14,8 @@ import java.util.stream.Collectors;
 public class VisibilityManager {
     private final HologramCacheManager cacheManager;
     private final ViewDistanceTracker distanceTracker = new ViewDistanceTracker();
+    @Getter
+    private final SpatialChunkManager spatialChunkManager = new SpatialChunkManager();
 
     public Set<Player> getVisiblePlayers(Hologram hologram) {
         return Bukkit.getOnlinePlayers().stream()
@@ -25,8 +28,9 @@ public class VisibilityManager {
             return false;
         }
 
-        double distance = player.getLocation().distance(hologram.getLocation());
-        if (distance > hologram.getViewDistance()) {
+        double viewDistance = hologram.getViewDistance();
+        double distanceSquared = player.getLocation().distanceSquared(hologram.getLocation());
+        if (distanceSquared > (viewDistance * viewDistance)) {
             return false;
         }
 

@@ -6,7 +6,6 @@ import org.bukkit.entity.Player;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class ViewDistanceTracker {
     private final Map<UUID, Location> playerLocations = new ConcurrentHashMap<>();
@@ -17,14 +16,23 @@ public class ViewDistanceTracker {
         }
 
         double radiusSquared = radius * radius;
+        Set<Player> result = new HashSet<>();
 
-        return Bukkit.getOnlinePlayers().stream()
-                .filter(player -> player.getWorld().equals(location.getWorld()))
-                .filter(player -> {
-                    Location playerLoc = getPlayerLocation(player);
-                    return playerLoc.distanceSquared(location) <= radiusSquared;
-                })
-                .collect(Collectors.toSet());
+        for (Map.Entry<UUID, Location> entry : playerLocations.entrySet()) {
+            Location cachedLoc = entry.getValue();
+            if (!cachedLoc.getWorld().equals(location.getWorld())) {
+                continue;
+            }
+
+            if (cachedLoc.distanceSquared(location) <= radiusSquared) {
+                Player player = Bukkit.getPlayer(entry.getKey());
+                if (player != null && player.isOnline()) {
+                    result.add(player);
+                }
+            }
+        }
+
+        return result;
     }
 
     public void trackPlayer(Player player) {

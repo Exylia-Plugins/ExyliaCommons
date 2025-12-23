@@ -3,6 +3,7 @@ package net.exylia.commons.utils;
 import com.github.lalyos.jfiglet.FigletFont;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -14,87 +15,81 @@ public class DebugUtils {
 
     public static void init(JavaPlugin plugin) {
         prefix = "<#696969>[<gradient:#aa76de:#8a51c4:#aa76de>" + plugin.getName() + "</gradient><#696969>] ";
-        sendPluginMOTD(plugin);
+        DebugAPI.init(plugin);
     }
 
+    @Deprecated
     public static void logDebug(String message){
-        if (!Configs.debug()) return;
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#e7cfff>[DEBUG] " + message)));
+        DebugAPI.logLibDebug(message);
     }
 
+    @Deprecated
     public static void logError(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#a33b53>[ERROR] " + message)));
+        DebugAPI.logLibError(message);
     }
 
+    @Deprecated
     public static void logError(String message, Throwable throwable){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#a33b53>[ERROR] " + message)));
-        throwable.printStackTrace();
+        DebugAPI.logLibError(message, throwable);
     }
 
+    @Deprecated
     public static void logWarn(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#ffc58f>[WARN] " + message)));
+        DebugAPI.logLibWarn(message);
     }
 
+    @Deprecated
     public static void logInfo(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#59a4ff>[INFO] " + message)));
+        DebugAPI.logLibInfo(message);
     }
 
+    @Deprecated
     public static void logSuccess(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#8fffc1>[SUCCESS] " + message)));
+        DebugAPI.logLibSuccess(message);
     }
 
+    @Deprecated
     public static void log(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(prefix + "<#e7cfff> " + message)));
+        DebugAPI.logLibInfo(message);
     }
     
+    @Deprecated
     public static void logInternalDebug(String message){
-        if (!Configs.debug()) return;
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff>[DEBUG] " + message)));
+        DebugAPI.logLibDebug(message);
     }
-    
+
+    @Deprecated
     public static void logInternalError(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#b36476>[ERROR] " + message)));
+        DebugAPI.logLibError(message);
     }
 
+    @Deprecated
     public static void logInternalError(String message, Throwable throwable){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#b36476>[ERROR] " + message)));
-        throwable.printStackTrace();
+        DebugAPI.logLibError(message, throwable);
     }
 
+    @Deprecated
     public static void logInternalWarn(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#ffd2a8>[WARN] " + message)));
+        DebugAPI.logLibWarn(message);
     }
-    
+
+    @Deprecated
     public static void logInternalInfo(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#7db7ff>[INFO] " + message)));
+        DebugAPI.logLibInfo(message);
     }
-    
+
+    @Deprecated
     public static void logInternalSuccess(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#a1ffc3>[SUCCESS] " + message)));
+        DebugAPI.logLibSuccess(message);
     }
 
+    @Deprecated
     public static void logInternal(String message){
-        Bukkit.getConsoleSender().sendMessage(convertHexColors(ColorUtils.parse(internalPrefix + "<#e7cfff> " + message)));
+        DebugAPI.logLibInfo(message);
     }
 
+    @Deprecated
     public static void sendPluginMOTD(JavaPlugin plugin) {
-        try {
-            String asciiArt = FigletFont.convertOneLine(plugin.getName());
-
-            String[] lines = asciiArt.split("\n");
-            Bukkit.getLogger().info("");
-            for (String line : lines) {
-                if (!line.trim().isEmpty()) {
-                    logInternal("<#8a51c4>" + line);
-                }
-            }
-            logInternal("");
-            logInternal("Version: v" + plugin.getDescription().getVersion());
-            logInternal("Powered by Exylia - https://discord.exylia.net");
-            Bukkit.getLogger().info("");
-        } catch (Exception e) {
-             
-            logInternal("<#8a51c4>========== " + plugin.getName().toUpperCase() + " ==========<reset>");
-        }
+        DebugAPI.sendPluginMOTD(plugin);
     }
 }

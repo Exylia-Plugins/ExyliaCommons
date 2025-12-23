@@ -10,19 +10,12 @@ import java.util.stream.Collectors;
 
 public class HologramCacheManager {
     private final CaffeineCache<String, Hologram> hologramCache;
-    private final CaffeineCache<HologramCacheKey.LocationKey, List<Hologram>> locationCache;
     private final CaffeineCache<UUID, Set<String>> playerVisibilityCache;
 
     public HologramCacheManager() {
         this.hologramCache = CaffeineCache.<String, Hologram>builder()
                 .expireAfterAccess(30, TimeUnit.MINUTES)
                 .maximumSize(5000)
-                .recordStats()
-                .build();
-
-        this.locationCache = CaffeineCache.<HologramCacheKey.LocationKey, List<Hologram>>builder()
-                .expireAfterWrite(5, TimeUnit.MINUTES)
-                .maximumSize(1000)
                 .recordStats()
                 .build();
 
@@ -41,25 +34,8 @@ public class HologramCacheManager {
         return Optional.ofNullable(hologramCache.get(id));
     }
 
-    public List<Hologram> getNearby(Location location, double radius) {
-        HologramCacheKey.LocationKey key = new HologramCacheKey.LocationKey(location, radius);
-
-        List<Hologram> cached = locationCache.get(key);
-        if (cached != null) {
-            return cached;
-        }
-
-        return Collections.emptyList();
-    }
-
-    public void cacheNearby(Location location, double radius, List<Hologram> holograms) {
-        HologramCacheKey.LocationKey key = new HologramCacheKey.LocationKey(location, radius);
-        locationCache.put(key, holograms);
-    }
-
     public void invalidate(String id) {
         hologramCache.invalidate(id);
-        locationCache.invalidateAll();
     }
 
     public void invalidatePlayer(UUID playerId) {
@@ -68,13 +44,11 @@ public class HologramCacheManager {
 
     public void invalidateAll() {
         hologramCache.invalidateAll();
-        locationCache.invalidateAll();
         playerVisibilityCache.invalidateAll();
     }
 
     public void cleanup() {
         hologramCache.cleanUp();
-        locationCache.cleanUp();
         playerVisibilityCache.cleanUp();
     }
 
@@ -95,14 +69,6 @@ public class HologramCacheManager {
                 "hitRate", hologramStats.hitRate(),
                 "missRate", hologramStats.missRate(),
                 "evictionCount", hologramStats.evictionCount()
-        ));
-
-        com.github.benmanes.caffeine.cache.stats.CacheStats locationStats = locationCache.getCache().stats();
-        stats.put("location_cache", Map.of(
-                "size", locationCache.size(),
-                "hitRate", locationStats.hitRate(),
-                "missRate", locationStats.missRate(),
-                "evictionCount", locationStats.evictionCount()
         ));
 
         com.github.benmanes.caffeine.cache.stats.CacheStats visibilityStats = playerVisibilityCache.getCache().stats();

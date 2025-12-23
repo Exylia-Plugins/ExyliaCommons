@@ -23,10 +23,10 @@ public class DatabaseConfig {
     }
 
     public DatabaseConfig(Config config, Plugin plugin) {
-        this.databaseType = config.string("database.type") != null ? config.string("database.type") : "H2";
-        this.autoMigration = config.bool("database.auto-migration") || config.bool("database.auto-migration", true);
-        this.debug = config.bool("database.debug", false);
-        this.enableMetrics = config.bool("database.enable-metrics", false);
+        this.databaseType = config.string("settings.type") != null ? config.string("settings.type") : "H2";
+        this.autoMigration = config.bool("settings.auto-migration") || config.bool("settings.auto-migration", true);
+        this.debug = config.bool("settings.debug", false);
+        this.enableMetrics = config.bool("settings.enable-metrics", false);
 
         this.adapterConfigs = new HashMap<>();
         adapterConfigs.put("H2", new AdapterConfig(config, "h2", plugin));
@@ -51,13 +51,13 @@ public class DatabaseConfig {
         private final boolean refreshAfterAccess;
 
         public CacheConfig(Config config) {
-            this.enabled = config.bool("database.cache.enabled", true);
-            String str = config.string("database.cache.strategy");
+            this.enabled = config.bool("settings.cache.enabled", true);
+            String str = config.string("settings.cache.strategy");
             this.strategy = str != null ? str : "CAFFEINE";
-            this.ttlMinutes = config.longValue("database.cache.ttl-minutes", 30);
-            this.maxEntries = config.integer("database.cache.max-entries", 10000);
-            this.recordStats = config.bool("database.cache.record-stats", false);
-            this.refreshAfterAccess = config.bool("database.cache.refresh-after-access", true);
+            this.ttlMinutes = config.longValue("settings.cache.ttl-minutes", 30);
+            this.maxEntries = config.integer("settings.cache.max-entries", 10000);
+            this.recordStats = config.bool("settings.cache.record-stats", false);
+            this.refreshAfterAccess = config.bool("settings.cache.refresh-after-access", true);
         }
     }
 
@@ -67,7 +67,7 @@ public class DatabaseConfig {
         private final java.util.List<String> chain;
 
         public FallbackConfig(Config config) {
-            this.enabled = config.bool("database.fallback.enabled", true);
+            this.enabled = config.bool("settings.fallback.enabled", true);
             this.chain = java.util.List.of("H2", "YAML");
         }
     }

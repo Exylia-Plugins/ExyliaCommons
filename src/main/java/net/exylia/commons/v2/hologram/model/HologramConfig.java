@@ -20,6 +20,21 @@ public class HologramConfig {
     @Builder.Default
     private final boolean removeOnChunkUnload = true;
 
+    @Builder.Default
+    private final int moveThresholdBlocks = 3;
+
+    @Builder.Default
+    private final boolean useSpatialOptimization = true;
+
+    @Builder.Default
+    private final boolean useBatchedVisibility = true;
+
+    @Builder.Default
+    private final int visibilityBatchSize = 100;
+
+    @Builder.Default
+    private final long visibilityBatchDelayMs = 50L;
+
     public static HologramConfig defaultConfig() {
         return HologramConfig.builder().build();
     }

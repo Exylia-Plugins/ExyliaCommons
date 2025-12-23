@@ -1,6 +1,8 @@
 package net.exylia.commons.v2.visual.core;
 
 import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import net.exylia.commons.v2.visual.config.FireworkConfig;
@@ -49,11 +51,14 @@ public class VisualManager {
 
     public void initialize(Plugin plugin) {
         if (initialized) {
+            DebugAPI.logLibWarn(DebugCategory.VISUAL, "VisualManager already initialized, skipping");
             throw new IllegalStateException("VisualManager is already initialized");
         }
 
+        DebugAPI.logLibInfo(DebugCategory.VISUAL, "Initializing VisualManager for plugin: " + plugin.getName());
         this.plugin = plugin;
         this.initialized = true;
+        DebugAPI.logLibSuccess(DebugCategory.VISUAL, "VisualManager initialized successfully");
     }
 
     public <T extends VisualConfig> CompletableFuture<String> sendSimple(
@@ -67,12 +72,17 @@ public class VisualManager {
         validateParameters(player, config);
 
         if (!VisualLimiter.canAdd(player, type)) {
+            DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                "Player " + player.getName() + " reached limit for " + type + ", rejecting sendSimple");
             return CompletableFuture.failedFuture(
                     new LimitExceededException("Player has reached limit for " + type)
             );
         }
 
         String id = generateId(type);
+        DebugAPI.logLibDebug(DebugCategory.VISUAL,
+            "Sending simple " + type + " to " + player.getName() + " (ID: " + id + ")");
+
         PlaceholderContext enrichedContext = enrichContext(context, player, id);
 
         SimpleVisualInstance<T> instance = new SimpleVisualInstance<>(
@@ -82,8 +92,14 @@ public class VisualManager {
         VisualRegistry.getInstance().register(player.getUniqueId(), id, instance, type);
 
         return instance.start()
-                .thenApply(v -> id)
+                .thenApply(v -> {
+                    DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                        "Simple " + type + " sent successfully to " + player.getName() + " (ID: " + id + ")");
+                    return id;
+                })
                 .exceptionally(throwable -> {
+                    DebugAPI.logLibError(DebugCategory.VISUAL,
+                        "Failed to send simple " + type + " to " + player.getName() + " (ID: " + id + ")", throwable);
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                     throw new VisualException("Failed to send visual", throwable);
                 });
@@ -100,12 +116,17 @@ public class VisualManager {
         validateParameters(player, config);
 
         if (!VisualLimiter.canAdd(player, type)) {
+            DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                "Player " + player.getName() + " reached limit for " + type + ", rejecting sendContinuous");
             return CompletableFuture.failedFuture(
                     new LimitExceededException("Player has reached limit for " + type)
             );
         }
 
         String id = generateId(type);
+        DebugAPI.logLibDebug(DebugCategory.VISUAL,
+            "Sending continuous " + type + " to " + player.getName() + " (ID: " + id + ", permanent: " + config.isPermanent() + ")");
+
         PlaceholderContext enrichedContext = enrichContext(context, player, id);
 
         ContinuousVisualInstance<T> instance = new ContinuousVisualInstance<>(
@@ -115,8 +136,14 @@ public class VisualManager {
         VisualRegistry.getInstance().register(player.getUniqueId(), id, instance, type);
 
         return instance.start()
-                .thenApply(v -> id)
+                .thenApply(v -> {
+                    DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                        "Continuous " + type + " sent successfully to " + player.getName() + " (ID: " + id + ")");
+                    return id;
+                })
                 .exceptionally(throwable -> {
+                    DebugAPI.logLibError(DebugCategory.VISUAL,
+                        "Failed to send continuous " + type + " to " + player.getName() + " (ID: " + id + ")", throwable);
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                     throw new VisualException("Failed to send continuous visual", throwable);
                 });
@@ -134,12 +161,18 @@ public class VisualManager {
         validateParameters(player, config);
 
         if (!VisualLimiter.canAdd(player, type)) {
+            DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                "Player " + player.getName() + " reached limit for " + type + ", rejecting sendCountdown");
             return CompletableFuture.failedFuture(
                     new LimitExceededException("Player has reached limit for " + type)
             );
         }
 
         String id = generateId(type);
+        long seconds = durationTicks / 20;
+        DebugAPI.logLibDebug(DebugCategory.VISUAL,
+            "Sending countdown " + type + " to " + player.getName() + " (ID: " + id + ", duration: " + seconds + "s)");
+
         PlaceholderContext enrichedContext = enrichContext(context, player, id);
         enrichedContext.put("countdown_duration", durationTicks);
 
@@ -150,23 +183,41 @@ public class VisualManager {
         VisualRegistry.getInstance().register(player.getUniqueId(), id, instance, type);
 
         return instance.start()
-                .thenApply(v -> id)
+                .thenApply(v -> {
+                    DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                        "Countdown " + type + " started for " + player.getName() + " (ID: " + id + ")");
+                    return id;
+                })
                 .exceptionally(throwable -> {
+                    DebugAPI.logLibError(DebugCategory.VISUAL,
+                        "Failed to send countdown " + type + " to " + player.getName() + " (ID: " + id + ")", throwable);
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                     throw new VisualException("Failed to send countdown visual", throwable);
                 });
     }
 
     public boolean cancel(UUID playerId, String visualId) {
-        return VisualRegistry.getInstance().get(playerId, visualId)
+        boolean result = VisualRegistry.getInstance().get(playerId, visualId)
                 .map(instance -> {
+                    DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                        "Cancelling visual: " + visualId + " for player: " + playerId);
                     instance.cancel();
                     return true;
                 })
                 .orElse(false);
+
+        if (!result) {
+            DebugAPI.logLibDebug(DebugCategory.VISUAL,
+                "Visual not found for cancellation: " + visualId + " (player: " + playerId + ")");
+        }
+
+        return result;
     }
 
     public void cancelAll(UUID playerId) {
+        int count = VisualRegistry.getInstance().getByPlayer(playerId).size();
+        DebugAPI.logLibDebug(DebugCategory.VISUAL,
+            "Cancelling all visuals for player: " + playerId + " (count: " + count + ")");
         VisualRegistry.getInstance().getByPlayer(playerId).forEach(VisualInstance::cancel);
         VisualRegistry.getInstance().removeAllByPlayer(playerId);
     }

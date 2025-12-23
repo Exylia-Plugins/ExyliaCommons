@@ -50,6 +50,10 @@ public final class HologramAPI {
         HologramManager.getInstance().removeAllHolograms();
     }
 
+    public static void removeAllSync() {
+        HologramManager.getInstance().removeAllHologramsSync();
+    }
+
     public static Collection<Hologram> getAll() {
         return HologramManager.getInstance().getAllHolograms();
     }
@@ -64,6 +68,10 @@ public final class HologramAPI {
 
     public static void shutdown() {
         HologramManager.getInstance().shutdown();
+    }
+
+    public static void shutdown(boolean isServerShutdown) {
+        HologramManager.getInstance().shutdown(isServerShutdown);
     }
 
     public static HologramManager getManager() {

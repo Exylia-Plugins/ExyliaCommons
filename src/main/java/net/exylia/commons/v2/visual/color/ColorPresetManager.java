@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.visual.color;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -11,9 +13,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
-import static net.exylia.commons.utils.DebugUtils.logInternalSuccess;
 
 public class ColorPresetManager {
     private static volatile ColorPresetManager instance;
@@ -94,7 +93,7 @@ public class ColorPresetManager {
             }
         }
 
-        logInternalSuccess("Loaded " + colorPresets.size() + " color presets.");
+        DebugAPI.logLibSuccess(DebugCategory.VISUAL, "Loaded " + colorPresets.size() + " color presets.");
     }
 
     private void createDefaultColorPresets(File configFile) {
@@ -131,7 +130,7 @@ public class ColorPresetManager {
 
             config.save(configFile);
         } catch (IOException e) {
-            logInternalInfo("Error creating colors.yml: " + e.getMessage());
+            DebugAPI.logLibError(DebugCategory.VISUAL, "Error creating colors.yml: " + e.getMessage());
         }
     }
 
@@ -162,7 +161,7 @@ public class ColorPresetManager {
 
             config.save(configFile);
         } catch (IOException e) {
-            logInternalInfo("Error creating colors.yml: " + e.getMessage());
+            DebugAPI.logLibError(DebugCategory.VISUAL, "Error creating colors.yml: " + e.getMessage());
         }
     }
 

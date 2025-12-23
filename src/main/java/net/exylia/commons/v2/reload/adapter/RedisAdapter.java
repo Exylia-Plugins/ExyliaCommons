@@ -3,12 +3,13 @@ package net.exylia.commons.v2.reload.adapter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.v2.redis.SimpleRedis;
 import net.exylia.commons.v2.reload.core.ReloadPriority;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public class RedisAdapter extends ReloadableSystemAdapter {
 
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
 
-    public RedisAdapter(ExyliaPlugin plugin) {
+    public RedisAdapter(JavaPlugin plugin) {
         super("Redis", ReloadPriority.HIGH);
         this.plugin = plugin;
     }

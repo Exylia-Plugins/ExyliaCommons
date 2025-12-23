@@ -73,6 +73,14 @@ public class SkullManager {
         initialized = true;
     }
 
+    public void reload() {
+        if (!initialized) {
+            throw new IllegalStateException("SkullManager not initialized");
+        }
+
+        cache.clearAll();
+    }
+
     public void shutdown() {
         if (!initialized) {
             return;

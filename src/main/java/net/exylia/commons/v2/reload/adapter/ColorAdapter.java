@@ -32,4 +32,9 @@ public class ColorAdapter extends ReloadableSystemAdapter {
     @Override
     protected void performReload() throws Exception {
     }
+
+    @Override
+    public boolean isAvailable() {
+        return true;
+    }
 }

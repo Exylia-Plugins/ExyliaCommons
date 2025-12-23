@@ -20,11 +20,16 @@ public class UpdateScheduler {
     public void updateAll() {
         currentTick++;
 
-        registry.getAll().stream()
-                .filter(this::shouldUpdate)
-                .forEach(hologram -> {
-                    hologram.updateAsync().exceptionally(ex -> {
-                        return null;
+        intervalGroups.entrySet().stream()
+                .filter(entry -> currentTick % entry.getKey() == 0)
+                .flatMap(entry -> entry.getValue().stream())
+                .forEach(hologramId -> {
+                    registry.get(hologramId).ifPresent(hologram -> {
+                        if (hologram.isSpawned() && hologram.getConfig().shouldUpdate()) {
+                            hologram.updateAsync().exceptionally(ex -> {
+                                return null;
+                            });
+                        }
                     });
                 });
     }

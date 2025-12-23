@@ -6,6 +6,7 @@ import net.exylia.commons.v2.hologram.model.HologramConfig;
 import net.exylia.commons.v2.hologram.model.HologramProperties;
 import net.exylia.commons.v2.hologram.model.HologramTemplate;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
@@ -27,6 +28,7 @@ public class HologramBuilder {
     private VisibilityCondition visibilityCondition = null;
     private double viewDistance = 50.0;
     private boolean enabled = true;
+    private PlaceholderContext placeholderContext = null;
 
     public HologramBuilder(String id, Location location) {
         this.id = id;
@@ -56,11 +58,31 @@ public class HologramBuilder {
         }
 
         if (template.getProperties() != null) {
-//            this.propertiesBuilder = template.getProperties().toBuilder();
+            HologramProperties props = template.getProperties();
+            this.propertiesBuilder = HologramProperties.builder()
+                .billboard(props.getBillboard())
+                .alignment(props.getAlignment())
+                .scaleX(props.getScaleX())
+                .scaleY(props.getScaleY())
+                .scaleZ(props.getScaleZ())
+                .shadow(props.isShadow())
+                .seeThrough(props.isSeeThrough())
+                .lineWidth(props.getLineWidth())
+                .backgroundColor(props.getBackgroundColor())
+                .backgroundAlpha(props.getBackgroundAlpha())
+                .textOpacity(props.getTextOpacity())
+                .defaultBackground(props.isDefaultBackground())
+                .lineSpacing(props.getLineSpacing())
+                .brightness(props.getBrightness());
         }
 
         if (template.getConfig() != null) {
-//            this.configBuilder = template.getConfig().toBuilder();
+            HologramConfig cfg = template.getConfig();
+            this.configBuilder = HologramConfig.builder()
+                .updateInterval(cfg.getUpdateInterval())
+                .autoUpdate(cfg.isAutoUpdate())
+                .spawnOnChunkLoad(cfg.isSpawnOnChunkLoad())
+                .removeOnChunkUnload(cfg.isRemoveOnChunkUnload());
         }
 
         this.persistent = template.isPersistent();
@@ -125,6 +147,26 @@ public class HologramBuilder {
         return this;
     }
 
+    public HologramBuilder backgroundAlpha(int alpha) {
+        propertiesBuilder.backgroundAlpha(alpha);
+        return this;
+    }
+
+    public HologramBuilder textOpacity(byte opacity) {
+        propertiesBuilder.textOpacity(opacity);
+        return this;
+    }
+
+    public HologramBuilder textOpacity(int opacity) {
+        propertiesBuilder.textOpacity((byte) opacity);
+        return this;
+    }
+
+    public HologramBuilder defaultBackground(boolean defaultBackground) {
+        propertiesBuilder.defaultBackground(defaultBackground);
+        return this;
+    }
+
     public HologramBuilder lineSpacing(double spacing) {
         propertiesBuilder.lineSpacing(spacing);
         return this;
@@ -180,6 +222,11 @@ public class HologramBuilder {
         return this;
     }
 
+    public HologramBuilder placeholderContext(PlaceholderContext context) {
+        this.placeholderContext = context;
+        return this;
+    }
+
     public CompletableFuture<Hologram> buildAsync() {
         return HologramManager.getInstance().createHologramAsync(
                 id,
@@ -191,7 +238,8 @@ public class HologramBuilder {
                 perPlayer,
                 visibilityCondition,
                 viewDistance,
-                enabled
+                enabled,
+                placeholderContext
         );
     }
 

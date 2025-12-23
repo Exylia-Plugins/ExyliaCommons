@@ -25,6 +25,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> send(Player player, String message, PlaceholderContext context) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .to(player)
@@ -38,6 +42,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> send(Player player, List<String> messages, PlaceholderContext context) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .to(player)
@@ -55,6 +63,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> send(CommandSender sender, String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         if (sender instanceof Player player) {
             return send(player, message);
         } else {
@@ -64,6 +76,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcast(String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .broadcast()
@@ -73,6 +89,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcast(List<String> messages) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .broadcast()
@@ -82,6 +102,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcastExcluding(String message, Player excludePlayer) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .broadcast()
@@ -92,6 +116,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcastExcluding(String message, Collection<Player> excludePlayers) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .broadcast()
@@ -102,6 +130,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendToFiltered(Predicate<Player> filter, String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .filter(filter)
@@ -111,6 +143,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendToFiltered(Predicate<Player> filter, List<String> messages) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .filter(filter)
@@ -120,6 +156,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendToRecipients(Collection<Player> recipients, String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .to(recipients)
@@ -129,6 +169,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendToRecipients(Collection<Player> recipients, List<String> messages) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .to(recipients)
@@ -138,7 +182,7 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendInRadius(Location origin, double radius, String message) {
-        if (origin == null) {
+        if (origin == null || message == null || message.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -151,7 +195,7 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendInRadius(Location origin, double radius, List<String> messages) {
-        if (origin == null) {
+        if (origin == null || messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -164,6 +208,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendCentered(Player player, String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .to(player)
@@ -174,6 +222,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendCentered(Player player, List<String> messages) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .to(player)
@@ -184,6 +236,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcastCentered(String message) {
+        if (message == null || message.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .message(message)
                 .broadcast()
@@ -194,6 +250,10 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> broadcastCentered(List<String> messages) {
+        if (messages == null || messages.isEmpty() || messages.stream().allMatch(msg -> msg == null || msg.isEmpty())) {
+            return CompletableFuture.completedFuture(null);
+        }
+
         MessageConfig config = MessageBuilder.create()
                 .messages(messages)
                 .broadcast()
@@ -221,6 +281,9 @@ public final class MessageAPI {
             return sendRoute(player, route);
         } else {
             String message = net.exylia.commons.v2.config.Messages.get(route);
+            if (message == null || message.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
             sender.sendMessage(ColorAPI.parse(message));
             return CompletableFuture.completedFuture(null);
         }

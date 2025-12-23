@@ -3,6 +3,7 @@ package net.exylia.commons.v2.reload.core;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
+import net.exylia.commons.v2.reload.api.ReloadableSystem;
 import net.exylia.commons.v2.reload.detector.SystemAvailability;
 import net.exylia.commons.v2.action.core.ActionManager;
 import net.exylia.commons.v2.hologram.core.HologramManager;
@@ -11,8 +12,34 @@ import net.exylia.commons.v2.region.RegionManager;
 import net.exylia.commons.v2.scoreboard.core.ScoreboardManager;
 import net.exylia.commons.v2.visual.core.VisualManager;
 
+import java.util.Map;
+
 public class SystemDetector {
 
+    public SystemAvailability detectAll(Map<String, ReloadableSystem> systems) {
+        SystemAvailability.Builder builder = new SystemAvailability.Builder();
+
+        for (Map.Entry<String, ReloadableSystem> entry : systems.entrySet()) {
+            String systemName = entry.getKey();
+            ReloadableSystem system = entry.getValue();
+
+            try {
+                if (system.isAvailable()) {
+                    builder.available(systemName);
+                } else {
+                    builder.unavailable(systemName, "Not initialized");
+                }
+            } catch (IllegalStateException e) {
+                builder.unavailable(systemName, "Not initialized");
+            } catch (Exception e) {
+                builder.unavailable(systemName, "Error: " + e.getMessage());
+            }
+        }
+
+        return builder.build();
+    }
+
+    @Deprecated
     public SystemAvailability detectAll() {
         SystemAvailability.Builder builder = new SystemAvailability.Builder();
 

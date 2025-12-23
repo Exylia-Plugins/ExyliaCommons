@@ -49,10 +49,13 @@ public abstract class SQLAdapter implements DatabaseAdapter {
         try {
             Class.forName(getDriverClassName());
 
+            String jdbcUrl = getJdbcUrl();
+            String username = config.getUsername();
+            String password = config.getPassword();
             HikariConfig hikariConfig = new HikariConfig();
-            hikariConfig.setJdbcUrl(getJdbcUrl());
-            hikariConfig.setUsername(config.getUsername());
-            hikariConfig.setPassword(config.getPassword());
+            hikariConfig.setJdbcUrl(jdbcUrl);
+            hikariConfig.setUsername(username);
+            hikariConfig.setPassword(password);
             hikariConfig.setMaximumPoolSize(config.getPoolSize());
             hikariConfig.setMinimumIdle(config.getMinIdle());
             hikariConfig.setConnectionTimeout(config.getConnectionTimeoutMs());
@@ -132,7 +135,8 @@ public abstract class SQLAdapter implements DatabaseAdapter {
         String sql = getDeleteSQL(metadata);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setObject(1, entity.getId());
+            Object idValue = entity.getId() instanceof java.util.UUID ? entity.getId().toString() : entity.getId();
+            stmt.setObject(1, idValue);
             stmt.executeUpdate();
         }
     }
@@ -142,7 +146,8 @@ public abstract class SQLAdapter implements DatabaseAdapter {
         String sql = getSelectByIdSQL(metadata);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setObject(1, id);
+            Object idValue = id instanceof java.util.UUID ? id.toString() : id;
+            stmt.setObject(1, idValue);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return Optional.of(mapResultSetToEntity(rs, entityClass, metadata));
@@ -291,7 +296,8 @@ public abstract class SQLAdapter implements DatabaseAdapter {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             for (T entity : entities) {
-                stmt.setObject(1, entity.getId());
+                Object idValue = entity.getId() instanceof java.util.UUID ? entity.getId().toString() : entity.getId();
+                stmt.setObject(1, idValue);
                 stmt.addBatch();
             }
             stmt.executeBatch();

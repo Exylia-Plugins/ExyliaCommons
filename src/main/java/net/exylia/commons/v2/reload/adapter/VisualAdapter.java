@@ -11,6 +11,10 @@ public class VisualAdapter extends ReloadableSystemAdapter {
 
     @Override
     protected void performCacheClear() throws Exception {
+        VisualManager instance = VisualManager.getInstance();
+        if (instance != null && instance.isInitialized()) {
+            instance.shutdown();
+        }
     }
 
     @Override

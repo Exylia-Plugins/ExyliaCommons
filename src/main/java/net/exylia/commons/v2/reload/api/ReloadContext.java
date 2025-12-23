@@ -3,6 +3,7 @@ package net.exylia.commons.v2.reload.api;
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.v2.reload.stats.ReloadStats;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,12 +13,12 @@ import java.util.Set;
 
 @Getter
 public class ReloadContext {
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final Map<String, Object> data;
     private final Set<String> reloadedSystems;
     private ReloadStats partialStats;
 
-    public ReloadContext(ExyliaPlugin plugin) {
+    public ReloadContext(JavaPlugin plugin) {
         this.plugin = plugin;
         this.data = new HashMap<>();
         this.reloadedSystems = new HashSet<>();

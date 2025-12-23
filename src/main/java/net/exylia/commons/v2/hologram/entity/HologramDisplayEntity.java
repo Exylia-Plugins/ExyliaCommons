@@ -60,8 +60,20 @@ public class HologramDisplayEntity {
         entity.setLineWidth(props.getLineWidth());
 
         if (props.getBackgroundColor() != null) {
-            entity.setBackgroundColor(props.getBackgroundColor());
+            int alpha = props.getBackgroundAlpha();
+            org.bukkit.Color bgColor = props.getBackgroundColor();
+            if (alpha < 255) {
+                org.bukkit.Color colorWithAlpha = org.bukkit.Color.fromARGB(alpha, bgColor.getRed(), bgColor.getGreen(), bgColor.getBlue());
+                entity.setBackgroundColor(colorWithAlpha);
+            } else {
+                entity.setBackgroundColor(bgColor);
+            }
+        } else if (props.getBackgroundAlpha() == 0) {
+            entity.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
         }
+
+        entity.setTextOpacity(props.getTextOpacity());
+        entity.setDefaultBackground(props.isDefaultBackground());
 
         if (props.getBrightness() >= 0) {
             int sky = (props.getBrightness() >> 4) & 0xF;

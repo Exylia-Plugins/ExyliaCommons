@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.reward.core;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.reward.config.RewardConfig;
 import net.exylia.commons.v2.reward.config.RewardConfigLoader;
@@ -71,7 +73,11 @@ public class RewardExecutor {
     }
 
     public CompletableFuture<RewardResult> executeSingle(Reward reward, RewardContext context) {
+        DebugAPI.logLibDebug(DebugCategory.REWARD,
+            "Executing reward: " + reward.getId() + " for " + context.getPlayer().getName());
+
         if (!context.isSkipProbability() && !ProbabilityProcessor.shouldGive(reward)) {
+            DebugAPI.logLibDebug(DebugCategory.REWARD, "Reward skipped (probability): " + reward.getId());
             return CompletableFuture.completedFuture(RewardResult.skippedProbability(reward));
         }
 
@@ -83,12 +89,15 @@ public class RewardExecutor {
             );
 
             if (!conditionMet) {
+                DebugAPI.logLibDebug(DebugCategory.REWARD, "Reward skipped (condition): " + reward.getId());
                 return CompletableFuture.completedFuture(RewardResult.skippedCondition(reward));
             }
         }
 
         RewardProvider provider = providers.get(reward.getType());
         if (provider == null) {
+            DebugAPI.logLibError(DebugCategory.REWARD,
+                "No provider found for reward type: " + reward.getType() + " (ID: " + reward.getId() + ")");
             totalFailed.incrementAndGet();
             return CompletableFuture.completedFuture(
                     RewardResult.failure(reward, "No provider found for type: " + reward.getType())
@@ -98,6 +107,8 @@ public class RewardExecutor {
         return provider.provide(reward, context)
                 .thenCompose(result -> {
                     if (result.isSuccess()) {
+                        DebugAPI.logLibDebug(DebugCategory.REWARD,
+                            "Reward executed successfully: " + reward.getId());
                         totalGiven.incrementAndGet();
 
                         if (!context.isSilent() && reward.getMessage() != null) {
@@ -114,12 +125,16 @@ public class RewardExecutor {
                             ).thenApply(v -> result);
                         }
                     } else {
+                        DebugAPI.logLibError(DebugCategory.REWARD,
+                            "Reward execution failed: " + reward.getId() + " - " + result.getMessage());
                         totalFailed.incrementAndGet();
                     }
 
                     return CompletableFuture.completedFuture(result);
                 })
                 .exceptionally(throwable -> {
+                    DebugAPI.logLibError(DebugCategory.REWARD,
+                        "Unexpected error executing reward: " + reward.getId(), throwable);
                     totalFailed.incrementAndGet();
                     return RewardResult.builder()
                             .success(false)

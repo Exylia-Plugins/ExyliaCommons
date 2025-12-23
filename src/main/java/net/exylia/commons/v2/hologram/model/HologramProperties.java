@@ -38,6 +38,15 @@ public class HologramProperties {
     private final Color backgroundColor;
 
     @Builder.Default
+    private final int backgroundAlpha = 255;
+
+    @Builder.Default
+    private final byte textOpacity = (byte) 255;
+
+    @Builder.Default
+    private final boolean defaultBackground = false;
+
+    @Builder.Default
     private final double lineSpacing = 0.25;
 
     @Builder.Default
@@ -58,6 +67,9 @@ public class HologramProperties {
                 .seeThrough(this.seeThrough)
                 .lineWidth(this.lineWidth)
                 .backgroundColor(this.backgroundColor)
+                .backgroundAlpha(this.backgroundAlpha)
+                .textOpacity(this.textOpacity)
+                .defaultBackground(this.defaultBackground)
                 .lineSpacing(this.lineSpacing)
                 .brightness(this.brightness)
                 .build();

@@ -1,7 +1,10 @@
 package net.exylia.commons.v2.placeholders.papi;
 
 import lombok.Getter;
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class PapiAdapter {
@@ -58,6 +61,32 @@ public class PapiAdapter {
             } catch (Exception e) {
                 DebugUtils.logInternalError("Error unregistering PlaceholderAPI expander: " + e.getMessage());
             }
+        }
+    }
+
+    public String setPlaceholders(Player player, String text) {
+        if (!papiAvailable || player == null || text == null) {
+            return text;
+        }
+
+        try {
+            return PlaceholderAPI.setPlaceholders(player, text);
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error processing PlaceholderAPI placeholders: " + e.getMessage());
+            return text;
+        }
+    }
+
+    public String setPlaceholders(OfflinePlayer player, String text) {
+        if (!papiAvailable || player == null || text == null) {
+            return text;
+        }
+
+        try {
+            return PlaceholderAPI.setPlaceholders(player, text);
+        } catch (Exception e) {
+            DebugUtils.logInternalError("Error processing PlaceholderAPI placeholders: " + e.getMessage());
+            return text;
         }
     }
 

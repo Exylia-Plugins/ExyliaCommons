@@ -7,6 +7,8 @@ import net.exylia.commons.v2.command.config.CommandConfigLoader;
 import net.exylia.commons.v2.command.model.CommandContext;
 import net.exylia.commons.v2.command.model.CommandResult;
 import net.exylia.commons.v2.command.proxy.ProxyCommandSender;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -45,8 +47,11 @@ public class CommandManager {
 
     public void initialize(JavaPlugin plugin) {
         if (initialized) {
+            DebugAPI.logLibWarn(DebugCategory.COMMAND, "CommandManager already initialized, skipping");
             throw new IllegalStateException("CommandManager already initialized");
         }
+
+        DebugAPI.logLibInfo(DebugCategory.COMMAND, "Initializing CommandManager for plugin: " + plugin.getName());
 
         this.plugin = plugin;
         this.proxyCommandSender = new ProxyCommandSender(plugin);
@@ -60,6 +65,8 @@ public class CommandManager {
 
         this.proxyCommandSender.initialize();
         this.initialized = true;
+
+        DebugAPI.logLibSuccess(DebugCategory.COMMAND, "CommandManager initialized (cache size: 1000, TTL: 5min, proxy: " + proxyCommandSender.isEnabled() + ")");
     }
 
     public CompletableFuture<CommandResult> executeAsync(
@@ -67,6 +74,7 @@ public class CommandManager {
             CommandContext context
     ) {
         validateInitialized();
+        DebugAPI.logLibDebug(DebugCategory.COMMAND, "Executing command: " + commandString);
         return executor.executeAsync(commandString, context);
     }
 
@@ -76,6 +84,9 @@ public class CommandManager {
             PlaceholderContext context
     ) {
         validateInitialized();
+
+        DebugAPI.logLibDebug(DebugCategory.COMMAND,
+            "Executing batch of " + commands.size() + " commands for player: " + player.getName());
 
         CommandContext cmdContext = CommandContext.builder()
                 .player(player)
@@ -87,9 +98,15 @@ public class CommandManager {
                 .collect(Collectors.toList());
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(v -> futures.stream()
-                        .map(CompletableFuture::join)
-                        .collect(Collectors.toList()));
+                .thenApply(v -> {
+                    List<CommandResult> results = futures.stream()
+                            .map(CompletableFuture::join)
+                            .collect(Collectors.toList());
+                    long successful = results.stream().filter(CommandResult::isSuccess).count();
+                    DebugAPI.logLibDebug(DebugCategory.COMMAND,
+                        "Batch execution completed: " + successful + "/" + results.size() + " successful");
+                    return results;
+                });
     }
 
     public CompletableFuture<List<CommandResult>> executeFromConfig(
@@ -99,6 +116,8 @@ public class CommandManager {
     ) {
         validateInitialized();
         List<String> commands = configLoader.loadCommands(section);
+        DebugAPI.logLibDebug(DebugCategory.COMMAND,
+            "Loaded " + commands.size() + " commands from config for player: " + player.getName());
         return executeBatch(player, commands, context);
     }
 
@@ -126,10 +145,23 @@ public class CommandManager {
                 .build();
     }
 
+    public void reload() {
+        validateInitialized();
+        DebugAPI.logLibInfo(DebugCategory.COMMAND, "Reloading CommandManager (clearing " + (resultCache != null ? resultCache.estimatedSize() : 0) + " cached results)");
+
+        if (resultCache != null) {
+            resultCache.invalidateAll();
+        }
+
+        DebugAPI.logLibSuccess(DebugCategory.COMMAND, "CommandManager reloaded successfully");
+    }
+
     public void shutdown() {
+        DebugAPI.logLibInfo(DebugCategory.COMMAND, "Shutting down CommandManager (cached results: " + (resultCache != null ? resultCache.estimatedSize() : 0) + ")");
         if (resultCache != null) {
             resultCache.invalidateAll();
         }
         initialized = false;
+        DebugAPI.logLibInfo(DebugCategory.COMMAND, "CommandManager shutdown complete");
     }
 }

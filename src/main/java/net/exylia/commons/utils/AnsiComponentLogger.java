@@ -29,13 +29,14 @@ public class AnsiComponentLogger {
 
     public static String convertHexColors(final Component input) {
         String serialized = SERIALIZER.serialize(input);
-        return HEX_PATTERN.matcher(serialized).replaceAll(result -> {
+        String withHex = HEX_PATTERN.matcher(serialized).replaceAll(result -> {
             final int hex = Integer.decode("0x" + result.group().substring(2));
             final int red = hex >> 16 & 0xFF;
             final int green = hex >> 8 & 0xFF;
             final int blue = hex & 0xFF;
             return String.format(RGB_ANSI, red, green, blue);
-        }) + RESET;
+        });
+        return convertLegacyColorCodes(withHex);
     }
 
     private static String stripHexColors(final Component input) {
