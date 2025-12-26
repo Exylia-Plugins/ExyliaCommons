@@ -10,6 +10,7 @@ import net.exylia.commons.v2.scoreboard.model.ScoreboardStats;
 import net.exylia.commons.v2.scoreboard.team.TeamManager;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.Collections;
 import java.util.Optional;
@@ -21,6 +22,10 @@ public final class ScoreboardAPI {
 
     private ScoreboardAPI() {
         throw new UnsupportedOperationException("Utility class");
+    }
+
+    public static void initialize(Plugin plugin) {
+        ScoreboardManager.initialize(plugin);
     }
 
     public static ScoreboardBuilder builder() {

@@ -46,7 +46,7 @@ public class DebugManager {
                 }
             }
             logLibrary(DebugType.INFO, null, "", null);
-            logLibrary(DebugType.INFO, null, "Version: v" + plugin.getDescription().getVersion(), null);
+            logLibrary(DebugType.INFO, null, "Version: v" + plugin.getDescription().getVersion() + " | Debug: " + DebugConfig.getInstance().isEnabled(DebugLevel.PLUGIN_ONLY), null);
             logLibrary(DebugType.INFO, null, "Powered by Exylia - https://discord.exylia.net", null);
             Bukkit.getLogger().info("");
         } catch (Exception e) {

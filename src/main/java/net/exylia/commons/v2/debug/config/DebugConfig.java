@@ -23,12 +23,20 @@ public class DebugConfig {
     private final boolean asyncLogging;
 
     private DebugConfig() {
-        ensureDefaults();
-        this.level = DebugLevel.fromLevel(Configs.integer("debug.level", 0));
-        this.allowedCategories = loadCategories();
-        this.showTimestamps = Configs.bool("debug.show-timestamps", false);
-        this.showClassNames = Configs.bool("debug.show-class-names", false);
-        this.asyncLogging = Configs.bool("debug.async-logging", false);
+        if (Configs.raw() != null) {
+            ensureDefaults();
+            this.level = DebugLevel.fromLevel(Configs.integer("debug.level", 0));
+            this.allowedCategories = loadCategories();
+            this.showTimestamps = Configs.bool("debug.show-timestamps", false);
+            this.showClassNames = Configs.bool("debug.show-class-names", false);
+            this.asyncLogging = Configs.bool("debug.async-logging", false);
+        } else {
+            this.level = DebugLevel.DISABLED;
+            this.allowedCategories = Collections.emptySet();
+            this.showTimestamps = false;
+            this.showClassNames = false;
+            this.asyncLogging = false;
+        }
     }
 
     public static DebugConfig getInstance() {

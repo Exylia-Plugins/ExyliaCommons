@@ -22,8 +22,8 @@ public class SystemBootstrapper {
             logInternalDebug("Initializing ConfigInitializer...");
             ConfigInitializer.init(plugin);
 
-            logInternalDebug("Initializing SchedulerManager...");
-            SchedulerManager.initialize(plugin);
+            logInternalDebug("Reloading DebugConfig...");
+            net.exylia.commons.v2.debug.config.DebugConfig.reload();
 
             logInternalDebug("Initializing ColorAPI...");
             ColorAPI.initialize(plugin);

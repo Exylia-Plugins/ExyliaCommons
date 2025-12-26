@@ -51,6 +51,20 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
                 }, AsyncExecutor.getInstance().getGeneralExecutor());
     }
 
+    public void renderSync(Player player, MessageConfig config, PlaceholderContext context) {
+        List<Component> components = processMessages(player, config, context);
+
+        if (config.isBroadcast()) {
+            sendToAll(components, config);
+        } else if (config.getFilter() != null) {
+            sendToFiltered(components, config);
+        } else if (config.getRecipients() != null) {
+            sendToRecipients(components, config);
+        } else if (player != null && player.isOnline()) {
+            sendToPlayer(player, components);
+        }
+    }
+
     private List<Component> processMessages(Player player, MessageConfig config, PlaceholderContext context) {
         List<Component> components = new ArrayList<>();
         List<String> messages = config.getMessages();
@@ -81,7 +95,7 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
 
             String processed = CacheManager.getInstance().processPlaceholders(parsed.getCleanMessage(), player, context);
 
-            if (config.isCentered()) {
+            if (config.isCentered() || parsed.isCentered()) {
                 processed = MessageCenterer.center(processed);
             }
 

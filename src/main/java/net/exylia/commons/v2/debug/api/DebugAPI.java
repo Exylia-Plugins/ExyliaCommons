@@ -7,6 +7,10 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class DebugAPI {
 
+    public static void initialize(JavaPlugin plugin) {
+        DebugManager.getInstance().init(plugin);
+    }
+
     public static void init(JavaPlugin plugin) {
         DebugManager.getInstance().init(plugin);
     }

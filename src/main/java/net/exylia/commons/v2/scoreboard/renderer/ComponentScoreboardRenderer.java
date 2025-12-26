@@ -5,9 +5,9 @@ import lombok.RequiredArgsConstructor;
 import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
-import net.exylia.commons.v2.scoreboard.cache.LineCacheKey;
 import net.exylia.commons.v2.scoreboard.cache.ScoreboardCacheManager;
 import net.exylia.commons.v2.scoreboard.exception.ScoreboardRenderException;
+import net.exylia.commons.v2.scoreboard.expander.LineExpander;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardLine;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -91,8 +91,14 @@ public class ComponentScoreboardRenderer {
             return CompletableFuture.completedFuture(new ArrayList<>());
         }
 
-        List<CompletableFuture<Component>> lineFutures = lines.stream()
-                .map(line -> processLineAsync(line, player, context))
+        List<String> rawLines = lines.stream()
+                .map(ScoreboardLine::getContent)
+                .toList();
+
+        List<String> expandedLines = LineExpander.expandLines(rawLines, player, context);
+
+        List<CompletableFuture<Component>> lineFutures = expandedLines.stream()
+                .map(line -> processStringAsync(line, player, context))
                 .toList();
 
         return CompletableFuture.allOf(lineFutures.toArray(new CompletableFuture[0]))
@@ -100,14 +106,6 @@ public class ComponentScoreboardRenderer {
                         .map(CompletableFuture::join)
                         .collect(Collectors.toList())
                 );
-    }
-
-    private CompletableFuture<Component> processLineAsync(
-            ScoreboardLine line,
-            Player player,
-            PlaceholderContext context
-    ) {
-        return processStringAsync(line.getContent(), player, context);
     }
 
     private CompletableFuture<Component> processStringAsync(

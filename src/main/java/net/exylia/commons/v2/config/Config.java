@@ -24,19 +24,26 @@ public class Config {
     Config(JavaPlugin plugin, String fileName) {
         this.plugin = plugin;
         this.fileName = fileName;
-        this.file = new File(plugin.getDataFolder(), fileName + ".yml");
+
+        if (fileName.contains("/") || fileName.contains("\\")) {
+            String normalizedPath = fileName.replace("/", File.separator).replace("\\", File.separator);
+            this.file = new File(plugin.getDataFolder(), normalizedPath + ".yml");
+        } else {
+            this.file = new File(plugin.getDataFolder(), fileName + ".yml");
+        }
         load();
     }
 
     private void load() {
         if (!file.exists()) {
+            file.getParentFile().mkdirs();
             try {
-                plugin.saveResource(fileName + ".yml", false);
+                String resourcePath = fileName.replace("\\", "/") + ".yml";
+                plugin.saveResource(resourcePath, false);
             } catch (IllegalArgumentException e) {
                 plugin.getLogger().warning("Config file not found in resources: " + fileName + ".yml");
                 plugin.getLogger().warning("Creating empty config file...");
                 try {
-                    file.getParentFile().mkdirs();
                     file.createNewFile();
                 } catch (Exception ex) {
                     throw new RuntimeException("Could not create config file: " + fileName, ex);

@@ -20,6 +20,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+
+import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
 
@@ -44,7 +48,23 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
         lifecycleManager = new LifecycleManager(this);
 
-        if (!lifecycleManager.executeLicenseValidation()) {
+        logInternalDebug("Initializing SchedulerManager...");
+        SchedulerManager.initialize(this);
+
+        CompletableFuture<Boolean> licenseValidation = CompletableFuture.supplyAsync(() ->
+            lifecycleManager.executeLicenseValidation()
+        , SchedulerManager.getInstance().getAsyncExecutor().getGeneralExecutor());
+
+        boolean licenseValid;
+        try {
+            licenseValid = licenseValidation.get();
+        } catch (InterruptedException | ExecutionException e) {
+            net.exylia.commons.utils.DebugUtils.logInternalError("License validation was interrupted", e);
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        if (!licenseValid) {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -61,13 +81,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
             lifecycleManager.executeBootstrap();
 
-//            initializeConfigurationSystem();
-
             net.exylia.commons.utils.DebugUtils.logInternalDebug("Initializing ReloadAPI...");
             ReloadAPI.initialize(this);
 
-            net.exylia.commons.utils.DebugUtils.logInternalDebug("Scheduling plugin enable on main thread...");
-            SchedulerManager.getInstance().runTask(() -> lifecycleManager.executePluginEnable());
+            net.exylia.commons.utils.DebugUtils.logInternalDebug("Executing plugin enable...");
+            lifecycleManager.executePluginEnable();
 
         } catch (Exception e) {
             net.exylia.commons.utils.DebugUtils.logInternalError("Critical error during plugin initialization", e);

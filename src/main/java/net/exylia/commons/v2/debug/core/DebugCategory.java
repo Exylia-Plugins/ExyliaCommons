@@ -28,7 +28,8 @@ public enum DebugCategory {
     LIFECYCLE("LIFECYCLE"),
     CLAN("CLAN"),
     LICENSE("LICENSE"),
-    ASYNC("ASYNC");
+    ASYNC("ASYNC"),
+    CONVERSATION("CONVERSATION");
 
     private final String name;
 

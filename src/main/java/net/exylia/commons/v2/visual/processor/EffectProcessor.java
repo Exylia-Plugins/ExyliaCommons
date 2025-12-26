@@ -32,6 +32,8 @@ public class EffectProcessor {
         private final List<FireworkConfig> fireworks = new ArrayList<>();
         @Builder.Default
         private final List<EffectConfig> effects = new ArrayList<>();
+        @Builder.Default
+        private final boolean centered = false;
     }
 
     public static ParsedMessage parse(String message, Player player, PlaceholderContext context) {
@@ -42,6 +44,7 @@ public class EffectProcessor {
                     .particles(Collections.emptyList())
                     .fireworks(Collections.emptyList())
                     .effects(Collections.emptyList())
+                    .centered(false)
                     .build();
         }
 
@@ -53,6 +56,7 @@ public class EffectProcessor {
                     .particles(Collections.emptyList())
                     .fireworks(Collections.emptyList())
                     .effects(Collections.emptyList())
+                    .centered(false)
                     .build();
         }
 
@@ -69,6 +73,7 @@ public class EffectProcessor {
         List<ParticleConfig> particles = new ArrayList<>();
         List<FireworkConfig> fireworks = new ArrayList<>();
         List<EffectConfig> effects = new ArrayList<>();
+        boolean centered = false;
 
         if (effectsSection == null || effectsSection.trim().isEmpty()) {
             return ParsedMessage.builder()
@@ -77,13 +82,21 @@ public class EffectProcessor {
                     .particles(particles)
                     .fireworks(fireworks)
                     .effects(effects)
+                    .centered(centered)
                     .build();
         }
 
         String[] effectTypes = effectsSection.split(";");
 
         for (String effectType : effectTypes) {
-            String[] parts = effectType.split(":", 2);
+            String trimmed = effectType.trim();
+
+            if (trimmed.equalsIgnoreCase("center") || trimmed.equalsIgnoreCase("centered")) {
+                centered = true;
+                continue;
+            }
+
+            String[] parts = trimmed.split(":", 2);
             if (parts.length != 2) continue;
 
             String type = parts[0].toLowerCase().trim();
@@ -103,6 +116,7 @@ public class EffectProcessor {
                 .particles(particles)
                 .fireworks(fireworks)
                 .effects(effects)
+                .centered(centered)
                 .build();
     }
 

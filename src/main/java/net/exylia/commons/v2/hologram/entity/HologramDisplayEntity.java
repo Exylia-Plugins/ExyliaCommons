@@ -6,11 +6,16 @@ import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.TextDisplay;
 
+import java.util.Collection;
+
 @Getter
 public class HologramDisplayEntity {
+    private static final double DUPLICATE_CHECK_RADIUS = 0.75;
+
     private final TextDisplay entity;
     private final HologramProperties properties;
 
@@ -20,6 +25,8 @@ public class HologramDisplayEntity {
     }
 
     public static HologramDisplayEntity create(Location location, String text, HologramProperties properties) {
+        cleanupDuplicateEntities(location);
+
         TextDisplay display = (TextDisplay) location.getWorld()
                 .spawnEntity(location, EntityType.TEXT_DISPLAY);
 
@@ -28,6 +35,20 @@ public class HologramDisplayEntity {
         displayEntity.applyProperties(properties);
 
         return displayEntity;
+    }
+
+    public static void cleanupDuplicateEntities(Location location) {
+        if (location == null || location.getWorld() == null) {
+            return;
+        }
+
+        Collection<Entity> nearbyEntities = location.getWorld()
+                .getNearbyEntities(location, DUPLICATE_CHECK_RADIUS, DUPLICATE_CHECK_RADIUS, DUPLICATE_CHECK_RADIUS);
+
+        nearbyEntities.stream()
+                .filter(entity -> entity.getType() == EntityType.TEXT_DISPLAY)
+                .filter(Entity::isValid)
+                .forEach(Entity::remove);
     }
 
     public void update(String text) {

@@ -37,6 +37,23 @@ public final class MessageAPI {
         return MessageRenderer.getInstance().renderAsync(player, config, context);
     }
 
+    public static void sendSync(Player player, String message) {
+        sendSync(player, message, PlaceholderContext.create());
+    }
+
+    public static void sendSync(Player player, String message, PlaceholderContext context) {
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+
+        MessageConfig config = MessageBuilder.create()
+                .message(message)
+                .to(player)
+                .build();
+
+        MessageRenderer.getInstance().renderSync(player, config, context);
+    }
+
     public static CompletableFuture<Void> send(Player player, List<String> messages) {
         return send(player, messages, PlaceholderContext.create());
     }
@@ -272,30 +289,96 @@ public final class MessageAPI {
     }
 
     public static CompletableFuture<Void> sendRoute(Player player, String route, PlaceholderContext context) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return send(player, message, context);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route, context);
+            return send(player, messages, context);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route, context);
+            return send(player, message, context);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRoute(String filePath, Player player, String route) {
+        return sendRoute(filePath, player, route, PlaceholderContext.create());
+    }
+
+    public static CompletableFuture<Void> sendRoute(String filePath, Player player, String route, PlaceholderContext context) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route, context);
+            return send(player, messages, context);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route, context);
+            return send(player, message, context);
+        }
     }
 
     public static CompletableFuture<Void> sendRoute(CommandSender sender, String route) {
         if (sender instanceof Player player) {
             return sendRoute(player, route);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(route);
-            if (message == null || message.isEmpty()) {
-                return CompletableFuture.completedFuture(null);
+            Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+            if (messageObj instanceof List) {
+                List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+                messages.forEach(msg -> sender.sendMessage(ColorAPI.parse(msg)));
+            } else {
+                String message = net.exylia.commons.v2.config.Messages.get(route);
+                if (message != null && !message.isEmpty()) {
+                    sender.sendMessage(ColorAPI.parse(message));
+                }
             }
-            sender.sendMessage(ColorAPI.parse(message));
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRoute(String filePath, CommandSender sender, String route) {
+        if (sender instanceof Player player) {
+            return sendRoute(filePath, player, route);
+        } else {
+            Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+            if (messageObj instanceof List) {
+                List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+                messages.forEach(msg -> sender.sendMessage(ColorAPI.parse(msg)));
+            } else {
+                String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+                if (message != null && !message.isEmpty()) {
+                    sender.sendMessage(ColorAPI.parse(message));
+                }
+            }
             return CompletableFuture.completedFuture(null);
         }
     }
 
     public static CompletableFuture<Void> broadcastRoute(String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return broadcast(message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return broadcast(messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return broadcast(message);
+        }
+    }
+
+    public static CompletableFuture<Void> broadcastRoute(String filePath, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return broadcast(messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return broadcast(message);
+        }
     }
 
     public static CompletableFuture<Void> broadcastRouteExcluding(String route, Player excludePlayer) {
         String message = net.exylia.commons.v2.config.Messages.get(route);
+        return broadcastExcluding(message, excludePlayer);
+    }
+
+    public static CompletableFuture<Void> broadcastRouteExcluding(String filePath, String route, Player excludePlayer) {
+        String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
         return broadcastExcluding(message, excludePlayer);
     }
 
@@ -304,28 +387,118 @@ public final class MessageAPI {
         return broadcastExcluding(message, excludePlayers);
     }
 
+    public static CompletableFuture<Void> broadcastRouteExcluding(String filePath, String route, Collection<Player> excludePlayers) {
+        String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+        return broadcastExcluding(message, excludePlayers);
+    }
+
     public static CompletableFuture<Void> sendRouteToFiltered(Predicate<Player> filter, String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return sendToFiltered(filter, message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return sendToFiltered(filter, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return sendToFiltered(filter, message);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRouteToFiltered(String filePath, Predicate<Player> filter, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return sendToFiltered(filter, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return sendToFiltered(filter, message);
+        }
     }
 
     public static CompletableFuture<Void> sendRouteToRecipients(Collection<Player> recipients, String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return sendToRecipients(recipients, message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return sendToRecipients(recipients, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return sendToRecipients(recipients, message);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRouteToRecipients(String filePath, Collection<Player> recipients, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return sendToRecipients(recipients, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return sendToRecipients(recipients, message);
+        }
     }
 
     public static CompletableFuture<Void> sendRouteInRadius(Location origin, double radius, String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return sendInRadius(origin, radius, message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return sendInRadius(origin, radius, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return sendInRadius(origin, radius, message);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRouteInRadius(String filePath, Location origin, double radius, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return sendInRadius(origin, radius, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return sendInRadius(origin, radius, message);
+        }
     }
 
     public static CompletableFuture<Void> sendRouteCentered(Player player, String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return sendCentered(player, message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return sendCentered(player, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return sendCentered(player, message);
+        }
+    }
+
+    public static CompletableFuture<Void> sendRouteCentered(String filePath, Player player, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return sendCentered(player, messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return sendCentered(player, message);
+        }
     }
 
     public static CompletableFuture<Void> broadcastRouteCentered(String route) {
-        String message = net.exylia.commons.v2.config.Messages.get(route);
-        return broadcastCentered(message);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(route);
+            return broadcastCentered(messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(route);
+            return broadcastCentered(message);
+        }
+    }
+
+    public static CompletableFuture<Void> broadcastRouteCentered(String filePath, String route) {
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        if (messageObj instanceof List) {
+            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            return broadcastCentered(messages);
+        } else {
+            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            return broadcastCentered(message);
+        }
     }
 }

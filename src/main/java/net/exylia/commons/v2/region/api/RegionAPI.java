@@ -11,6 +11,7 @@ import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Collection;
 import java.util.List;
@@ -29,6 +30,10 @@ public class RegionAPI {
         this.selector = RegionSelector.getInstance();
         this.selectionManager = SelectionManager.getInstance();
         this.schematicManager = SchematicManager.getInstance();
+    }
+
+    public static void initialize(JavaPlugin plugin) {
+        RegionManager.initialize(plugin);
     }
 
     public static RegionAPI getInstance() {

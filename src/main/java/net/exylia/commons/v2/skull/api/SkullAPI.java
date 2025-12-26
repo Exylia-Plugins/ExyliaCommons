@@ -2,6 +2,7 @@ package net.exylia.commons.v2.skull.api;
 
 import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.skull.builder.SkullBuilder;
+import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.core.SkullManager;
 import org.bukkit.inventory.ItemStack;
 
@@ -10,6 +11,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
 public class SkullAPI {
+
+    public static void initialize() {
+        SkullManager.initialize();
+    }
+
+    public static void initialize(SkullConfig config) {
+        SkullManager.initialize(config);
+    }
 
     private static SkullManager getManager() {
         return SkullManager.getInstance();

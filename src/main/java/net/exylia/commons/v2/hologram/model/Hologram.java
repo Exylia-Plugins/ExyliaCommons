@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.hologram.entity.HologramDisplayEntity;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
 import net.exylia.commons.v2.placeholders.Placeholders;
@@ -92,6 +93,8 @@ public class Hologram {
         Location currentLoc = location.clone();
 
         for (HologramLine line : lines) {
+            HologramDisplayEntity.cleanupDuplicateEntities(currentLoc);
+
             TextDisplay display = (TextDisplay) location.getWorld()
                     .spawnEntity(currentLoc, EntityType.TEXT_DISPLAY);
 
@@ -135,6 +138,8 @@ public class Hologram {
         List<TextDisplay> displays = new ArrayList<>();
 
         for (HologramLine line : lines) {
+            HologramDisplayEntity.cleanupDuplicateEntities(currentLoc);
+
             TextDisplay display = (TextDisplay) location.getWorld()
                     .spawnEntity(currentLoc, EntityType.TEXT_DISPLAY);
 

@@ -88,7 +88,7 @@ public class FormattersConfig {
             Configs.set("formatters.price.thousand-separator", ",");
         }
         if (!Configs.exists("formatters.price.decimal-places")) {
-            Configs.set("formatt    ers.price.decimal-places", 2);
+            Configs.set("formatters.price.decimal-places", 2);
         }
         if (!Configs.exists("formatters.price.show-decimals")) {
             Configs.set("formatters.price.show-decimals", true);

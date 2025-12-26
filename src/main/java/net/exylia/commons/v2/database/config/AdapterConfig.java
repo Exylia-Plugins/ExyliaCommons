@@ -61,7 +61,26 @@ public class AdapterConfig {
 
     private String resolveFilePath(String configPath, Plugin plugin) {
         if (configPath != null && !configPath.isEmpty()) {
-            return resolvePlaceholders(configPath, plugin);
+            String resolvedPath = resolvePlaceholders(configPath, plugin);
+
+            if (plugin != null) {
+                File file = new File(resolvedPath);
+                if (!file.isAbsolute()) {
+                    file = new File(plugin.getDataFolder(), resolvedPath);
+                }
+                File parentDir = file.getParentFile();
+                if (parentDir != null && !parentDir.exists()) {
+                    parentDir.mkdirs();
+                }
+                String absolutePath = file.getAbsolutePath();
+                plugin.getLogger().info("[DEBUG] Resolved H2 path: " + configPath + " -> " + absolutePath);
+                return absolutePath;
+            }
+
+            if (!new File(resolvedPath).isAbsolute() && !resolvedPath.startsWith("./") && !resolvedPath.startsWith("~/")) {
+                resolvedPath = "./" + resolvedPath;
+            }
+            return resolvedPath;
         }
 
         if (plugin != null) {

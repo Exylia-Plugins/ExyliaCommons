@@ -91,22 +91,22 @@ public class MySQLAdapter extends SQLAdapter {
     protected String getUpdateSQL(EntityMetadata metadata) {
         StringBuilder sql = new StringBuilder("UPDATE `" + metadata.getTableName() + "` SET ");
         for (FieldDescriptor field : metadata.getFields()) {
-            if (field.isPrimaryKey() || field.getColumnName().equals("id")) continue;
+            if (field.isPrimaryKey()) continue;
             sql.append("`").append(field.getColumnName()).append("`=?,");
         }
         sql.setLength(sql.length() - 1);
-        sql.append(" WHERE `id`=?");
+        sql.append(" WHERE `").append(metadata.getPrimaryKeyField().getColumnName()).append("`=?");
         return sql.toString();
     }
 
     @Override
     protected String getDeleteSQL(EntityMetadata metadata) {
-        return "DELETE FROM `" + metadata.getTableName() + "` WHERE `id`=?";
+        return "DELETE FROM `" + metadata.getTableName() + "` WHERE `" + metadata.getPrimaryKeyField().getColumnName() + "`=?";
     }
 
     @Override
     protected String getSelectByIdSQL(EntityMetadata metadata) {
-        return "SELECT * FROM `" + metadata.getTableName() + "` WHERE `id`=?";
+        return "SELECT * FROM `" + metadata.getTableName() + "` WHERE `" + metadata.getPrimaryKeyField().getColumnName() + "`=?";
     }
 
     @Override
