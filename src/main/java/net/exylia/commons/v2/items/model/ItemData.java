@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
+import net.exylia.commons.v2.items.config.SlotConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 
 import java.util.ArrayList;
@@ -84,6 +85,18 @@ public class ItemData {
     @Builder.Default
     private int maxStackSize = -1;
 
+    @Builder.Default
+    private SlotConfig slotConfig = null;
+
+    @Builder.Default
+    private List<String> clickActions = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> rightClickActions = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> commands = new ArrayList<>();
+
     public ItemData copy() {
         return ItemData.builder()
                 .rawMaterial(this.rawMaterial)
@@ -107,6 +120,10 @@ public class ItemData {
                 .customNBT(new HashMap<>(this.customNBT))
                 .unbreakable(this.unbreakable)
                 .maxStackSize(this.maxStackSize)
+                .slotConfig(this.slotConfig)
+                .clickActions(new ArrayList<>(this.clickActions))
+                .rightClickActions(new ArrayList<>(this.rightClickActions))
+                .commands(new ArrayList<>(this.commands))
                 .build();
     }
 }

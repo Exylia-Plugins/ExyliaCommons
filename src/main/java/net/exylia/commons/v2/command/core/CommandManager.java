@@ -95,7 +95,7 @@ public class CommandManager {
 
         List<CompletableFuture<CommandResult>> futures = commands.stream()
                 .map(cmd -> executor.executeAsync(cmd, cmdContext))
-                .collect(Collectors.toList());
+                .toList();
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenApply(v -> {

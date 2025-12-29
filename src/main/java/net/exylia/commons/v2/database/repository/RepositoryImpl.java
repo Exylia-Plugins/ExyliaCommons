@@ -82,6 +82,25 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     }
 
     @Override
+    public CompletableFuture<List<T>> findAllByAsync(String fieldName, Object value) {
+        return AsyncAPI.computeDb(() -> findAllBy(fieldName, value));
+    }
+
+    @Override
+    public List<T> findAllBy(String fieldName, Object value) {
+        CacheKey key = CacheKey.of(entityClass.getSimpleName() + ":list:" + fieldName, value);
+        Object cached = cache.get(key, k -> {
+            try {
+                List<T> results = adapter.findByField(fieldName, value, entityClass, metadata);
+                return results.isEmpty() ? null : results;
+            } catch (Exception e) {
+                throw new RepositoryException("Error finding entities by " + fieldName + ": " + value, e);
+            }
+        });
+        return cached != null ? (List<T>) cached : new ArrayList<>();
+    }
+
+    @Override
     public CompletableFuture<Long> countAsync() {
         return AsyncAPI.computeDb(this::count);
     }
@@ -135,7 +154,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
                 adapter.insert(entity, metadata);
             }
 
-            invalidateCache(entity.getId());
+            invalidateCache();
         } catch (Exception e) {
             throw new RepositoryException("Error saving entity", e);
         }

@@ -8,6 +8,8 @@ import net.exylia.commons.v2.command.model.CommandResult;
 import net.exylia.commons.v2.command.model.CommandSource;
 import net.exylia.commons.v2.command.processor.CommandParser;
 import net.exylia.commons.v2.command.proxy.ProxyCommandSender;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -21,6 +23,8 @@ public class CommandExecutor {
             String commandString,
             CommandContext context
     ) {
+        DebugAPI.logLibDebug(DebugCategory.COMMAND,
+                String.format("[EXECUTE] Executing command '%s' for player '%s'", commandString, context.getPlayer().getName()));
         return CommandParser.parseAsync(
                 commandString,
                 context.getPlayer(),
@@ -32,6 +36,8 @@ public class CommandExecutor {
             Command command,
             CommandContext context
     ) {
+        DebugAPI.logLibDebug(DebugCategory.COMMAND,
+                String.format("[EXECUTE] Executing command '%s' for player '%s'", command.getProcessedCommand(), context.getPlayer().getName()));
         if (command.getSource() == CommandSource.PROXY) {
             return executeProxyCommand(command, context);
         } else {

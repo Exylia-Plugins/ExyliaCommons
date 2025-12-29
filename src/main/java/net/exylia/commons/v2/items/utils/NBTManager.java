@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.items.utils;
 
+import lombok.Setter;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -11,11 +12,8 @@ import java.util.Map;
 
 public class NBTManager {
 
+    @Setter
     private static JavaPlugin plugin;
-
-    public static void setPlugin(JavaPlugin pluginInstance) {
-        plugin = pluginInstance;
-    }
 
     public static void applyCustomNBT(ItemStack itemStack, Map<String, String> customNBT) {
         if (itemStack == null || customNBT == null || customNBT.isEmpty()) {

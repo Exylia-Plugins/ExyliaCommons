@@ -237,14 +237,6 @@ public class PotionConfig {
                 return Color.fromRGB(rgb);
             }
 
-            String[] parts = colorString.split(",");
-            if (parts.length == 3) {
-                int r = Integer.parseInt(parts[0].trim());
-                int g = Integer.parseInt(parts[1].trim());
-                int b = Integer.parseInt(parts[2].trim());
-                return Color.fromRGB(r, g, b);
-            }
-
             return switch (colorString.toLowerCase()) {
                 case "red" -> Color.RED;
                 case "blue" -> Color.BLUE;

@@ -94,6 +94,35 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
     }
 
     @Override
+    public CompletableFuture<List<T>> findAllByAsync(String fieldName, Object value) {
+        return AsyncAPI.computeDb(() -> findAllBy(fieldName, value));
+    }
+
+    @Override
+    public List<T> findAllBy(String fieldName, Object value) {
+        CacheKey key = CacheKey.of(entityClass.getSimpleName() + ":list:" + fieldName, value);
+        Object cached = cache.get(key, k -> {
+            try {
+                List<T> all = adapter.loadAll(entityClass, metadata);
+                List<T> results = all.stream()
+                    .filter(entity -> {
+                        try {
+                            Object fieldValue = metadata.getField(fieldName).getValue(entity);
+                            return value.equals(fieldValue);
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    })
+                    .collect(Collectors.toList());
+                return results.isEmpty() ? null : results;
+            } catch (Exception e) {
+                throw new YamlStorageException("Error finding entities by " + fieldName + ": " + value, e);
+            }
+        });
+        return cached != null ? (List<T>) cached : new ArrayList<>();
+    }
+
+    @Override
     public CompletableFuture<Long> countAsync() {
         return AsyncAPI.computeDb(this::count);
     }
@@ -142,7 +171,7 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
         try {
             entity.updateTimestamp();
             adapter.save(entity, metadata);
-            invalidateCache(entity.getId());
+            invalidateCache();
         } catch (Exception e) {
             throw new YamlStorageException("Error saving entity", e);
         }

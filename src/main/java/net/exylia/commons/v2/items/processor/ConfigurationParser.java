@@ -3,6 +3,7 @@ package net.exylia.commons.v2.items.processor;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
+import net.exylia.commons.v2.items.config.SlotConfig;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.utils.DebugUtils;
@@ -40,6 +41,10 @@ public class ConfigurationParser {
         parseCustomNBT(config, builder);
         parseUnbreakable(config, builder);
         parseMaxStackSize(config, builder);
+        parseSlots(config, builder);
+        parseClickActions(config, builder);
+        parseRightClickActions(config, builder);
+        parseCommands(config, builder);
 
         return builder.build();
     }
@@ -314,6 +319,143 @@ public class ConfigurationParser {
         if (config.contains("max_stack_size") || config.contains("maxStackSize")) {
             if (maxStackSize > 0) {
                 builder.maxStackSize(maxStackSize);
+            }
+        }
+    }
+
+    private static void parseSlots(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("slot") && config.contains("slots")) {
+            throw new IllegalArgumentException("Cannot specify both 'slot' and 'slots' in configuration");
+        }
+
+        if (config.contains("slot")) {
+            if (config.isInt("slot")) {
+                builder.slotConfig(SlotConfig.single(config.getInt("slot")));
+            } else {
+                String rawSlot = config.getString("slot");
+                builder.slotConfig(SlotConfig.singleRaw(rawSlot));
+            }
+        } else if (config.contains("slots")) {
+            if (config.isList("slots")) {
+                List<?> slotsList = config.getList("slots");
+                List<Integer> intSlots = new ArrayList<>();
+                List<String> rawSlots = new ArrayList<>();
+                boolean hasPlaceholders = false;
+
+                for (Object slotObj : slotsList) {
+                    if (slotObj instanceof Integer) {
+                        intSlots.add((Integer) slotObj);
+                    } else if (slotObj instanceof String) {
+                        String slotStr = (String) slotObj;
+                        if (PlaceholderDetector.contains(slotStr)) {
+                            hasPlaceholders = true;
+                            rawSlots.add(slotStr);
+                        } else {
+                            try {
+                                intSlots.add(Integer.parseInt(slotStr));
+                            } catch (NumberFormatException e) {
+                                rawSlots.add(slotStr);
+                                hasPlaceholders = true;
+                            }
+                        }
+                    }
+                }
+
+                if (hasPlaceholders && !rawSlots.isEmpty()) {
+                    builder.slotConfig(SlotConfig.multipleRaw(rawSlots));
+                } else if (!intSlots.isEmpty()) {
+                    builder.slotConfig(SlotConfig.multiple(intSlots));
+                }
+            } else {
+                String slotsString = config.getString("slots");
+                if (slotsString != null && !slotsString.isEmpty()) {
+                    List<Integer> parsedSlots = parseSlotRanges(slotsString);
+                    if (!parsedSlots.isEmpty()) {
+                        builder.slotConfig(SlotConfig.multiple(parsedSlots));
+                    }
+                }
+            }
+        }
+    }
+
+    private static List<Integer> parseSlotRanges(String slotsString) {
+        List<Integer> slots = new ArrayList<>();
+        String[] parts = slotsString.split(",");
+
+        for (String part : parts) {
+            part = part.trim();
+
+            if (part.contains("-")) {
+                String[] range = part.split("-");
+                if (range.length == 2) {
+                    try {
+                        int start = Integer.parseInt(range[0].trim());
+                        int end = Integer.parseInt(range[1].trim());
+
+                        for (int i = start; i <= end; i++) {
+                            slots.add(i);
+                        }
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            } else {
+                try {
+                    slots.add(Integer.parseInt(part));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        return slots;
+    }
+
+    private static void parseClickActions(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("click_actions")) {
+            List<String> actions = new ArrayList<>();
+            if (config.isList("click_actions")) {
+                actions = config.getStringList("click_actions");
+            } else {
+                String actionSingle = config.getString("click_actions");
+                if (actionSingle != null && !actionSingle.isEmpty()) {
+                    actions.add(actionSingle);
+                }
+            }
+            if (!actions.isEmpty()) {
+                builder.clickActions(actions);
+            }
+        }
+    }
+
+    private static void parseRightClickActions(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("right_click_actions")) {
+            List<String> actions = new ArrayList<>();
+            if (config.isList("right_click_actions")) {
+                actions = config.getStringList("right_click_actions");
+            } else {
+                String actionSingle = config.getString("right_click_actions");
+                if (actionSingle != null && !actionSingle.isEmpty()) {
+                    actions.add(actionSingle);
+                }
+            }
+            if (!actions.isEmpty()) {
+                builder.rightClickActions(actions);
+            }
+        }
+    }
+
+    private static void parseCommands(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("commands")) {
+            List<String> commands = new ArrayList<>();
+            if (config.isList("commands")) {
+                commands = config.getStringList("commands");
+            } else {
+                String commandSingle = config.getString("commands");
+                if (commandSingle != null && !commandSingle.isEmpty()) {
+                    commands.add(commandSingle);
+                }
+            }
+            if (!commands.isEmpty()) {
+                builder.commands(commands);
             }
         }
     }

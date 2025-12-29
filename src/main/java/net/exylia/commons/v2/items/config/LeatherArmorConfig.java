@@ -68,14 +68,6 @@ public class LeatherArmorConfig {
                 return Color.fromRGB(rgb);
             }
 
-            String[] parts = colorString.split(",");
-            if (parts.length == 3) {
-                int r = Integer.parseInt(parts[0].trim());
-                int g = Integer.parseInt(parts[1].trim());
-                int b = Integer.parseInt(parts[2].trim());
-                return Color.fromRGB(r, g, b);
-            }
-
             return switch (colorString.toLowerCase()) {
                 case "red" -> Color.RED;
                 case "blue" -> Color.BLUE;
@@ -103,5 +95,17 @@ public class LeatherArmorConfig {
 
     public boolean hasConfiguration() {
         return color != null;
+    }
+
+    public int getR() {
+        return color != null ? color.getRed() : 0;
+    }
+
+    public int getG() {
+        return color != null ? color.getGreen() : 0;
+    }
+
+    public int getB() {
+        return color != null ? color.getBlue() : 0;
     }
 }

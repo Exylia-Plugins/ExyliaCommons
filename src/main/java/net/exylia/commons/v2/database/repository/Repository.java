@@ -21,6 +21,10 @@ public interface Repository<T extends Entity> {
 
     Optional<T> findBy(String fieldName, Object value);
 
+    CompletableFuture<List<T>> findAllByAsync(String fieldName, Object value);
+
+    List<T> findAllBy(String fieldName, Object value);
+
     CompletableFuture<Long> countAsync();
 
     long count();
