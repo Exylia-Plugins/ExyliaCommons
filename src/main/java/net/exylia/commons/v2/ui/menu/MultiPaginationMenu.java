@@ -227,19 +227,15 @@ public class MultiPaginationMenu extends MenuBase {
     private void refresh() {
         itemsBySlot.clear();
         populateItems();
-        updateInventoryDisplay();
 
         if (inventory != null) {
-            String processedTitle = processTitle(menuData.getTitle());
-            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), ColorAPI.parse(processedTitle));
+            inventory.clear();
             itemsBySlot.forEach((slot, item) -> {
-                if (slot >= 0 && slot < newInventory.getSize()) {
-                    newInventory.setItem(slot, item.getItemStack());
+                if (slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, item.getItemStack());
                 }
             });
-
-            player.openInventory(newInventory);
-            this.inventory = newInventory;
+            player.updateInventory();
         }
     }
 

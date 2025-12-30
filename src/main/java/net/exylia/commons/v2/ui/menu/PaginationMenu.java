@@ -5,6 +5,7 @@ import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.items.api.ItemsAPI;
 import net.exylia.commons.v2.items.api.ProcessedItem;
 import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.NavigationData;
@@ -168,18 +169,15 @@ public class PaginationMenu extends MenuBase {
     private void refresh() {
         itemsBySlot.clear();
         populateItems();
-        updateInventoryDisplay();
 
         if (inventory != null) {
-            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), processPaginationTitle(menuData.getTitle()));
+            inventory.clear();
             itemsBySlot.forEach((slot, item) -> {
-                if (slot >= 0 && slot < newInventory.getSize()) {
-                    newInventory.setItem(slot, item.getItemStack());
+                if (slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, item.getItemStack());
                 }
             });
-
-            player.openInventory(newInventory);
-            this.inventory = newInventory;
+            player.updateInventory();
         }
     }
 
@@ -191,7 +189,7 @@ public class PaginationMenu extends MenuBase {
                 .put("current_page", currentPage)
                 .put("total_pages", totalPages);
 
-        String processedTitle = processTitle(title);
+        String processedTitle = Placeholders.process(title, player, titleContext);
 
         String processed = processedTitle
                 .replace("%current_page%", String.valueOf(currentPage))
