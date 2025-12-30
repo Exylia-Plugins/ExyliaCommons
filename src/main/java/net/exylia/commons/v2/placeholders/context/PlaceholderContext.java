@@ -112,6 +112,22 @@ public class PlaceholderContext {
         return copy;
     }
 
+    public PlaceholderContext merge(PlaceholderContext other) {
+        if (other != null) {
+            this.typedData.putAll(other.typedData);
+            this.keyedData.putAll(other.keyedData);
+            if (other.player != null) {
+                this.player = other.player;
+            }
+        }
+        return this;
+    }
+
+    public PlaceholderContext copyAndMerge(PlaceholderContext other) {
+        PlaceholderContext merged = this.copy();
+        return merged.merge(other);
+    }
+
     public void clear() {
         typedData.clear();
         keyedData.clear();

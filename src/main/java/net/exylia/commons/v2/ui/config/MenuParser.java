@@ -1,317 +1,366 @@
 package net.exylia.commons.v2.ui.config;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
+import net.exylia.commons.v2.items.api.ItemsAPI;
+import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.ui.exception.InvalidMenuConfigException;
+import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuType;
-import net.exylia.commons.v2.ui.model.RefreshMode;
-import net.exylia.commons.v2.ui.sound.SoundConfig;
+import net.exylia.commons.v2.ui.model.NavigationData;
+import net.exylia.commons.v2.ui.model.SectionData;
+import net.exylia.commons.v2.ui.refresh.RefreshMode;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MenuParser {
 
-    public static MenuConfig parseMenuConfig(FileConfiguration config) {
+    public static MenuData parse(ConfigurationSection config) {
         if (config == null) {
-            return null;
+            throw new InvalidMenuConfigException("Configuration section cannot be null");
         }
 
-        String id = config.getString("id", UUID.randomUUID().toString());
+        DebugAPI.logLibDebug(DebugCategory.UI, "Parsing menu configuration");
+
+        MenuData.MenuDataBuilder builder = MenuData.builder();
+
+        parseBasicProperties(config, builder);
+        parseRefreshSettings(config, builder);
+        parseFillers(config, builder);
+        parseItems(config, builder);
+        parsePagination(config, builder);
+        parseSections(config, builder);
+        parseSnapshotSettings(config, builder);
+        parsePlayerInventorySettings(config, builder);
+        parseContext(config, builder);
+
+        MenuData menuData = builder.build();
+        DebugAPI.logLibDebug(DebugCategory.UI, "Menu configuration parsed: type=" + menuData.getType() + ", size=" + menuData.getSize() + ", title=" + menuData.getTitle());
+
+        return menuData;
+    }
+
+    private static void parseBasicProperties(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
         String title = config.getString("title", "Menu");
-        int rows = config.getInt("rows", 3);
-        MenuType type = MenuType.fromString(config.getString("type", "simple"));
+        builder.title(title);
 
-        MenuConfig.MenuConfigBuilder builder = MenuConfig.builder()
-            .id(id)
-            .title(title)
-            .rows(rows)
-            .type(type)
-            .dynamicUpdates(config.getBoolean("dynamic_updates", false))
-            .updateInterval(config.getLong("update_interval", 20L))
-            .refreshMode(RefreshMode.fromString(config.getString("refresh_mode", "smart")));
+        String typeString = config.getString("type", "SIMPLE");
+        MenuType type = MenuType.fromString(typeString);
+        builder.type(type);
 
-        ConfigurationSection soundsSection = config.getConfigurationSection("sounds");
-        if (soundsSection != null) {
-            builder.openSound(parseSoundConfig(soundsSection.getConfigurationSection("open")));
-            builder.closeSound(parseSoundConfig(soundsSection.getConfigurationSection("close")));
-            builder.clickSound(parseSoundConfig(soundsSection.getConfigurationSection("click")));
+        int size = config.getInt("size", 54);
+        if (size % 9 != 0 || size < 9 || size > 54) {
+            DebugAPI.logLibError(DebugCategory.UI, "Invalid menu size: " + size);
+            throw new InvalidMenuConfigException("Invalid menu size: " + size + ". Must be a multiple of 9 between 9 and 54");
         }
+        builder.size(size);
 
-        Map<Integer, MenuItemConfig> items = new HashMap<>();
-        ConfigurationSection itemsSection = config.getConfigurationSection("items");
-        if (itemsSection != null) {
-            for (String key : itemsSection.getKeys(false)) {
-                ConfigurationSection itemSection = itemsSection.getConfigurationSection(key);
-                if (itemSection != null) {
-                    MenuItemConfig itemConfig = parseMenuItemConfig(itemSection);
+        DebugAPI.logLibDebug(DebugCategory.UI, "Parsed basic properties: title=\"" + title + "\", type=" + type + ", size=" + size);
+    }
 
-                    if (itemSection.contains("slot")) {
-                        int slot = itemSection.getInt("slot");
-                        items.put(slot, itemConfig);
-                    } else if (itemSection.contains("slots")) {
-                        List<Integer> slots = parseSlots(itemSection.getString("slots"));
-                        for (int slot : slots) {
-                            items.put(slot, itemConfig);
-                        }
+    private static void parseRefreshSettings(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("refresh")) {
+            ConfigurationSection refreshSection = config.getConfigurationSection("refresh");
+            if (refreshSection != null) {
+                String mode = refreshSection.getString("mode", "DISABLED");
+                builder.refreshMode(RefreshMode.fromString(mode));
+
+                long interval = refreshSection.getLong("interval", 20L);
+                builder.refreshInterval(interval);
+            }
+        }
+    }
+
+    private static void parseFillers(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("filler")) {
+            ConfigurationSection fillerSection = config.getConfigurationSection("filler");
+            if (fillerSection != null) {
+                if (fillerSection.contains("global")) {
+                    ConfigurationSection globalSection = fillerSection.getConfigurationSection("global");
+                    if (globalSection != null) {
+                        ItemData globalFiller = ItemsAPI.parseFromConfig(globalSection);
+                        builder.globalFiller(globalFiller);
+                    }
+                }
+
+                if (fillerSection.contains("border")) {
+                    ConfigurationSection borderSection = fillerSection.getConfigurationSection("border");
+                    if (borderSection != null) {
+                        ItemData borderFiller = ItemsAPI.parseFromConfig(borderSection);
+                        builder.borderFiller(borderFiller);
                     }
                 }
             }
         }
-        builder.items(items);
-
-        ConfigurationSection globalFillerSection = config.getConfigurationSection("global_filler");
-        if (globalFillerSection != null) {
-            builder.globalFiller(parseMenuItemConfig(globalFillerSection));
-        }
-
-        ConfigurationSection borderFillerSection = config.getConfigurationSection("border_filler");
-        if (borderFillerSection != null) {
-            builder.borderFiller(parseMenuItemConfig(borderFillerSection));
-        }
-
-        switch (type) {
-            case PAGINATION -> builder.paginationConfig(
-                parsePaginationConfig(config.getConfigurationSection("pagination")));
-            case EDITABLE -> builder.editableConfig(
-                parseEditableConfig(config.getConfigurationSection("editable")));
-            case CONFIRMATION -> builder.confirmationConfig(
-                parseConfirmationConfig(config.getConfigurationSection("confirmation")));
-            case SELECTION -> builder.selectionConfig(
-                parseSelectionConfig(config.getConfigurationSection("selection")));
-        }
-
-        return builder.build();
     }
 
-    public static MenuItemConfig parseMenuItemConfig(ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
+    private static void parseItems(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("items")) {
+            ConfigurationSection itemsSection = config.getConfigurationSection("items");
+            if (itemsSection != null) {
+                Map<String, ItemData> items = new LinkedHashMap<>();
 
-        MenuItemConfig.MenuItemConfigBuilder builder = MenuItemConfig.builder()
-            .id(section.getString("id", UUID.randomUUID().toString()))
-            .rawMaterial(section.getString("material", "STONE"))
-            .rawName(section.getString("name"))
-            .rawAmount(section.getString("amount", "1"))
-            .rawLore(section.getStringList("lore"))
-            .glowing(section.getBoolean("glowing", false))
-            .hideAttributes(section.getBoolean("hide_attributes", false))
-            .dynamicUpdate(section.getBoolean("dynamic_update", false))
-            .updateInterval(section.getLong("update_interval", 20L));
-
-        ConfigurationSection clickActionsSection = section.getConfigurationSection("click_actions");
-        if (clickActionsSection != null) {
-            builder.clickActions(ActionParser.parseActions(clickActionsSection));
-        }
-
-        ConfigurationSection enchantmentsSection = section.getConfigurationSection("enchantments");
-        if (enchantmentsSection != null) {
-            Map<String, Integer> enchants = new HashMap<>();
-            for (String key : enchantmentsSection.getKeys(false)) {
-                enchants.put(key.toUpperCase(), enchantmentsSection.getInt(key));
-            }
-            builder.enchantments(enchants);
-        }
-
-        if (section.contains("click_sound")) {
-            if (section.isConfigurationSection("click_sound")) {
-                builder.clickSound(parseSoundConfig(section.getConfigurationSection("click_sound")));
-            } else if (section.isString("click_sound")) {
-                builder.clickSound(SoundConfig.fromString(section.getString("click_sound")));
-            }
-        }
-
-        builder.customItemId(section.getString("custom_item_id"));
-        builder.skullTexture(section.getString("skull_texture"));
-        builder.skullOwner(section.getString("skull_owner"));
-
-        if (section.contains("potion_type")) {
-            builder.potionType(section.getString("potion_type"));
-        }
-
-        if (section.contains("armor_trim_pattern")) {
-            builder.armorTrimPattern(section.getString("armor_trim_pattern"));
-        }
-
-        if (section.contains("armor_trim_material")) {
-            builder.armorTrimMaterial(section.getString("armor_trim_material"));
-        }
-
-        if (section.contains("leather_armor_color")) {
-            builder.leatherArmorColor(section.getString("leather_armor_color"));
-        }
-
-        if (section.contains("item_model")) {
-            builder.itemModel(section.getString("item_model"));
-        }
-
-        if (section.contains("attributes")) {
-            builder.attributes(section.getStringList("attributes"));
-        }
-
-        if (section.contains("nbt")) {
-            ConfigurationSection nbtSection = section.getConfigurationSection("nbt");
-            if (nbtSection != null) {
-                Map<String, String> nbt = new HashMap<>();
-                for (String key : nbtSection.getKeys(false)) {
-                    nbt.put(key, nbtSection.getString(key));
+                for (String itemKey : itemsSection.getKeys(false)) {
+                    ConfigurationSection itemSection = itemsSection.getConfigurationSection(itemKey);
+                    if (itemSection != null) {
+                        ItemData itemData = ItemsAPI.parseFromConfig(itemSection);
+                        items.put(itemKey, itemData);
+                    }
                 }
-                builder.customNBT(nbt);
+
+                builder.items(items);
+            }
+        }
+    }
+
+    private static void parsePagination(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("pagination")) {
+            ConfigurationSection paginationSection = config.getConfigurationSection("pagination");
+            if (paginationSection != null) {
+                if (paginationSection.contains("slots")) {
+                    List<Integer> slots = parseSlots(paginationSection, "slots");
+                    builder.paginationSlots(slots);
+                }
+
+                if (paginationSection.contains("items")) {
+                    List<ItemData> paginationItems = new ArrayList<>();
+                    if (paginationSection.isList("items")) {
+                        List<?> itemsList = paginationSection.getList("items");
+                        if (itemsList != null) {
+                            for (Object itemObj : itemsList) {
+                                if (itemObj instanceof Map) {
+                                    ConfigurationSection itemSection = paginationSection.getRoot().createSection("temp", (Map<?, ?>) itemObj);
+                                    ItemData itemData = ItemsAPI.parseFromConfig(itemSection);
+                                    paginationItems.add(itemData);
+                                }
+                            }
+                        }
+                    }
+                    builder.paginationItems(paginationItems);
+                }
+
+                if (paginationSection.contains("navigation")) {
+                    NavigationData navigationData = parseNavigationData(paginationSection.getConfigurationSection("navigation"));
+                    builder.paginationNavigation(navigationData);
+                }
+            }
+        }
+    }
+
+    private static void parseSections(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("sections")) {
+            ConfigurationSection sectionsSection = config.getConfigurationSection("sections");
+            if (sectionsSection != null) {
+                List<SectionData> sections = new ArrayList<>();
+
+                for (String sectionKey : sectionsSection.getKeys(false)) {
+                    ConfigurationSection sectionConfig = sectionsSection.getConfigurationSection(sectionKey);
+                    if (sectionConfig != null) {
+                        SectionData sectionData = parseSectionData(sectionKey, sectionConfig);
+                        sections.add(sectionData);
+                    }
+                }
+
+                builder.sections(sections);
+            }
+        }
+    }
+
+    private static SectionData parseSectionData(String name, ConfigurationSection config) {
+        SectionData.SectionDataBuilder builder = SectionData.builder();
+        builder.name(name);
+
+        if (config.contains("slots")) {
+            List<Integer> slots = parseSlots(config, "slots");
+            builder.slots(slots);
+        }
+
+        if (config.contains("items")) {
+            List<ItemData> items = new ArrayList<>();
+            if (config.isList("items")) {
+                List<?> itemsList = config.getList("items");
+                if (itemsList != null) {
+                    for (Object itemObj : itemsList) {
+                        if (itemObj instanceof Map) {
+                            ConfigurationSection itemSection = config.getRoot().createSection("temp", (Map<?, ?>) itemObj);
+                            ItemData itemData = ItemsAPI.parseFromConfig(itemSection);
+                            items.add(itemData);
+                        }
+                    }
+                }
+            }
+            builder.items(items);
+        }
+
+        if (config.contains("navigation")) {
+            NavigationData navigationData = parseNavigationData(config.getConfigurationSection("navigation"));
+            builder.navigation(navigationData);
+        }
+
+        if (config.contains("filler")) {
+            ConfigurationSection fillerSection = config.getConfigurationSection("filler");
+            if (fillerSection != null) {
+                ItemData fillerItem = ItemsAPI.parseFromConfig(fillerSection);
+                builder.fillerItem(fillerItem);
             }
         }
 
-        if (section.contains("slot")) {
-            builder.slot(section.getInt("slot"));
-        }
-
-        if (section.contains("slots")) {
-            builder.slots(parseSlots(section.getString("slots")));
-        }
-
-        return builder.build();
-    }
-
-    private static SoundConfig parseSoundConfig(ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
-
-        String sound = section.getString("sound");
-        if (sound == null) {
-            return null;
-        }
-
-        return SoundConfig.builder()
-            .soundKey(sound)
-            .volume((float) section.getDouble("volume", 1.0))
-            .pitch((float) section.getDouble("pitch", 1.0))
-            .delay(section.getLong("delay", 0L))
-            .async(section.getBoolean("async", false))
-            .build();
-    }
-
-    private static MenuConfig.PaginationConfig parsePaginationConfig(ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
-
-        String itemSlotsStr = section.getString("item_slots", "10-16,19-25,28-34");
-        int[] itemSlots = parseSlots(itemSlotsStr).stream()
-            .mapToInt(Integer::intValue)
-            .toArray();
-
-        MenuConfig.PaginationConfig.PaginationConfigBuilder builder =
-            MenuConfig.PaginationConfig.builder()
-                .itemSlots(itemSlots)
-                .previousButtonSlot(section.getInt("previous_button.slot", 48))
-                .nextButtonSlot(section.getInt("next_button.slot", 50));
-
-        ConfigurationSection prevButtonSection = section.getConfigurationSection("previous_button");
-        if (prevButtonSection != null) {
-            builder.previousButton(parseMenuItemConfig(prevButtonSection));
-        }
-
-        ConfigurationSection nextButtonSection = section.getConfigurationSection("next_button");
-        if (nextButtonSection != null) {
-            builder.nextButton(parseMenuItemConfig(nextButtonSection));
-        }
-
-        ConfigurationSection fillerSection = section.getConfigurationSection("item_slot_filler");
-        if (fillerSection != null) {
-            builder.itemSlotFiller(parseMenuItemConfig(fillerSection));
+        if (config.contains("selected_template")) {
+            ConfigurationSection templateSection = config.getConfigurationSection("selected_template");
+            if (templateSection != null) {
+                ItemData template = ItemsAPI.parseFromConfig(templateSection);
+                builder.selectedItemTemplate(template);
+            }
         }
 
         return builder.build();
     }
 
-    private static MenuConfig.EditableConfig parseEditableConfig(ConfigurationSection section) {
-        if (section == null) {
+    private static NavigationData parseNavigationData(ConfigurationSection config) {
+        if (config == null) {
             return null;
         }
 
-        String editableSlotsStr = section.getString("editable_slots", "");
-        int[] editableSlots = parseSlots(editableSlotsStr).stream()
-            .mapToInt(Integer::intValue)
-            .toArray();
+        NavigationData.NavigationDataBuilder builder = NavigationData.builder();
 
-        MenuConfig.EditableConfig.EditableConfigBuilder builder =
-            MenuConfig.EditableConfig.builder()
-                .editableSlots(editableSlots);
+        if (config.contains("previous")) {
+            ConfigurationSection previousSection = config.getConfigurationSection("previous");
+            if (previousSection != null) {
+                ItemData previousButton = ItemsAPI.parseFromConfig(previousSection);
+                int slot = previousSection.getInt("slot", -1);
+                builder.previousButton(previousButton);
+                builder.previousButtonSlot(slot);
+            }
+        }
 
-        ConfigurationSection fillerSection = section.getConfigurationSection("editable_slot_filler");
-        if (fillerSection != null) {
-            builder.editableSlotFiller(parseMenuItemConfig(fillerSection));
+        if (config.contains("next")) {
+            ConfigurationSection nextSection = config.getConfigurationSection("next");
+            if (nextSection != null) {
+                ItemData nextButton = ItemsAPI.parseFromConfig(nextSection);
+                int slot = nextSection.getInt("slot", -1);
+                builder.nextButton(nextButton);
+                builder.nextButtonSlot(slot);
+            }
+        }
+
+        if (config.contains("info")) {
+            ConfigurationSection infoSection = config.getConfigurationSection("info");
+            if (infoSection != null) {
+                ItemData infoItem = ItemsAPI.parseFromConfig(infoSection);
+                int slot = infoSection.getInt("slot", -1);
+                builder.infoItem(infoItem);
+                builder.infoItemSlot(slot);
+            }
         }
 
         return builder.build();
     }
 
-    private static MenuConfig.ConfirmationConfig parseConfirmationConfig(ConfigurationSection section) {
-        if (section == null) {
-            return null;
+    private static void parseSnapshotSettings(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("snapshot")) {
+            ConfigurationSection snapshotSection = config.getConfigurationSection("snapshot");
+            if (snapshotSection != null) {
+                boolean enabled = snapshotSection.getBoolean("enabled", false);
+                builder.snapshotEnabled(enabled);
+
+                if (snapshotSection.contains("snapshot_id")) {
+                    builder.snapshotId(snapshotSection.getString("snapshot_id"));
+                }
+
+                boolean restoreOnClose = snapshotSection.getBoolean("restore_on_close", true);
+                builder.restoreOnClose(restoreOnClose);
+            }
         }
-
-        MenuConfig.ConfirmationConfig.ConfirmationConfigBuilder builder =
-            MenuConfig.ConfirmationConfig.builder()
-                .message(section.getString("message", ""))
-                .confirmSlot(section.getInt("confirm_slot", 11))
-                .cancelSlot(section.getInt("cancel_slot", 15))
-                .infoSlot(section.getInt("info_slot", 13));
-
-        ConfigurationSection confirmButtonSection = section.getConfigurationSection("confirm_button");
-        if (confirmButtonSection != null) {
-            builder.confirmButton(parseMenuItemConfig(confirmButtonSection));
-        }
-
-        ConfigurationSection cancelButtonSection = section.getConfigurationSection("cancel_button");
-        if (cancelButtonSection != null) {
-            builder.cancelButton(parseMenuItemConfig(cancelButtonSection));
-        }
-
-        ConfigurationSection infoItemSection = section.getConfigurationSection("info_item");
-        if (infoItemSection != null) {
-            builder.infoItem(parseMenuItemConfig(infoItemSection));
-        }
-
-        return builder.build();
     }
 
-    private static MenuConfig.SelectionConfig parseSelectionConfig(ConfigurationSection section) {
-        if (section == null) {
-            return null;
-        }
+    private static void parsePlayerInventorySettings(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("player_inventory")) {
+            ConfigurationSection playerInvSection = config.getConfigurationSection("player_inventory");
+            if (playerInvSection != null) {
+                boolean enabled = playerInvSection.getBoolean("enabled", false);
+                builder.playerInventoryEnabled(enabled);
 
-        return MenuConfig.SelectionConfig.builder()
-            .optionMaterial(section.getString("option_material", "PAPER"))
-            .startSlot(section.getInt("start_slot", 10))
-            .build();
+                if (playerInvSection.contains("allowed_slots")) {
+                    List<Integer> allowedSlots = parseSlots(playerInvSection, "allowed_slots");
+                    builder.allowedPlayerSlots(allowedSlots);
+                }
+            }
+        }
     }
 
-    public static List<Integer> parseSlots(String slotsString) {
+    private static void parseContext(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        builder.context(PlaceholderContext.create());
+    }
+
+    public static List<Integer> parseSlots(ConfigurationSection config, String key) {
         List<Integer> slots = new ArrayList<>();
 
-        if (slotsString == null || slotsString.isEmpty()) {
+        if (!config.contains(key)) {
             return slots;
         }
 
-        String[] parts = slotsString.split(",");
+        if (config.isList(key)) {
+            List<?> slotsList = config.getList(key);
+            if (slotsList != null) {
+                for (Object slotObj : slotsList) {
+                    if (slotObj instanceof Integer) {
+                        slots.add((Integer) slotObj);
+                    } else if (slotObj instanceof String) {
+                        slots.addAll(parseSlotRange((String) slotObj));
+                    }
+                }
+            }
+        } else if (config.isString(key)) {
+            String slotsString = config.getString(key);
+            if (slotsString != null) {
+                slots.addAll(parseSlotRange(slotsString));
+            }
+        } else if (config.isInt(key)) {
+            slots.add(config.getInt(key));
+        }
+
+        return slots;
+    }
+
+    public static List<Integer> parseSlotRange(String input) {
+        List<Integer> slots = new ArrayList<>();
+
+        if (input == null || input.trim().isEmpty()) {
+            return slots;
+        }
+
+        String[] parts = input.split(",");
+
         for (String part : parts) {
             part = part.trim();
 
             if (part.contains("-")) {
-                String[] range = part.split("-");
+                String[] range = part.split("-", 2);
                 try {
                     int start = Integer.parseInt(range[0].trim());
                     int end = Integer.parseInt(range[1].trim());
 
                     for (int i = start; i <= end; i++) {
-                        slots.add(i);
+                        if (!slots.contains(i)) {
+                            slots.add(i);
+                        }
                     }
-                } catch (NumberFormatException ignored) {
+                } catch (NumberFormatException e) {
+                    throw new InvalidMenuConfigException("Invalid slot range: " + part);
                 }
             } else {
                 try {
-                    slots.add(Integer.parseInt(part));
-                } catch (NumberFormatException ignored) {
+                    int slot = Integer.parseInt(part);
+                    if (!slots.contains(slot)) {
+                        slots.add(slot);
+                    }
+                } catch (NumberFormatException e) {
+                    throw new InvalidMenuConfigException("Invalid slot number: " + part);
                 }
             }
         }

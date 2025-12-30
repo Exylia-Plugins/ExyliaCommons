@@ -1,31 +1,35 @@
 package net.exylia.commons.v2.ui.model;
 
-import lombok.Getter;
-
-@Getter
 public enum MenuType {
-    SIMPLE("simple"),
-    PAGINATION("pagination"),
-    EDITABLE("editable"),
-    FULL_INVENTORY("full_inventory"),
-    PAGINATED_FULL_INVENTORY("paginated_full_inventory"),
-    MULTI_PAGINATION("multi_pagination"),
-    MULTI_PAGINATED_FULL_INVENTORY("multi_paginated_full_inventory"),
-    CONFIRMATION("confirmation"),
-    SELECTION("selection");
+    SIMPLE,
+    PAGINATION,
+    MULTI_PAGINATION,
+    FULL_INVENTORY,
+    PAGINATION_FULL,
+    MULTI_PAGINATION_FULL;
 
-    private final String configName;
-
-    MenuType(String configName) {
-        this.configName = configName;
+    public boolean isPaginationMenu() {
+        return this == PAGINATION || this == MULTI_PAGINATION ||
+               this == PAGINATION_FULL || this == MULTI_PAGINATION_FULL;
     }
 
-    public static MenuType fromString(String name) {
-        for (MenuType type : values()) {
-            if (type.configName.equalsIgnoreCase(name) || type.name().equalsIgnoreCase(name)) {
-                return type;
-            }
+    public boolean isMultiSectionMenu() {
+        return this == MULTI_PAGINATION || this == MULTI_PAGINATION_FULL;
+    }
+
+    public boolean isFullInventoryMenu() {
+        return this == FULL_INVENTORY || this == PAGINATION_FULL || this == MULTI_PAGINATION_FULL;
+    }
+
+    public static MenuType fromString(String type) {
+        if (type == null) {
+            return SIMPLE;
         }
-        return SIMPLE;
+
+        try {
+            return MenuType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return SIMPLE;
+        }
     }
 }

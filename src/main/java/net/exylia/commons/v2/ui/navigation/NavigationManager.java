@@ -1,113 +1,61 @@
 package net.exylia.commons.v2.ui.navigation;
 
-import lombok.Getter;
-import net.exylia.commons.v2.ui.cache.MenuCacheManager;
-import net.exylia.commons.v2.ui.model.MenuV2;
+import net.exylia.commons.v2.ui.model.MenuData;
 import org.bukkit.entity.Player;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Getter
 public class NavigationManager {
-    private final ConcurrentHashMap<UUID, MenuHistory> playerHistories = new ConcurrentHashMap<>();
-    private final MenuCacheManager cacheManager;
 
-    public NavigationManager(MenuCacheManager cacheManager) {
-        this.cacheManager = cacheManager;
+    private final Map<UUID, NavigationStack> stacks;
+
+    public NavigationManager() {
+        this.stacks = new ConcurrentHashMap<>();
     }
 
-    public void pushMenu(Player player, MenuV2 menu) {
-        if (player == null || menu == null) {
-            return;
-        }
-
-        UUID playerId = player.getUniqueId();
-        MenuHistory history = playerHistories.computeIfAbsent(
-            playerId,
-            k -> cacheManager.getHistory(playerId)
-                .orElseGet(() -> new MenuHistory(playerId))
-        );
-
-        history.push(menu);
-        cacheManager.cacheHistory(playerId, history);
+    public void push(Player player, MenuData menuData) {
+        stacks.computeIfAbsent(player.getUniqueId(), k -> new NavigationStack())
+                .push(menuData);
     }
 
-    public Optional<MenuV2> popMenu(Player player) {
-        if (player == null) {
+    public Optional<MenuData> pop(Player player) {
+        NavigationStack stack = stacks.get(player.getUniqueId());
+        if (stack == null) {
             return Optional.empty();
         }
 
-        MenuHistory history = playerHistories.get(player.getUniqueId());
-        if (history == null) {
-            return Optional.empty();
+        Optional<MenuData> result = stack.pop();
+
+        if (stack.isEmpty()) {
+            stacks.remove(player.getUniqueId());
         }
 
-        return Optional.ofNullable(history.pop());
+        return result;
     }
 
-    public Optional<MenuV2> peekMenu(Player player) {
-        if (player == null) {
-            return Optional.empty();
-        }
-
-        MenuHistory history = playerHistories.get(player.getUniqueId());
-        if (history == null) {
-            return Optional.empty();
-        }
-
-        return Optional.ofNullable(history.peek());
+    public Optional<MenuData> peek(Player player) {
+        NavigationStack stack = stacks.get(player.getUniqueId());
+        return stack != null ? stack.peek() : Optional.empty();
     }
 
-    public void openParent(Player player) {
-        if (player == null) {
-            return;
-        }
-
-        MenuHistory history = playerHistories.get(player.getUniqueId());
-        if (history != null && history.size() > 1) {
-            history.pop();
-            MenuV2 parent = history.pop();
-            if (parent != null) {
-                parent.open(player, parent.getContext());
-            }
-        }
+    public void clear(Player player) {
+        stacks.remove(player.getUniqueId());
     }
 
-    public boolean goBack(Player player) {
-        if (player == null) {
-            return false;
-        }
-
-        MenuHistory history = playerHistories.get(player.getUniqueId());
-        if (history != null && history.size() > 1) {
-            history.pop();
-            MenuV2 parent = history.pop();
-            if (parent != null) {
-                parent.open(player, parent.getContext());
-                return true;
-            }
-        }
-        return false;
+    public void clearAll() {
+        stacks.clear();
     }
 
-    public void navigateBack(Player player) {
-        goBack(player);
+    public boolean canGoBack(Player player) {
+        NavigationStack stack = stacks.get(player.getUniqueId());
+        return stack != null && !stack.isEmpty();
     }
 
-    public CompletableFuture<Boolean> goBackAsync(Player player) {
-        return CompletableFuture.supplyAsync(() -> goBack(player));
-    }
-
-    public void clearHistory(UUID playerId) {
-        playerHistories.remove(playerId);
-        cacheManager.invalidateHistory(playerId);
-    }
-
-    public int getHistorySize(UUID playerId) {
-        MenuHistory history = playerHistories.get(playerId);
-        return history != null ? history.size() : 0;
+    public int getHistorySize(Player player) {
+        NavigationStack stack = stacks.get(player.getUniqueId());
+        return stack != null ? stack.size() : 0;
     }
 }
