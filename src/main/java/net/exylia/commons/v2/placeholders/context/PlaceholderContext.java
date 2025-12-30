@@ -93,6 +93,13 @@ public class PlaceholderContext {
             }
         }
 
+        System.out.println("[DEBUG PlaceholderContext] find() not found for type: " + type.getName());
+        System.out.println("[DEBUG PlaceholderContext] typedData keys: " + typedData.keySet());
+        System.out.println("[DEBUG PlaceholderContext] keyedData keys: " + keyedData.keySet());
+        if (!typedData.isEmpty()) {
+            typedData.forEach((k, v) -> System.out.println("[DEBUG PlaceholderContext]   typed: " + k.getName() + " = " + v));
+        }
+
         return null;
     }
 

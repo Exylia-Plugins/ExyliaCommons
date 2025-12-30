@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.placeholders.processor;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.papi.PapiAdapter;
 import net.exylia.commons.v2.placeholders.registry.PlaceholderRegistry;
@@ -26,11 +28,14 @@ public class PlaceholderProcessor {
             return text;
         }
 
+        long startTime = System.nanoTime();
         String result = text;
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(result);
         StringBuffer sb = new StringBuffer();
+        int placeholdersFound = 0;
 
         while (matcher.find()) {
+            placeholdersFound++;
             String placeholderName = matcher.group(1);
             Object resolved = registry.resolve(placeholderName, player, context);
             String replacement = objectToString(resolved, matcher.group(0));
@@ -44,8 +49,15 @@ public class PlaceholderProcessor {
         if (player != null) {
             try {
                 result = PapiAdapter.getInstance().setPlaceholders(player, result);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error processing PAPI placeholders: " + e.getMessage());
             }
+        }
+
+        double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+        if (placeholdersFound > 0) {
+            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+                String.format("Processed %d placeholder(s) in %.3fms", placeholdersFound, millis));
         }
 
         return result;
@@ -68,6 +80,7 @@ public class PlaceholderProcessor {
             return CompletableFuture.completedFuture(text);
         }
 
+        long startTime = System.nanoTime();
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         List<String> placeholders = new ArrayList<>();
         List<Integer> starts = new ArrayList<>();
@@ -82,6 +95,9 @@ public class PlaceholderProcessor {
         if (placeholders.isEmpty()) {
             return CompletableFuture.completedFuture(text);
         }
+
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+            String.format("Processing %d placeholder(s) asynchronously", placeholders.size()));
 
         List<CompletableFuture<String>> futures = new ArrayList<>();
         for (String placeholder : placeholders) {
@@ -101,7 +117,17 @@ public class PlaceholderProcessor {
                         }
                         result = result.substring(0, start) + replacement + result.substring(end);
                     }
+
+                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+                    DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+                        String.format("Async processing completed in %.3fms", millis));
+
                     return result;
+                })
+                .exceptionally(throwable -> {
+                    DebugAPI.logLibError(DebugCategory.PLACEHOLDER,
+                        "Error in async placeholder processing: " + throwable.getMessage(), throwable);
+                    return text;
                 });
     }
 

@@ -5,6 +5,8 @@ import net.exylia.commons.v2.action.exception.ActionException;
 import net.exylia.commons.v2.action.model.Action;
 import net.exylia.commons.v2.action.model.ActionContext;
 import net.exylia.commons.v2.action.ratelimit.RateLimiter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 import java.util.UUID;
 
@@ -21,8 +23,12 @@ public class RateLimitMiddleware implements Middleware {
             String actionId = action.getMetadata().getFullId();
 
             if (!rateLimiter.allowRequest(playerId, actionId, rateLimit)) {
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Rate limit exceeded for " + actionId +
+                        " - player: " + context.getPlayer().getName() + ", limit: " + rateLimit + "/s");
                 throw new ActionException.ActionRateLimitException(actionId);
             }
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Rate limit check passed for " + actionId +
+                    " - player: " + context.getPlayer().getName());
         }
     }
 

@@ -77,7 +77,12 @@ public class MenuManager {
     }
 
     public void openMenu(Player player, MenuData menuData) {
-        openMenuAsync(player, menuData).join();
+        Optional<MenuBase> currentMenu = registry.get(player.getUniqueId());
+        currentMenu.ifPresent(menu -> navigationManager.push(player, menu.getMenuData()));
+
+        MenuBase menu = factory.create(player, menuData);
+        registry.register(player.getUniqueId(), menu);
+        menu.open();
     }
 
     public void closeMenu(Player player) {

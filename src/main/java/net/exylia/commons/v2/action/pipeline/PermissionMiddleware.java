@@ -5,6 +5,8 @@ import net.exylia.commons.v2.action.exception.ActionException;
 import net.exylia.commons.v2.action.model.Action;
 import net.exylia.commons.v2.action.model.ActionContext;
 import net.exylia.commons.v2.action.permission.PermissionProvider;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 @RequiredArgsConstructor
 public class PermissionMiddleware implements Middleware {
@@ -16,8 +18,12 @@ public class PermissionMiddleware implements Middleware {
 
         if (permission != null && !permission.isEmpty()) {
             if (!permissionProvider.hasPermission(context.getPlayer(), permission)) {
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Permission check failed for " + action.getMetadata().getFullId() +
+                        " - player: " + context.getPlayer().getName() + ", required: " + permission);
                 throw new ActionException.ActionPermissionException(permission);
             }
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Permission check passed for " + action.getMetadata().getFullId() +
+                    " - player: " + context.getPlayer().getName());
         }
     }
 

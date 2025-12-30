@@ -26,7 +26,7 @@ public class PaginationMenu extends MenuBase {
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null, menuData.getSize(), processTitle(menuData.getTitle()));
+        return Bukkit.createInventory(null, menuData.getSize(), processPaginationTitle(menuData.getTitle()));
     }
 
     @Override
@@ -71,14 +71,18 @@ public class PaginationMenu extends MenuBase {
 
             int globalIndex = PageCalculator.getStartIndex(currentPage, itemsPerPage) + i;
 
-            PlaceholderContext itemContext = context.copy()
+            PlaceholderContext paginationContext = context.copy()
                     .put("index", globalIndex)
                     .put("page_index", i)
                     .put("current_page", currentPage)
                     .put("total_pages", getTotalPages());
 
+            PlaceholderContext mergedContext = itemData.getContext() != null
+                    ? paginationContext.copyAndMerge(itemData.getContext())
+                    : paginationContext;
+
             ItemData enhancedItemData = itemData.toBuilder()
-                    .context(itemContext)
+                    .context(mergedContext)
                     .build();
 
             setItem(slot, enhancedItemData);
@@ -167,7 +171,7 @@ public class PaginationMenu extends MenuBase {
         updateInventoryDisplay();
 
         if (inventory != null) {
-            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), processTitle(menuData.getTitle()));
+            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), processPaginationTitle(menuData.getTitle()));
             itemsBySlot.forEach((slot, item) -> {
                 if (slot >= 0 && slot < newInventory.getSize()) {
                     newInventory.setItem(slot, item.getItemStack());
@@ -179,11 +183,17 @@ public class PaginationMenu extends MenuBase {
         }
     }
 
-    private net.kyori.adventure.text.Component processTitle(String title) {
+    private net.kyori.adventure.text.Component processPaginationTitle(String title) {
         int currentPage = getCurrentPage();
         int totalPages = getTotalPages();
 
-        String processed = title
+        PlaceholderContext titleContext = context.copy()
+                .put("current_page", currentPage)
+                .put("total_pages", totalPages);
+
+        String processedTitle = processTitle(title);
+
+        String processed = processedTitle
                 .replace("%current_page%", String.valueOf(currentPage))
                 .replace("%total_pages%", String.valueOf(totalPages))
                 .replace("{current_page}", String.valueOf(currentPage))

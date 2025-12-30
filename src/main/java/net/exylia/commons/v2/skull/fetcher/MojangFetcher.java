@@ -2,7 +2,8 @@ package net.exylia.commons.v2.skull.fetcher;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import lombok.extern.java.Log;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.core.SkullCache;
 
@@ -14,7 +15,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 
-@Log
 public class MojangFetcher {
 
     private final HttpClient httpClient;
@@ -31,9 +31,11 @@ public class MojangFetcher {
 
     public Optional<String> fetchPlayerUUID(String playerName) {
         if (cache.isRateLimited()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "UUID fetch skipped for " + playerName + ": rate limited");
             return Optional.empty();
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Fetching UUID for player: " + playerName);
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(config.getMojangApiUrl() + playerName))
@@ -48,19 +50,30 @@ public class MojangFetcher {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
+            DebugAPI.logLibError(DebugCategory.SKULL, "Failed to fetch UUID for " + playerName, e);
             return Optional.empty();
         }
     }
 
     private Optional<String> handleUUIDResponse(HttpResponse<String> response, String playerName) {
         return switch (response.statusCode()) {
-            case 200 -> parseUUID(response.body());
-            case 404 -> Optional.of("NOT_FOUND");
+            case 200 -> {
+                DebugAPI.logLibDebug(DebugCategory.SKULL, "UUID fetched successfully for " + playerName);
+                yield parseUUID(response.body());
+            }
+            case 404 -> {
+                DebugAPI.logLibWarn(DebugCategory.SKULL, "Player not found: " + playerName);
+                yield Optional.of("NOT_FOUND");
+            }
             case 429 -> {
+                DebugAPI.logLibWarn(DebugCategory.SKULL, "Rate limited by Mojang API, backoff: " + config.getRateLimitBackoff() + "ms");
                 cache.setRateLimitBackoff(config.getRateLimitBackoff());
                 yield Optional.empty();
             }
-            default -> Optional.empty();
+            default -> {
+                DebugAPI.logLibError(DebugCategory.SKULL, "Unexpected response code: " + response.statusCode() + " for " + playerName);
+                yield Optional.empty();
+            }
         };
     }
 
@@ -75,9 +88,11 @@ public class MojangFetcher {
 
     public Optional<String> fetchPlayerTexture(String uuid) {
         if (cache.isRateLimited()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Texture fetch skipped for UUID " + uuid + ": rate limited");
             return Optional.empty();
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Fetching texture for UUID: " + uuid);
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(config.getMojangSessionUrl() + uuid))
@@ -92,18 +107,26 @@ public class MojangFetcher {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
+            DebugAPI.logLibError(DebugCategory.SKULL, "Failed to fetch texture for UUID " + uuid, e);
             return Optional.empty();
         }
     }
 
     private Optional<String> handleTextureResponse(HttpResponse<String> response) {
         return switch (response.statusCode()) {
-            case 200 -> parseTexture(response.body());
+            case 200 -> {
+                DebugAPI.logLibDebug(DebugCategory.SKULL, "Texture fetched successfully");
+                yield parseTexture(response.body());
+            }
             case 429 -> {
+                DebugAPI.logLibWarn(DebugCategory.SKULL, "Rate limited by Mojang API (texture), backoff: " + config.getRateLimitBackoff() + "ms");
                 cache.setRateLimitBackoff(config.getRateLimitBackoff());
                 yield Optional.empty();
             }
-            default -> Optional.empty();
+            default -> {
+                DebugAPI.logLibError(DebugCategory.SKULL, "Unexpected response code for texture: " + response.statusCode());
+                yield Optional.empty();
+            }
         };
     }
 

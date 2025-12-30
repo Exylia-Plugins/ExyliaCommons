@@ -19,7 +19,8 @@ public class FullInventoryMenu extends MenuBase {
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null, menuData.getSize(), ColorAPI.parse(menuData.getTitle()));
+        String processedTitle = processTitle(menuData.getTitle());
+        return Bukkit.createInventory(null, menuData.getSize(), ColorAPI.parse(processedTitle));
     }
 
     @Override

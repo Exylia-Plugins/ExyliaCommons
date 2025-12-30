@@ -89,13 +89,10 @@ public class ItemData {
     private SlotConfig slotConfig = null;
 
     @Builder.Default
-    private List<String> clickActions = new ArrayList<>();
+    private List<ClickAction> actions = new ArrayList<>();
 
     @Builder.Default
-    private List<String> rightClickActions = new ArrayList<>();
-
-    @Builder.Default
-    private List<String> commands = new ArrayList<>();
+    private List<ClickCommand> commands = new ArrayList<>();
 
     public ItemData copy() {
         return ItemData.builder()
@@ -121,8 +118,7 @@ public class ItemData {
                 .unbreakable(this.unbreakable)
                 .maxStackSize(this.maxStackSize)
                 .slotConfig(this.slotConfig)
-                .clickActions(new ArrayList<>(this.clickActions))
-                .rightClickActions(new ArrayList<>(this.rightClickActions))
+                .actions(new ArrayList<>(this.actions))
                 .commands(new ArrayList<>(this.commands))
                 .build();
     }

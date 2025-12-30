@@ -54,6 +54,10 @@ public class SkullAPI {
         return getManager().getRenderer().renderPlayer(playerName);
     }
 
+    public static ItemStack fromPlayerCached(String playerName) {
+        return getManager().getRenderer().renderPlayer(playerName);
+    }
+
     public static CompletableFuture<ItemStack> fromPlayerAsync(String playerName) {
         return getManager().getRenderer().renderPlayerAsync(playerName);
     }

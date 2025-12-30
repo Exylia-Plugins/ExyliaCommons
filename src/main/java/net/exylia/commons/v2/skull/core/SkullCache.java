@@ -4,6 +4,8 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import org.bukkit.inventory.ItemStack;
 
@@ -37,18 +39,28 @@ public class SkullCache {
     }
 
     public ItemStack getTexture(String key) {
-        return textureCache.getIfPresent(key);
+        ItemStack result = textureCache.getIfPresent(key);
+        if (result != null) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Cache HIT (texture): " + key);
+        }
+        return result;
     }
 
     public void putTexture(String key, ItemStack skull) {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Cache PUT (texture): " + key);
         textureCache.put(key, skull);
     }
 
     public ItemStack getPlayer(String key) {
-        return playerCache.getIfPresent(key);
+        ItemStack result = playerCache.getIfPresent(key);
+        if (result != null) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Cache HIT (player): " + key);
+        }
+        return result;
     }
 
     public void putPlayer(String key, ItemStack skull) {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Cache PUT (player): " + key);
         playerCache.put(key, skull);
     }
 
@@ -63,6 +75,7 @@ public class SkullCache {
 
     public void setRateLimitBackoff(long millis) {
         this.rateLimitBackoff = System.currentTimeMillis() + millis;
+        DebugAPI.logLibWarn(DebugCategory.SKULL, "Rate limit backoff set for " + millis + "ms");
     }
 
     public boolean isRateLimited() {
@@ -70,14 +83,17 @@ public class SkullCache {
     }
 
     public void clearTextures() {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Clearing texture cache");
         textureCache.invalidateAll();
     }
 
     public void clearPlayers() {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Clearing player cache");
         playerCache.invalidateAll();
     }
 
     public void clearAll() {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Clearing all caches");
         textureCache.invalidateAll();
         playerCache.invalidateAll();
         pendingRequests.clear();

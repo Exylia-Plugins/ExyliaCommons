@@ -2,6 +2,8 @@ package net.exylia.commons.v2.skull.core;
 
 import lombok.Getter;
 import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.fetcher.MojangFetcher;
 import net.exylia.commons.v2.skull.fetcher.TextureFetcher;
@@ -51,10 +53,13 @@ public class SkullManager {
 
     public static void initialize(SkullConfig config) {
         if (instance != null) {
+            DebugAPI.logLibWarn(DebugCategory.SKULL, "SkullManager already initialized");
             return;
         }
+        DebugAPI.logLibInfo(DebugCategory.SKULL, "Initializing SkullManager");
         instance = new SkullManager(config);
         instance.start();
+        DebugAPI.logLibSuccess(DebugCategory.SKULL, "SkullManager initialized successfully");
     }
 
     public static SkullManager getInstance() {
@@ -78,7 +83,9 @@ public class SkullManager {
             throw new IllegalStateException("SkullManager not initialized");
         }
 
+        DebugAPI.logLibInfo(DebugCategory.SKULL, "Reloading SkullManager");
         cache.clearAll();
+        DebugAPI.logLibSuccess(DebugCategory.SKULL, "SkullManager reloaded successfully");
     }
 
     public void shutdown() {
@@ -86,10 +93,12 @@ public class SkullManager {
             return;
         }
 
+        DebugAPI.logLibInfo(DebugCategory.SKULL, "Shutting down SkullManager");
         executor.shutdown();
         cache.clearAll();
         initialized = false;
         instance = null;
+        DebugAPI.logLibSuccess(DebugCategory.SKULL, "SkullManager shutdown completed");
     }
 
     public void preloadPlayers(String... playerNames) {
@@ -98,9 +107,11 @@ public class SkullManager {
         }
 
         if (cache.isRateLimited()) {
+            DebugAPI.logLibWarn(DebugCategory.SKULL, "Preload skipped: rate limited");
             return;
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Preloading " + playerNames.length + " player skulls");
         for (int i = 0; i < playerNames.length; i++) {
             String name = playerNames[i];
             if (name != null && !name.isEmpty()) {

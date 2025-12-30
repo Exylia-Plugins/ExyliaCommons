@@ -1,8 +1,9 @@
 package net.exylia.commons.v2.action.core;
 
-import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.v2.action.exception.ActionException;
 import net.exylia.commons.v2.action.model.Action;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
@@ -12,6 +13,7 @@ public class ActionRegistry {
     private final ConcurrentHashMap<String, Action> actions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, JavaPlugin> owners = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Set<String>> namespaces = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> simpleIdMappings = new ConcurrentHashMap<>();
 
     public void register(Action action) {
         if (action == null || action.getMetadata() == null) {
@@ -19,9 +21,10 @@ public class ActionRegistry {
         }
 
         String fullId = action.getMetadata().getFullId();
+        String simpleId = action.getMetadata().getId();
 
         if (actions.containsKey(fullId)) {
-            DebugUtils.logInternalWarn("Action '" + fullId + "' is being replaced");
+            DebugAPI.logLibWarn(DebugCategory.ACTION, "Action '" + fullId + "' is being replaced");
         }
 
         actions.put(fullId, action);
@@ -32,7 +35,9 @@ public class ActionRegistry {
             namespaces.computeIfAbsent(namespace, k -> ConcurrentHashMap.newKeySet()).add(fullId);
         }
 
-        DebugUtils.logInternalInfo("Action registered: " + fullId);
+        registerSimpleId(simpleId, fullId);
+
+        DebugAPI.logLibDebug(DebugCategory.ACTION, "Action registered: " + fullId);
     }
 
     public Optional<Action> get(String id) {
@@ -44,14 +49,31 @@ public class ActionRegistry {
             return get(id);
         }
 
+        String mappedId = simpleIdMappings.get(id);
+        if (mappedId != null) {
+            return get(mappedId);
+        }
+
         String namespaced = defaultNamespace + ":" + id;
         return get(namespaced).or(() -> get(id));
+    }
+
+    private void registerSimpleId(String simpleId, String fullId) {
+        String existingMapping = simpleIdMappings.get(simpleId);
+
+        if (existingMapping == null) {
+            simpleIdMappings.put(simpleId, fullId);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Simple ID '" + simpleId + "' mapped to '" + fullId + "'");
+        } else if (!existingMapping.equals(fullId)) {
+            simpleIdMappings.remove(simpleId);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Simple ID '" + simpleId + "' has conflicts, namespace required. Conflicting actions: '" + existingMapping + "' and '" + fullId + "'");
+        }
     }
 
     public void unregister(String id, JavaPlugin plugin) {
         JavaPlugin owner = owners.get(id);
         if (owner != null && !owner.equals(plugin)) {
-            DebugUtils.logInternalWarn("Plugin " + plugin.getName() + " attempted to unregister action '" + id + "' owned by " + owner.getName());
+            DebugAPI.logLibWarn(DebugCategory.ACTION, "Plugin " + plugin.getName() + " attempted to unregister action '" + id + "' owned by " + owner.getName());
             return;
         }
 
@@ -66,7 +88,34 @@ public class ActionRegistry {
                     namespaceActions.remove(id);
                 }
             }
-            DebugUtils.logInternalInfo("Action unregistered: " + id);
+
+            unregisterSimpleId(removed.getMetadata().getId(), id);
+
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Action unregistered: " + id);
+        }
+    }
+
+    private void unregisterSimpleId(String simpleId, String fullId) {
+        String mappedId = simpleIdMappings.get(simpleId);
+        if (fullId.equals(mappedId)) {
+            simpleIdMappings.remove(simpleId);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Simple ID mapping removed: " + simpleId);
+
+            recheckSimpleIdConflict(simpleId);
+        }
+    }
+
+    private void recheckSimpleIdConflict(String simpleId) {
+        List<String> matchingActions = actions.keySet().stream()
+            .filter(fullId -> {
+                Action action = actions.get(fullId);
+                return action != null && simpleId.equals(action.getMetadata().getId());
+            })
+            .toList();
+
+        if (matchingActions.size() == 1) {
+            simpleIdMappings.put(simpleId, matchingActions.get(0));
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Simple ID '" + simpleId + "' remapped to '" + matchingActions.get(0) + "' after unregistration");
         }
     }
 
@@ -83,7 +132,7 @@ public class ActionRegistry {
             unregister(id, plugin);
         }
 
-        DebugUtils.logInternalInfo("Unregistered " + toRemove.size() + " actions for plugin: " + plugin.getName());
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "Unregistered " + toRemove.size() + " actions for plugin: " + plugin.getName());
     }
 
     public Collection<Action> getAll() {
@@ -112,10 +161,12 @@ public class ActionRegistry {
     }
 
     public void clear() {
+        int count = actions.size();
         actions.clear();
         owners.clear();
         namespaces.clear();
-        DebugUtils.logInternalInfo("Action registry cleared");
+        simpleIdMappings.clear();
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "Action registry cleared (" + count + " actions removed)");
     }
 
     public int size() {

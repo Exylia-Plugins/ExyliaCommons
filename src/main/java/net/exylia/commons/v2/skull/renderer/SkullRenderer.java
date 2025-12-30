@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.skull.renderer;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.core.SkullCache;
 import net.exylia.commons.v2.skull.core.SkullExecutor;
@@ -27,6 +29,7 @@ public class SkullRenderer {
 
     public ItemStack renderTexture(String base64) {
         if (base64 == null || base64.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Rendering default skull (empty base64)");
             return createDefaultSkull();
         }
 
@@ -35,6 +38,7 @@ public class SkullRenderer {
             return cached.clone();
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Rendering new texture skull");
         ItemStack skull = factory.createSkull(base64);
         cache.putTexture(base64, skull.clone());
         return skull;
@@ -42,6 +46,7 @@ public class SkullRenderer {
 
     public CompletableFuture<ItemStack> renderTextureAsync(String base64) {
         if (base64 == null || base64.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Rendering default skull async (empty base64)");
             return CompletableFuture.completedFuture(createDefaultSkull());
         }
 
@@ -52,9 +57,11 @@ public class SkullRenderer {
 
         CompletableFuture<ItemStack> pending = cache.getPending(base64);
         if (pending != null && !pending.isDone()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Returning pending texture future");
             return pending;
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Creating new async texture render task");
         CompletableFuture<ItemStack> future = executor.submit(() -> {
             ItemStack skull = factory.createSkull(base64);
             cache.putTexture(base64, skull.clone());
@@ -85,6 +92,7 @@ public class SkullRenderer {
 
     public ItemStack renderPlayer(String playerName) {
         if (playerName == null || playerName.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Rendering default skull (empty player name)");
             return createDefaultSkull();
         }
 
@@ -94,11 +102,13 @@ public class SkullRenderer {
             return cached.clone();
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Player skull not cached (sync), returning default: " + playerName);
         return createDefaultSkull();
     }
 
     public CompletableFuture<ItemStack> renderPlayerAsync(String playerName) {
         if (playerName == null || playerName.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Rendering default skull async (empty player name)");
             return CompletableFuture.completedFuture(createDefaultSkull());
         }
 
@@ -110,14 +120,17 @@ public class SkullRenderer {
 
         CompletableFuture<ItemStack> pending = cache.getPending(key);
         if (pending != null && !pending.isDone()) {
+            DebugAPI.logLibDebug(DebugCategory.SKULL, "Returning pending player future: " + playerName);
             return pending;
         }
 
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Creating new async player render task: " + playerName);
         CompletableFuture<ItemStack> future = textureFetcher.fetchPlayerTextureAsync(playerName)
                 .thenApply(textureOpt -> {
                     String texture = textureOpt.orElse(config.getDefaultTexture());
                     ItemStack skull = factory.createSkull(texture);
                     cache.putPlayer(key, skull.clone());
+                    DebugAPI.logLibDebug(DebugCategory.SKULL, "Player skull rendered and cached: " + playerName);
                     return skull;
                 });
 

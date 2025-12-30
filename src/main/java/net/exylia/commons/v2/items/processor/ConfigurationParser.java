@@ -1,9 +1,13 @@
 package net.exylia.commons.v2.items.processor;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.config.SlotConfig;
+import net.exylia.commons.v2.items.model.ClickAction;
+import net.exylia.commons.v2.items.model.ClickCommand;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.utils.DebugUtils;
@@ -42,8 +46,7 @@ public class ConfigurationParser {
         parseUnbreakable(config, builder);
         parseMaxStackSize(config, builder);
         parseSlots(config, builder);
-        parseClickActions(config, builder);
-        parseRightClickActions(config, builder);
+        parseActions(config, builder);
         parseCommands(config, builder);
 
         return builder.build();
@@ -409,53 +412,44 @@ public class ConfigurationParser {
         return slots;
     }
 
-    private static void parseClickActions(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
-        if (config.contains("click_actions")) {
-            List<String> actions = new ArrayList<>();
-            if (config.isList("click_actions")) {
-                actions = config.getStringList("click_actions");
+    private static void parseActions(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("actions")) {
+            List<String> actionStrings = new ArrayList<>();
+            if (config.isList("actions")) {
+                actionStrings = config.getStringList("actions");
             } else {
-                String actionSingle = config.getString("click_actions");
+                String actionSingle = config.getString("actions");
                 if (actionSingle != null && !actionSingle.isEmpty()) {
-                    actions.add(actionSingle);
+                    actionStrings.add(actionSingle);
                 }
             }
-            if (!actions.isEmpty()) {
-                builder.clickActions(actions);
-            }
-        }
-    }
 
-    private static void parseRightClickActions(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
-        if (config.contains("right_click_actions")) {
-            List<String> actions = new ArrayList<>();
-            if (config.isList("right_click_actions")) {
-                actions = config.getStringList("right_click_actions");
-            } else {
-                String actionSingle = config.getString("right_click_actions");
-                if (actionSingle != null && !actionSingle.isEmpty()) {
-                    actions.add(actionSingle);
-                }
-            }
-            if (!actions.isEmpty()) {
-                builder.rightClickActions(actions);
+            if (!actionStrings.isEmpty()) {
+                List<ClickAction> actions = ClickActionParser.parseActions(actionStrings);
+                builder.actions(actions);
+                DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                    "Parsed " + actions.size() + " click actions from config");
             }
         }
     }
 
     private static void parseCommands(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
         if (config.contains("commands")) {
-            List<String> commands = new ArrayList<>();
+            List<String> commandStrings = new ArrayList<>();
             if (config.isList("commands")) {
-                commands = config.getStringList("commands");
+                commandStrings = config.getStringList("commands");
             } else {
                 String commandSingle = config.getString("commands");
                 if (commandSingle != null && !commandSingle.isEmpty()) {
-                    commands.add(commandSingle);
+                    commandStrings.add(commandSingle);
                 }
             }
-            if (!commands.isEmpty()) {
+
+            if (!commandStrings.isEmpty()) {
+                List<ClickCommand> commands = ClickActionParser.parseCommands(commandStrings);
                 builder.commands(commands);
+                DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                    "Parsed " + commands.size() + " click commands from config");
             }
         }
     }

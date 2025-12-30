@@ -12,6 +12,8 @@ import net.exylia.commons.v2.action.model.ActionResult;
 import net.exylia.commons.v2.action.parser.ArgumentParser;
 import net.exylia.commons.v2.action.parser.ParsedArguments;
 import net.exylia.commons.v2.action.pipeline.ActionPipeline;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,11 +28,16 @@ public class ActionExecutor {
 
     public CompletableFuture<ActionResult> executeAsync(String actionString, ActionContext context) {
         return AsyncExecutor.getInstance().supplyAsync(() -> {
+            long startTime = System.currentTimeMillis();
             try {
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Executing action: " + actionString);
+
                 ParsedArguments parsed = ArgumentParser.parse(actionString);
 
                 Action action = registry.resolve(parsed.getActionId(), context.getDefaultNamespace())
                         .orElseThrow(() -> new ActionException.ActionNotFoundException(parsed.getActionId()));
+
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Resolved action: " + action.getMetadata().getFullId());
 
                 ActionContext enrichedContext = context.toBuilder()
                         .arguments(parsed)
@@ -43,9 +50,18 @@ public class ActionExecutor {
                     cacheManager.getExecutionCache().recordExecution(enrichedContext.getExecutionId(), result);
                 }
 
+                long duration = System.currentTimeMillis() - startTime;
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Action executed successfully in " + duration + "ms: " + action.getMetadata().getFullId());
+
                 return result;
 
+            } catch (ActionException ex) {
+                long duration = System.currentTimeMillis() - startTime;
+                DebugAPI.logLibError(DebugCategory.ACTION, "Action execution failed after " + duration + "ms: " + ex.getMessage());
+                return ActionResult.failure(ex);
             } catch (Exception ex) {
+                long duration = System.currentTimeMillis() - startTime;
+                DebugAPI.logLibError(DebugCategory.ACTION, "Unexpected error during action execution after " + duration + "ms", ex);
                 return ActionResult.failure(ex);
             }
         }, false);
@@ -60,6 +76,7 @@ public class ActionExecutor {
     }
 
     public CompletableFuture<Void> executeBatchAsync(List<String> actionStrings, ActionContext context) {
+        DebugAPI.logLibDebug(DebugCategory.ACTION, "Executing batch of " + actionStrings.size() + " actions");
         return CompletableFuture.allOf(
                 actionStrings.stream()
                         .map(actionString -> executeAsync(actionString, context))

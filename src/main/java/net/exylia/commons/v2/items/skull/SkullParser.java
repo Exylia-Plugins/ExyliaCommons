@@ -39,10 +39,23 @@ public class SkullParser {
     }
 
     public static ItemStack parse(String skullString, Player player, PlaceholderContext context) {
-        try {
-            return parseAsync(skullString, player, context).join();
-        } catch (Exception e) {
-            return new ItemStack(Material.PLAYER_HEAD);
+        String processed = Placeholders.process(skullString, player, context);
+        String normalized = processed.replace("-", ":");
+
+        if (normalized.startsWith("playerhead:")) {
+            String name = normalized.substring("playerhead:".length());
+            ItemStack cached = SkullAPI.fromPlayerCached(name);
+            if (!SkullAPI.isPlayerCached(name)) {
+                SkullAPI.fromPlayerAsync(name);
+            }
+            return cached;
+        } else if (normalized.startsWith("basehead:")) {
+            String base64 = normalized.substring("basehead:".length());
+            return SkullAPI.fromTexture(base64);
+        } else if (normalized.startsWith("urlhead:")) {
+            String url = normalized.substring("urlhead:".length());
+            return SkullAPI.fromTextureURL(url);
         }
+        return new ItemStack(Material.PLAYER_HEAD);
     }
 }

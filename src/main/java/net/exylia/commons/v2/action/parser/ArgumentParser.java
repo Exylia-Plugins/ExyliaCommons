@@ -1,6 +1,8 @@
 package net.exylia.commons.v2.action.parser;
 
 import net.exylia.commons.v2.action.exception.ActionException;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,20 +13,31 @@ public class ArgumentParser {
 
     public static ParsedArguments parse(String actionString) {
         if (actionString == null || actionString.trim().isEmpty()) {
+            DebugAPI.logLibError(DebugCategory.ACTION, "Parse failed: action string is null or empty");
             throw new ActionException.ActionParseException("Action string cannot be null or empty");
         }
 
-        String trimmed = actionString.trim();
-        List<ArgumentToken> tokens = tokenize(trimmed);
+        try {
+            String trimmed = actionString.trim();
+            List<ArgumentToken> tokens = tokenize(trimmed);
 
-        if (tokens.isEmpty()) {
-            throw new ActionException.ActionParseException("No action ID found");
+            if (tokens.isEmpty()) {
+                DebugAPI.logLibError(DebugCategory.ACTION, "Parse failed: no action ID found in '" + actionString + "'");
+                throw new ActionException.ActionParseException("No action ID found");
+            }
+
+            String actionId = tokens.get(0).getValue();
+            List<ArgumentToken> args = tokens.size() > 1 ? tokens.subList(1, tokens.size()) : new ArrayList<>();
+
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Parsed action '" + actionId + "' with " + args.size() + " arguments");
+
+            return new ParsedArguments(actionId, actionString, args);
+        } catch (ActionException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            DebugAPI.logLibError(DebugCategory.ACTION, "Unexpected error parsing action: " + actionString, ex);
+            throw new ActionException.ActionParseException("Failed to parse action", ex);
         }
-
-        String actionId = tokens.get(0).getValue();
-        List<ArgumentToken> args = tokens.size() > 1 ? tokens.subList(1, tokens.size()) : new ArrayList<>();
-
-        return new ParsedArguments(actionId, actionString, args);
     }
 
     private static List<ArgumentToken> tokenize(String input) {

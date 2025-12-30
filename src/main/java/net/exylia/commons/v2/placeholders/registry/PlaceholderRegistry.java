@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.placeholders.registry;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.placeholders.annotation.Placeholder;
 import net.exylia.commons.v2.placeholders.annotation.PlaceholderScope;
 import net.exylia.commons.v2.placeholders.async.AsyncPlaceholderExecutor;
@@ -46,6 +48,7 @@ public class PlaceholderRegistry {
             synchronized (PlaceholderRegistry.class) {
                 if (instance == null) {
                     instance = new PlaceholderRegistry(plugin);
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry initialized");
                 }
             }
         }
@@ -59,13 +62,18 @@ public class PlaceholderRegistry {
     }
 
     public void registerAnnotatedClass(Object instance) throws PlaceholderRegistrationException {
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Scanning class for placeholders: " + instance.getClass().getSimpleName());
         List<Method> methods = scanner.scanClass(instance.getClass());
+        int registered = 0;
         for (Method method : methods) {
             Placeholder annotation = method.getAnnotation(Placeholder.class);
             if (annotation != null) {
                 registerMethod(instance, method, annotation);
+                registered++;
             }
         }
+        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER,
+            String.format("Registered %d placeholder(s) from class: %s", registered, instance.getClass().getSimpleName()));
     }
 
     public void registerAnnotatedClasses(Object... instances) throws PlaceholderRegistrationException {
@@ -77,6 +85,9 @@ public class PlaceholderRegistry {
     private void registerMethod(Object instance, Method method, Placeholder annotation) throws PlaceholderRegistrationException {
         String name = annotation.name().toLowerCase();
         PlaceholderScope scope = annotation.scope();
+
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+            String.format("Registering placeholder '%s' with scope: %s", name, scope));
 
         PlaceholderResolver resolver = new PlaceholderResolver(name, method, instance, annotation);
         resolvers.put(name, resolver);
@@ -98,48 +109,61 @@ public class PlaceholderRegistry {
 
     public void registerGlobal(String name, GlobalPlaceholderResolver resolver) {
         String key = name.toLowerCase();
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering global placeholder: " + key);
         globalResolvers.put(key, resolver);
         cache.invalidatePattern(key);
     }
 
     public void registerPlayer(String name, PlayerPlaceholderResolver resolver) {
         String key = name.toLowerCase();
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering player placeholder: " + key);
         playerResolvers.put(key, resolver);
         cache.invalidatePattern(key);
     }
 
     public void registerContext(String name, ContextPlaceholderResolver resolver) {
         String key = name.toLowerCase();
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering context placeholder: " + key);
         contextResolvers.put(key, resolver);
         cache.invalidatePattern(key);
     }
 
     public Object resolve(String name, Player player, PlaceholderContext context) {
         String key = name.toLowerCase();
+        long startTime = System.nanoTime();
 
         if (context != null && context.has(key)) {
-            return context.get(key);
+            Object value = context.get(key);
+            logResolveSuccess(key, "context", System.nanoTime() - startTime);
+            return value;
         }
 
         if (context != null) {
             ContextPlaceholderResolver contextResolver = contextResolvers.get(key);
             if (contextResolver != null) {
-                return safeResolve(() -> contextResolver.resolve(context, player));
+                Object result = safeResolve(() -> contextResolver.resolve(context, player), key);
+                logResolveSuccess(key, "context-resolver", System.nanoTime() - startTime);
+                return result;
             }
         }
 
         if (player != null) {
             PlayerPlaceholderResolver playerResolver = playerResolvers.get(key);
             if (playerResolver != null) {
-                return safeResolve(() -> playerResolver.resolve(player));
+                Object result = safeResolve(() -> playerResolver.resolve(player), key);
+                logResolveSuccess(key, "player-resolver", System.nanoTime() - startTime);
+                return result;
             }
         }
 
         GlobalPlaceholderResolver globalResolver = globalResolvers.get(key);
         if (globalResolver != null) {
-            return safeResolve(globalResolver::resolve);
+            Object result = safeResolve(globalResolver::resolve, key);
+            logResolveSuccess(key, "global-resolver", System.nanoTime() - startTime);
+            return result;
         }
 
+        DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
         return null;
     }
 
@@ -173,12 +197,20 @@ public class PlaceholderRegistry {
         return CompletableFuture.completedFuture(null);
     }
 
-    private Object safeResolve(PlaceholderSupplier supplier) {
+    private Object safeResolve(PlaceholderSupplier supplier, String placeholderName) {
         try {
             return supplier.get();
         } catch (Exception e) {
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER,
+                String.format("Error resolving placeholder '%s': %s", placeholderName, e.getMessage()), e);
             return null;
         }
+    }
+
+    private void logResolveSuccess(String name, String resolverType, long nanos) {
+        double millis = nanos / 1_000_000.0;
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+            String.format("Resolved '%s' via %s in %.3fms", name, resolverType, millis));
     }
 
     public boolean hasResolver(String name) {
@@ -197,15 +229,18 @@ public class PlaceholderRegistry {
     }
 
     public void clearCache() {
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Clearing placeholder cache");
         cache.invalidateAll();
     }
 
     public void shutdown() {
+        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Shutting down PlaceholderRegistry");
         cache.invalidateAll();
         resolvers.clear();
         globalResolvers.clear();
         playerResolvers.clear();
         contextResolvers.clear();
+        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry shutdown complete");
     }
 
     public PlaceholderRegistryStats getStats() {

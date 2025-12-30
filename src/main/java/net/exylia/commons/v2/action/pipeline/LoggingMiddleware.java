@@ -5,6 +5,8 @@ import net.exylia.commons.v2.action.audit.AuditEntry;
 import net.exylia.commons.v2.action.audit.AuditLogger;
 import net.exylia.commons.v2.action.model.Action;
 import net.exylia.commons.v2.action.model.ActionContext;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 @RequiredArgsConstructor
 public class LoggingMiddleware implements Middleware {
@@ -22,6 +24,9 @@ public class LoggingMiddleware implements Middleware {
                     .build();
 
             auditLogger.log(entry);
+
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Audit logged for action: " + action.getMetadata().getFullId() +
+                    " by player: " + context.getPlayer().getName());
         }
     }
 

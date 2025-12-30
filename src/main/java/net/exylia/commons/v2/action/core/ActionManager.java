@@ -1,7 +1,6 @@
 package net.exylia.commons.v2.action.core;
 
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.v2.action.audit.AuditLogger;
 import net.exylia.commons.v2.action.cache.ActionCacheManager;
 import net.exylia.commons.v2.action.cache.ActionCacheStats;
@@ -15,6 +14,8 @@ import net.exylia.commons.v2.action.permission.VaultPermissionProvider;
 import net.exylia.commons.v2.action.pipeline.*;
 import net.exylia.commons.v2.action.ratelimit.RateLimiter;
 import net.exylia.commons.v2.action.ratelimit.TokenBucketRateLimiter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.concurrent.CompletableFuture;
@@ -57,7 +58,7 @@ public class ActionManager {
 
         initializeDefaultMiddlewares();
 
-        DebugUtils.logInternalInfo("ActionManager initialized for plugin: " + plugin.getName());
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager initialized for plugin: " + plugin.getName());
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -82,10 +83,10 @@ public class ActionManager {
     private PermissionProvider initializePermissionProvider() {
         VaultPermissionProvider vaultProvider = new VaultPermissionProvider();
         if (vaultProvider.isEnabled()) {
-            DebugUtils.logInternalInfo("Using Vault permission provider");
+            DebugAPI.logLibInfo(DebugCategory.ACTION, "Using Vault permission provider");
             return vaultProvider;
         }
-        DebugUtils.logInternalInfo("Using basic permission provider");
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "Using basic permission provider");
         return new BasicPermissionProvider();
     }
 
@@ -99,7 +100,7 @@ public class ActionManager {
 
         pipeline.registerMiddleware(PipelineStage.POST_EXECUTE, new LoggingMiddleware(auditLogger));
 
-        DebugUtils.logInternalInfo("Default middlewares initialized");
+        DebugAPI.logLibDebug(DebugCategory.ACTION, "Default middlewares initialized");
     }
 
     public CompletableFuture<Void> registerActionAsync(Action action) {
@@ -132,12 +133,12 @@ public class ActionManager {
         registry.clear();
         cacheManager.invalidateAll();
         auditLogger.clear();
-        DebugUtils.logInternalInfo("ActionManager cleared");
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager cleared");
     }
 
     public void reload() {
         cacheManager.invalidateAll();
-        DebugUtils.logInternalInfo("ActionManager reloaded");
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager reloaded");
     }
 
     public void shutdown() {
@@ -145,7 +146,7 @@ public class ActionManager {
         cacheManager.invalidateAll();
         auditLogger.clear();
         pipeline.clearAll();
-        DebugUtils.logInternalInfo("ActionManager shutdown");
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager shutdown");
     }
 
     public ActionCacheStats getCacheStats() {

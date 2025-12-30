@@ -1,6 +1,8 @@
 package net.exylia.commons.v2.placeholders.async;
 
 import net.exylia.commons.async.AsyncAPI;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -23,19 +25,33 @@ public class AsyncPlaceholderExecutor {
     }
 
     public CompletableFuture<String> executeAsyncPlaceholder(Supplier<Object> resolver) {
+        long startTime = System.nanoTime();
         return executeAsync(resolver)
-                .thenApply(result -> result != null ? result.toString() : "")
+                .thenApply(result -> {
+                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+                    DebugAPI.logLibDebug(DebugCategory.ASYNC,
+                        String.format("Async placeholder executed in %.3fms", millis));
+                    return result != null ? result.toString() : "";
+                })
                 .exceptionally(throwable -> {
-                    throwable.printStackTrace();
+                    DebugAPI.logLibError(DebugCategory.ASYNC,
+                        "Error executing async placeholder: " + throwable.getMessage(), throwable);
                     return "";
                 });
     }
 
     public CompletableFuture<String> executeAsyncDbPlaceholder(Supplier<Object> resolver) {
+        long startTime = System.nanoTime();
         return executeAsyncDb(resolver)
-                .thenApply(result -> result != null ? result.toString() : "")
+                .thenApply(result -> {
+                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+                    DebugAPI.logLibDebug(DebugCategory.ASYNC,
+                        String.format("Async DB placeholder executed in %.3fms", millis));
+                    return result != null ? result.toString() : "";
+                })
                 .exceptionally(throwable -> {
-                    throwable.printStackTrace();
+                    DebugAPI.logLibError(DebugCategory.ASYNC,
+                        "Error executing async DB placeholder: " + throwable.getMessage(), throwable);
                     return "";
                 });
     }

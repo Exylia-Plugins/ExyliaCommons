@@ -11,7 +11,9 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.items.api.ItemsAPI;
 import net.exylia.commons.v2.items.api.ProcessedItem;
+import net.exylia.commons.v2.items.model.ClickTypeGroup;
 import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.placeholders.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.exception.MenuStateException;
 import net.exylia.commons.v2.ui.model.MenuData;
@@ -74,26 +76,61 @@ public abstract class MenuBase {
         DebugAPI.logLibDebug(DebugCategory.UI, "Opening menu " + menuId + " for " + player.getName());
         state.set(MenuState.TRANSITIONING);
 
-        return CompletableFuture.runAsync(() -> {
-            try {
-                this.inventory = createInventory();
-                populateItems();
-                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory created and populated");
-            } catch (Exception e) {
-                state.set(MenuState.CLOSED);
-                DebugAPI.logLibError(DebugCategory.UI, "Failed to populate menu " + menuId, e);
-                throw new RuntimeException("Failed to populate menu items", e);
-            }
-        }).thenAcceptAsync(v -> Schedulers.sync(() -> {
-            player.openInventory(inventory);
-            state.set(MenuState.OPEN);
-            scheduleRefresh();
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
-        }));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        Schedulers.sync(() -> {
+            this.inventory = createInventory();
+
+            Schedulers.async(() -> {
+                try {
+                    populateItems();
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
+
+                    Schedulers.sync(() -> {
+                        player.openInventory(inventory);
+                        state.set(MenuState.OPEN);
+                        scheduleRefresh();
+                        DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
+                        future.complete(null);
+                    });
+                } catch (Exception e) {
+                    state.set(MenuState.CLOSED);
+                    DebugAPI.logLibError(DebugCategory.UI, "Failed to populate menu " + menuId, e);
+                    future.completeExceptionally(e);
+                }
+            });
+        });
+
+        return future;
     }
 
     public void open() {
-        openAsync().join();
+        if (state.get() == MenuState.OPEN) {
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " already open for " + player.getName());
+            return;
+        }
+
+        DebugAPI.logLibDebug(DebugCategory.UI, "Opening menu " + menuId + " synchronously for " + player.getName());
+        state.set(MenuState.TRANSITIONING);
+
+        this.inventory = createInventory();
+
+        Schedulers.async(() -> {
+            try {
+                populateItems();
+                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
+
+                Schedulers.sync(() -> {
+                    player.openInventory(inventory);
+                    state.set(MenuState.OPEN);
+                    scheduleRefresh();
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
+                });
+            } catch (Exception e) {
+                state.set(MenuState.CLOSED);
+                DebugAPI.logLibError(DebugCategory.UI, "Failed to populate menu " + menuId, e);
+            }
+        });
     }
 
     public void close() {
@@ -129,37 +166,61 @@ public abstract class MenuBase {
     }
 
     protected void executeItemActions(ProcessedItem item, int slot, ClickType clickType) {
-        List<String> actionsToExecute = new ArrayList<>();
+        ClickTypeGroup clickGroup = ClickTypeGroup.fromBukkit(clickType);
 
-        if (clickType.isRightClick() && item.getRightClickActions() != null) {
-            actionsToExecute.addAll(item.getRightClickActions());
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " executing " + actionsToExecute.size() + " right-click actions for slot " + slot);
-        } else if (item.getClickActions() != null) {
-            actionsToExecute.addAll(item.getClickActions());
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " executing " + actionsToExecute.size() + " click actions for slot " + slot);
-        }
+        DebugAPI.logLibDebug(DebugCategory.UI,
+            "Menu " + menuId + " processing click: type=" + clickType +
+            ", group=" + clickGroup + ", slot=" + slot);
 
-        for (String action : actionsToExecute) {
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " executing action: " + action);
-            ActionContext actionContext = ActionContext.builder()
+        List<String> actionsToExecute = item.getActionsForClick(clickType);
+
+        if (!actionsToExecute.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.UI,
+                "Menu " + menuId + " executing " + actionsToExecute.size() +
+                " actions for click type " + clickGroup);
+
+            for (String action : actionsToExecute) {
+                String processedAction = action;
+                if (item.getRawItemData() != null && item.getRawItemData().getContext() != null) {
+                    processedAction = Placeholders.process(action, player, item.getRawItemData().getContext());
+                }
+
+                DebugAPI.logLibDebug(DebugCategory.UI,
+                    "Menu " + menuId + " executing action: " + processedAction);
+
+                ActionContext actionContext = ActionContext.builder()
                     .player(player)
                     .source(ActionSource.MENU)
                     .data(Map.of(
-                            "menu_id", menuId.toString(),
-                            "slot", slot,
-                            "click_type", clickType.name()
+                        "menu_id", menuId.toString(),
+                        "slot", slot,
+                        "click_type", clickType.name(),
+                        "click_group", clickGroup.name()
                     ))
                     .build();
 
-            ActionAPI.executeAsync(action, actionContext);
+                ActionAPI.executeAsync(processedAction, actionContext);
+            }
         }
 
-        if (item.getCommands() != null && !item.getCommands().isEmpty()) {
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " executing " + item.getCommands().size() + " commands for slot " + slot);
-            for (String command : item.getCommands()) {
-                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " executing command: " + command);
+        List<String> commandsToExecute = item.getCommandsForClick(clickType);
+
+        if (!commandsToExecute.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.UI,
+                "Menu " + menuId + " executing " + commandsToExecute.size() +
+                " commands for click type " + clickGroup);
+
+            for (String command : commandsToExecute) {
+                DebugAPI.logLibDebug(DebugCategory.UI,
+                    "Menu " + menuId + " executing command: " + command);
                 CommandAPI.execute(player, command, context);
             }
+        }
+
+        if (actionsToExecute.isEmpty() && commandsToExecute.isEmpty()) {
+            DebugAPI.logLibDebug(DebugCategory.UI,
+                "Menu " + menuId + " no actions or commands matched click type " +
+                clickGroup + " for slot " + slot);
         }
     }
 
@@ -298,13 +359,16 @@ public abstract class MenuBase {
 
         ProcessedItem processedItem = ItemsAPI.process(enhancedItemData, player, false);
 
-        boolean hasActions = (processedItem.getClickActions() != null && !processedItem.getClickActions().isEmpty())
-                || (processedItem.getRightClickActions() != null && !processedItem.getRightClickActions().isEmpty());
-        boolean hasCommands = processedItem.getCommands() != null && !processedItem.getCommands().isEmpty();
+        boolean hasActions = processedItem.getActions() != null &&
+                             !processedItem.getActions().isEmpty();
+        boolean hasCommands = processedItem.getCommands() != null &&
+                              !processedItem.getCommands().isEmpty();
 
         if (hasActions || hasCommands) {
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " setting interactive item at slot " + slot +
-                    " (actions: " + hasActions + ", commands: " + hasCommands + ")");
+            DebugAPI.logLibDebug(DebugCategory.UI,
+                "Menu " + menuId + " setting interactive item at slot " + slot +
+                " (actions: " + (hasActions ? processedItem.getActions().size() : 0) +
+                ", commands: " + (hasCommands ? processedItem.getCommands().size() : 0) + ")");
         }
 
         setItem(slot, processedItem);
@@ -347,6 +411,10 @@ public abstract class MenuBase {
         int col = slot % cols;
 
         return row == 0 || row == rows - 1 || col == 0 || col == 8;
+    }
+
+    protected String processTitle(String title) {
+        return Placeholders.process(title, player, context);
     }
 
     protected void applyStaticItems() {

@@ -2,7 +2,8 @@ package net.exylia.commons.v2.placeholders.papi;
 
 import lombok.Getter;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -24,6 +25,11 @@ public class PapiAdapter {
             synchronized (PapiAdapter.class) {
                 if (instance == null) {
                     instance = new PapiAdapter(plugin);
+                    if (instance.papiAvailable) {
+                        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI detected");
+                    } else {
+                        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI not found");
+                    }
                 }
             }
         }
@@ -38,28 +44,31 @@ public class PapiAdapter {
 
     public void registerExpander(String identifier) {
         if (!papiAvailable) {
+            DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Cannot register PAPI expander - PlaceholderAPI not available");
             return;
         }
 
         try {
+            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering PAPI expander with identifier: " + identifier);
             expander = new PapiExpander(identifier);
             if (expander.register()) {
-                DebugUtils.logInternalInfo("PlaceholderAPI expander registered with identifier: " + identifier);
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander registered: " + identifier);
             } else {
-                DebugUtils.logInternalWarn("Failed to register PlaceholderAPI expander");
+                DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Failed to register PAPI expander: " + identifier);
             }
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error registering PlaceholderAPI expander: " + e.getMessage());
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error registering PAPI expander: " + e.getMessage(), e);
         }
     }
 
     public void unregister() {
         if (expander != null && papiAvailable) {
             try {
+                DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Unregistering PAPI expander");
                 expander.unregister();
-                DebugUtils.logInternalInfo("PlaceholderAPI expander unregistered");
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered");
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error unregistering PlaceholderAPI expander: " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander: " + e.getMessage(), e);
             }
         }
     }
@@ -72,7 +81,7 @@ public class PapiAdapter {
         try {
             return PlaceholderAPI.setPlaceholders(player, text);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error processing PlaceholderAPI placeholders: " + e.getMessage());
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error processing PAPI placeholders: " + e.getMessage(), e);
             return text;
         }
     }
@@ -85,7 +94,7 @@ public class PapiAdapter {
         try {
             return PlaceholderAPI.setPlaceholders(player, text);
         } catch (Exception e) {
-            DebugUtils.logInternalError("Error processing PlaceholderAPI placeholders: " + e.getMessage());
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error processing PAPI placeholders: " + e.getMessage(), e);
             return text;
         }
     }

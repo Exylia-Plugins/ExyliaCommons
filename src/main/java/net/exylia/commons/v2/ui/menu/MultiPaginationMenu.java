@@ -23,7 +23,8 @@ public class MultiPaginationMenu extends MenuBase {
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null, menuData.getSize(), processTitle(menuData.getTitle()));
+        String processedTitle = processTitle(menuData.getTitle());
+        return Bukkit.createInventory(null, menuData.getSize(), ColorAPI.parse(processedTitle));
     }
 
     @Override
@@ -229,7 +230,8 @@ public class MultiPaginationMenu extends MenuBase {
         updateInventoryDisplay();
 
         if (inventory != null) {
-            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), processTitle(menuData.getTitle()));
+            String processedTitle = processTitle(menuData.getTitle());
+            Inventory newInventory = Bukkit.createInventory(null, menuData.getSize(), ColorAPI.parse(processedTitle));
             itemsBySlot.forEach((slot, item) -> {
                 if (slot >= 0 && slot < newInventory.getSize()) {
                     newInventory.setItem(slot, item.getItemStack());
@@ -239,10 +241,6 @@ public class MultiPaginationMenu extends MenuBase {
             player.openInventory(newInventory);
             this.inventory = newInventory;
         }
-    }
-
-    private net.kyori.adventure.text.Component processTitle(String title) {
-        return ColorAPI.parse(title);
     }
 
     private int getSectionPage(String sectionName) {

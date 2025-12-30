@@ -1,5 +1,7 @@
 package net.exylia.commons.v2.placeholders;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.papi.PapiAdapter;
 import net.exylia.commons.v2.placeholders.processor.PlaceholderProcessor;
@@ -20,8 +22,10 @@ public final class Placeholders {
     }
 
     public static void initialize(JavaPlugin plugin) {
+        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Initializing Placeholder System");
         PlaceholderRegistry.initialize(plugin);
         PapiAdapter.initialize(plugin);
+        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Placeholder System initialized successfully");
     }
 
     public static void registerPapiExpander(String identifier) {
@@ -101,12 +105,16 @@ public final class Placeholders {
     }
 
     public static void shutdown() {
+        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Shutting down Placeholder System");
         PapiAdapter.getInstance().unregister();
         PlaceholderRegistry.getInstance().shutdown();
+        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Placeholder System shutdown complete");
     }
 
     public static PlaceholderRegistry.PlaceholderRegistryStats getStats() {
-        return PlaceholderRegistry.getInstance().getStats();
+        PlaceholderRegistry.PlaceholderRegistryStats stats = PlaceholderRegistry.getInstance().getStats();
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Stats: " + stats.toString());
+        return stats;
     }
 
     public static PlaceholderContext createContext() {

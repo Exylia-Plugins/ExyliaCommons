@@ -61,18 +61,24 @@ public class ItemProcessor {
     }
 
     private static CompletableFuture<ItemStack> processMaterialAsync(ItemData itemData, Player player) {
-        String rawMaterial = itemData.getRawMaterial();
+        return CompletableFuture.supplyAsync(() -> {
+            String rawMaterial = itemData.getRawMaterial();
+            String processedMaterial = Placeholders.process(rawMaterial, player, itemData.getContext());
 
-        return Placeholders.processAsync(rawMaterial, player, itemData.getContext())
-            .thenCompose(processedMaterial -> {
-                if (SkullParser.isSkullString(processedMaterial)) {
-                    return SkullParser.parseAsync(processedMaterial, player, itemData.getContext());
-                } else {
-                    return CompletableFuture.completedFuture(
-                        ItemStackUtils.createFromString(processedMaterial)
-                    );
-                }
-            });
+            if (SkullParser.isSkullString(processedMaterial)) {
+                return processedMaterial;
+            } else {
+                return processedMaterial;
+            }
+        }).thenCompose(processedMaterial -> {
+            if (SkullParser.isSkullString(processedMaterial)) {
+                return SkullParser.parseAsync(processedMaterial, player, itemData.getContext());
+            } else {
+                return CompletableFuture.completedFuture(
+                    ItemStackUtils.createFromString(processedMaterial)
+                );
+            }
+        });
     }
 
     private static ItemStack processMaterial(ItemData itemData, Player player) {
@@ -113,8 +119,7 @@ public class ItemProcessor {
             .itemStack(itemStack)
             .slot(slot)
             .slots(slots)
-            .clickActions(itemData.getClickActions())
-            .rightClickActions(itemData.getRightClickActions())
+            .actions(itemData.getActions())
             .commands(itemData.getCommands())
             .rawItemData(itemData.copy())
             .hasDynamicContent(hasDynamicContent(itemData))
