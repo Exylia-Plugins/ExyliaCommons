@@ -228,10 +228,8 @@ public abstract class ExyliaItem {
     protected void updateAmount(String amountString) {
         try {
             int amount = Integer.parseInt(amountString.trim());
-            itemStack.setAmount(Math.max(1, Math.min(64, amount)));
-            if (amount > 0) {
-                itemStack.getItemMeta().setMaxStackSize(amount);
-            }
+            int clampedAmount = Math.max(1, Math.min(99, amount));
+            itemStack.setAmount(clampedAmount);
         } catch (NumberFormatException ignored) {
         }
     }
@@ -293,12 +291,19 @@ public abstract class ExyliaItem {
     }
 
     protected void applyMaxStackSize() {
-        if (itemData.getMaxStackSize() != -1) {
-            ItemMeta meta = itemStack.getItemMeta();
-            if (meta != null) {
-                meta.setMaxStackSize(itemData.getMaxStackSize());
-                itemStack.setItemMeta(meta);
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            int targetMaxStackSize;
+
+            if (itemData.getMaxStackSize() != -1) {
+                targetMaxStackSize = itemData.getMaxStackSize();
+            } else {
+                targetMaxStackSize = itemStack.getAmount();
             }
+
+            int clampedMaxStackSize = Math.max(1, Math.min(99, targetMaxStackSize));
+            meta.setMaxStackSize(clampedMaxStackSize);
+            itemStack.setItemMeta(meta);
         }
     }
 }
