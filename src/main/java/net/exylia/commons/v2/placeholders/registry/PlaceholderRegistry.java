@@ -8,6 +8,7 @@ import net.exylia.commons.v2.placeholders.async.AsyncPlaceholderExecutor;
 import net.exylia.commons.v2.placeholders.cache.PlaceholderCache;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.exception.PlaceholderRegistrationException;
+import net.exylia.commons.v2.placeholders.papi.PapiAdapter;
 import net.exylia.commons.v2.placeholders.resolver.ContextPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlaceholderResolver;
@@ -163,7 +164,15 @@ public class PlaceholderRegistry {
             return result;
         }
 
-        DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
+        try {
+            PapiAdapter papiAdapter = PapiAdapter.getInstance();
+            if (papiAdapter != null && !papiAdapter.canResolvePlaceholder(key)) {
+                DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
+            }
+        } catch (Exception e) {
+            DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
+        }
+
         return null;
     }
 

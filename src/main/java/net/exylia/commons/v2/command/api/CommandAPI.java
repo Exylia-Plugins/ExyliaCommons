@@ -86,6 +86,13 @@ public final class CommandAPI {
         CommandManager.getInstance().shutdown();
     }
 
+    public static CompletableFuture<CommandResult> executeAsync(
+            String commandString,
+            CommandContext context
+    ) {
+        return CommandManager.getInstance().executeAsync(commandString, context);
+    }
+
     public static CommandStats getStats() {
         return CommandManager.getInstance().getStats();
     }

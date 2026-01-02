@@ -99,6 +99,19 @@ public class PapiAdapter {
         }
     }
 
+    public boolean canResolvePlaceholder(String placeholder) {
+        if (!papiAvailable || placeholder == null || placeholder.isEmpty()) {
+            return false;
+        }
+
+        try {
+            String identifier = placeholder.split("_")[0];
+            return PlaceholderAPI.getRegisteredIdentifiers().contains(identifier);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private boolean checkPapiAvailable() {
         try {
             return plugin.getServer().getPluginManager().getPlugin("PlaceholderAPI") != null;
