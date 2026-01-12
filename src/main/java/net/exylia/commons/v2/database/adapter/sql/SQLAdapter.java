@@ -114,9 +114,29 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     public <T extends Entity> void insert(T entity, EntityMetadata metadata) throws Exception {
         String sql = getInsertSQL(metadata);
         try (Connection conn = dataSource.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             bindInsertValues(stmt, entity, metadata);
             stmt.executeUpdate();
+
+            FieldDescriptor primaryKey = metadata.getPrimaryKeyField();
+            if (primaryKey != null && primaryKey.isAutoIncrement()) {
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        Object generatedId = generatedKeys.getObject(1);
+                        if (generatedId != null) {
+                            primaryKey.getField().setAccessible(true);
+
+                            if (primaryKey.getField().getType() == long.class || primaryKey.getField().getType() == Long.class) {
+                                primaryKey.getField().set(entity, ((Number) generatedId).longValue());
+                            } else if (primaryKey.getField().getType() == int.class || primaryKey.getField().getType() == Integer.class) {
+                                primaryKey.getField().set(entity, ((Number) generatedId).intValue());
+                            } else {
+                                primaryKey.getField().set(entity, generatedId);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 

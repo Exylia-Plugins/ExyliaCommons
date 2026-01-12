@@ -1,7 +1,5 @@
 package net.exylia.commons.v2.visual.renderer;
 
-import net.exylia.commons.async.AsyncExecutor;
-import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.v2.visual.cache.CacheManager;
 import net.exylia.commons.v2.visual.config.BossBarConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
@@ -12,7 +10,6 @@ import org.bukkit.entity.Player;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
@@ -27,68 +24,48 @@ public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
     }
 
     @Override
-    public CompletableFuture<Void> renderAsync(Player player, BossBarConfig config, PlaceholderContext context) {
-        return AsyncExecutor.getInstance()
-                .supplyAsync(() -> {
-                    Component component = CacheManager.getInstance()
-                            .processAndParse(config.getText(), player, context);
+    public void render(Player player, BossBarConfig config, PlaceholderContext context) {
+        if (!player.isOnline()) return;
 
-                    double progress = config.getProgress();
-                    Object contextProgress = context.get("progress");
-                    if (contextProgress instanceof Number) {
-                        progress = ((Number) contextProgress).doubleValue();
-                    }
+        Component component = CacheManager.getInstance()
+                .processAndParse(config.getText(), player, context);
 
-                    return new BossBarData(component, progress);
-                }, false)
-                .thenAcceptAsync(data -> {
-                    SchedulerManager.getInstance().runSync(() -> {
-                        if (!player.isOnline()) return;
+        double progress = config.getProgress();
+        Object contextProgress = context.get("progress");
+        if (contextProgress instanceof Number) {
+            progress = ((Number) contextProgress).doubleValue();
+        }
 
-                        String visualId = (String) context.get("visual_id");
-                        BossBar bossBar = getOrCreateBossBar(player, visualId, config);
+        String visualId = (String) context.get("visual_id");
+        BossBar bossBar = getOrCreateBossBar(player, visualId, config);
 
-                        bossBar.name(data.component);
-                        bossBar.progress((float) Math.max(0.0, Math.min(1.0, data.progress)));
+        bossBar.name(component);
+        bossBar.progress((float) Math.max(0.0, Math.min(1.0, progress)));
 
-                        player.showBossBar(bossBar);
-                    });
-                }, AsyncExecutor.getInstance().getGeneralExecutor());
+        player.showBossBar(bossBar);
     }
 
-    public CompletableFuture<Void> renderBatch(
-            Collection<Player> players,
-            BossBarConfig config,
-            PlaceholderContext context
-    ) {
-        return AsyncExecutor.getInstance()
-                .supplyAsync(() -> {
-                    Component component = CacheManager.getInstance()
-                            .processAndParse(config.getText(), null, context);
+    public void renderBatch(Collection<Player> players, BossBarConfig config, PlaceholderContext context) {
+        Component component = CacheManager.getInstance()
+                .processAndParse(config.getText(), null, context);
 
-                    double progress = config.getProgress();
-                    Object contextProgress = context.get("progress");
-                    if (contextProgress instanceof Number) {
-                        progress = ((Number) contextProgress).doubleValue();
-                    }
+        double progress = config.getProgress();
+        Object contextProgress = context.get("progress");
+        if (contextProgress instanceof Number) {
+            progress = ((Number) contextProgress).doubleValue();
+        }
 
-                    return new BossBarData(component, progress);
-                }, false)
-                .thenAcceptAsync(data -> {
-                    SchedulerManager.getInstance().runSync(() -> {
-                        for (Player player : players) {
-                            if (!player.isOnline()) continue;
+        for (Player player : players) {
+            if (!player.isOnline()) continue;
 
-                            String visualId = (String) context.get("visual_id");
-                            BossBar bossBar = getOrCreateBossBar(player, visualId, config);
+            String visualId = (String) context.get("visual_id");
+            BossBar bossBar = getOrCreateBossBar(player, visualId, config);
 
-                            bossBar.name(data.component);
-                            bossBar.progress((float) Math.max(0.0, Math.min(1.0, data.progress)));
+            bossBar.name(component);
+            bossBar.progress((float) Math.max(0.0, Math.min(1.0, progress)));
 
-                            player.showBossBar(bossBar);
-                        }
-                    });
-                }, AsyncExecutor.getInstance().getGeneralExecutor());
+            player.showBossBar(bossBar);
+        }
     }
 
     private BossBar getOrCreateBossBar(Player player, String visualId, BossBarConfig config) {
@@ -109,12 +86,7 @@ public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
 
     @Override
     public void cleanup(Player player, String visualId) {
-        SchedulerManager schedulerManager = SchedulerManager.getInstance();
-        if (schedulerManager.isMainThread()) {
-            removeBossBar(player, visualId);
-        } else {
-            schedulerManager.runSync(() -> removeBossBar(player, visualId));
-        }
+        removeBossBar(player, visualId);
     }
 
     public void removeBossBar(Player player, String visualId) {
@@ -132,23 +104,11 @@ public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
     }
 
     public void removeAllBossBars(Player player) {
-        SchedulerManager schedulerManager = SchedulerManager.getInstance();
-        if (schedulerManager.isMainThread()) {
-            removeAllBossBarsSync(player);
-        } else {
-            schedulerManager.runSync(() -> removeAllBossBarsSync(player));
-        }
-    }
-
-    private void removeAllBossBarsSync(Player player) {
         Map<String, BossBar> playerBars = activeBossBars.remove(player.getUniqueId());
         if (playerBars != null && player.isOnline()) {
             for (BossBar bossBar : playerBars.values()) {
                 player.hideBossBar(bossBar);
             }
         }
-    }
-
-    private record BossBarData(Component component, double progress) {
     }
 }

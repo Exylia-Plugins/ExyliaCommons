@@ -54,11 +54,11 @@ public class PlaceholderProcessor {
             }
         }
 
-        double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-        if (placeholdersFound > 0) {
-            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-                String.format("Processed %d placeholder(s) in %.3fms", placeholdersFound, millis));
-        }
+//        double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+//        if (placeholdersFound > 0) {
+//            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+//                String.format("Processed %d placeholder(s) in %.3fms", placeholdersFound, millis));
+//        }
 
         return result;
     }

@@ -7,7 +7,7 @@ import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.hologram.entity.HologramDisplayEntity;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;

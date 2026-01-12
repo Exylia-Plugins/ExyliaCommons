@@ -1,0 +1,488 @@
+# ==================================================
+# EJEMPLO COMPLETO: MULTI PAGINATION FULL MENU
+# ==================================================
+# EL MENÚ MÁS COMPLETO: Combina TODO
+# - Múltiples secciones paginadas independientes
+# - Acceso al inventario del jugador
+# - Sistema de snapshot
+# ==================================================
+
+title: '&6&l⚡ SISTEMA COMPLETO &8| &b%player_name%'
+type: MULTI_PAGINATION_FULL
+size: 54
+
+# --------------------------------------------------
+# SNAPSHOT
+# --------------------------------------------------
+snapshot:
+  enabled: true
+  restore_on_close: true
+  snapshot_id: 'complete_system_menu'
+
+# --------------------------------------------------
+# PLAYER INVENTORY
+# --------------------------------------------------
+player_inventory:
+  enabled: true
+  allowed_slots: '0-35'
+
+# --------------------------------------------------
+# REFRESH
+# --------------------------------------------------
+refresh:
+  mode: SMART
+  interval: 20
+
+# --------------------------------------------------
+# FILLER
+# --------------------------------------------------
+filler:
+  global:
+    material: BLACK_STAINED_GLASS_PANE
+    name: ' '
+
+# --------------------------------------------------
+# SECTIONS: Múltiples secciones paginadas
+# --------------------------------------------------
+sections:
+  # ================================================
+  # SECCIÓN 1: ALMACENAMIENTO
+  # ================================================
+  storage:
+    name: 'Almacenamiento'
+
+    # Primera fila de slots
+    slots: '0-8'  # 9 slots
+
+    filler:
+      material: BROWN_STAINED_GLASS_PANE
+      name: '&7Slot vacío de almacén'
+
+    selected_template:
+      glowing: true
+      lore_append:
+        - ''
+        - '&e⚡ Seleccionado'
+
+    # Items de almacenamiento (ejemplo)
+    items:
+      - material: CHEST
+        name: '&eAlmacén #%index%'
+        lore:
+          - '&7Slot de almacenamiento'
+          - '&7Sección: &e%section_name%'
+          - '&7Página: &e%section_page%/%section_total_pages%'
+          - ''
+          - '&7Capacidad: &e27 items'
+          - '&7Items guardados: &e{storage_%index%_count}'
+          - ''
+          - '&e▸ Click para seleccionar'
+        actions:
+          - 'select: %index%'
+          - 'message: &aSeleccionaste Almacén #%index%'
+
+      - material: ENDER_CHEST
+        name: '&dAlmacén Premium #%index%'
+        lore:
+          - '&7Almacén premium seguro'
+          - '&d✦ Acceso global'
+          - '&d✦ 54 slots'
+        glowing: true
+        actions:
+          - 'select: %index%'
+
+      # Más items...
+      - material: SHULKER_BOX
+        name: '&5Shulker Box #%index%'
+        lore:
+          - '&7Almacén portátil'
+          - '&527 slots'
+        actions:
+          - 'select: %index%'
+
+    # Navegación de ALMACENAMIENTO
+    navigation:
+      previous:
+        slot: 36
+        material: ARROW
+        name: '&e← Almacenes'
+        lore:
+          - '&7Sección: &eAlmacenamiento'
+          - '&7Página: &e%section_page%/%section_total_pages%'
+
+      next:
+        slot: 44
+        material: ARROW
+        name: '&eAlmacenes →'
+
+      info:
+        slot: 40
+        material: BARREL
+        name: '&e&lALMACENAMIENTO'
+        lore:
+          - '&7Página: &e%section_page%/%section_total_pages%'
+          - '&7Total almacenes: &e%section_total_items%'
+          - '&7Seleccionado: &e%selected_index%'
+        dynamic_update: true
+
+  # ================================================
+  # SECCIÓN 2: CRAFTEOS
+  # ================================================
+  craftings:
+    name: 'Crafteos'
+
+    # Segunda fila
+    slots: '9-17'  # 9 slots
+
+    filler:
+      material: ORANGE_STAINED_GLASS_PANE
+      name: '&7Receta bloqueada'
+
+    selected_template:
+      glowing: true
+      enchantments:
+        DURABILITY: 1
+      lore_append:
+        - ''
+        - '&a✓ Receta activa'
+
+    items:
+      - material: CRAFTING_TABLE
+        name: '&6Receta: Mesa de Crafteo &7#%index%'
+        lore:
+          - '&7Crafteo básico'
+          - '&7Nivel requerido: &e1'
+          - ''
+          - '&7Materiales:'
+          - '&e• 4x Madera'
+          - ''
+          - '&e▸ Click para craftear'
+        actions:
+          - 'select: %index%'
+          - 'message: &aCrafteando...'
+
+      - material: FURNACE
+        name: '&7Receta: Horno &7#%index%'
+        lore:
+          - '&7Fundición básica'
+          - '&7Nivel: &e5'
+          - ''
+          - '&7Materiales:'
+          - '&e• 8x Piedra'
+        actions:
+          - 'select: %index%'
+
+      - material: ANVIL
+        name: '&8Receta: Yunque &7#%index%'
+        lore:
+          - '&7Reparación avanzada'
+          - '&7Nivel: &e15'
+          - ''
+          - '&7Materiales:'
+          - '&e• 3x Bloque de Hierro'
+          - '&e• 4x Lingote de Hierro'
+        actions:
+          - 'select: %index%'
+
+      - material: ENCHANTING_TABLE
+        name: '&dReceta: Mesa de Encantamientos &7#%index%'
+        lore:
+          - '&7Encantamientos mágicos'
+          - '&7Nivel: &e20'
+        actions:
+          - 'select: %index%'
+
+    # Navegación de CRAFTEOS
+    navigation:
+      previous:
+        slot: 37
+        material: ARROW
+        name: '&e← Recetas'
+      next:
+        slot: 43
+        material: ARROW
+        name: '&eRecetas →'
+
+  # ================================================
+  # SECCIÓN 3: MEJORAS
+  # ================================================
+  upgrades:
+    name: 'Mejoras'
+
+    # Tercera fila
+    slots: '18-26'  # 9 slots
+
+    selected_template:
+      glowing: true
+      lore_append:
+        - ''
+        - '&a✓ Mejora adquirida'
+
+    items:
+      - material: DIAMOND_PICKAXE
+        name: '&bMejora: Pico Eficiente &7#%index%'
+        lore:
+          - '&7Aumenta velocidad de minado'
+          - '&7Nivel: &e%index%'
+          - ''
+          - '&7Bonus: &a+%index%0% velocidad'
+          - '&7Costo: &e{upgrade_cost_%index%} monedas'
+          - ''
+          - '&e▸ Click para comprar'
+        enchantments:
+          DIG_SPEED: 5
+        actions:
+          - 'select: %index%'
+          - 'message: &a¡Mejora adquirida!'
+
+      - material: DIAMOND_SWORD
+        name: '&cMejora: Filo Afilado &7#%index%'
+        lore:
+          - '&7Aumenta daño de combate'
+          - '&7Nivel: &e%index%'
+          - ''
+          - '&7Bonus: &c+%index% daño'
+        enchantments:
+          DAMAGE_ALL: 5
+        actions:
+          - 'select: %index%'
+
+      - material: DIAMOND_CHESTPLATE
+        name: '&9Mejora: Armadura Reforzada &7#%index%'
+        lore:
+          - '&7Aumenta defensa'
+          - '&7Nivel: &e%index%'
+          - ''
+          - '&7Bonus: &9+%index% defensa'
+        enchantments:
+          PROTECTION_ENVIRONMENTAL: 4
+        actions:
+          - 'select: %index%'
+
+      - material: DIAMOND_BOOTS
+        name: '&eMejora: Velocidad &7#%index%'
+        lore:
+          - '&7Aumenta velocidad de movimiento'
+          - '&7Nivel: &e%index%'
+        actions:
+          - 'select: %index%'
+
+    navigation:
+      previous:
+        slot: 38
+        material: ARROW
+        name: '&e← Mejoras'
+      next:
+        slot: 42
+        material: ARROW
+        name: '&eMejoras →'
+
+# --------------------------------------------------
+# ITEMS FIJOS
+# --------------------------------------------------
+items:
+  # ============================================
+  # TÍTULO
+  # ============================================
+  title:
+    material: NETHER_STAR
+    name: '&6&l⚡ SISTEMA COMPLETO ⚡'
+    lore:
+      - '&7Este menú combina:'
+      - '&e• Múltiples secciones'
+      - '&e• Paginación independiente'
+      - '&e• Acceso a inventario'
+      - '&e• Sistema de snapshot'
+      - ''
+      - '&7Navega por las secciones'
+      - '&7usando las flechas'
+    slot: 4
+    glowing: true
+    enchantments:
+      DURABILITY: 10
+    hide_attributes: true
+
+  # ============================================
+  # BALANCE
+  # ============================================
+  balance:
+    material: GOLD_INGOT
+    name: '&6Tu Balance'
+    lore:
+      - '&7Monedas: &e{balance}'
+      - '&7Gemas: &b{gems}'
+      - '&7Tokens: &d{tokens}'
+      - ''
+      - '&7Se actualiza en tiempo real'
+    slot: 49
+    dynamic_update: true
+    update_interval: 20
+    glowing: true
+
+  # ============================================
+  # ESTADÍSTICAS
+  # ============================================
+  stats:
+    material: BOOK
+    name: '&eEstadísticas del Sistema'
+    lore:
+      - '&7Almacenes creados: &e{storage_count}'
+      - '&7Recetas desbloqueadas: &e{recipes_count}'
+      - '&7Mejoras adquiridas: &e{upgrades_count}'
+      - ''
+      - '&7Nivel total: &e{total_level}'
+      - '&7Experiencia: &b{exp}/{max_exp}'
+    slot: 50
+    dynamic_update: true
+
+  # ============================================
+  # AYUDA
+  # ============================================
+  help:
+    material: EMERALD
+    name: '&a&lAyuda'
+    lore:
+      - '&7¿Cómo usar este menú?'
+      - ''
+      - '&e1. &7Navega las secciones'
+      - '&7   usando las flechas'
+      - ''
+      - '&e2. &7Selecciona items'
+      - '&7   haciendo click'
+      - ''
+      - '&e3. &7Arrastra items entre'
+      - '&7   tu inventario y el menú'
+      - ''
+      - '&e4. &7Tu inventario se restaura'
+      - '&7   al cerrar el menú'
+    slot: 48
+    actions:
+      - 'message: &a¡Consulta la wiki para más info!'
+
+  # ============================================
+  # CONFIGURACIÓN
+  # ============================================
+  settings:
+    material: COMPARATOR
+    name: '&b&lConfiguración'
+    lore:
+      - '&7Ajustes del sistema'
+      - ''
+      - '&7Auto-almacenar: &a{auto_store}'
+      - '&7Auto-craftear: &c{auto_craft}'
+      - '&7Notificaciones: &e{notifications}'
+      - ''
+      - '&e▸ Click para cambiar'
+    slot: 51
+    actions:
+      - 'message: &bAbriendo configuración...'
+
+  # ============================================
+  # CERRAR
+  # ============================================
+  close:
+    material: BARRIER
+    name: '&c&lCerrar'
+    lore:
+      - '&7Cierra el menú'
+      - ''
+      - '&7Tu inventario será restaurado'
+    slot: 53
+    actions:
+      - 'close'
+    click_sounds:
+      - 'UI_BUTTON_CLICK'
+
+  # ============================================
+  # PERFIL
+  # ============================================
+  profile:
+    material: PLAYER_HEAD
+    skull: '%player_name%'
+    name: '&e&l%player_name%'
+    lore:
+      - '&7Nivel: &e{level}'
+      - '&7Experiencia: &b{exp}/{max_exp}'
+      - '&7Rango: &6{rank}'
+      - ''
+      - '&7Tiempo jugado: &e{playtime}'
+      - '&7Última conexión: &7{last_seen}'
+    slot: 45
+    dynamic_update: true
+    update_interval: 20
+
+  # ============================================
+  # QUICK ACTIONS
+  # ============================================
+  quick_store:
+    material: LIME_DYE
+    name: '&a&lGuardar Todo'
+    lore:
+      - '&7Guarda todo tu inventario'
+      - '&7en el almacén seleccionado'
+    slot: 46
+    actions:
+      - 'message: &a¡Todo guardado!'
+      - 'sound: BLOCK_CHEST_CLOSE'
+
+  quick_craft:
+    material: ORANGE_DYE
+    name: '&6&lCraftear Todo'
+    lore:
+      - '&7Craftea el máximo posible'
+      - '&7de la receta seleccionada'
+    slot: 47
+    actions:
+      - 'message: &6¡Crafteando...'
+      - 'sound: BLOCK_ANVIL_USE'
+
+  quick_upgrade:
+    material: PURPLE_DYE
+    name: '&d&lMejorar Máximo'
+    lore:
+      - '&7Sube al máximo nivel'
+      - '&7la mejora seleccionada'
+    slot: 52
+    actions:
+      - 'message: &d¡Mejora maximizada!'
+      - 'sound: ENTITY_PLAYER_LEVELUP'
+
+# --------------------------------------------------
+# RESUMEN DE FUNCIONALIDAD:
+# --------------------------------------------------
+# Este menú combina TODAS las características:
+#
+# 1. SECCIONES MÚLTIPLES:
+#    - Almacenamiento (slots 0-8)
+#    - Crafteos (slots 9-17)
+#    - Mejoras (slots 18-26)
+#    - Cada una pagina independientemente
+#
+# 2. INVENTARIO DEL JUGADOR:
+#    - Accesible en slots 0-35
+#    - Arrastra items libremente
+#    - Protegido por snapshot
+#
+# 3. NAVEGACIÓN:
+#    - Cada sección tiene prev/next
+#    - Info actualizada dinámicamente
+#    - Selección de items por sección
+#
+# 4. ITEMS FIJOS:
+#    - Título, balance, stats
+#    - Botones de acción rápida
+#    - Ayuda y configuración
+#
+# 5. SISTEMA DE SNAPSHOT:
+#    - Guarda inventario al abrir
+#    - Restaura al cerrar
+#    - Protección contra pérdidas
+#
+# --------------------------------------------------
+# CASOS DE USO:
+# --------------------------------------------------
+# - Sistemas de almacenamiento avanzados
+# - Menús de crafteo automático
+# - Sistemas de progresión/mejoras
+# - Bancos con múltiples categorías
+# - Menús de gestión completos

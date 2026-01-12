@@ -17,7 +17,6 @@ public class PlayerCleanupListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
 
-        manager.hideScoreboard(player);
-        manager.getCacheManager().invalidatePlayer(player.getUniqueId());
+        manager.clearPlayerScoreboards(player);
     }
 }

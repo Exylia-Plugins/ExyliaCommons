@@ -1,6 +1,6 @@
 package net.exylia.commons.placeholders;
 
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 

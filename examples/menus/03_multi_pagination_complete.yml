@@ -1,0 +1,101 @@
+title: 'Multi Pag'
+type: MULTI_PAGINATION
+size: 54
+
+refresh:
+  mode: SMART
+  interval: 20
+
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    name: ' '
+
+sections:
+  weapons:
+    name: 'Armas'
+    slots: '10-12,19-21,28-30'  # 9 slots
+    filler:
+      material: RED_STAINED_GLASS_PANE
+      name: '&cSin armas disponibles'
+    selected_template:
+      glowing: true
+      enchantments:
+        DURABILITY: 1
+      lore_append:
+        - ''
+        - '&a✓ &l¡SELECCIONADO!'
+        - '&7Click para deseleccionar'
+      # lore_prepend: Se AÑADE al inicio del lore
+      # lore_replace: REEMPLAZA todo el lore
+    items: []
+    navigation:
+      previous:
+        slot: 9
+        material: ARROW
+        name: '&e&l← Armas Anteriores'
+        lore:
+          - '&7Navega las armas'
+          - ''
+          - '&7Página: &e%section_page%/%section_total_pages%'
+        actions:
+          - 'previous_page'
+        click_sounds:
+          - 'UI_BUTTON_CLICK'
+      next:
+        slot: 13
+        material: ARROW
+        name: '&e&lSiguientes Armas →'
+        lore:
+          - '&7Navega las armas'
+          - ''
+          - '&7Página: &e%section_page%/%section_total_pages%'
+        actions:
+          - 'next_page'
+      info:
+        slot: 4
+        material: BOOK
+        name: '&c&lSección: ARMAS'
+        lore:
+          - '&7Página: &e%section_page%/%section_total_pages%'
+          - '&7Total armas: &e%section_total_items%'
+          - ''
+          - '&7Arma seleccionada: &e%selected_index%'
+
+  armor:
+    name: 'Armaduras'
+    slots: '14-16,23-25,32-34'  # 9 slots
+    selected_template:
+      glowing: true
+      enchantments:
+        PROTECTION_ENVIRONMENTAL: 1
+      lore_append:
+        - ''
+        - '&a✓ &l¡EQUIPADA!'
+    items: []
+    navigation:
+      previous:
+        slot: 18
+        material: ARROW
+        name: '&e&l← Armaduras Anteriores'
+      next:
+        slot: 22
+        material: ARROW
+        name: '&e&lSiguientes Armaduras →'
+      info:
+        slot: 40
+        material: SHIELD
+        name: '&9&lSección: ARMADURAS'
+        lore:
+          - '&7Página: &e%section_page%/%section_total_pages%'
+          - '&7Total armaduras: &e%section_total_items%'
+
+items: []
+
+# Por sección:
+#   %section_name%         - Nombre de la sección
+#   %section_page%         - Página actual de la sección
+#   %section_total_pages%  - Total páginas de la sección
+#   %section_total_items%  - Total items de la sección
+#   %selected_index%       - Índice del item seleccionado (-1 si ninguno)
+#   %index%                - Índice del item actual

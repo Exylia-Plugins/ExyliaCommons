@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import net.exylia.commons.v2.command.model.Command;
 import net.exylia.commons.v2.command.model.CommandContext;
 import net.exylia.commons.v2.command.model.CommandResult;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -21,7 +22,7 @@ public class ProxyCommandSender {
     private static final String LEGACY_CHANNEL = "BungeeCord";
 
     private final JavaPlugin plugin;
-    private boolean enabled = false;
+    private boolean enabled = true;
 
     public void initialize() {
         try {
@@ -37,6 +38,7 @@ public class ProxyCommandSender {
 
     public CompletableFuture<CommandResult> sendAsync(Command command, CommandContext context) {
         return CompletableFuture.supplyAsync(() -> {
+            DebugAPI.logLibDebug("Sending proxy command: " + command.getProcessedCommand());
             if (!enabled) {
                 return CommandResult.failure(command, "Proxy messaging not enabled");
             }
@@ -63,6 +65,7 @@ public class ProxyCommandSender {
 
                 player.sendPluginMessage(plugin, CHANNEL, out.toByteArray());
 
+                DebugAPI.logLibDebug("Proxy command sent successfully: " + command.getProcessedCommand());
                 return CommandResult.success(command, "Proxy command sent successfully");
 
             } catch (Exception e) {

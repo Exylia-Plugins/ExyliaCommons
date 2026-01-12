@@ -1,0 +1,65 @@
+complete-item-every-field:
+  material: "NETHERITE_SWORD"
+  display-name: "&4&lESPADA DEL APOCALIPSIS"
+  lore:
+    - "&7Una espada forjada en el fin"
+    - "&7de los tiempos por los dioses"
+  amount: "1"
+  glow: true
+  glowing: true
+  hide_attributes: true
+  hide_tooltip: false
+  unbreakable: true
+  max_stack_size: 1
+  slots: "10-16,19-25,28-34"
+  actions:
+    - "close"
+  commands:
+    - "player: heal"
+    - "console: say {player} activó el item!"
+
+
+#  item_model: "custom:ultimate_sword_model"
+#  click_sounds:
+#    - "BLOCK_CHEST_LOCKED|1.0|2.0"
+#  requires-target: false
+
+
+#  dynamic_update: true
+#  update_interval: 20
+
+#  enchantments:
+#    SHARPNESS: 10
+#    FIRE_ASPECT: 2
+#    LOOTING: 5
+#    SWEEPING_EDGE: 4
+#    UNBREAKING: 10
+#    MENDING: 1
+#    KNOCKBACK: 3
+#  potion:
+#    base_potion_type: STRONG_HEALING
+#    color: "#FF0000"
+#    effects:
+#      - type: SPEED
+#        amplifier: 2
+#        duration: 600
+#      - type: STRENGTH
+#        amplifier: 1
+#        duration: 1200
+#      - type: REGENERATION
+#        amplifier: 3
+#        duration: 2400
+#  # base_potion_type: STRONG_HEALING
+#  # potion_color: "#FF0000"
+#  # potion_effects:
+#  #   - type: SPEED
+#  #     amplifier: 2
+#  #     duration: 600
+#  armor_trim:
+#    pattern: SENTRY
+#    material: AMETHYST
+#  leather_color: "#FF5500"
+#  attributes:
+#    - "GENERIC_ATTACK_DAMAGE:100:ADD"
+#  nbt:
+#    custom_data: "any_value_here"

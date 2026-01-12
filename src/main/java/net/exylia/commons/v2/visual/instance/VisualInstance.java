@@ -54,7 +54,7 @@ public abstract class VisualInstance<T extends VisualConfig> {
         return System.currentTimeMillis() - createdAt;
     }
 
-    protected CompletableFuture<Void> render() {
-        return renderer.renderAsync(player, config, context);
+    protected void render() {
+        renderer.render(player, config, context);
     }
 }

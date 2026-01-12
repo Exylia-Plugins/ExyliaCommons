@@ -16,7 +16,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -97,8 +96,7 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
 
         PlaceholderContext updateContext = createCurrentContext();
 
-        renderToAllViewers(updateContext)
-                .exceptionally(throwable -> null);
+        renderToAllViewers(updateContext);
 
         if (onTick != null) {
             GlobalCountdownContext ctx = new GlobalCountdownContext(this, updateContext);
@@ -127,7 +125,7 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
                 .withCurrentTime();
     }
 
-    private CompletableFuture<Void> renderToAllViewers(PlaceholderContext updateContext) {
+    private void renderToAllViewers(PlaceholderContext updateContext) {
         Collection<Player> onlinePlayers = viewers.stream()
                 .map(Bukkit::getPlayer)
                 .filter(p -> p != null && p.isOnline())
@@ -135,20 +133,18 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
                 .toList();
 
         if (onlinePlayers.isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         if (renderer instanceof BossBarRenderer bossBarRenderer && config instanceof BossBarConfig bossBarConfig) {
-            return bossBarRenderer.renderBatch(onlinePlayers, bossBarConfig, updateContext);
+            bossBarRenderer.renderBatch(onlinePlayers, bossBarConfig, updateContext);
         } else if (renderer instanceof ActionBarRenderer actionBarRenderer && config instanceof ActionBarConfig actionBarConfig) {
-            return actionBarRenderer.renderBatch(onlinePlayers, actionBarConfig, updateContext);
+            actionBarRenderer.renderBatch(onlinePlayers, actionBarConfig, updateContext);
+        } else {
+            for (Player player : onlinePlayers) {
+                renderer.render(player, config, updateContext);
+            }
         }
-
-        List<CompletableFuture<Void>> futures = onlinePlayers.stream()
-                .map(player -> renderer.renderAsync(player, config, updateContext))
-                .toList();
-
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     private void refreshPlayers() {

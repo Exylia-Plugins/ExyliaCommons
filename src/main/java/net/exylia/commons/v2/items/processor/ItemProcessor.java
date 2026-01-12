@@ -9,8 +9,9 @@ import net.exylia.commons.v2.items.skull.SkullParser;
 import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.v2.items.validation.ItemValidator;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.visual.api.ColorAPI;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -37,6 +38,16 @@ public class ItemProcessor {
                 }
             }
 
+            if (itemData.getItemStack() != null || itemData.getItemStackSupplier() != null) {
+                ItemStack itemStack = itemData.getItemStack() != null ?
+                        itemData.getItemStack().clone() :
+                        itemData.getItemStackSupplier().get();
+                if (itemStack == null || itemStack.getType().isAir()) {
+                    itemStack = new ItemStack(Material.AIR);
+                }
+                return processDirectItemStack(itemStack, itemData, player);
+            }
+
             return processMaterialAsync(itemData, player)
                 .thenCompose(itemStack -> processAllFieldsAsync(itemStack, itemData, player))
                 .join();
@@ -54,6 +65,16 @@ public class ItemProcessor {
             } catch (ItemValidationException e) {
                 throw new RuntimeException("Item validation failed", e);
             }
+        }
+
+        if (itemData.getItemStack() != null || itemData.getItemStackSupplier() != null) {
+            ItemStack itemStack = itemData.getItemStack() != null ?
+                    itemData.getItemStack().clone() :
+                    itemData.getItemStackSupplier().get();
+            if (itemStack == null || itemStack.getType().isAir()) {
+                itemStack = new ItemStack(Material.AIR);
+            }
+            return processDirectItemStack(itemStack, itemData, player);
         }
 
         ItemStack itemStack = processMaterial(itemData, player);
@@ -98,6 +119,24 @@ public class ItemProcessor {
         return CompletableFuture.supplyAsync(() -> processAllFields(itemStack, itemData, player));
     }
 
+    private static ProcessedItem processDirectItemStack(ItemStack itemStack, ItemData itemData, Player player) {
+        Integer slot = processSlot(itemData, player);
+        List<Integer> slots = processSlots(itemData, player);
+
+        boolean isDynamic = itemData.getItemStackSupplier() != null || itemData.isDynamicUpdate();
+
+        return ProcessedItem.builder()
+            .itemStack(itemStack)
+            .slot(slot)
+            .slots(slots)
+            .actions(itemData.getActions())
+            .commands(itemData.getCommands())
+            .rawItemData(itemData.copy())
+            .hasDynamicContent(isDynamic)
+            .requiresTarget(itemData.isRequiresTarget())
+            .build();
+    }
+
     private static ProcessedItem processAllFields(ItemStack itemStack, ItemData itemData, Player player) {
         processNameAndLore(itemStack, itemData, player);
         processAmount(itemStack, itemData, player);
@@ -107,6 +146,7 @@ public class ItemProcessor {
         processLeatherArmorColor(itemStack, itemData, player);
         processItemModel(itemStack, itemData, player);
         processAttributes(itemStack, itemData);
+        processHideTooltip(itemStack, itemData);
         processCustomAttributes(itemStack, itemData);
         processCustomNBT(itemStack, itemData);
         processUnbreakable(itemStack, itemData);
@@ -123,6 +163,7 @@ public class ItemProcessor {
             .commands(itemData.getCommands())
             .rawItemData(itemData.copy())
             .hasDynamicContent(hasDynamicContent(itemData))
+            .requiresTarget(itemData.isRequiresTarget())
             .build();
     }
 
@@ -191,6 +232,19 @@ public class ItemProcessor {
         }
         if (itemData.isHideAttributes()) {
             AttributeProcessor.applyHideAttributes(itemStack);
+        }
+    }
+
+    private static void processHideTooltip(ItemStack itemStack, ItemData itemData) {
+        if (itemData.isHideTooltip()) {
+            ItemMeta meta = itemStack.getItemMeta();
+            if (meta != null) {
+                try {
+                    meta.setHideTooltip(true);
+                    itemStack.setItemMeta(meta);
+                } catch (NoSuchMethodError e) {
+                }
+            }
         }
     }
 

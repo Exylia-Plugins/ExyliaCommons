@@ -34,6 +34,7 @@ public class ConfigurationParser {
         parseAmount(config, builder);
         parseGlowing(config, builder);
         parseHideAttributes(config, builder);
+        parseHideTooltip(config, builder);
         parseEnchantments(config, builder);
         parsePotionConfig(config, builder);
         parseArmorTrimConfig(config, builder);
@@ -48,6 +49,7 @@ public class ConfigurationParser {
         parseSlots(config, builder);
         parseActions(config, builder);
         parseCommands(config, builder);
+        parseRequiresTarget(config, builder);
 
         return builder.build();
     }
@@ -103,6 +105,12 @@ public class ConfigurationParser {
         boolean hideAttributes = config.getBoolean("hide-attributes", false) ||
                                  config.getBoolean("hide_attributes", false);
         builder.hideAttributes(hideAttributes);
+    }
+
+    private static void parseHideTooltip(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        boolean hideTooltip = config.getBoolean("hide-tooltip", false) ||
+                              config.getBoolean("hide_tooltip", false);
+        builder.hideTooltip(hideTooltip);
     }
 
     private static void parseEnchantments(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
@@ -452,5 +460,10 @@ public class ConfigurationParser {
                     "Parsed " + commands.size() + " click commands from config");
             }
         }
+    }
+
+    private static void parseRequiresTarget(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        boolean requiresTarget = config.getBoolean("requires-target", config.getBoolean("requiresTarget", false));
+        builder.requiresTarget(requiresTarget);
     }
 }

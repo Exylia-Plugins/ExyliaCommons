@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.items.skull;
 
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.skull.api.SkullAPI;
 import org.bukkit.Material;

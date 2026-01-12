@@ -35,6 +35,8 @@ public class MenuData {
 
     private ItemData borderFiller;
 
+    private ItemData paginationFiller;
+
     @Builder.Default
     private Map<String, ItemData> items = new LinkedHashMap<>();
 
@@ -66,12 +68,44 @@ public class MenuData {
     @Builder.Default
     private PlaceholderContext context = PlaceholderContext.create();
 
+    @Builder.Default
+    private List<String> openSounds = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> closeSounds = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> clickSounds = new ArrayList<>();
+
+    @Builder.Default
+    private List<FillerData> customFillers = new ArrayList<>();
+
     public boolean hasGlobalFiller() {
         return globalFiller != null;
     }
 
+    public boolean hasCustomFillers() {
+        return customFillers != null && !customFillers.isEmpty();
+    }
+
+    public boolean hasOpenSounds() {
+        return openSounds != null && !openSounds.isEmpty();
+    }
+
+    public boolean hasCloseSounds() {
+        return closeSounds != null && !closeSounds.isEmpty();
+    }
+
+    public boolean hasClickSounds() {
+        return clickSounds != null && !clickSounds.isEmpty();
+    }
+
     public boolean hasBorderFiller() {
         return borderFiller != null;
+    }
+
+    public boolean hasPaginationFiller() {
+        return paginationFiller != null;
     }
 
     public boolean hasPagination() {
@@ -100,6 +134,11 @@ public class MenuData {
             copiedSections.add(section != null ? section.copy() : null);
         }
 
+        List<FillerData> copiedCustomFillers = new ArrayList<>();
+        for (FillerData filler : customFillers) {
+            copiedCustomFillers.add(filler != null ? filler.copy() : null);
+        }
+
         return MenuData.builder()
                 .title(title)
                 .type(type)
@@ -108,6 +147,7 @@ public class MenuData {
                 .refreshInterval(refreshInterval)
                 .globalFiller(globalFiller != null ? globalFiller.copy() : null)
                 .borderFiller(borderFiller != null ? borderFiller.copy() : null)
+                .paginationFiller(paginationFiller != null ? paginationFiller.copy() : null)
                 .items(copiedItems)
                 .paginationSlots(new ArrayList<>(paginationSlots))
                 .paginationItems(copiedPaginationItems)
@@ -119,6 +159,10 @@ public class MenuData {
                 .playerInventoryEnabled(playerInventoryEnabled)
                 .allowedPlayerSlots(new ArrayList<>(allowedPlayerSlots))
                 .context(context.copy())
+                .openSounds(new ArrayList<>(openSounds))
+                .closeSounds(new ArrayList<>(closeSounds))
+                .clickSounds(new ArrayList<>(clickSounds))
+                .customFillers(copiedCustomFillers)
                 .build();
     }
 }

@@ -3,7 +3,7 @@ package net.exylia.commons.v2.command.processor;
 import net.exylia.commons.v2.command.model.Command;
 import net.exylia.commons.v2.command.model.CommandSource;
 import net.exylia.commons.v2.command.model.CommandType;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 

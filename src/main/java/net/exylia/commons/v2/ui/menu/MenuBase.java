@@ -13,13 +13,14 @@ import net.exylia.commons.v2.items.api.ItemsAPI;
 import net.exylia.commons.v2.items.api.ProcessedItem;
 import net.exylia.commons.v2.items.model.ClickTypeGroup;
 import net.exylia.commons.v2.items.model.ItemData;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.exception.MenuStateException;
+import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuState;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
-import org.bukkit.Bukkit;
+import net.exylia.commons.v2.visual.api.SoundAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
@@ -89,6 +90,7 @@ public abstract class MenuBase {
                     Schedulers.sync(() -> {
                         player.openInventory(inventory);
                         state.set(MenuState.OPEN);
+                        playOpenSounds();
                         scheduleRefresh();
                         DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
                         future.complete(null);
@@ -123,6 +125,7 @@ public abstract class MenuBase {
                 Schedulers.sync(() -> {
                     player.openInventory(inventory);
                     state.set(MenuState.OPEN);
+                    playOpenSounds();
                     scheduleRefresh();
                     DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
                 });
@@ -140,6 +143,7 @@ public abstract class MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Closing menu " + menuId + " for " + player.getName());
         state.set(MenuState.CLOSED);
+        playCloseSounds();
         player.closeInventory();
         cancelRefresh();
         cleanup();
@@ -171,6 +175,16 @@ public abstract class MenuBase {
         DebugAPI.logLibDebug(DebugCategory.UI,
             "Menu " + menuId + " processing click: type=" + clickType +
             ", group=" + clickGroup + ", slot=" + slot);
+
+        boolean hasItemClickSounds = item.getRawItemData() != null &&
+                                      item.getRawItemData().getClickSounds() != null &&
+                                      !item.getRawItemData().getClickSounds().isEmpty();
+
+        if (hasItemClickSounds) {
+            playItemClickSounds(item.getRawItemData());
+        } else if (menuData.hasClickSounds()) {
+            playMenuClickSounds();
+        }
 
         List<String> actionsToExecute = item.getActionsForClick(clickType);
 
@@ -391,7 +405,34 @@ public abstract class MenuBase {
         }
 
         if (fillerCount > 0) {
-            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " applied " + fillerCount + " filler items");
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " applied " + fillerCount + " global/border filler items");
+        }
+
+        applyCustomFillers();
+    }
+
+    protected void applyCustomFillers() {
+        if (!menuData.hasCustomFillers()) {
+            return;
+        }
+
+        int customFillerCount = 0;
+
+        for (FillerData fillerData : menuData.getCustomFillers()) {
+            if (fillerData.getItemData() == null || fillerData.getSlots().isEmpty()) {
+                continue;
+            }
+
+            for (Integer slot : fillerData.getSlots()) {
+                if (slot >= 0 && slot < menuData.getSize()) {
+                    setItem(slot, fillerData.getItemData());
+                    customFillerCount++;
+                }
+            }
+        }
+
+        if (customFillerCount > 0) {
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " applied " + customFillerCount + " custom filler items");
         }
     }
 
@@ -452,6 +493,41 @@ public abstract class MenuBase {
     protected void cleanup() {
         cancelRefresh();
         itemsBySlot.clear();
+    }
+
+    protected void playOpenSounds() {
+        if (menuData.hasOpenSounds()) {
+            for (String sound : menuData.getOpenSounds()) {
+                SoundAPI.play(player, sound);
+            }
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " played " + menuData.getOpenSounds().size() + " open sounds");
+        }
+    }
+
+    protected void playCloseSounds() {
+        if (menuData.hasCloseSounds()) {
+            for (String sound : menuData.getCloseSounds()) {
+                SoundAPI.play(player, sound);
+            }
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " played " + menuData.getCloseSounds().size() + " close sounds");
+        }
+    }
+
+    protected void playMenuClickSounds() {
+        if (menuData.hasClickSounds()) {
+            for (String sound : menuData.getClickSounds()) {
+                SoundAPI.play(player, sound);
+            }
+        }
+    }
+
+    protected void playItemClickSounds(ItemData itemData) {
+        if (itemData.getClickSounds() != null && !itemData.getClickSounds().isEmpty()) {
+            for (String sound : itemData.getClickSounds()) {
+                SoundAPI.play(player, sound);
+            }
+            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " played " + itemData.getClickSounds().size() + " item click sounds");
+        }
     }
 
     public boolean isOpen() {

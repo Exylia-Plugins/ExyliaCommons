@@ -4,7 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.v2.items.processor.*;
 import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.utils.effects.SoundUtils;
 import org.bukkit.entity.Player;

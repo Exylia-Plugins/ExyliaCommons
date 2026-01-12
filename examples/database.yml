@@ -1,0 +1,68 @@
+settings:
+  type: H2
+  auto-migration: true
+  debug: false
+  enable-metrics: false
+
+  cache:
+    enabled: true
+    strategy: CAFFEINE
+    ttl-minutes: 30
+    max-entries: 10000
+    record-stats: false
+    refresh-after-access: true
+
+  fallback:
+    enabled: true
+    chain:
+      - H2
+      - YAML
+
+h2:
+  file-path: 'data/database'
+  username: 'sa'
+  password: ''
+  pool:
+    max-size: 10
+    min-idle: 2
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+
+mysql:
+  host: localhost
+  port: 3306
+  database: minecraft
+  username: root
+  password: ''
+  use-ssl: false
+  pool:
+    max-size: 10
+    min-idle: 2
+    connection-timeout: 30000
+    idle-timeout: 600000
+    max-lifetime: 1800000
+  properties:
+    cachePrepStmts: true
+    prepStmtCacheSize: 250
+    prepStmtCacheSqlLimit: 2048
+    useServerPrepStmts: true
+    useLocalSessionState: true
+    rewriteBatchedStatements: true
+    cacheResultSetMetadata: true
+    cacheServerConfiguration: true
+    elideSetAutoCommits: true
+    maintainTimeStats: false
+
+mongodb:
+  connection-string: 'mongodb://localhost:27017'
+  database: minecraft
+  username: ''
+  password: ''
+  auth-database: admin
+  pool:
+    max-size: 100
+    min-size: 10
+    max-idle-time: 120000
+    max-connection-lifetime: 600000
+    connection-timeout: 30000

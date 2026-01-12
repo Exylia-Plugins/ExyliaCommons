@@ -1,0 +1,336 @@
+title: 'FULL INV'
+type: FULL_INVENTORY
+size: 54
+
+snapshot:
+  enabled: true  # Guarda el inventario del jugador al abrir
+  restore_on_close: true
+  snapshot_id: 'backpack_menu'
+
+player_inventory:
+  enabled: true  # Permite interactuar con el inventario
+  allowed_slots: '0-35'  # Todo el inventario (36 slots)
+
+  # SLOTS DEL JUGADOR:
+  # 0-8   = Hotbar (barra inferior)
+  # 9-35  = Inventario principal (3 filas)
+  # 36-39 = Armadura (boots, leggings, chestplate, helmet)
+  # 40    = Offhand
+  #
+  # EJEMPLOS:
+  # '0-8'    = Solo hotbar
+  # '9-35'   = Solo inventario (sin hotbar)
+  # '0-35'   = Todo (hotbar + inventario)
+  # '0-8,9-17' = Hotbar + primera fila de inventario
+
+# --------------------------------------------------
+# REFRESH
+# --------------------------------------------------
+refresh:
+  mode: SMART
+  interval: 20
+
+# --------------------------------------------------
+# FILLER
+# --------------------------------------------------
+filler:
+  border:
+    material: PURPLE_STAINED_GLASS_PANE
+    name: ' '
+    glowing: true
+
+  global:
+    material: LIGHT_GRAY_STAINED_GLASS_PANE
+    name: ' '
+
+# --------------------------------------------------
+# ITEMS DEL MENÚ (no del jugador)
+# --------------------------------------------------
+items:
+  # ============================================
+  # INFO: Información del menú
+  # ============================================
+  info:
+    material: BOOK
+    name: '&e&lGestor de Inventario'
+    lore:
+      - '&7Este menú te permite gestionar'
+      - '&7tu inventario de forma segura'
+      - ''
+      - '&7Tu inventario fue guardado'
+      - '&7al abrir este menú'
+      - ''
+      - '&7Al cerrar, se restaurará'
+      - '&7automáticamente'
+      - ''
+      - '&7Items en inventario: &e%player_inventory_size%'
+    slot: 4
+    glowing: true
+
+  # ============================================
+  # SORT: Ordenar inventario
+  # ============================================
+  sort:
+    material: HOPPER
+    name: '&a&lOrdenar Inventario'
+    lore:
+      - '&7Click para organizar'
+      - '&7todos tus items'
+      - ''
+      - '&7Agrupa items similares'
+      - '&7y optimiza el espacio'
+      - ''
+      - '&e▸ Click para ordenar'
+    slot: 40
+    actions:
+      # Aquí irían acciones custom de tu plugin
+      # Ejemplo: 'sort_inventory'
+      - 'message: &a¡Inventario ordenado!'
+      - 'sound: BLOCK_CHEST_CLOSE'
+    click_sounds:
+      - 'ITEM_BOOK_PAGE_TURN'
+
+  # ============================================
+  # CLEAR: Vaciar inventario
+  # ============================================
+  clear:
+    material: TNT
+    name: '&c&l⚠ VACIAR INVENTARIO'
+    lore:
+      - '&c&l¡PELIGRO!'
+      - '&7Esta acción eliminará'
+      - '&7TODOS tus items'
+      - ''
+      - '&7No se puede deshacer'
+      - '&7(excepto cerrando el menú)'
+      - ''
+      - '&c▸ Click para vaciar'
+    slot: 44
+    glowing: true
+    enchantments:
+      DURABILITY: 10
+    hide_attributes: true
+    actions:
+      # Requiere confirmación
+      - 'message: &c¿Seguro? Click de nuevo para confirmar'
+      # Segunda implementación requeriría lógica custom
+    click_sounds:
+      - 'ENTITY_GENERIC_EXPLODE'
+
+  # ============================================
+  # SAVE: Guardar en enderchest
+  # ============================================
+  save_enderchest:
+    material: ENDER_CHEST
+    name: '&d&lGuardar en Enderchest'
+    lore:
+      - '&7Mueve todos los items'
+      - '&7de tu inventario al'
+      - '&7enderchest'
+      - ''
+      - '&e▸ Click para guardar'
+    slot: 36
+    actions:
+      - 'message: &aItems guardados en enderchest'
+      - 'sound: BLOCK_ENDER_CHEST_OPEN'
+      - 'close'
+
+  # ============================================
+  # STATS: Estadísticas de inventario
+  # ============================================
+  stats:
+    material: PAPER
+    name: '&e&lEstadísticas'
+    lore:
+      - '&7Slots usados: &e{used_slots}/36'
+      - '&7Slots vacíos: &e{empty_slots}'
+      - '&7Peso total: &e{total_weight} kg'
+      - ''
+      - '&7Se actualiza en tiempo real'
+    slot: 41
+    dynamic_update: true
+    update_interval: 10  # Actualiza cada 0.5 seg
+
+  # ============================================
+  # BACKUP: Crear respaldo
+  # ============================================
+  backup:
+    material: CHEST
+    name: '&6&lCrear Respaldo'
+    lore:
+      - '&7Guarda una copia de'
+      - '&7tu inventario actual'
+      - ''
+      - '&7Útil antes de actividades'
+      - '&7peligrosas'
+      - ''
+      - '&e▸ Click para respaldar'
+    slot: 37
+    actions:
+      - 'message: &aRespaldo creado exitosamente'
+      - 'sound: BLOCK_ANVIL_USE'
+
+  # ============================================
+  # RESTORE: Restaurar respaldo
+  # ============================================
+  restore:
+    material: ENDER_PEARL
+    name: '&b&lRestaurar Respaldo'
+    lore:
+      - '&7Restaura tu último'
+      - '&7respaldo guardado'
+      - ''
+      - '&c¡Sobrescribirá tu'
+      - '&cinventario actual!'
+      - ''
+      - '&e▸ Click para restaurar'
+    slot: 38
+    actions:
+      - 'message: &aInventario restaurado'
+      - 'sound: ENTITY_ENDERMAN_TELEPORT'
+
+  # ============================================
+  # COMPRESS: Comprimir items
+  # ============================================
+  compress:
+    material: PISTON
+    name: '&a&lComprimir Items'
+    lore:
+      - '&7Convierte items en bloques'
+      - '&7para ahorrar espacio'
+      - ''
+      - '&7Ejemplos:'
+      - '&e• 9 Diamantes → 1 Bloque'
+      - '&e• 9 Hierro → 1 Bloque'
+      - '&e• 4 Madera → 1 Plancha'
+      - ''
+      - '&e▸ Click para comprimir'
+    slot: 42
+    actions:
+      - 'message: &aItems comprimidos'
+      - 'sound: BLOCK_PISTON_EXTEND'
+
+  # ============================================
+  # EXPAND: Expandir items
+  # ============================================
+  expand:
+    material: STICKY_PISTON
+    name: '&a&lExpandir Items'
+    lore:
+      - '&7Descompone bloques en'
+      - '&7items individuales'
+      - ''
+      - '&7Ejemplos:'
+      - '&e• 1 Bloque → 9 Diamantes'
+      - '&e• 1 Bloque → 9 Hierro'
+      - ''
+      - '&e▸ Click para expandir'
+    slot: 43
+    actions:
+      - 'message: &aItems expandidos'
+      - 'sound: BLOCK_PISTON_CONTRACT'
+
+  # ============================================
+  # ARMOR DISPLAY: Mostrar armadura
+  # ============================================
+  helmet_slot:
+    material: DIAMOND_HELMET
+    name: '&9Casco Equipado'
+    lore:
+      - '&7{helmet_name}'
+      - '&7Defensa: &9{helmet_defense}'
+    slot: 10
+    dynamic_update: true
+
+  chestplate_slot:
+    material: DIAMOND_CHESTPLATE
+    name: '&9Peto Equipado'
+    lore:
+      - '&7{chestplate_name}'
+      - '&7Defensa: &9{chestplate_defense}'
+    slot: 19
+    dynamic_update: true
+
+  leggings_slot:
+    material: DIAMOND_LEGGINGS
+    name: '&9Pantalones Equipados'
+    lore:
+      - '&7{leggings_name}'
+      - '&7Defensa: &9{leggings_defense}'
+    slot: 28
+    dynamic_update: true
+
+  boots_slot:
+    material: DIAMOND_BOOTS
+    name: '&9Botas Equipadas'
+    lore:
+      - '&7{boots_name}'
+      - '&7Defensa: &9{boots_defense}'
+    slot: 37
+    dynamic_update: true
+
+  # ============================================
+  # CLOSE: Cerrar y restaurar
+  # ============================================
+  close:
+    material: BARRIER
+    name: '&c&lCerrar y Restaurar'
+    lore:
+      - '&7Al cerrar, tu inventario'
+      - '&7será restaurado al estado'
+      - '&7que tenía al abrir el menú'
+      - ''
+      - '&c¡Los cambios se perderán!'
+      - ''
+      - '&e▸ Click para cerrar'
+    slot: 49
+    glowing: true
+    actions:
+      - 'close'
+    click_sounds:
+      - 'BLOCK_CHEST_CLOSE'
+
+  # ============================================
+  # SAVE & CLOSE: Guardar y cerrar
+  # ============================================
+  save_close:
+    material: LIME_STAINED_GLASS_PANE
+    name: '&a&lGuardar y Cerrar'
+    lore:
+      - '&7Guarda los cambios hechos'
+      - '&7en el inventario y cierra'
+      - '&7el menú'
+      - ''
+      - '&a¡Los cambios se mantendrán!'
+      - ''
+      - '&e▸ Click para guardar'
+    slot: 48
+    actions:
+      # Para esto necesitarías lógica custom que
+      # deshabilite restore_on_close temporalmente
+      - 'message: &aInventario guardado'
+      - 'close'
+
+# --------------------------------------------------
+# NOTAS IMPORTANTES:
+# --------------------------------------------------
+# 1. SNAPSHOT SYSTEM:
+#    - Guarda el inventario completo al abrir
+#    - Restaura automáticamente al cerrar (si restore_on_close: true)
+#    - Útil para menús temporales o experimentales
+#
+# 2. PLAYER INVENTORY:
+#    - allowed_slots define qué puede tocar el jugador
+#    - El jugador puede mover items libremente en esos slots
+#    - Items del menú (slot > 35) no se pueden mover
+#
+# 3. USOS COMUNES:
+#    - Sistemas de mochila/backpack
+#    - Editores de inventario
+#    - Sistemas de almacenamiento
+#    - Menús de gestión de items
+#
+# 4. SEGURIDAD:
+#    - El snapshot protege contra pérdida de items
+#    - Si el servidor crashea, el inventario se restaura al relogin
+#    - snapshot_id debe ser único por tipo de menú

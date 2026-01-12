@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.items.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
@@ -51,7 +52,7 @@ public class LeatherArmorConfig {
         if (color == null) return null;
 
         if (player != null && context != null) {
-            String colorString = net.exylia.commons.v2.placeholders.Placeholders.process(color.toString(), player, context);
+            String colorString = Placeholders.process(color.toString(), player, context);
             Color processedColor = parseColor(colorString);
             return processedColor != null ? processedColor : color;
         }

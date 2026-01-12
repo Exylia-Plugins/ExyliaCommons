@@ -20,13 +20,13 @@ public final class FireworkAPI {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    public static CompletableFuture<Void> launch(Location location, FireworkEffect.Type type, Color... colors) {
-        return launch(location, type, List.of(colors));
+    public static void launch(Location location, FireworkEffect.Type type, Color... colors) {
+        launch(location, type, List.of(colors));
     }
 
-    public static CompletableFuture<Void> launch(Location location, FireworkEffect.Type type, List<Color> colors) {
+    public static void launch(Location location, FireworkEffect.Type type, List<Color> colors) {
         if (location.getWorld() == null || location.getWorld().getPlayers().isEmpty()) {
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         Player nearestPlayer = location.getWorld().getPlayers().get(0);
@@ -36,14 +36,14 @@ public final class FireworkAPI {
                 .location(location)
                 .build();
 
-        return FireworkRenderer.getInstance().renderAsync(nearestPlayer, config, PlaceholderContext.create());
+        FireworkRenderer.getInstance().render(nearestPlayer, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> launch(Player player, FireworkEffect.Type type, Color... colors) {
-        return launch(player.getLocation(), type, colors);
+    public static void launch(Player player, FireworkEffect.Type type, Color... colors) {
+        launch(player.getLocation(), type, colors);
     }
 
-    public static CompletableFuture<Void> launch(Player player, String fireworkString) {
+    public static void launch(Player player, String fireworkString) {
         FireworkConfig config = FireworkBuilder.fromString(fireworkString);
         if (config.getLocation() == null) {
             config = FireworkBuilder.create()
@@ -56,25 +56,24 @@ public final class FireworkAPI {
                     .location(player.getLocation())
                     .build();
         }
-        return FireworkRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        FireworkRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> launch(Player player, FireworkConfig config) {
-        return FireworkRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+    public static void launch(Player player, FireworkConfig config) {
+        FireworkRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> launchToFiltered(Predicate<Player> filter, FireworkEffect.Type type, List<Color> colors) {
+    public static void launchToFiltered(Predicate<Player> filter, FireworkEffect.Type type, List<Color> colors) {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (filter.test(player)) {
                 launch(player, type, colors.toArray(new Color[0]));
             }
         }
-        return CompletableFuture.completedFuture(null);
     }
 
-    public static CompletableFuture<Void> launchInRadius(Location origin, double radius, FireworkEffect.Type type, List<Color> colors) {
+    public static void launchInRadius(Location origin, double radius, FireworkEffect.Type type, List<Color> colors) {
         if (origin == null) {
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         double radiusSquared = radius * radius;
@@ -82,7 +81,7 @@ public final class FireworkAPI {
                 player.getWorld().equals(origin.getWorld()) &&
                         player.getLocation().distanceSquared(origin) <= radiusSquared;
 
-        return launchToFiltered(filter, type, colors);
+        launchToFiltered(filter, type, colors);
     }
 
     public static CompletableFuture<String> launchContinuous(Player player, FireworkConfig config) {

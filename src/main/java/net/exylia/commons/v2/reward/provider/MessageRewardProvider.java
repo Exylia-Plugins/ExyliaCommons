@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.reward.provider;
 
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.reward.model.Reward;
 import net.exylia.commons.v2.reward.model.RewardContext;
 import net.exylia.commons.v2.reward.model.RewardResult;
@@ -20,15 +20,18 @@ public class MessageRewardProvider implements RewardProvider {
                 context.getPlaceholderContext()
         );
 
-        return MessageAPI.send(context.getPlayer(), processed, context.getPlaceholderContext())
-                .thenApply(v -> RewardResult.success(reward))
-                .exceptionally(throwable ->
-                        RewardResult.builder()
-                                .success(false)
-                                .reward(reward)
-                                .error(throwable)
-                                .message("Failed to send message: " + throwable.getMessage())
-                                .build()
-                );
+        try {
+            MessageAPI.send(context.getPlayer(), processed, context.getPlaceholderContext());
+            return CompletableFuture.completedFuture(RewardResult.success(reward));
+        } catch (Exception throwable) {
+            return CompletableFuture.completedFuture(
+                    RewardResult.builder()
+                            .success(false)
+                            .reward(reward)
+                            .error(throwable)
+                            .message("Failed to send message: " + throwable.getMessage())
+                            .build()
+            );
+        }
     }
 }

@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.items.processor;
 
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.NamespacedKey;

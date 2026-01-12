@@ -1,0 +1,30 @@
+title: 'Simple'
+type: SIMPLE
+size: 54  # 9, 18, 27, 36, 45, 54
+
+refresh:
+  mode: SMART  # DISABLED | FULL | SMART | SLOT_ONLY
+               # DISABLED: No actualiza
+               # FULL: Refresca todo el inventario
+               # SMART: Solo items con placeholders/dinámicos
+               # SLOT_ONLY: Como SMART pero sin actualizar título
+  interval: 20
+
+#filler:
+#  global:
+#    material: BLACK_STAINED_GLASS_PANE
+#    name: ' '
+#    hide_tooltip: true
+#
+#  custom:
+#    outer_border:
+#      material: RED_STAINED_GLASS_PANE
+#      name: ' '
+#      glowing: true
+#      hide_tooltip: true
+#      slots: '0-8,45-53'
+
+items: []
+
+# Menu placeholders:
+#   %menu_id%, %menu_type%, %menu_title%, %menu_size%

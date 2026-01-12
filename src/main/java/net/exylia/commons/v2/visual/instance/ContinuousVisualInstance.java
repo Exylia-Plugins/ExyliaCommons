@@ -43,10 +43,10 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
             updateContext.put("permanent_active", true);
             updateContext.withCurrentTime();
 
-            render()
-                    .exceptionally(throwable -> {
-                        return null;
-                    });
+            try {
+                render();
+            } catch (Exception ignored) {
+            }
 
         }, 0L, config.getUpdateInterval());
 

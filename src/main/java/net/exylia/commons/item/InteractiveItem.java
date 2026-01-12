@@ -16,6 +16,7 @@ import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.utils.skull.SkullManager;
 import net.exylia.commons.utils.versions.ItemMetaAdapter;
+import net.exylia.commons.v2.command.api.CommandAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -375,11 +376,7 @@ public class InteractiveItem {
     public void executeCommands(Player player) {
         ExyliaContext commandContext = context.copy().add(this);
         if (placeholderPlayer != null) commandContext.add(placeholderPlayer);
-
-        for (String command : getCommands()) {
-            String processedCommand = commandContext.processPlaceholders(command, player);
-            player.performCommand(processedCommand);
-        }
+        CommandAPI.executeAll(player,getCommands(), context.toPlaceholderContext());
     }
 
     private void initializeUses() {

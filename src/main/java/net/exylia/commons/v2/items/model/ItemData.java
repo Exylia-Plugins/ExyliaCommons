@@ -9,6 +9,7 @@ import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.config.SlotConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +22,12 @@ import java.util.function.Supplier;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ItemData {
+
+    @Builder.Default
+    private ItemStack itemStack = null;
+
+    @Builder.Default
+    private Supplier<ItemStack> itemStackSupplier = null;
 
     @Builder.Default
     private String rawMaterial = "STONE";
@@ -59,6 +66,9 @@ public class ItemData {
     private boolean hideAttributes = false;
 
     @Builder.Default
+    private boolean hideTooltip = false;
+
+    @Builder.Default
     private String rawItemModel = null;
 
     @Builder.Default
@@ -94,8 +104,13 @@ public class ItemData {
     @Builder.Default
     private List<ClickCommand> commands = new ArrayList<>();
 
+    @Builder.Default
+    private boolean requiresTarget = false;
+
     public ItemData copy() {
         return ItemData.builder()
+                .itemStack(this.itemStack != null ? this.itemStack.clone() : null)
+                .itemStackSupplier(this.itemStackSupplier)
                 .rawMaterial(this.rawMaterial)
                 .rawAmount(this.rawAmount)
                 .rawName(this.rawName)
@@ -108,6 +123,7 @@ public class ItemData {
                 .leatherArmorConfig(this.leatherArmorConfig)
                 .glowing(this.glowing)
                 .hideAttributes(this.hideAttributes)
+                .hideTooltip(this.hideTooltip)
                 .rawItemModel(this.rawItemModel)
                 .clickSounds(new ArrayList<>(this.clickSounds))
                 .context(this.context.copy())
@@ -120,6 +136,7 @@ public class ItemData {
                 .slotConfig(this.slotConfig)
                 .actions(new ArrayList<>(this.actions))
                 .commands(new ArrayList<>(this.commands))
+                .requiresTarget(this.requiresTarget)
                 .build();
     }
 }

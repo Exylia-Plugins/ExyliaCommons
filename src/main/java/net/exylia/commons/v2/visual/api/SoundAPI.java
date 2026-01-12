@@ -4,7 +4,6 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.builder.SoundBuilder;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import net.exylia.commons.v2.visual.core.VisualManager;
-import net.exylia.commons.v2.visual.core.VisualType;
 import net.exylia.commons.v2.visual.renderer.SoundRenderer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -19,53 +18,54 @@ public final class SoundAPI {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    public static CompletableFuture<Void> play(Player player, Sound sound) {
-        return play(player, sound, 1.0f, 1.0f);
+    public static void play(Player player, Sound sound) {
+        play(player, sound, 1.0f, 1.0f);
     }
 
-    public static CompletableFuture<Void> play(Player player, Sound sound, float volume, float pitch) {
+    public static void play(Player player, Sound sound, float volume, float pitch) {
         SoundConfig config = SoundBuilder.create()
                 .sound(sound)
                 .volume(volume)
                 .pitch(pitch)
                 .build();
 
-        return SoundRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> play(Player player, String soundString) {
+    public static void play(Player player, String soundString) {
         SoundConfig config = SoundBuilder.fromString(soundString);
-        return SoundRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> play(Player player, SoundConfig config) {
-        return SoundRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+    public static void play(Player player, SoundConfig config) {
+        SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> playAt(Location location, Sound sound) {
-        return playAt(location, sound, 1.0f, 1.0f);
+    public static void playAt(Location location, Sound sound) {
+        playAt(location, sound, 1.0f, 1.0f);
     }
 
-    public static CompletableFuture<Void> playAt(Location location, Sound sound, float volume, float pitch) {
-        if (location.getWorld() == null || !location.getWorld().getPlayers().isEmpty()) {
-            Player nearestPlayer = location.getWorld().getPlayers().get(0);
-            SoundConfig config = SoundBuilder.create()
-                    .sound(sound)
-                    .volume(volume)
-                    .pitch(pitch)
-                    .atLocation(location)
-                    .build();
-
-            return SoundRenderer.getInstance().renderAsync(nearestPlayer, config, PlaceholderContext.create());
+    public static void playAt(Location location, Sound sound, float volume, float pitch) {
+        if (location.getWorld() == null || location.getWorld().getPlayers().isEmpty()) {
+            return;
         }
-        return CompletableFuture.completedFuture(null);
+
+        Player nearestPlayer = location.getWorld().getPlayers().get(0);
+        SoundConfig config = SoundBuilder.create()
+                .sound(sound)
+                .volume(volume)
+                .pitch(pitch)
+                .atLocation(location)
+                .build();
+
+        SoundRenderer.getInstance().render(nearestPlayer, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> playNearby(Player player, Sound sound) {
-        return playNearby(player, sound, 1.0f, 1.0f);
+    public static void playNearby(Player player, Sound sound) {
+        playNearby(player, sound, 1.0f, 1.0f);
     }
 
-    public static CompletableFuture<Void> playNearby(Player player, Sound sound, float volume, float pitch) {
+    public static void playNearby(Player player, Sound sound, float volume, float pitch) {
         SoundConfig config = SoundBuilder.create()
                 .sound(sound)
                 .volume(volume)
@@ -73,14 +73,14 @@ public final class SoundAPI {
                 .nearby()
                 .build();
 
-        return SoundRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> playToFiltered(Predicate<Player> filter, Sound sound) {
-        return playToFiltered(filter, sound, 1.0f, 1.0f);
+    public static void playToFiltered(Predicate<Player> filter, Sound sound) {
+        playToFiltered(filter, sound, 1.0f, 1.0f);
     }
 
-    public static CompletableFuture<Void> playToFiltered(Predicate<Player> filter, Sound sound, float volume, float pitch) {
+    public static void playToFiltered(Predicate<Player> filter, Sound sound, float volume, float pitch) {
         SoundConfig config = SoundBuilder.create()
                 .sound(sound)
                 .volume(volume)
@@ -89,19 +89,18 @@ public final class SoundAPI {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (filter.test(player)) {
-                SoundRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+                SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
             }
         }
-        return CompletableFuture.completedFuture(null);
     }
 
-    public static CompletableFuture<Void> playInRadius(Location origin, double radius, Sound sound) {
-        return playInRadius(origin, radius, sound, 1.0f, 1.0f);
+    public static void playInRadius(Location origin, double radius, Sound sound) {
+        playInRadius(origin, radius, sound, 1.0f, 1.0f);
     }
 
-    public static CompletableFuture<Void> playInRadius(Location origin, double radius, Sound sound, float volume, float pitch) {
+    public static void playInRadius(Location origin, double radius, Sound sound, float volume, float pitch) {
         if (origin == null) {
-            return CompletableFuture.completedFuture(null);
+            return;
         }
 
         double radiusSquared = radius * radius;
@@ -109,7 +108,7 @@ public final class SoundAPI {
                 player.getWorld().equals(origin.getWorld()) &&
                         player.getLocation().distanceSquared(origin) <= radiusSquared;
 
-        return playToFiltered(filter, sound, volume, pitch);
+        playToFiltered(filter, sound, volume, pitch);
     }
 
     public static CompletableFuture<String> playContinuous(Player player, SoundConfig config) {

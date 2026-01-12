@@ -72,11 +72,26 @@ public class ScoreboardManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        hideScoreboard(player);
+        boolean isFirstScoreboard = !registry.has(player.getUniqueId());
+
+        if (isFirstScoreboard) {
+            org.bukkit.scoreboard.Scoreboard bukkitScoreboard = player.getScoreboard();
+            if (bukkitScoreboard != null &&
+                !bukkitScoreboard.equals(plugin.getServer().getScoreboardManager().getMainScoreboard())) {
+                registry.saveOriginalScoreboard(player.getUniqueId(), bukkitScoreboard);
+            }
+        }
+
+        Optional<ScoreboardInstance> currentOpt = registry.peek(player.getUniqueId());
+        if (currentOpt.isPresent()) {
+            ScoreboardInstance current = currentOpt.get();
+            current.hide();
+            scheduler.unschedule(current);
+        }
 
         ScoreboardInstance instance = factory.createInstance(player, scoreboard, context);
 
-        registry.register(player.getUniqueId(), instance);
+        registry.push(player.getUniqueId(), instance);
         scheduler.schedule(instance);
 
         return instance.show()
@@ -88,15 +103,27 @@ public class ScoreboardManager {
             return false;
         }
 
-        Optional<ScoreboardInstance> instanceOpt = registry.get(player.getUniqueId());
+        Optional<ScoreboardInstance> instanceOpt = registry.pop(player.getUniqueId());
 
         if (instanceOpt.isPresent()) {
             ScoreboardInstance instance = instanceOpt.get();
 
             instance.hide();
             scheduler.unschedule(instance);
-            registry.unregister(player.getUniqueId());
             cacheManager.invalidatePlayer(player.getUniqueId());
+
+            Optional<ScoreboardInstance> previousOpt = registry.peek(player.getUniqueId());
+            if (previousOpt.isPresent()) {
+                ScoreboardInstance previous = previousOpt.get();
+                scheduler.schedule(previous);
+                previous.show();
+            } else {
+                Optional<org.bukkit.scoreboard.Scoreboard> originalOpt = registry.getOriginalScoreboard(player.getUniqueId());
+                if (originalOpt.isPresent() && player.isOnline()) {
+                    player.setScoreboard(originalOpt.get());
+                }
+                registry.removeOriginalScoreboard(player.getUniqueId());
+            }
 
             return true;
         }
@@ -122,6 +149,24 @@ public class ScoreboardManager {
 
     public void forceUpdate(Player player) {
         getScoreboard(player).ifPresent(ScoreboardInstance::forceUpdate);
+    }
+
+    public void clearPlayerScoreboards(Player player) {
+        if (player == null) {
+            return;
+        }
+
+        while (registry.has(player.getUniqueId())) {
+            Optional<ScoreboardInstance> instanceOpt = registry.pop(player.getUniqueId());
+            if (instanceOpt.isPresent()) {
+                ScoreboardInstance instance = instanceOpt.get();
+                instance.hide();
+                scheduler.unschedule(instance);
+            }
+        }
+
+        registry.removeOriginalScoreboard(player.getUniqueId());
+        cacheManager.invalidatePlayer(player.getUniqueId());
     }
 
     public void hideAll() {

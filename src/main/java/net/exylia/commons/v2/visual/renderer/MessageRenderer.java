@@ -1,7 +1,5 @@
 package net.exylia.commons.v2.visual.renderer;
 
-import net.exylia.commons.async.AsyncExecutor;
-import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.cache.CacheManager;
 import net.exylia.commons.v2.visual.color.MessageCenterer;
@@ -20,7 +18,6 @@ import org.bukkit.entity.Player;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 public class MessageRenderer implements VisualRenderer<MessageConfig> {
     private static final MessageRenderer INSTANCE = new MessageRenderer();
@@ -33,25 +30,7 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
     }
 
     @Override
-    public CompletableFuture<Void> renderAsync(Player player, MessageConfig config, PlaceholderContext context) {
-        return AsyncExecutor.getInstance()
-                .supplyAsync(() -> processMessages(player, config, context), false)
-                .thenAcceptAsync(components -> {
-                    SchedulerManager.getInstance().runSync(() -> {
-                        if (config.isBroadcast()) {
-                            sendToAll(components, config);
-                        } else if (config.getFilter() != null) {
-                            sendToFiltered(components, config);
-                        } else if (config.getRecipients() != null) {
-                            sendToRecipients(components, config);
-                        } else if (player != null && player.isOnline()) {
-                            sendToPlayer(player, components);
-                        }
-                    });
-                }, AsyncExecutor.getInstance().getGeneralExecutor());
-    }
-
-    public void renderSync(Player player, MessageConfig config, PlaceholderContext context) {
+    public void render(Player player, MessageConfig config, PlaceholderContext context) {
         List<Component> components = processMessages(player, config, context);
 
         if (config.isBroadcast()) {

@@ -74,7 +74,7 @@ public class DatabaseManager {
 
     private void loadConfiguration() {
         try {
-            File configFile = new File(plugin.getDataFolder(), "database.yml");
+            File configFile = new File(plugin.getDataFolder(), "examples/database.yml");
 
             if (!configFile.exists()) {
                 createDefaultConfig(configFile);

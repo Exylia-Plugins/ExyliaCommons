@@ -2,7 +2,7 @@ package net.exylia.commons.placeholders;
 
 import lombok.Setter;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlayerPlaceholderResolver;

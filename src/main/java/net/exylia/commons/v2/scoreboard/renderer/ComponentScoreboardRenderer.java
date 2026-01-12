@@ -3,7 +3,7 @@ package net.exylia.commons.v2.scoreboard.renderer;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.scoreboard.cache.ScoreboardCacheManager;
 import net.exylia.commons.v2.scoreboard.exception.ScoreboardRenderException;

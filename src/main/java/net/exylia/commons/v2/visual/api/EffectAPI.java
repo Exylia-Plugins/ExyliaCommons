@@ -18,30 +18,30 @@ public final class EffectAPI {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    public static CompletableFuture<Void> apply(Player player, PotionEffectType effectType) {
-        return apply(player, effectType, 0, 200);
+    public static void apply(Player player, PotionEffectType effectType) {
+        apply(player, effectType, 0, 200);
     }
 
-    public static CompletableFuture<Void> apply(Player player, PotionEffectType effectType, int amplifier, int durationTicks) {
+    public static void apply(Player player, PotionEffectType effectType, int amplifier, int durationTicks) {
         EffectConfig config = EffectBuilder.create()
                 .effect(effectType)
                 .amplifier(amplifier)
                 .durationTicks(durationTicks)
                 .build();
 
-        return EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> apply(Player player, String effectString) {
+    public static void apply(Player player, String effectString) {
         EffectConfig config = EffectBuilder.fromString(effectString);
-        return EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+        EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> apply(Player player, EffectConfig config) {
-        return EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+    public static void apply(Player player, EffectConfig config) {
+        EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
-    public static CompletableFuture<Void> applyToAll(PotionEffectType effectType, int amplifier, int durationTicks) {
+    public static void applyToAll(PotionEffectType effectType, int amplifier, int durationTicks) {
         EffectConfig config = EffectBuilder.create()
                 .effect(effectType)
                 .amplifier(amplifier)
@@ -49,12 +49,11 @@ public final class EffectAPI {
                 .build();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
-            EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+            EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
         }
-        return CompletableFuture.completedFuture(null);
     }
 
-    public static CompletableFuture<Void> applyToRecipients(Collection<Player> recipients, PotionEffectType effectType, int amplifier, int durationTicks) {
+    public static void applyToRecipients(Collection<Player> recipients, PotionEffectType effectType, int amplifier, int durationTicks) {
         EffectConfig config = EffectBuilder.create()
                 .effect(effectType)
                 .amplifier(amplifier)
@@ -62,12 +61,11 @@ public final class EffectAPI {
                 .build();
 
         for (Player player : recipients) {
-            EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+            EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
         }
-        return CompletableFuture.completedFuture(null);
     }
 
-    public static CompletableFuture<Void> applyToFiltered(Predicate<Player> filter, PotionEffectType effectType, int amplifier, int durationTicks) {
+    public static void applyToFiltered(Predicate<Player> filter, PotionEffectType effectType, int amplifier, int durationTicks) {
         EffectConfig config = EffectBuilder.create()
                 .effect(effectType)
                 .amplifier(amplifier)
@@ -76,10 +74,9 @@ public final class EffectAPI {
 
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (filter.test(player)) {
-                EffectRenderer.getInstance().renderAsync(player, config, PlaceholderContext.create());
+                EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
             }
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     public static CompletableFuture<String> applyContinuous(Player player, EffectConfig config) {

@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.reward.provider;
 
 import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.reward.config.ItemRewardConfig;
 import net.exylia.commons.v2.reward.model.Reward;
 import net.exylia.commons.v2.reward.model.RewardContext;

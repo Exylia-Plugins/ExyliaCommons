@@ -2,10 +2,8 @@ package net.exylia.commons.v2.ui.menu;
 
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
-import net.exylia.commons.v2.items.api.ItemsAPI;
-import net.exylia.commons.v2.items.api.ProcessedItem;
 import net.exylia.commons.v2.items.model.ItemData;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.NavigationData;
@@ -87,6 +85,13 @@ public class PaginationMenu extends MenuBase {
                     .build();
 
             setItem(slot, enhancedItemData);
+        }
+
+        if (menuData.hasPaginationFiller()) {
+            for (int i = pageItems.size(); i < slots.size(); i++) {
+                int slot = slots.get(i);
+                setItem(slot, menuData.getPaginationFiller());
+            }
         }
     }
 

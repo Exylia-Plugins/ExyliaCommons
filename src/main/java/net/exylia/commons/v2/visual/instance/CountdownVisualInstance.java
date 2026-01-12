@@ -67,10 +67,10 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
             updateContext(updateContext);
 
-            render()
-                    .exceptionally(throwable -> {
-                        return null;
-                    });
+            try {
+                render();
+            } catch (Exception ignored) {
+            }
 
             ticksRemaining--;
 

@@ -24,6 +24,7 @@ public class ProcessedItem {
     private final List<ClickCommand> commands;
     private final ItemData rawItemData;
     private final boolean hasDynamicContent;
+    private final boolean requiresTarget;
 
     public boolean needsRefresh() {
         return hasDynamicContent || rawItemData.isDynamicUpdate();

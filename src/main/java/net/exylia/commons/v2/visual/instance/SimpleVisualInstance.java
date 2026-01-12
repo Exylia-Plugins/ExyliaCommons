@@ -27,12 +27,14 @@ public class SimpleVisualInstance<T extends VisualConfig> extends VisualInstance
     public CompletableFuture<Void> start() {
         lifecycle.start();
 
-        return render()
-                .thenRun(() -> scheduleAutoCleanup())
-                .exceptionally(throwable -> {
-                    lifecycle.error();
-                    return null;
-                });
+        try {
+            render();
+            scheduleAutoCleanup();
+        } catch (Exception e) {
+            lifecycle.error();
+        }
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

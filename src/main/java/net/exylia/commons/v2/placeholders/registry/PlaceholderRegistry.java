@@ -167,10 +167,10 @@ public class PlaceholderRegistry {
         try {
             PapiAdapter papiAdapter = PapiAdapter.getInstance();
             if (papiAdapter != null && !papiAdapter.canResolvePlaceholder(key)) {
-                DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
+                DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
             }
         } catch (Exception e) {
-            DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
+            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
         }
 
         return null;

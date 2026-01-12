@@ -2,7 +2,7 @@ package net.exylia.commons.v2.reward.core;
 
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.reward.config.RewardConfig;
 import net.exylia.commons.v2.reward.config.RewardConfigLoader;
 import net.exylia.commons.v2.reward.model.Reward;
@@ -105,7 +105,7 @@ public class RewardExecutor {
         }
 
         return provider.provide(reward, context)
-                .thenCompose(result -> {
+                .thenApply(result -> {
                     if (result.isSuccess()) {
                         DebugAPI.logLibDebug(DebugCategory.REWARD,
                             "Reward executed successfully: " + reward.getId());
@@ -118,11 +118,11 @@ public class RewardExecutor {
                                     context.getPlaceholderContext()
                             );
 
-                            return MessageAPI.send(
+                            MessageAPI.send(
                                     context.getPlayer(),
                                     processedMessage,
                                     context.getPlaceholderContext()
-                            ).thenApply(v -> result);
+                            );
                         }
                     } else {
                         DebugAPI.logLibError(DebugCategory.REWARD,
@@ -130,7 +130,7 @@ public class RewardExecutor {
                         totalFailed.incrementAndGet();
                     }
 
-                    return CompletableFuture.completedFuture(result);
+                    return result;
                 })
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.REWARD,

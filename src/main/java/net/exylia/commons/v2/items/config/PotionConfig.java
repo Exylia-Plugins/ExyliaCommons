@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.items.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.Color;
 import org.bukkit.configuration.ConfigurationSection;
@@ -153,9 +154,9 @@ public class PotionConfig {
             String durationStr = effectData.duration;
 
             if (player != null && context != null) {
-                effectType = net.exylia.commons.v2.placeholders.Placeholders.process(effectType, player, context);
-                amplifierStr = net.exylia.commons.v2.placeholders.Placeholders.process(amplifierStr, player, context);
-                durationStr = net.exylia.commons.v2.placeholders.Placeholders.process(durationStr, player, context);
+                effectType = Placeholders.process(effectType, player, context);
+                amplifierStr = Placeholders.process(amplifierStr, player, context);
+                durationStr = Placeholders.process(durationStr, player, context);
             }
 
             try {
@@ -180,7 +181,7 @@ public class PotionConfig {
         if (potionColor == null) return null;
 
         if (player != null && context != null) {
-            String colorString = net.exylia.commons.v2.placeholders.Placeholders.process(potionColor.toString(), player, context);
+            String colorString = Placeholders.process(potionColor.toString(), player, context);
             Color processedColor = parseColor(colorString);
             return processedColor != null ? processedColor : potionColor;
         }

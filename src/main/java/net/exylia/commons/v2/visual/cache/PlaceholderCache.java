@@ -2,7 +2,7 @@ package net.exylia.commons.v2.visual.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 
@@ -20,13 +20,17 @@ public class PlaceholderCache {
             return "";
         }
 
-        if (player == null) {
+        Player targetPlayer = context != null && context.getPlayer() != null
+                ? context.getPlayer()
+                : player;
+
+        if (targetPlayer == null) {
             return Placeholders.process(text, null, context);
         }
 
-        CacheKey key = CacheKey.of(text, player.getUniqueId(), context.hashCode());
+        CacheKey key = CacheKey.of(text, targetPlayer.getUniqueId(), context.hashCode());
 
-        return cache.get(key, k -> Placeholders.process(text, player, context));
+        return cache.get(key, k -> Placeholders.process(text, targetPlayer, context));
     }
 
     public static void invalidate(Player player) {

@@ -1,7 +1,5 @@
 package net.exylia.commons.v2.visual.renderer;
 
-import net.exylia.commons.async.AsyncExecutor;
-import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import org.bukkit.Bukkit;
@@ -10,7 +8,6 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 
 public class SoundRenderer implements VisualRenderer<SoundConfig> {
     private static final SoundRenderer INSTANCE = new SoundRenderer();
@@ -24,19 +21,15 @@ public class SoundRenderer implements VisualRenderer<SoundConfig> {
     }
 
     @Override
-    public CompletableFuture<Void> renderAsync(Player player, SoundConfig config, PlaceholderContext context) {
-        return CompletableFuture.runAsync(() -> {
-            Location location = determineLocation(player, config);
-            Collection<Player> targets = determineTargets(player, config);
+    public void render(Player player, SoundConfig config, PlaceholderContext context) {
+        Location location = determineLocation(player, config);
+        Collection<Player> targets = determineTargets(player, config);
 
-            SchedulerManager.getInstance().runSync(() -> {
-                for (Player target : targets) {
-                    if (target.isOnline()) {
-                        target.playSound(location, config.getSound(), config.getVolume(), config.getPitch());
-                    }
-                }
-            });
-        }, AsyncExecutor.getInstance().getGeneralExecutor());
+        for (Player target : targets) {
+            if (target.isOnline()) {
+                target.playSound(location, config.getSound(), config.getVolume(), config.getPitch());
+            }
+        }
     }
 
     @Override

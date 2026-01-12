@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.items.processor;
 
 import net.exylia.commons.v2.items.utils.EnchantmentUtils;
-import net.exylia.commons.v2.placeholders.Placeholders;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;

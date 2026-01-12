@@ -6,6 +6,7 @@ import net.exylia.commons.v2.items.api.ItemsAPI;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.exception.InvalidMenuConfigException;
+import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuType;
 import net.exylia.commons.v2.ui.model.NavigationData;
@@ -38,6 +39,7 @@ public class MenuParser {
         parseSnapshotSettings(config, builder);
         parsePlayerInventorySettings(config, builder);
         parseContext(config, builder);
+        parseSounds(config, builder);
 
         MenuData menuData = builder.build();
         DebugAPI.logLibDebug(DebugCategory.UI, "Menu configuration parsed: type=" + menuData.getType() + ", size=" + menuData.getSize() + ", title=" + menuData.getTitle());
@@ -95,8 +97,51 @@ public class MenuParser {
                         builder.borderFiller(borderFiller);
                     }
                 }
+
+                if (fillerSection.contains("pagination")) {
+                    ConfigurationSection paginationSection = fillerSection.getConfigurationSection("pagination");
+                    if (paginationSection != null) {
+                        ItemData paginationFiller = ItemsAPI.parseFromConfig(paginationSection);
+                        builder.paginationFiller(paginationFiller);
+                    }
+                }
+
+                if (fillerSection.contains("custom")) {
+                    ConfigurationSection customSection = fillerSection.getConfigurationSection("custom");
+                    if (customSection != null) {
+                        List<FillerData> customFillers = parseCustomFillers(customSection);
+                        if (!customFillers.isEmpty()) {
+                            builder.customFillers(customFillers);
+                            DebugAPI.logLibDebug(DebugCategory.UI, "Parsed " + customFillers.size() + " custom fillers");
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private static List<FillerData> parseCustomFillers(ConfigurationSection customSection) {
+        List<FillerData> customFillers = new ArrayList<>();
+
+        for (String fillerKey : customSection.getKeys(false)) {
+            ConfigurationSection fillerConfig = customSection.getConfigurationSection(fillerKey);
+            if (fillerConfig != null) {
+                ItemData itemData = ItemsAPI.parseFromConfig(fillerConfig);
+                List<Integer> slots = parseSlots(fillerConfig, "slots");
+
+                if (!slots.isEmpty()) {
+                    FillerData fillerData = FillerData.builder()
+                            .name(fillerKey)
+                            .itemData(itemData)
+                            .slots(slots)
+                            .build();
+                    customFillers.add(fillerData);
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Parsed custom filler '" + fillerKey + "' with " + slots.size() + " slots");
+                }
+            }
+        }
+
+        return customFillers;
     }
 
     private static void parseItems(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
@@ -295,6 +340,44 @@ public class MenuParser {
 
     private static void parseContext(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
         builder.context(PlaceholderContext.create());
+    }
+
+    private static void parseSounds(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        if (config.contains("open_sounds")) {
+            List<String> openSounds = parseSoundList(config, "open_sounds");
+            if (!openSounds.isEmpty()) {
+                builder.openSounds(openSounds);
+            }
+        }
+
+        if (config.contains("close_sounds")) {
+            List<String> closeSounds = parseSoundList(config, "close_sounds");
+            if (!closeSounds.isEmpty()) {
+                builder.closeSounds(closeSounds);
+            }
+        }
+
+        if (config.contains("click_sounds")) {
+            List<String> clickSounds = parseSoundList(config, "click_sounds");
+            if (!clickSounds.isEmpty()) {
+                builder.clickSounds(clickSounds);
+            }
+        }
+    }
+
+    private static List<String> parseSoundList(ConfigurationSection config, String key) {
+        List<String> sounds = new ArrayList<>();
+
+        if (config.isList(key)) {
+            sounds = config.getStringList(key);
+        } else if (config.isString(key)) {
+            String soundSingle = config.getString(key);
+            if (soundSingle != null && !soundSingle.isEmpty()) {
+                sounds.add(soundSingle);
+            }
+        }
+
+        return sounds;
     }
 
     public static List<Integer> parseSlots(ConfigurationSection config, String key) {
