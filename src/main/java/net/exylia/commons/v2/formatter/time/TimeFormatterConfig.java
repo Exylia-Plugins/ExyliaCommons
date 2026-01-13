@@ -2,7 +2,7 @@ package net.exylia.commons.v2.formatter.time;
 
 import lombok.Builder;
 import lombok.Getter;
-import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.formatter.FormattersDefaults;
 
 @Getter
 @Builder
@@ -20,14 +20,14 @@ public class TimeFormatterConfig {
 
     public static TimeFormatterConfig fromConfig() {
         return TimeFormatterConfig.builder()
-            .zeroText(Configs.string("formatters.time.zero-text", "0s"))
-            .showMilliseconds(Configs.bool("formatters.time.show-milliseconds", false))
-            .compactMode(Configs.bool("formatters.time.compact-mode", false))
-            .precision(Configs.integer("formatters.time.precision", 2))
-            .language(Configs.string("formatters.time.language", "en"))
-            .forceShowZeroDecimals(Configs.bool("formatters.time.force-show-zero-decimals", false))
-            .decimalThresholdMillis(Configs.longValue("formatters.time.decimal-threshold-millis", -1L))
-            .showDecimalsWhenUnderThreshold(Configs.bool("formatters.time.show-decimals-under-threshold", false))
+            .zeroText(FormattersDefaults.Formatters.Time.ZERO_TEXT)
+            .showMilliseconds(FormattersDefaults.Formatters.Time.SHOW_MILLISECONDS)
+            .compactMode(FormattersDefaults.Formatters.Time.COMPACT_MODE)
+            .precision(FormattersDefaults.Formatters.Time.PRECISION)
+            .language(FormattersDefaults.Formatters.Time.LANGUAGE)
+            .forceShowZeroDecimals(FormattersDefaults.Formatters.Time.FORCE_SHOW_ZERO_DECIMALS)
+            .decimalThresholdMillis(FormattersDefaults.Formatters.Time.DECIMAL_THRESHOLD_MILLIS)
+            .showDecimalsWhenUnderThreshold(FormattersDefaults.Formatters.Time.SHOW_DECIMALS_UNDER_THRESHOLD)
             .build();
     }
 

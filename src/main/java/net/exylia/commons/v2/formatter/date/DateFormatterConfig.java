@@ -2,7 +2,7 @@ package net.exylia.commons.v2.formatter.date;
 
 import lombok.Builder;
 import lombok.Getter;
-import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.formatter.FormattersDefaults;
 
 @Getter
 @Builder
@@ -14,10 +14,10 @@ public class DateFormatterConfig {
 
     public static DateFormatterConfig fromConfig() {
         return DateFormatterConfig.builder()
-            .defaultPattern(Configs.string("formatters.date.default-pattern", "dd/MM/yyyy HH:mm:ss"))
-            .datePattern(Configs.string("formatters.date.date-pattern", "dd/MM/yyyy"))
-            .timePattern(Configs.string("formatters.date.time-pattern", "HH:mm:ss"))
-            .useIsoDefault(Configs.bool("formatters.date.use-iso-default", false))
+            .defaultPattern(FormattersDefaults.Formatters.Date.DEFAULT_PATTERN)
+            .datePattern(FormattersDefaults.Formatters.Date.DATE_PATTERN)
+            .timePattern(FormattersDefaults.Formatters.Date.TIME_PATTERN)
+            .useIsoDefault(FormattersDefaults.Formatters.Date.USE_ISO_DEFAULT)
             .build();
     }
 

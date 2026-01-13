@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.debug.formatter;
 
 import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.v2.debug.config.DebugConfig;
+import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.debug.core.DebugSource;
 import net.exylia.commons.v2.debug.core.DebugType;
@@ -19,12 +19,11 @@ public class DebugFormatter {
             DebugType type,
             DebugCategory category,
             String message,
-            String prefix,
-            DebugConfig config
+            String prefix
     ) {
         StringBuilder sb = new StringBuilder();
 
-        if (config.isShowTimestamps()) {
+        if (DebugDefaults.Debug.SHOW_TIMESTAMPS) {
             sb.append("<#696969>[")
                     .append(LocalTime.now().format(TIME_FORMATTER))
                     .append("] ");
@@ -47,7 +46,7 @@ public class DebugFormatter {
                     .append("] ");
         }
 
-        if (config.isShowClassNames()) {
+        if (DebugDefaults.Debug.SHOW_CLASS_NAMES) {
             String className = getCallerClassName();
             if (className != null) {
                 sb.append("<#696969>[")

@@ -20,10 +20,6 @@ public class DebugConfigAdapter extends ReloadableSystemAdapter {
 
     @Override
     public boolean isAvailable() {
-        try {
-            return DebugConfig.getInstance() != null;
-        } catch (Exception e) {
-            return false;
-        }
+        return true;
     }
 }

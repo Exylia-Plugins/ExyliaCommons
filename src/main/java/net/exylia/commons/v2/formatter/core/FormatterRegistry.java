@@ -14,7 +14,6 @@ public class FormatterRegistry {
 
     public static void initialize() {
         synchronized (LOCK) {
-            FormattersConfig.ensureDefaults();
             FormatterCache cache = FormatterCache.getInstance();
             FormattersConfig formattersConfig = FormattersConfig.getInstance();
 

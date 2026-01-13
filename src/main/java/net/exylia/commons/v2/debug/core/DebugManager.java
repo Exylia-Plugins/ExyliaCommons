@@ -4,6 +4,7 @@ import com.github.lalyos.jfiglet.FigletFont;
 import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.utils.AnsiComponentLogger;
 import net.exylia.commons.v2.debug.config.DebugConfig;
+import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.debug.formatter.DebugFormatter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -46,7 +47,7 @@ public class DebugManager {
                 }
             }
             logLibrary(DebugType.INFO, null, "", null);
-            logLibrary(DebugType.INFO, null, "Version: v" + plugin.getDescription().getVersion() + " | Debug: " + DebugConfig.getInstance().isEnabled(DebugLevel.PLUGIN_ONLY), null);
+            logLibrary(DebugType.INFO, null, "Version: v" + plugin.getDescription().getVersion() + " | Debug: " + DebugConfig.isEnabled(DebugLevel.PLUGIN_ONLY), null);
             logLibrary(DebugType.INFO, null, "Powered by Exylia - https://discord.exylia.net", null);
             Bukkit.getLogger().info("");
         } catch (Exception e) {
@@ -55,14 +56,12 @@ public class DebugManager {
     }
 
     public void logPlugin(DebugType type, DebugCategory category, String message, Throwable throwable) {
-        DebugConfig config = DebugConfig.getInstance();
-
         if (type == DebugType.DEBUG) {
-            if (!config.isEnabled(DebugLevel.PLUGIN_ONLY)) {
+            if (!DebugConfig.isEnabled(DebugLevel.PLUGIN_ONLY)) {
                 return;
             }
 
-            if (category != null && !config.isCategoryAllowed(category)) {
+            if (category != null && !DebugConfig.isCategoryAllowed(category)) {
                 return;
             }
         }
@@ -72,22 +71,19 @@ public class DebugManager {
                 type,
                 category,
                 message,
-                pluginPrefix,
-                config
+                pluginPrefix
         );
 
-        sendMessage(formatted, throwable, config.isAsyncLogging());
+        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
     }
 
     public void logLibrary(DebugType type, DebugCategory category, String message, Throwable throwable) {
-        DebugConfig config = DebugConfig.getInstance();
-
         if (type == DebugType.DEBUG) {
-            if (!config.isEnabled(DebugLevel.LIBRARY_ONLY)) {
+            if (!DebugConfig.isEnabled(DebugLevel.LIBRARY_ONLY)) {
                 return;
             }
 
-            if (category != null && !config.isCategoryAllowed(category)) {
+            if (category != null && !DebugConfig.isCategoryAllowed(category)) {
                 return;
             }
         }
@@ -97,11 +93,10 @@ public class DebugManager {
                 type,
                 category,
                 message,
-                LIBRARY_PREFIX,
-                config
+                LIBRARY_PREFIX
         );
 
-        sendMessage(formatted, throwable, config.isAsyncLogging());
+        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
     }
 
     private void sendMessage(Component formatted, Throwable throwable, boolean async) {

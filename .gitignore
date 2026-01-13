@@ -1,0 +1,154 @@
+# ----------------------------------------
+# SISTEMAS Y ENTORNOS DE DESARROLLO
+# ----------------------------------------
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Archivos temporales
+*.swp
+*.swo
+*.tmp
+*.bak
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de salida de compilación
+/build/
+/out/
+/dist/
+/bin/
+/target/
+
+# ----------------------------------------
+# GRADLE
+# ----------------------------------------
+
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.gradle-cache/
+*.lock
+*.bin
+
+# Wrapper files si no quieres versionarlos (opcional)
+/gradlew
+/gradlew.bat
+
+# ----------------------------------------
+# INTELLIJ IDEA / ANDROID STUDIO / JETBRAINS
+# ----------------------------------------
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ----------------------------------------
+# ECLIPSE / STS
+# ----------------------------------------
+
+.project
+.classpath
+.settings/
+.loadpath
+
+# ----------------------------------------
+# NETBEANS
+# ----------------------------------------
+
+nbproject/private/
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# ----------------------------------------
+# VSCODE
+# ----------------------------------------
+
+.vscode/
+
+# ----------------------------------------
+# PYTHON
+# ----------------------------------------
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+.env
+.venv/
+env/
+venv/
+
+# ----------------------------------------
+# NODE / JAVASCRIPT / TYPESCRIPT
+# ----------------------------------------
+
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log
+*.tsbuildinfo
+
+# ----------------------------------------
+# JAVA / KOTLIN / JVM
+# ----------------------------------------
+
+*.class
+*.jar
+*.war
+*.ear
+*.hprof
+
+# ----------------------------------------
+# CONFIGURACIONES PERSONALES Y CLAVES
+# ----------------------------------------
+
+*.env
+*.key
+*.pem
+*.crt
+*.jks
+*.keystore
+*.p12
+*.db
+
+# ----------------------------------------
+# GIT CONFIGS LOCALES
+# ----------------------------------------
+
+.git/
+.gitignore
+.gitattributes
+*.orig
+
+# ----------------------------------------
+# DOCKER / CI / OTROS (OPCIONAL)
+# ----------------------------------------
+
+docker-compose.override.yml
+docker.env
+*.pid
+*.seed
+*.pid.lock
+
+# ----------------------------------------
+# ARCHIVOS PERSONALIZADOS / TEMPORALES
+# ----------------------------------------
+
+*.old
+*.backup
+*.cache
+.idea_modules/

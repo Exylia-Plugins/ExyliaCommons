@@ -96,8 +96,8 @@ public class PlaceholderProcessor {
             return CompletableFuture.completedFuture(text);
         }
 
-        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-            String.format("Processing %d placeholder(s) asynchronously", placeholders.size()));
+//        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+//            String.format("Processing %d placeholder(s) asynchronously", placeholders.size()));
 
         List<CompletableFuture<String>> futures = new ArrayList<>();
         for (String placeholder : placeholders) {
@@ -118,9 +118,9 @@ public class PlaceholderProcessor {
                         result = result.substring(0, start) + replacement + result.substring(end);
                     }
 
-                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-                    DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-                        String.format("Async processing completed in %.3fms", millis));
+//                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
+//                    DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+//                        String.format("Async processing completed in %.3fms", millis));
 
                     return result;
                 })

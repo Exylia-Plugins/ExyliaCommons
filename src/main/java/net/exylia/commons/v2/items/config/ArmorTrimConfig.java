@@ -1,8 +1,15 @@
 package net.exylia.commons.v2.items.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.meta.ArmorMeta;
+import org.bukkit.inventory.meta.trim.ArmorTrim;
+import org.bukkit.inventory.meta.trim.TrimMaterial;
+import org.bukkit.inventory.meta.trim.TrimPattern;
 
 @Getter
 public class ArmorTrimConfig {
@@ -40,43 +47,42 @@ public class ArmorTrimConfig {
         if (material == null || pattern == null) return;
 
         try {
-            Object trimMaterial = getTrimMaterial(material);
-            Object trimPattern = getTrimPattern(pattern);
+            TrimMaterial trimMaterial = getTrimMaterial(material);
+            TrimPattern trimPattern = getTrimPattern(pattern);
 
             if (trimMaterial != null && trimPattern != null) {
-                Object trim = createTrim(trimMaterial, trimPattern);
-                if (trim != null) {
-                    meta.getClass().getMethod("setTrim", trim.getClass()).invoke(meta, trim);
-                }
+                ArmorTrim trim = new ArmorTrim(trimMaterial, trimPattern);
+                meta.setTrim(trim);
+                DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                    "Applied armor trim: " + pattern + " with material: " + material);
+            } else {
+                DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                    "Failed to apply armor trim - material or pattern not found");
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                "Error applying armor trim: " + e.getMessage());
         }
     }
 
-    private Object getTrimMaterial(String name) {
+    private TrimMaterial getTrimMaterial(String name) {
         try {
-            Class<?> trimMaterialClass = Class.forName("org.bukkit.inventory.meta.trim.TrimMaterial");
-            return trimMaterialClass.getMethod("getMaterial", String.class).invoke(null, name.toUpperCase());
+            NamespacedKey key = NamespacedKey.minecraft(name.toLowerCase());
+            return Registry.TRIM_MATERIAL.get(key);
         } catch (Exception e) {
+            DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                "Invalid trim material: " + name + " - " + e.getMessage());
             return null;
         }
     }
 
-    private Object getTrimPattern(String name) {
+    private TrimPattern getTrimPattern(String name) {
         try {
-            Class<?> trimPatternClass = Class.forName("org.bukkit.inventory.meta.trim.TrimPattern");
-            return trimPatternClass.getMethod("getPattern", String.class).invoke(null, name.toUpperCase());
+            NamespacedKey key = NamespacedKey.minecraft(name.toLowerCase());
+            return Registry.TRIM_PATTERN.get(key);
         } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private Object createTrim(Object trimMaterial, Object trimPattern) {
-        try {
-            Class<?> trimClass = Class.forName("org.bukkit.inventory.meta.ArmorMeta$Trim");
-            return trimClass.getConstructor(trimMaterial.getClass(), trimPattern.getClass())
-                    .newInstance(trimMaterial, trimPattern);
-        } catch (Exception e) {
+            DebugAPI.logLibDebug(DebugCategory.ITEMS,
+                "Invalid trim pattern: " + name + " - " + e.getMessage());
             return null;
         }
     }

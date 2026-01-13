@@ -9,6 +9,10 @@ import net.exylia.commons.utils.visuals.ActionBarUtils;
 import net.exylia.commons.utils.visuals.BossbarUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
 import net.exylia.commons.v2.config.ConfigInitializer;
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
+import net.exylia.commons.v2.database.config.DatabaseDefaults;
+import net.exylia.commons.v2.debug.config.DebugDefaults;
+import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.core.VisualManager;
 
@@ -22,7 +26,12 @@ public class SystemBootstrapper {
             logInternalDebug("Initializing ConfigInitializer...");
             ConfigInitializer.init(plugin);
 
-            logInternalDebug("Reloading DebugConfig...");
+            logInternalDebug("Loading config schemas...");
+            ConfigSchemaRegistry.ensureDefaults(DebugDefaults.class);
+            ConfigSchemaRegistry.ensureDefaults(FormattersDefaults.class);
+            ConfigSchemaRegistry.ensureDefaults(DatabaseDefaults.class);
+
+            logInternalDebug("Reloading DebugConfig cache...");
             net.exylia.commons.v2.debug.config.DebugConfig.reload();
 
             logInternalDebug("Initializing ColorAPI...");

@@ -2,7 +2,7 @@ package net.exylia.commons.v2.formatter.price;
 
 import lombok.Builder;
 import lombok.Getter;
-import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.formatter.FormattersDefaults;
 
 @Getter
 @Builder
@@ -16,12 +16,12 @@ public class PriceFormatterConfig {
 
     public static PriceFormatterConfig fromConfig() {
         return PriceFormatterConfig.builder()
-            .currencySymbol(Configs.string("formatters.price.currency-symbol", "$"))
-            .symbolBefore(Configs.bool("formatters.price.symbol-before", true))
-            .decimalSeparator(Configs.string("formatters.price.decimal-separator", "."))
-            .thousandSeparator(Configs.string("formatters.price.thousand-separator", ","))
-            .decimalPlaces(Configs.integer("formatters.price.decimal-places", 2))
-            .showDecimals(Configs.bool("formatters.price.show-decimals", true))
+            .currencySymbol(FormattersDefaults.Formatters.Price.CURRENCY_SYMBOL)
+            .symbolBefore(FormattersDefaults.Formatters.Price.SYMBOL_BEFORE)
+            .decimalSeparator(FormattersDefaults.Formatters.Price.DECIMAL_SEPARATOR)
+            .thousandSeparator(FormattersDefaults.Formatters.Price.THOUSAND_SEPARATOR)
+            .decimalPlaces(FormattersDefaults.Formatters.Price.DECIMAL_PLACES)
+            .showDecimals(FormattersDefaults.Formatters.Price.SHOW_DECIMALS)
             .build();
     }
 

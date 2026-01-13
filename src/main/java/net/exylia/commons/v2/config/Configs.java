@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.config;
 
 import net.exylia.commons.utils.DebugUtils;
-import net.exylia.commons.v2.debug.config.DebugConfig;
+import net.exylia.commons.v2.debug.config.DebugDefaults;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -65,7 +65,7 @@ public class Configs {
     @Deprecated
     public static boolean debug() {
         if (mainConfig == null) return false;
-        return DebugConfig.getInstance().getLevel().getLevel() > 0;
+        return DebugDefaults.Debug.LEVEL > 0;
     }
 
     public static boolean bool(String path) {

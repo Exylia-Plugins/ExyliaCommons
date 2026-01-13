@@ -35,6 +35,7 @@ public class ReloadManagerV2 {
 
     private void registerDefaultSystems() {
         registerSystem("Config", new ConfigAdapter());
+        registerSystem("ConfigSchema", new ConfigSchemaAdapter());
         registerSystem("ConfigSystem", new ConfigSystemAdapter());
         registerSystem("DebugConfig", new DebugConfigAdapter());
         registerSystem("Messages", new MessagesAdapter());
