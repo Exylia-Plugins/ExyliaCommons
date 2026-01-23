@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
+@Deprecated
 public class RegionRegenerationManager {
     private static RegionRegenerationManager instance;
 

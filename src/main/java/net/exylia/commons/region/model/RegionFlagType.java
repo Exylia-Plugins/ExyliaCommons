@@ -3,6 +3,7 @@ package net.exylia.commons.region.model;
 import lombok.Getter;
 
 @Getter
+@Deprecated
 public enum RegionFlagType {
     ALLOW("allow", "Permite la acción", true),
     DENY("deny", "Deniega la acción", false),

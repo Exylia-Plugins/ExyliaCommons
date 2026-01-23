@@ -41,6 +41,7 @@ public class ConfigurationParser {
         parseLeatherArmorConfig(config, builder);
         parseClickSounds(config, builder);
         parseItemModel(config, builder);
+        parseTooltipStyle(config, builder);
         parseDynamicUpdate(config, builder);
         parseAttributes(config, builder);
         parseCustomNBT(config, builder);
@@ -230,11 +231,16 @@ public class ConfigurationParser {
     }
 
     private static void parseItemModel(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
-        if (config.contains("item_model")) {
-            String itemModel = config.getString("item_model");
-            if (itemModel != null && !itemModel.isEmpty()) {
-                builder.rawItemModel(itemModel);
-            }
+        String itemModel = config.getString("item_model", config.getString("item-model"));
+        if (itemModel != null && !itemModel.isEmpty()) {
+            builder.rawItemModel(itemModel);
+        }
+    }
+
+    private static void parseTooltipStyle(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        String tooltipStyle = config.getString("tooltip_style", config.getString("tooltip-style"));
+        if (tooltipStyle != null && !tooltipStyle.isEmpty()) {
+            builder.rawTooltipStyle(tooltipStyle);
         }
     }
 

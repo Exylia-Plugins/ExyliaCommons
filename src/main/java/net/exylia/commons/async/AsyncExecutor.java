@@ -8,6 +8,10 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.core.TaskExecutor} instead.
+ */
+@Deprecated(forRemoval = true)
 public class AsyncExecutor {
 
     private static AsyncExecutor instance;

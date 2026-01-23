@@ -17,14 +17,7 @@ public class H2Adapter extends SQLAdapter {
 
     @Override
     protected String getJdbcUrl() {
-        String url = config.getH2Url();
-
-        if (!url.contains("AUTO_SERVER")) {
-            String separator = url.contains("?") ? ";" : ";";
-            url += separator + "AUTO_SERVER=TRUE;AUTO_RECONNECT=TRUE";
-        }
-
-        return url;
+        return config.getH2Url();
     }
 
     @Override
@@ -36,7 +29,7 @@ public class H2Adapter extends SQLAdapter {
     protected String getCreateTableSQL(EntityMetadata metadata) {
         StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS " + metadata.getTableName() + " (");
         for (FieldDescriptor field : metadata.getFields()) {
-            sql.append(field.getColumnName()).append(" ").append(getSQLType(field.getType()));
+            sql.append(field.getColumnName()).append(" ").append(getSQLType(field));
             if (field.isPrimaryKey()) {
                 sql.append(" PRIMARY KEY");
             }

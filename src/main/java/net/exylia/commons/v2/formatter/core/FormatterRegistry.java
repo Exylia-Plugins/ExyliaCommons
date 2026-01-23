@@ -3,6 +3,7 @@ package net.exylia.commons.v2.formatter.core;
 import net.exylia.commons.v2.config.FormattersConfig;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 import net.exylia.commons.v2.formatter.date.DateFormatter;
+import net.exylia.commons.v2.formatter.percent.PercentFormatter;
 import net.exylia.commons.v2.formatter.price.PriceFormatter;
 import net.exylia.commons.v2.formatter.time.TimeFormatter;
 
@@ -10,6 +11,7 @@ public class FormatterRegistry {
     private static volatile TimeFormatter timeFormatter;
     private static volatile DateFormatter dateFormatter;
     private static volatile PriceFormatter priceFormatter;
+    private static volatile PercentFormatter percentFormatter;
     private static final Object LOCK = new Object();
 
     public static void initialize() {
@@ -30,6 +32,11 @@ public class FormatterRegistry {
             priceFormatter = PriceFormatter.builder()
                 .cache(cache)
                 .config(formattersConfig.getPriceConfig())
+                .build();
+
+            percentFormatter = PercentFormatter.builder()
+                .cache(cache)
+                .config(formattersConfig.getPercentConfig())
                 .build();
         }
     }
@@ -65,11 +72,19 @@ public class FormatterRegistry {
         return priceFormatter;
     }
 
+    public static PercentFormatter getPercentFormatter() {
+        if (percentFormatter == null) {
+            initialize();
+        }
+        return percentFormatter;
+    }
+
     public static void shutdown() {
         synchronized (LOCK) {
             timeFormatter = null;
             dateFormatter = null;
             priceFormatter = null;
+            percentFormatter = null;
         }
     }
 }

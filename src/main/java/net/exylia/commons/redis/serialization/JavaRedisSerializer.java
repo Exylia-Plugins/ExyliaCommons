@@ -5,6 +5,7 @@ import java.util.Base64;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
+@Deprecated
 public class JavaRedisSerializer implements RedisSerializer {
 
     @Override

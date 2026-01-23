@@ -23,6 +23,7 @@ import java.util.Date;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class H2Adapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
@@ -42,8 +43,12 @@ public class H2Adapter implements DatabaseAdapter {
         String username = config.getString("database.h2.username", "sa");
         String password = config.getString("database.h2.password", "");
         int poolSize = config.getInt("database.h2.pool-size", 5);
+        boolean autoServer = config.getBoolean("database.h2.auto-server", false);
 
-        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName + ";AUTO_SERVER=TRUE";
+        String url = "jdbc:h2:" + plugin.getDataFolder().getAbsolutePath() + "/" + fileName;
+        if (autoServer) {
+            url += ";AUTO_SERVER=TRUE";
+        }
 
         try {
              

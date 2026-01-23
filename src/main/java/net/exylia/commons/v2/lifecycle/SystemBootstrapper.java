@@ -13,7 +13,9 @@ import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
+import net.exylia.commons.v2.tasks.config.TasksDefaults;
 import net.exylia.commons.v2.visual.api.ColorAPI;
+import net.exylia.commons.v2.visual.config.ColorDefaults;
 import net.exylia.commons.v2.visual.core.VisualManager;
 
 import static net.exylia.commons.utils.DebugUtils.*;
@@ -23,13 +25,18 @@ public class SystemBootstrapper {
 
     public void initializeCoreSystemsAsync(ExyliaPlugin plugin) {
         try {
-            logInternalDebug("Initializing ConfigInitializer...");
-            ConfigInitializer.init(plugin);
+            logInternalDebug("Initializing Configs...");
+            ConfigInitializer.initConfigs(plugin);
 
             logInternalDebug("Loading config schemas...");
             ConfigSchemaRegistry.ensureDefaults(DebugDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(FormattersDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(DatabaseDefaults.class);
+            ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
+            ConfigSchemaRegistry.ensureDefaults(ColorDefaults.class);
+
+            logInternalDebug("Initializing Messages...");
+            ConfigInitializer.initMessages();
 
             logInternalDebug("Reloading DebugConfig cache...");
             net.exylia.commons.v2.debug.config.DebugConfig.reload();

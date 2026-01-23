@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
+@Deprecated
 public class RegionPositionTracker {
     private final JavaPlugin plugin;
     private final RegionManager regionManager;

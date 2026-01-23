@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @Setter
+@Deprecated
 public class Region {
     private final String id;
     private Selection selection;

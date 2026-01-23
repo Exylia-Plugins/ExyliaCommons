@@ -3,6 +3,7 @@ package net.exylia.commons.region.model;
 import lombok.Getter;
 
 @Getter
+@Deprecated
 public enum RegionPriority {
     LOWEST(0, "Más baja"),
     LOW(1, "Baja"),

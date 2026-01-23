@@ -4,6 +4,7 @@ import net.exylia.commons.redis.pubsub.RedisPubSubManager;
 import redis.clients.jedis.JedisPubSub;
 import java.util.concurrent.Future;
 
+@Deprecated
 public class RedisSubscription {
 
     private final String channel;

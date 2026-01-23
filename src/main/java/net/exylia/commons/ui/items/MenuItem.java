@@ -636,6 +636,9 @@ public class MenuItem extends ExyliaItem {
 
     @Override
     protected void applyMaxStackSize() {
+        if (!isMaxStackSizeAvailable()) {
+            return;
+        }
         if (itemData.getMaxStackSize() != -1) {
             super.applyMaxStackSize();
         } else {
@@ -643,8 +646,11 @@ public class MenuItem extends ExyliaItem {
             if (amount > 1) {
                 ItemMeta meta = itemStack.getItemMeta();
                 if (meta != null) {
-                    meta.setMaxStackSize(amount);
-                    itemStack.setItemMeta(meta);
+                    try {
+                        setMaxStackSizeMethod.invoke(meta, amount);
+                        itemStack.setItemMeta(meta);
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         }

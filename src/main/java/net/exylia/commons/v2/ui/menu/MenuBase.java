@@ -165,7 +165,11 @@ public abstract class MenuBase {
         handleClickInternal(slot, clickType);
 
         if (menuData.getRefreshMode() != RefreshMode.DISABLED) {
-            schedulePostClickRefresh();
+            if (menuData.getRefreshMode() == RefreshMode.ON_CLICK) {
+                scheduleClickedSlotRefresh(slot);
+            } else {
+                schedulePostClickRefresh();
+            }
         }
     }
 
@@ -243,11 +247,40 @@ public abstract class MenuBase {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshInventory();
             }
-        }, 1L);
+        }, menuData.getClickRefreshDelay());
+    }
+
+    protected void scheduleClickedSlotRefresh(int slot) {
+        Schedulers.syncLater(() -> {
+            if (state.get() == MenuState.OPEN && inventory != null) {
+                refreshSlot(slot);
+            }
+        }, menuData.getClickRefreshDelay());
+    }
+
+    protected void refreshSlot(int slot) {
+        ProcessedItem oldItem = itemsBySlot.get(slot);
+        if (oldItem == null || !oldItem.needsRefresh()) {
+            return;
+        }
+
+        DebugAPI.logLibDebug(DebugCategory.UI, "Refreshing slot " + slot + " in menu " + menuId);
+
+        Schedulers.async(() -> {
+            ItemData itemData = oldItem.getRawItemData();
+            ProcessedItem newItem = ItemsAPI.process(itemData, player, false);
+            itemsBySlot.put(slot, newItem);
+
+            Schedulers.sync(() -> {
+                if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, newItem.getItemStack());
+                }
+            });
+        });
     }
 
     protected void scheduleRefresh() {
-        if (menuData.getRefreshMode() == RefreshMode.DISABLED) {
+        if (menuData.getRefreshMode() == RefreshMode.DISABLED || menuData.getRefreshMode() == RefreshMode.ON_CLICK) {
             return;
         }
 

@@ -5,6 +5,7 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.util.concurrent.Future;
 
+@Deprecated
 public class MultiChannelSubscription {
 
     private final String[] channels;

@@ -8,6 +8,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.util.Objects;
 
+@Deprecated
 public class FastBoard extends FastBoardBase<String> {
 
     private static final MethodHandle MESSAGE_FROM_STRING;

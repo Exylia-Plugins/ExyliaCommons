@@ -30,24 +30,7 @@ public class MySQLAdapter extends SQLAdapter {
         StringBuilder sql = new StringBuilder("CREATE TABLE IF NOT EXISTS `" + metadata.getTableName() + "` (");
         for (FieldDescriptor field : metadata.getFields()) {
             sql.append("`").append(field.getColumnName()).append("` ");
-
-            String columnType;
-            if (field.isPrimaryKey()) {
-                if (field.getType() == String.class) {
-                    columnType = "VARCHAR(255)";
-                } else if (field.getType() == java.util.UUID.class) {
-                    columnType = "VARCHAR(36)";
-                } else {
-                    columnType = getMySQLType(field.getType());
-                }
-                System.out.println("[DEBUG] Field '" + field.getColumnName() + "' is PRIMARY KEY, type: " +
-                                 field.getType().getSimpleName() + ", using: " + columnType);
-            } else {
-                columnType = getMySQLType(field.getType());
-                System.out.println("[DEBUG] Field '" + field.getColumnName() + "' type: " + field.getType().getSimpleName() +
-                                 ", using: " + columnType);
-            }
-            sql.append(columnType);
+            sql.append(getMySQLType(field));
 
             if (field.isPrimaryKey()) {
                 sql.append(" PRIMARY KEY");
@@ -68,8 +51,6 @@ public class MySQLAdapter extends SQLAdapter {
         }
         sql.setLength(sql.length() - 1);
         sql.append(") ENGINE=InnoDB DEFAULT CHARSET=" + config.getCharset() + " COLLATE=" + config.getCollation());
-
-        System.out.println("[DEBUG] Generated SQL: " + sql.toString());
         return sql.toString();
     }
 
@@ -165,8 +146,18 @@ public class MySQLAdapter extends SQLAdapter {
         return entity;
     }
 
-    private String getMySQLType(Class<?> javaType) {
-        if (javaType == String.class) return "VARCHAR(255)";
+    private String getMySQLType(FieldDescriptor field) {
+        Class<?> javaType = field.getType();
+        int length = field.getLength();
+
+        if (javaType == String.class) {
+            if (length == -1) {
+                return "LONGTEXT";
+            } else if (length > 0) {
+                return "VARCHAR(" + length + ")";
+            }
+            return "VARCHAR(255)";
+        }
         if (javaType == java.util.UUID.class) return "VARCHAR(36)";
         if (javaType == int.class || javaType == Integer.class) return "INT";
         if (javaType == long.class || javaType == Long.class) return "BIGINT";

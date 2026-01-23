@@ -72,6 +72,9 @@ public class ItemData {
     private String rawItemModel = null;
 
     @Builder.Default
+    private String rawTooltipStyle = null;
+
+    @Builder.Default
     private List<String> clickSounds = new ArrayList<>();
 
     @Builder.Default
@@ -125,6 +128,7 @@ public class ItemData {
                 .hideAttributes(this.hideAttributes)
                 .hideTooltip(this.hideTooltip)
                 .rawItemModel(this.rawItemModel)
+                .rawTooltipStyle(this.rawTooltipStyle)
                 .clickSounds(new ArrayList<>(this.clickSounds))
                 .context(this.context.copy())
                 .updateInterval(this.updateInterval)

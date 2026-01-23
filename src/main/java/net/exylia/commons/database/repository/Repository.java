@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+@Deprecated
 public interface Repository<T> {
 
     T saveOrUpdate(T entity);

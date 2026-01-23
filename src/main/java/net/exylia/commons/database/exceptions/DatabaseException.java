@@ -1,5 +1,6 @@
 package net.exylia.commons.database.exceptions;
 
+@Deprecated
 public class DatabaseException extends RuntimeException {
 
     private final String operation;

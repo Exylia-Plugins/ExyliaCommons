@@ -27,6 +27,7 @@ import java.util.Date;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class MySQLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;

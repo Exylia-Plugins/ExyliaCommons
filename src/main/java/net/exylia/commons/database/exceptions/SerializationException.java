@@ -1,5 +1,6 @@
 package net.exylia.commons.database.exceptions;
 
+@Deprecated
 public class SerializationException extends DatabaseException {
 
     private final String fieldName;

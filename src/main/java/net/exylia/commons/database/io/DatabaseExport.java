@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.util.Map;
 
+@Deprecated
 @Setter
 @Getter
 public class DatabaseExport {

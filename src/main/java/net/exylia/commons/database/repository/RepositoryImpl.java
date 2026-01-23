@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 
+@Deprecated
 public class RepositoryImpl<T> implements Repository<T> {
 
     private final DatabaseAdapter adapter;

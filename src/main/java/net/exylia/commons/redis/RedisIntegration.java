@@ -8,6 +8,7 @@ import net.exylia.commons.redis.config.RedisConfigManager;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
+@Deprecated
 public class RedisIntegration {
 
     @Getter

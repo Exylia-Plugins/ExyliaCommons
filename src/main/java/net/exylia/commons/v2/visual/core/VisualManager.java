@@ -51,8 +51,13 @@ public class VisualManager {
 
     public void initialize(Plugin plugin) {
         if (initialized) {
-            DebugAPI.logLibWarn(DebugCategory.VISUAL, "VisualManager already initialized, skipping");
-            throw new IllegalStateException("VisualManager is already initialized");
+            if (this.plugin != null && this.plugin.getName().equals(plugin.getName())) {
+                DebugAPI.logLibWarn(DebugCategory.VISUAL, "VisualManager already initialized for " + plugin.getName() + ", performing soft reset");
+                softReset();
+                return;
+            }
+            DebugAPI.logLibWarn(DebugCategory.VISUAL, "VisualManager already initialized by different plugin, forcing reinitialize");
+            shutdown();
         }
 
         DebugAPI.logLibInfo(DebugCategory.VISUAL, "Initializing VisualManager for plugin: " + plugin.getName());
@@ -352,9 +357,17 @@ public class VisualManager {
                 });
     }
 
+    public void softReset() {
+        VisualRegistry.getInstance().clear();
+        GlobalVisualRegistry.getInstance().clear();
+        DebugAPI.logLibInfo(DebugCategory.VISUAL, "VisualManager soft reset completed (caches cleared, still initialized)");
+    }
+
     public void shutdown() {
         VisualRegistry.getInstance().clear();
         GlobalVisualRegistry.getInstance().clear();
         initialized = false;
+        plugin = null;
+        DebugAPI.logLibInfo(DebugCategory.VISUAL, "VisualManager shutdown completed");
     }
 }

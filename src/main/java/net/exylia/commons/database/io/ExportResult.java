@@ -3,6 +3,7 @@ package net.exylia.commons.database.io;
 import lombok.Getter;
 import lombok.Setter;
 
+@Deprecated
 @Setter
 @Getter
 public class ExportResult {

@@ -9,6 +9,7 @@ import redis.clients.jedis.exceptions.JedisException;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class RedisConnectionManager {
 
     private final RedisConfig config;

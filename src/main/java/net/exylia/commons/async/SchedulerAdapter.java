@@ -8,6 +8,10 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.scheduler.ServerScheduler} instead.
+ */
+@Deprecated(forRemoval = true)
 public interface SchedulerAdapter {
 
     ScheduledTask runTask(Plugin plugin, Runnable task);

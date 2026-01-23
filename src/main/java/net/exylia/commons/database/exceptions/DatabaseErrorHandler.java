@@ -4,6 +4,7 @@ import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.utils.DebugUtils;
 import java.util.logging.Level;
 
+@Deprecated
 public class DatabaseErrorHandler {
 
     private final ExyliaPlugin plugin;

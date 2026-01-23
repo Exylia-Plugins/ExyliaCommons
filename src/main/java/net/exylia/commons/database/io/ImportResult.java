@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.util.List;
 
+@Deprecated
 @Setter
 @Getter
 public class ImportResult {

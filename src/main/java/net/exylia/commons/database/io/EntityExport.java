@@ -6,6 +6,7 @@ import lombok.Setter;
 import java.util.List;
 import java.util.Map;
 
+@Deprecated
 @Setter
 @Getter
 public class EntityExport {

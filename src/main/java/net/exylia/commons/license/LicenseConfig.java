@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 
+@Deprecated
 public class LicenseConfig {
     private final ExyliaPlugin plugin;
     private final File configFile;

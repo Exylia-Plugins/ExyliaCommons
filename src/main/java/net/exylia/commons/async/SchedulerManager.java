@@ -14,6 +14,10 @@ import org.bukkit.plugin.Plugin;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.core.TaskManager} instead.
+ */
+@Deprecated(forRemoval = true)
 @Getter
 public class SchedulerManager {
     private static SchedulerManager instance;

@@ -45,7 +45,7 @@ public class ParticleConfig extends VisualConfig {
             errors.add("Location must be specified when scope is LOCATION");
         }
 
-        if (particle == Particle.DUST && color == null) {
+        if (particle == Particle.REDSTONE && color == null) {
             errors.add("Color must be specified for DUST particle");
         }
 

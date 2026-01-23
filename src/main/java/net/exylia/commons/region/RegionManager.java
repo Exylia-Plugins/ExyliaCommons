@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
+@Deprecated
 public class RegionManager implements Listener {
     private static RegionManager instance;
 

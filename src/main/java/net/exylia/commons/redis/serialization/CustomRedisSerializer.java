@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@Deprecated
 public class CustomRedisSerializer implements RedisSerializer {
 
     private final Map<Class<?>, Function<Object, String>> serializers;

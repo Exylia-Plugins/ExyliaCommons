@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
+@Deprecated
 public class AllowedBlocksManager {
     private static AllowedBlocksManager instance;
 

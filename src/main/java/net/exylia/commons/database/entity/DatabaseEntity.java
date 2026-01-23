@@ -12,6 +12,7 @@ import org.bukkit.potion.PotionEffect;
 import java.util.List;
 import java.util.Map;
 
+@Deprecated
 @Setter
 @Getter
 public abstract class DatabaseEntity {

@@ -81,7 +81,16 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
         return icon(false);
     }
 
+    public EffectBuilder infinite() {
+        this.durationTicks = -1;
+        return this;
+    }
+
     public static EffectConfig fromString(String effectString) {
+        return fromString(effectString, false, true, true);
+    }
+
+    public static EffectConfig fromString(String effectString, boolean forceInfinite, boolean particles, boolean icon) {
         String[] parts = effectString.split("\\|");
         EffectBuilder builder = create();
 
@@ -95,11 +104,24 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
             }
         }
         if (parts.length >= 3) {
-            try {
-                builder.durationSeconds(Integer.parseInt(parts[2].trim()));
-            } catch (NumberFormatException ignored) {
+            String durationPart = parts[2].trim().toLowerCase();
+            if (durationPart.equals("infinite") || durationPart.equals("-1")) {
+                builder.infinite();
+            } else {
+                try {
+                    builder.durationSeconds(Integer.parseInt(durationPart));
+                } catch (NumberFormatException ignored) {
+                }
             }
         }
+
+        if (forceInfinite) {
+            builder.infinite();
+        }
+
+        builder.particles(particles);
+        builder.icon(icon);
+        builder.ambient();
 
         return builder.build();
     }
@@ -116,8 +138,8 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
             errors.add("Amplifier must be between 0 and 255");
         }
 
-        if (durationTicks < 1) {
-            errors.add("Duration must be >= 1 tick");
+        if (durationTicks < 1 && durationTicks != -1) {
+            errors.add("Duration must be >= 1 tick or -1 for infinite");
         }
 
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);

@@ -1122,7 +1122,7 @@ public class ItemManager implements Listener {
             case SNOWBALL -> org.bukkit.entity.EntityType.SNOWBALL;
             case ENDER_PEARL -> org.bukkit.entity.EntityType.ENDER_PEARL;
             case EXPERIENCE_BOTTLE -> EntityType.EXPERIENCE_ORB;
-            case SPLASH_POTION, LINGERING_POTION -> EntityType.POTION;
+            case SPLASH_POTION, LINGERING_POTION -> EntityType.SPLASH_POTION;
             case TRIDENT -> org.bukkit.entity.EntityType.TRIDENT;
             case BOW, CROSSBOW -> org.bukkit.entity.EntityType.ARROW;
             default -> org.bukkit.entity.EntityType.EGG;

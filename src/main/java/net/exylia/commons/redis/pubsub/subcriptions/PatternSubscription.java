@@ -5,6 +5,7 @@ import redis.clients.jedis.JedisPubSub;
 
 import java.util.concurrent.Future;
 
+@Deprecated
 public class PatternSubscription {
 
     private final String pattern;

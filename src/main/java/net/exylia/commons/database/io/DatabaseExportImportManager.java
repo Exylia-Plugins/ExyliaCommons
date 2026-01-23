@@ -24,6 +24,7 @@ import java.util.zip.GZIPOutputStream;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
+@Deprecated
 public class DatabaseExportImportManager {
 
     private final ExyliaPlugin plugin;

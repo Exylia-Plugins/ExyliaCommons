@@ -4,7 +4,8 @@ public enum RefreshMode {
     DISABLED,
     FULL,
     SMART,
-    SLOT_ONLY;
+    SLOT_ONLY,
+    ON_CLICK;
 
     public static RefreshMode fromString(String mode) {
         if (mode == null) {

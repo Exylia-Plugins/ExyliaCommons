@@ -4,6 +4,7 @@ import net.exylia.commons.v2.formatter.cache.FormatterCache;
 import net.exylia.commons.v2.formatter.cache.FormatterCacheStats;
 import net.exylia.commons.v2.formatter.core.FormatterRegistry;
 import net.exylia.commons.v2.formatter.date.DateFormatter;
+import net.exylia.commons.v2.formatter.percent.PercentFormatter;
 import net.exylia.commons.v2.formatter.price.PriceFormatter;
 import net.exylia.commons.v2.formatter.time.ClockFormat;
 import net.exylia.commons.v2.formatter.time.TimeComponents;
@@ -131,6 +132,26 @@ public final class FormatterAPI {
         return FormatterRegistry.getPriceFormatter().formatWithSymbol(input, symbol);
     }
 
+    public static String formatPercent(Object input) {
+        return FormatterRegistry.getPercentFormatter().format(input);
+    }
+
+    public static String formatPercentWithDecimals(Object input, int decimals) {
+        return FormatterRegistry.getPercentFormatter().formatWithDecimals(input, decimals);
+    }
+
+    public static String formatPercentNoSuffix(Object input) {
+        return FormatterRegistry.getPercentFormatter().formatNoSuffix(input);
+    }
+
+    public static String formatPercentWithSuffix(Object input, String suffix) {
+        return FormatterRegistry.getPercentFormatter().formatWithSuffix(input, suffix);
+    }
+
+    public static String formatPercentRatio(Object numerator, Object denominator) {
+        return FormatterRegistry.getPercentFormatter().formatRatio(numerator, denominator);
+    }
+
     public static CompletableFuture<List<String>> formatTimeBatchAsync(List<Object> inputs) {
         return AsyncFormatterAPI.getInstance().formatTimeBatch(inputs);
     }
@@ -163,12 +184,14 @@ public final class FormatterAPI {
         TimeFormatter timeFormatter = FormatterRegistry.getTimeFormatter();
         DateFormatter dateFormatter = FormatterRegistry.getDateFormatter();
         PriceFormatter priceFormatter = FormatterRegistry.getPriceFormatter();
+        PercentFormatter percentFormatter = FormatterRegistry.getPercentFormatter();
 
         return new GlobalFormatterStats(
             FormatterCache.getInstance().getStats(),
             timeFormatter.getStats(),
             dateFormatter.getStats(),
-            priceFormatter.getStats()
+            priceFormatter.getStats(),
+            percentFormatter.getStats()
         );
     }
 
@@ -177,13 +200,16 @@ public final class FormatterAPI {
         private final FormatterStats timeStats;
         private final FormatterStats dateStats;
         private final FormatterStats priceStats;
+        private final FormatterStats percentStats;
 
         public GlobalFormatterStats(FormatterCacheStats cacheStats, FormatterStats timeStats,
-                                   FormatterStats dateStats, FormatterStats priceStats) {
+                                   FormatterStats dateStats, FormatterStats priceStats,
+                                   FormatterStats percentStats) {
             this.cacheStats = cacheStats;
             this.timeStats = timeStats;
             this.dateStats = dateStats;
             this.priceStats = priceStats;
+            this.percentStats = percentStats;
         }
 
         public FormatterCacheStats getCacheStats() {
@@ -202,6 +228,10 @@ public final class FormatterAPI {
             return priceStats;
         }
 
+        public FormatterStats getPercentStats() {
+            return percentStats;
+        }
+
         public double getOverallCacheHitRate() {
             return cacheStats.getOverallHitRate();
         }
@@ -209,7 +239,8 @@ public final class FormatterAPI {
         public long getTotalFormatCount() {
             return timeStats.getFormatCount().get() +
                    dateStats.getFormatCount().get() +
-                   priceStats.getFormatCount().get();
+                   priceStats.getFormatCount().get() +
+                   percentStats.getFormatCount().get();
         }
 
         public double getAverageTimeMillis() {
@@ -218,7 +249,8 @@ public final class FormatterAPI {
 
             long totalNanos = timeStats.getTotalTimeNanos().get() +
                             dateStats.getTotalTimeNanos().get() +
-                            priceStats.getTotalTimeNanos().get();
+                            priceStats.getTotalTimeNanos().get() +
+                            percentStats.getTotalTimeNanos().get();
 
             return (double) totalNanos / totalCount / 1_000_000;
         }

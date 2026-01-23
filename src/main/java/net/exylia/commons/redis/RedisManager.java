@@ -21,6 +21,7 @@ import java.util.function.Function;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class RedisManager {
 
     private static RedisManager instance;

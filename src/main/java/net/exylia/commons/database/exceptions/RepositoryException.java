@@ -1,5 +1,6 @@
 package net.exylia.commons.database.exceptions;
 
+@Deprecated
 public class RepositoryException extends DatabaseException {
 
     private final String repositoryMethod;

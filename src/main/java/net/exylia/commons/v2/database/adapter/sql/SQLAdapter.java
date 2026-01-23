@@ -99,7 +99,38 @@ public abstract class SQLAdapter implements DatabaseAdapter {
 
     @Override
     public void updateTable(EntityMetadata metadata) throws Exception {
-        // Implementation for schema migration
+        try (Connection conn = dataSource.getConnection()) {
+            Set<String> existingColumns = getExistingColumns(conn, metadata.getTableName());
+
+            for (FieldDescriptor field : metadata.getFields()) {
+                String columnName = field.getColumnName().toLowerCase();
+                if (!existingColumns.contains(columnName)) {
+                    String alterSql = "ALTER TABLE " + metadata.getTableName() +
+                        " ADD COLUMN " + field.getColumnName() + " " + getSQLType(field);
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute(alterSql);
+                        DebugUtils.logInternalInfo("Added column " + field.getColumnName() + " to " + metadata.getTableName());
+                    }
+                }
+            }
+        }
+    }
+
+    private Set<String> getExistingColumns(Connection conn, String tableName) throws SQLException {
+        Set<String> columns = new HashSet<>();
+        try (ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, null)) {
+            while (rs.next()) {
+                columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+            }
+        }
+        if (columns.isEmpty()) {
+            try (ResultSet rs = conn.getMetaData().getColumns(null, null, tableName.toUpperCase(), null)) {
+                while (rs.next()) {
+                    columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                }
+            }
+        }
+        return columns;
     }
 
     @Override
@@ -379,6 +410,27 @@ public abstract class SQLAdapter implements DatabaseAdapter {
 
     protected String getSQLType(Class<?> javaType) {
         if (javaType == String.class) return "VARCHAR(255)";
+        if (javaType == int.class || javaType == Integer.class) return "INT";
+        if (javaType == long.class || javaType == Long.class) return "BIGINT";
+        if (javaType == double.class || javaType == Double.class) return "DOUBLE";
+        if (javaType == float.class || javaType == Float.class) return "FLOAT";
+        if (javaType == boolean.class || javaType == Boolean.class) return "BOOLEAN";
+        return "TEXT";
+    }
+
+    protected String getSQLType(FieldDescriptor field) {
+        Class<?> javaType = field.getType();
+        int length = field.getLength();
+
+        if (javaType == String.class) {
+            if (length == -1) {
+                return "TEXT";
+            } else if (length > 0) {
+                return "VARCHAR(" + length + ")";
+            }
+            return "VARCHAR(255)";
+        }
+        if (javaType == java.util.UUID.class) return "VARCHAR(36)";
         if (javaType == int.class || javaType == Integer.class) return "INT";
         if (javaType == long.class || javaType == Long.class) return "BIGINT";
         if (javaType == double.class || javaType == Double.class) return "DOUBLE";

@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
+@Deprecated
 public class RedisCache<T> {
 
     private final RedisManager redisManager;

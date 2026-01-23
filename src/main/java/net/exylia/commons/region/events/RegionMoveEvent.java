@@ -11,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.bukkit.Location;
 
 @Getter
+@Deprecated
 public class RegionMoveEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
     private final Player player;

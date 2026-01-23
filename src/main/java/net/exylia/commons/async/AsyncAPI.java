@@ -1,5 +1,7 @@
 package net.exylia.commons.async;
 
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.tasks.model.TaskCategory;
 import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
@@ -7,6 +9,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.api.TaskAPI} or {@link net.exylia.commons.v2.tasks.api.Tasks} instead.
+ */
+@Deprecated(forRemoval = true)
 public final class AsyncAPI {
 
     private AsyncAPI() {

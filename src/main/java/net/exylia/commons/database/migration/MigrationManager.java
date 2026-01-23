@@ -6,6 +6,7 @@ import net.exylia.commons.database.annotations.Table;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
+@Deprecated
 public class MigrationManager {
 
     public void createOrUpdateTable(DatabaseAdapter adapter, Class<?> entityClass) throws Exception {

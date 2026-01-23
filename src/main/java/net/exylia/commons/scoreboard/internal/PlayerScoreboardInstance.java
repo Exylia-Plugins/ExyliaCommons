@@ -15,6 +15,7 @@ import java.util.HashSet;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
+@Deprecated
 public class PlayerScoreboardInstance {
 
     private final Plugin plugin;

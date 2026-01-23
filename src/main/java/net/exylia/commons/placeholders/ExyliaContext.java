@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
+@Deprecated
 public class ExyliaContext {
 
     private final Map<Class<?>, Object> typedData = new ConcurrentHashMap<>();

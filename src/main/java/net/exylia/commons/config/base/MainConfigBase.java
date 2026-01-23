@@ -14,7 +14,7 @@ public class MainConfigBase extends ConfigBase {
         return ConfigManager.getBooleanFromMethodAuto();
     }
 
-    @ConfigValue(value = "text.automatic-font", defaultValue = "small")
+    @ConfigValue(value = "text.automatic-font", defaultValue = "none")
     public static String textAutomaticFont() {
         return ConfigManager.getStringFromMethodAuto();
     }

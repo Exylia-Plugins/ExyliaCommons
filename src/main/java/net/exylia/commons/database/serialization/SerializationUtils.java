@@ -19,6 +19,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 
+@Deprecated
 public class SerializationUtils {
 
     private static final Gson GSON = new Gson();

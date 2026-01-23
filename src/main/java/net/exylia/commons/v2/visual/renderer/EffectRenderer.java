@@ -19,9 +19,13 @@ public class EffectRenderer implements VisualRenderer<EffectConfig> {
     public void render(Player player, EffectConfig config, PlaceholderContext context) {
         if (!player.isOnline()) return;
 
+        int duration = config.isPermanent() || config.getDurationTicks() == -1
+                ? PotionEffect.INFINITE_DURATION
+                : config.getDurationTicks();
+
         PotionEffect effect = new PotionEffect(
                 config.getEffectType(),
-                config.getDurationTicks(),
+                duration,
                 config.getAmplifier(),
                 config.isAmbient(),
                 config.isParticles(),

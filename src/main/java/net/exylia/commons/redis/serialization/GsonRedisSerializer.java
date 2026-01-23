@@ -6,6 +6,7 @@ import com.google.gson.JsonSyntaxException;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
+@Deprecated
 public class GsonRedisSerializer implements RedisSerializer {
 
     private final Gson gson;

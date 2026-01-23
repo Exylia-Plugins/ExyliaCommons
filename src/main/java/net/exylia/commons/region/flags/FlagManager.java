@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
+@Deprecated
 public class FlagManager {
     private static FlagManager instance;
 

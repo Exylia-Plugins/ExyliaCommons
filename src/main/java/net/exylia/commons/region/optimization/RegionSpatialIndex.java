@@ -7,6 +7,7 @@ import org.bukkit.World;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Deprecated
 public class RegionSpatialIndex {
     private static final int CHUNK_SIZE = 16;  
 

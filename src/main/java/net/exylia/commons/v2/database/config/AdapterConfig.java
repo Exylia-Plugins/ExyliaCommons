@@ -21,10 +21,11 @@ public class AdapterConfig {
     private final long idleTimeoutMs;
     private final long maxLifetimeMs;
     private final boolean ssl;
+    private final String authDatabase;
     private final String charset;
     private final String collation;
     private final String uri;
-    private final int maxWaitQueueSize;
+    private final boolean autoServer;
 
     public AdapterConfig(Config config, String adapterType) {
         this(config, adapterType, null);
@@ -39,24 +40,26 @@ public class AdapterConfig {
         String db = config.string(prefix + "database");
         this.database = db != null ? db : "minecraft";
         String u = config.string(prefix + "username");
-        this.username = u != null ? u : "root";
+        this.username = u != null ? u : "";
         String p = config.string(prefix + "password");
         this.password = p != null ? p : "";
-        String f = config.string(prefix + "file-path");
+        String f = config.string(prefix + "file");
         this.file = resolveFilePath(f, plugin);
-        this.poolSize = config.integer(prefix + "pool.max-size", 10);
-        this.minIdle = config.integer(prefix + "pool.min-idle", 2);
-        this.connectionTimeoutMs = config.longValue(prefix + "pool.connection-timeout", 30000);
-        this.idleTimeoutMs = config.longValue(prefix + "pool.idle-timeout", 600000);
-        this.maxLifetimeMs = config.longValue(prefix + "pool.max-lifetime", 1800000);
-        this.ssl = config.bool(prefix + "use-ssl", false);
-        String c = config.string(prefix + "charset");
-        this.charset = c != null ? c : "utf8mb4";
-        String col = config.string(prefix + "collation");
-        this.collation = col != null ? col : "utf8mb4_unicode_ci";
-        String ur = config.string(prefix + "uri");
-        this.uri = ur != null ? ur : "";
-        this.maxWaitQueueSize = config.integer(prefix + "max-wait-queue-size", 100);
+
+        this.poolSize = DatabaseDefaults.Database.Settings.POOL_SIZE;
+        this.minIdle = DatabaseDefaults.Database.Settings.MINIMUM_IDLE;
+        this.connectionTimeoutMs = DatabaseDefaults.Database.Settings.CONNECTION_TIMEOUT;
+        this.idleTimeoutMs = DatabaseDefaults.Database.Settings.IDLE_TIMEOUT;
+        this.maxLifetimeMs = DatabaseDefaults.Database.Settings.MAX_LIFETIME;
+
+        this.ssl = config.bool(prefix + "ssl", false);
+        String auth = config.string(prefix + "auth-database");
+        this.authDatabase = auth != null ? auth : "admin";
+        this.charset = "utf8mb4";
+        this.collation = "utf8mb4_unicode_ci";
+        String mongoUri = config.string(prefix + "connection-string");
+        this.uri = mongoUri != null ? mongoUri : "";
+        this.autoServer = config.bool(prefix + "auto-server", false);
     }
 
     private String resolveFilePath(String configPath, Plugin plugin) {
@@ -72,9 +75,7 @@ public class AdapterConfig {
                 if (parentDir != null && !parentDir.exists()) {
                     parentDir.mkdirs();
                 }
-                String absolutePath = file.getAbsolutePath();
-                plugin.getLogger().info("[DEBUG] Resolved H2 path: " + configPath + " -> " + absolutePath);
-                return absolutePath;
+                return file.getAbsolutePath();
             }
 
             if (!new File(resolvedPath).isAbsolute() && !resolvedPath.startsWith("./") && !resolvedPath.startsWith("~/")) {
@@ -104,12 +105,10 @@ public class AdapterConfig {
     }
 
     private static int getDefaultPort(String adapterType) {
-        return switch (adapterType.toLowerCase()) {
-            case "mysql", "mariadb" -> 3306;
-            case "mongodb" -> 27017;
-            case "h2" -> 0;
-            default -> 0;
-        };
+        String type = adapterType.toLowerCase();
+        if (type.contains("mysql") || type.contains("mariadb")) return 3306;
+        if (type.contains("mongodb")) return 27017;
+        return 0;
     }
 
     public String getJdbcUrl() {
@@ -120,6 +119,10 @@ public class AdapterConfig {
     }
 
     public String getH2Url() {
-        return "jdbc:h2:" + file;
+        String url = "jdbc:h2:" + file;
+        if (autoServer) {
+            url += ";AUTO_SERVER=TRUE";
+        }
+        return url;
     }
 }

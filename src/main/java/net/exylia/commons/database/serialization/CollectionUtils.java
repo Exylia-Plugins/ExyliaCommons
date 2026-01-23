@@ -6,6 +6,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Deprecated
 public class CollectionUtils {
 
     public static boolean isCollectionType(Class<?> type) {

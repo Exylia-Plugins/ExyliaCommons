@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +24,11 @@ import java.util.stream.Collectors;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class ItemProcessor {
+
+    private static Boolean hideTooltipAvailable = null;
+    private static Method setHideTooltipMethod = null;
+    private static Boolean maxStackSizeAvailable = null;
+    private static Method setMaxStackSizeMethod = null;
 
     public static CompletableFuture<ProcessedItem> processAsync(ItemData itemData, Player player) {
         return processAsync(itemData, player, true);
@@ -145,6 +151,7 @@ public class ItemProcessor {
         processArmorTrim(itemStack, itemData);
         processLeatherArmorColor(itemStack, itemData, player);
         processItemModel(itemStack, itemData, player);
+        processTooltipStyle(itemStack, itemData, player);
         processAttributes(itemStack, itemData);
         processHideTooltip(itemStack, itemData);
         processCustomAttributes(itemStack, itemData);
@@ -226,6 +233,10 @@ public class ItemProcessor {
         ItemModelProcessor.apply(itemStack, itemData.getRawItemModel(), player, itemData.getContext());
     }
 
+    private static void processTooltipStyle(ItemStack itemStack, ItemData itemData, Player player) {
+        TooltipStyleProcessor.apply(itemStack, itemData.getRawTooltipStyle(), player, itemData.getContext());
+    }
+
     private static void processAttributes(ItemStack itemStack, ItemData itemData) {
         if (itemData.isGlowing()) {
             AttributeProcessor.applyGlowing(itemStack, true);
@@ -236,16 +247,31 @@ public class ItemProcessor {
     }
 
     private static void processHideTooltip(ItemStack itemStack, ItemData itemData) {
-        if (itemData.isHideTooltip()) {
-            ItemMeta meta = itemStack.getItemMeta();
-            if (meta != null) {
-                try {
-                    meta.setHideTooltip(true);
-                    itemStack.setItemMeta(meta);
-                } catch (NoSuchMethodError e) {
-                }
+        if (!itemData.isHideTooltip() || !isHideTooltipAvailable()) {
+            return;
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            try {
+                setHideTooltipMethod.invoke(meta, true);
+                itemStack.setItemMeta(meta);
+            } catch (Exception ignored) {
             }
         }
+    }
+
+    private static boolean isHideTooltipAvailable() {
+        if (hideTooltipAvailable != null) {
+            return hideTooltipAvailable;
+        }
+        try {
+            setHideTooltipMethod = ItemMeta.class.getMethod("setHideTooltip", boolean.class);
+            hideTooltipAvailable = true;
+        } catch (NoSuchMethodException e) {
+            hideTooltipAvailable = false;
+        }
+        return hideTooltipAvailable;
     }
 
     private static void processCustomAttributes(ItemStack itemStack, ItemData itemData) {
@@ -269,13 +295,31 @@ public class ItemProcessor {
     }
 
     private static void processMaxStackSize(ItemStack itemStack, ItemData itemData) {
-        if (itemData.getMaxStackSize() != -1) {
-            ItemMeta meta = itemStack.getItemMeta();
-            if (meta != null) {
-                meta.setMaxStackSize(itemData.getMaxStackSize());
+        if (itemData.getMaxStackSize() == -1 || !isMaxStackSizeAvailable()) {
+            return;
+        }
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta != null) {
+            try {
+                setMaxStackSizeMethod.invoke(meta, itemData.getMaxStackSize());
                 itemStack.setItemMeta(meta);
+            } catch (Exception ignored) {
             }
         }
+    }
+
+    private static boolean isMaxStackSizeAvailable() {
+        if (maxStackSizeAvailable != null) {
+            return maxStackSizeAvailable;
+        }
+        try {
+            setMaxStackSizeMethod = ItemMeta.class.getMethod("setMaxStackSize", Integer.class);
+            maxStackSizeAvailable = true;
+        } catch (NoSuchMethodException e) {
+            maxStackSizeAvailable = false;
+        }
+        return maxStackSizeAvailable;
     }
 
     private static Integer processSlot(ItemData itemData, Player player) {

@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 
+@Deprecated
 public class RegionListener implements Listener {
 
     private final JavaPlugin plugin;
@@ -667,7 +668,7 @@ public class RegionListener implements Listener {
     }
 
     private ActionResult validateExplosion(Region region, EntityType entityType) {
-        if (entityType == EntityType.TNT) {
+        if (entityType == EntityType.PRIMED_TNT) {
             if (!region.getFlagValue(RegionFlag.TNT)) {
                 return ActionResult.deny("tnt-disabled", null);
             }

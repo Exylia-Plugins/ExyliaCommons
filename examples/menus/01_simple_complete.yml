@@ -3,7 +3,7 @@ type: SIMPLE
 size: 54  # 9, 18, 27, 36, 45, 54
 
 refresh:
-  mode: SMART  # DISABLED | FULL | SMART | SLOT_ONLY
+  mode: SMART  # DISABLED | FULL | SMART | SLOT_ONLY | ON_CLICK
                # DISABLED: No actualiza
                # FULL: Refresca todo el inventario
                # SMART: Solo items con placeholders/dinámicos

@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.visual.color;
 
-import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -54,7 +53,6 @@ public class ColorPresetManager {
         if (initialized) {
             return;
         }
-        ensureDefaults();
 
         this.plugin = plugin;
 
@@ -73,16 +71,6 @@ public class ColorPresetManager {
         }
 
         this.initialized = true;
-    }
-
-    public static void ensureDefaults() {
-        if (!Configs.exists("text.automatic-font")) {
-            Configs.set("text.automatic-font", "small");
-        }
-        if (!Configs.exists("text.force-in-upper-case")) {
-            Configs.set("text.force-in-upper-case", true);
-        }
-        Configs.save();
     }
 
     private void loadColorPresets() {

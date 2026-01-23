@@ -8,6 +8,7 @@ import net.exylia.commons.utils.DebugUtils;
 
 import java.util.List;
 
+@Deprecated
 public class FlagRepair {
 
     public static void repairBuildingFlags() {

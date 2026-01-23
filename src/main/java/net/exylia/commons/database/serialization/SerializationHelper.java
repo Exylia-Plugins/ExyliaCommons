@@ -15,6 +15,7 @@ import org.bukkit.potion.PotionEffect;
 import java.lang.reflect.*;
 import java.util.*;
 
+@Deprecated
 public class SerializationHelper {
 
     @SuppressWarnings("unchecked")

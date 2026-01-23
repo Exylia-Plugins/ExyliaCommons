@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 
+@Deprecated
 public class TemporaryBlocksManager {
     private static TemporaryBlocksManager instance;
 

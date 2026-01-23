@@ -26,7 +26,7 @@ public class ParticleRenderer implements VisualRenderer<ParticleConfig> {
         Location location = determineLocation(player, config);
         Collection<Player> targets = determineTargets(player, config);
 
-        if (config.getParticle() == Particle.DUST && config.getColor() != null) {
+        if (config.getParticle() == Particle.REDSTONE && config.getColor() != null) {
             Particle.DustOptions dustOptions = new Particle.DustOptions(
                     org.bukkit.Color.fromRGB(
                             config.getColor().getRed(),

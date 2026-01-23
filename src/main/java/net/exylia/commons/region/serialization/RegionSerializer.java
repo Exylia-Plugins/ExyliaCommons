@@ -15,6 +15,7 @@ import org.bukkit.Location;
 
 import java.util.*;
 
+@Deprecated
 public class RegionSerializer {
 
     private static final Gson GSON = new GsonBuilder()

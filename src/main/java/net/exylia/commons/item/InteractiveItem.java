@@ -27,10 +27,10 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -54,6 +54,10 @@ public class InteractiveItem {
     private static final String NBT_UNIQUE_ID = "unique_id";
     private static final String NBT_EXPIRATION_TIME = "expiration_time";
     private static final String NBT_EXPIRATION_BEHAVIOR = "expiration_behavior";
+
+    private static Boolean maxStackSizeAvailable = null;
+    private static Method setMaxStackSizeMethod = null;
+    private static Method getMaxStackSizeMethod = null;
 
     private final PlaceholderSystemManager placeholderManager = PlaceholderSystemManager.getInstance();
     private final ItemMetaAdapter adapter = AdapterFactory.getItemMetaAdapter();
@@ -407,111 +411,38 @@ public class InteractiveItem {
     }
 
     private ItemStack createItemFromConfig(ItemConfiguration config, Player player) {
-        String materialString = config.getMaterial();
+        trackAsyncSkullIfNeeded(config.getMaterial());
 
-        if (player != null && containsPlaceholders(materialString)) {
-            ExyliaContext fullContext = context.copy().add(this);
-            materialString = fullContext.processPlaceholders(materialString, player);
-        }
+        ItemStack item = player != null ? config.buildProcessed(player) : config.build();
 
-        ItemStack item = createItemFromString(materialString);
-        ItemMeta meta = item.getItemMeta();
-
-        if (meta != null) {
-            if (config.getName() != null) {
-                String name = config.getName();
-                if (player != null && config.isUsePlaceholders()) {
-                    name = ItemPlaceholderUtils.processAllItemPlaceholders(name, this, player);
-                    ExyliaContext fullContext = context.copy().add(this);
-                    name = fullContext.processPlaceholders(name, player);
+        if (isMaxStackSizeAvailable() && !config.isStackable()) {
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                try {
+                    setMaxStackSizeMethod.invoke(meta, 1);
+                    item.setItemMeta(meta);
+                } catch (Exception ignored) {
                 }
-                adapter.setDisplayName(meta, ColorUtils.parse(name));
             }
-
-            if (!config.getLore().isEmpty()) {
-                List<Component> loreComponents = new ArrayList<>();
-                for (String line : config.getLore()) {
-                    String processedLine = line;
-                    if (player != null && config.isUsePlaceholders()) {
-                        processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(line, this, player);
-                        ExyliaContext fullContext = context.copy().add(this);
-                        processedLine = fullContext.processPlaceholders(processedLine, player);
-                    }
-                    loreComponents.add(ColorUtils.parse(processedLine));
-                }
-                adapter.setLore(meta, loreComponents);
-            }
-
-            if (config.isGlowing()) {
-                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
-            }
-
-            if (config.isHideAttributes()) {
-                meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-            }
-
-            int maxStackSize = config.getItemData().getMaxStackSize();
-            if (!config.isStackable()) {
-                meta.setMaxStackSize(1);
-            } else if (maxStackSize > 0) {
-                meta.setMaxStackSize(maxStackSize);
-            }
-
-            item.setItemMeta(meta);
-        }
-
-
-        if (config.hasEnchantments()) {
-            applyEnchantments(item, config.getEnchantments());
         }
 
         return item;
     }
 
-    private boolean containsPlaceholders(String text) {
-        return text != null && text.contains("%");
-    }
+    private void trackAsyncSkullIfNeeded(String materialString) {
+        if (materialString == null) return;
 
-    private ItemStack createItemFromString(String materialString) {
-        if (materialString == null || materialString.isEmpty()) {
-            logInternalWarn("Material string is null or empty, using STONE");
-            return new ItemStack(Material.STONE);
-        }
+        if (materialString.startsWith("playerhead-") || materialString.toLowerCase().startsWith("playerhead:")) {
+            String playerName = materialString.contains(":")
+                ? materialString.substring("playerhead:".length())
+                : materialString.substring("playerhead-".length());
 
-        if (materialString.startsWith("headbase-")) {
-            String base64 = materialString.substring(9);
-            return createSkullFromTexture(base64);
-        }
-
-        if (materialString.startsWith("headurl-")) {
-            String url = materialString.substring(8);
-            return createSkullFromUrl(url);
-        }
-
-        if (materialString.startsWith("playerhead-")) {
-            String playerName = materialString.substring(11);
-            ItemStack cachedSkull = createPlayerSkull(playerName);
-            if (isRealPlayerSkull(cachedSkull, playerName)) {
-                this.awaitingPlayerSkull = false;
-                this.pendingPlayerName = null;
-                this.dynamicSkullUpdate = false;
-                return cachedSkull;
+            if (!isPlayerSkullCached(playerName)) {
+                this.awaitingPlayerSkull = true;
+                this.pendingPlayerName = playerName;
+                this.dynamicSkullUpdate = true;
+                loadPlayerSkullAsync(playerName);
             }
-            this.awaitingPlayerSkull = true;
-            this.pendingPlayerName = playerName;
-            this.dynamicSkullUpdate = true;
-            
-            loadPlayerSkullAsync(playerName);
-            return cachedSkull;
-        }
-
-        try {
-            Material material = Material.valueOf(materialString.toUpperCase());
-            return new ItemStack(material);
-        } catch (IllegalArgumentException e) {
-            logInternalWarn("Invalid material: " + materialString + ", using STONE");
-            return new ItemStack(Material.STONE);
         }
     }
 
@@ -535,17 +466,46 @@ public class InteractiveItem {
     }
 
     public InteractiveItem setMaxStackSize(int maxStackSize) {
+        if (!isMaxStackSizeAvailable()) {
+            return this;
+        }
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            meta.setMaxStackSize(Math.max(1, maxStackSize));
-            itemStack.setItemMeta(meta);
+            try {
+                setMaxStackSizeMethod.invoke(meta, Math.max(1, maxStackSize));
+                itemStack.setItemMeta(meta);
+            } catch (Exception ignored) {
+            }
         }
         return this;
     }
 
     public int getMaxStackSize() {
+        if (!isMaxStackSizeAvailable()) {
+            return 64;
+        }
         ItemMeta meta = itemStack.getItemMeta();
-        return meta != null ? meta.getMaxStackSize() : 64;
+        if (meta != null) {
+            try {
+                return (int) getMaxStackSizeMethod.invoke(meta);
+            } catch (Exception ignored) {
+            }
+        }
+        return 64;
+    }
+
+    private static boolean isMaxStackSizeAvailable() {
+        if (maxStackSizeAvailable != null) {
+            return maxStackSizeAvailable;
+        }
+        try {
+            setMaxStackSizeMethod = ItemMeta.class.getMethod("setMaxStackSize", Integer.class);
+            getMaxStackSizeMethod = ItemMeta.class.getMethod("getMaxStackSize");
+            maxStackSizeAvailable = true;
+        } catch (NoSuchMethodException e) {
+            maxStackSizeAvailable = false;
+        }
+        return maxStackSizeAvailable;
     }
 
     public InteractiveItem setGlowing(boolean glowing) {
@@ -606,10 +566,10 @@ public class InteractiveItem {
         if (meta == null) return;
 
         if (glowing) {
-            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addEnchant(Enchantment.DURABILITY, 1, true);
             meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
         } else {
-            meta.removeEnchant(Enchantment.UNBREAKING);
+            meta.removeEnchant(Enchantment.DURABILITY);
         }
 
         item.setItemMeta(meta);
@@ -951,31 +911,10 @@ public class InteractiveItem {
                 .replace("%is_expired%", String.valueOf(isExpired));
     }
 
-    private boolean isRealPlayerSkull(ItemStack skull, String expectedPlayerName) {
-        if (skull.getType() != Material.PLAYER_HEAD) {
-            DebugUtils.logInternalDebug("isRealPlayerSkull: Not a player head");
-            return false;
-        }
-        
-        SkullMeta meta = (SkullMeta) skull.getItemMeta();
-        if (meta == null) {
-            DebugUtils.logInternalDebug("isRealPlayerSkull: No skull meta");
-            return false;
-        }
-        
-        try {
-            return isPlayerSkullCached(expectedPlayerName);
-        } catch (Exception e) {
-            DebugUtils.logInternalDebug("isRealPlayerSkull: Exception - " + e.getMessage());
-            return false;
-        }
-    }
-
     private boolean isPlayerSkullCached(String playerName) {
         try {
             return SkullManager.getInstance().isPlayerCached(playerName);
         } catch (Exception e) {
-            DebugUtils.logInternalDebug("isPlayerSkullCached: Exception - " + e.getMessage());
             return false;
         }
     }
@@ -988,14 +927,13 @@ public class InteractiveItem {
 
     private void updateSkullIfNeeded() {
         if (pendingPlayerName == null || !awaitingPlayerSkull) return;
-        
-        ItemStack updatedSkull = createPlayerSkull(pendingPlayerName);
-        if (isRealPlayerSkull(updatedSkull, pendingPlayerName)) {
-            DebugUtils.logInternalDebug("updateSkullIfNeeded: Player skull now available for " + pendingPlayerName);
+
+        if (isPlayerSkullCached(pendingPlayerName)) {
+            ItemStack updatedSkull = createPlayerSkull(pendingPlayerName);
             this.itemStack = updatedSkull;
             this.awaitingPlayerSkull = false;
             this.pendingPlayerName = null;
-             
+
             if (!usesPlaceholders()) {
                 this.dynamicSkullUpdate = false;
             }

@@ -11,10 +11,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
 public abstract class ExyliaItem {
+
+    protected static Boolean maxStackSizeAvailable = null;
+    protected static Method setMaxStackSizeMethod = null;
 
     @Getter
     protected ItemData itemData;
@@ -46,6 +50,7 @@ public abstract class ExyliaItem {
         processArmorTrim(player);
         processLeatherArmorColor(player);
         applyItemModel(player);
+        applyTooltipStyle(player);
         applyAttributes();
         applyCustomAttributes();
         applyCustomNBT();
@@ -64,6 +69,7 @@ public abstract class ExyliaItem {
         processArmorTrim(null);
         processLeatherArmorColor(null);
         applyItemModel(null);
+        applyTooltipStyle(null);
         applyAttributes();
         applyCustomAttributes();
         applyCustomNBT();
@@ -163,6 +169,10 @@ public abstract class ExyliaItem {
 
     private void applyItemModel(Player player) {
         ItemModelProcessor.apply(itemStack, itemData.getRawItemModel(), player, itemData.getContext());
+    }
+
+    private void applyTooltipStyle(Player player) {
+        TooltipStyleProcessor.apply(itemStack, itemData.getRawTooltipStyle(), player, itemData.getContext());
     }
 
     private void applyAttributes() {
@@ -291,6 +301,10 @@ public abstract class ExyliaItem {
     }
 
     protected void applyMaxStackSize() {
+        if (!isMaxStackSizeAvailable()) {
+            return;
+        }
+
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
             int targetMaxStackSize;
@@ -302,8 +316,24 @@ public abstract class ExyliaItem {
             }
 
             int clampedMaxStackSize = Math.max(1, Math.min(99, targetMaxStackSize));
-            meta.setMaxStackSize(clampedMaxStackSize);
-            itemStack.setItemMeta(meta);
+            try {
+                setMaxStackSizeMethod.invoke(meta, clampedMaxStackSize);
+                itemStack.setItemMeta(meta);
+            } catch (Exception ignored) {
+            }
         }
+    }
+
+    protected static boolean isMaxStackSizeAvailable() {
+        if (maxStackSizeAvailable != null) {
+            return maxStackSizeAvailable;
+        }
+        try {
+            setMaxStackSizeMethod = ItemMeta.class.getMethod("setMaxStackSize", Integer.class);
+            maxStackSizeAvailable = true;
+        } catch (NoSuchMethodException e) {
+            maxStackSizeAvailable = false;
+        }
+        return maxStackSizeAvailable;
     }
 }

@@ -10,6 +10,7 @@ import org.bukkit.event.HandlerList;
 
 @Getter
 @Setter
+@Deprecated
 public class TemporaryBlockRemovedEvent extends Event implements Cancellable {
     private static final HandlerList handlers = new HandlerList();
 

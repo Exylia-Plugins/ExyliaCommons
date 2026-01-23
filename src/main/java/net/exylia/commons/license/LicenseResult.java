@@ -1,5 +1,6 @@
 package net.exylia.commons.license;
 
+@Deprecated
 public class LicenseResult {
     private final boolean valid;
     private final String message;

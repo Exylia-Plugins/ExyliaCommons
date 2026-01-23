@@ -11,6 +11,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.api.Tasks} instead.
+ */
+@Deprecated(forRemoval = true)
 public final class Schedulers {
 
     private Schedulers() {

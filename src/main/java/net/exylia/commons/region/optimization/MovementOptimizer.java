@@ -7,6 +7,7 @@ import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Deprecated
 public class MovementOptimizer {
     private final Map<UUID, PlayerMovementState> playerStates;
     private final RegionSpatialIndex spatialIndex;

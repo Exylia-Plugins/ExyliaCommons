@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class RedisPubSubManager {
 
     private final RedisConnectionManager connectionManager;

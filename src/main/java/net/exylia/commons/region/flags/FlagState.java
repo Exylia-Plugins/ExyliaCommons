@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
+@Deprecated
 public class FlagState {
     private final UUID playerId;
     private final long createdAt;

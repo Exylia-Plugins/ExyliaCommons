@@ -8,6 +8,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Getter
+@Deprecated
 public enum RegionFlag {
      
     PVP("pvp", "Permite PvP entre jugadores", true, FlagType.PROTECTION),

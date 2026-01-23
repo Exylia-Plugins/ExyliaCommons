@@ -13,7 +13,7 @@ public class VisualAdapter extends ReloadableSystemAdapter {
     protected void performCacheClear() throws Exception {
         VisualManager instance = VisualManager.getInstance();
         if (instance != null && instance.isInitialized()) {
-            instance.shutdown();
+            instance.softReset();
         }
     }
 

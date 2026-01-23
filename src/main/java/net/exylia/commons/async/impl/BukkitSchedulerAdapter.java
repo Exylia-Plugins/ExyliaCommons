@@ -12,6 +12,10 @@ import org.bukkit.scheduler.BukkitTask;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.scheduler.BukkitServerScheduler} instead.
+ */
+@Deprecated(forRemoval = true)
 public class BukkitSchedulerAdapter implements SchedulerAdapter {
 
     @Override

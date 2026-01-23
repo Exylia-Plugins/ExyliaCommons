@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.util.Enumeration;
 import java.util.concurrent.CompletableFuture;
 
+@Deprecated
 public class LicenseManager {
     private static final String LICENSE_API_URL = "https://license-api.exylia.net/api/licenses/verify/";
     private static final String USER_AGENT = "MinecraftPlugin/1.0";

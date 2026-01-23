@@ -3,6 +3,8 @@ package net.exylia.commons.v2.action.pipeline;
 import net.exylia.commons.v2.action.model.Action;
 import net.exylia.commons.v2.action.model.ActionContext;
 import net.exylia.commons.v2.action.model.ActionResult;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 
 import java.util.*;
 
@@ -30,16 +32,21 @@ public class ActionPipeline {
         long startTime = System.currentTimeMillis();
 
         try {
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: PRE_VALIDATE for " + action.getMetadata().getFullId());
             executeStage(PipelineStage.PRE_VALIDATE, action, context);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: PRE_EXECUTE for " + action.getMetadata().getFullId());
             executeStage(PipelineStage.PRE_EXECUTE, action, context);
 
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: Calling action.execute() for " + action.getMetadata().getFullId());
             ActionResult result = action.execute(context).join();
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: action.execute() returned for " + action.getMetadata().getFullId() + " - success: " + result.isSuccess());
 
             executeStage(PipelineStage.POST_EXECUTE, action, context);
 
             return result;
 
         } catch (Exception ex) {
+            DebugAPI.logLibError(DebugCategory.ACTION, "Pipeline: Exception during execution of " + action.getMetadata().getFullId(), ex);
             executeStage(PipelineStage.ERROR, action, context);
             long executionTime = System.currentTimeMillis() - startTime;
             return ActionResult.failure(ex);

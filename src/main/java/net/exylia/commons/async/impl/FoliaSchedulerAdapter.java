@@ -14,6 +14,10 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * @deprecated Use {@link net.exylia.commons.v2.tasks.scheduler.FoliaServerScheduler} instead.
+ */
+@Deprecated(forRemoval = true)
 public class FoliaSchedulerAdapter implements SchedulerAdapter {
 
     private final GlobalRegionScheduler globalScheduler;

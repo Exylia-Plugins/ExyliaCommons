@@ -96,6 +96,21 @@ public class ItemConfigurationBuilder {
         return this;
     }
 
+    public ItemConfigurationBuilder itemModel(String itemModel) {
+        itemData.setRawItemModel(itemModel);
+        return this;
+    }
+
+    public ItemConfigurationBuilder customModelData(int customModelData) {
+        itemData.setRawItemModel(String.valueOf(customModelData));
+        return this;
+    }
+
+    public ItemConfigurationBuilder tooltipStyle(String tooltipStyle) {
+        itemData.setRawTooltipStyle(tooltipStyle);
+        return this;
+    }
+
     public ItemConfigurationBuilder slot(int slot) {
         this.slot = slot;
         return this;

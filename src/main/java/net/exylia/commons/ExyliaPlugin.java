@@ -3,7 +3,7 @@ package net.exylia.commons;
 import com.hapangama.SunLicenseAPI;
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.async.SchedulerManager;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.config.ConfigBase;
 import net.exylia.commons.config.ConfigManager;
 import net.exylia.commons.config.ConfigurationSystem;
@@ -48,12 +48,12 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
         lifecycleManager = new LifecycleManager(this);
 
-        logInternalDebug("Initializing SchedulerManager...");
-        SchedulerManager.initialize(this);
+        logInternalDebug("Initializing TaskAPI...");
+        TaskAPI.initialize(this);
 
-        CompletableFuture<Boolean> licenseValidation = CompletableFuture.supplyAsync(() ->
+        CompletableFuture<Boolean> licenseValidation = TaskAPI.async(() ->
             lifecycleManager.executeLicenseValidation()
-        , SchedulerManager.getInstance().getAsyncExecutor().getGeneralExecutor());
+        ).thenApply(result -> result.getValue().orElse(false));
 
         boolean licenseValid;
         try {
@@ -112,6 +112,7 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
         if (registeredPlugins.isEmpty()) {
             initialized = false;
+            TaskAPI.shutdown();
         }
     }
 

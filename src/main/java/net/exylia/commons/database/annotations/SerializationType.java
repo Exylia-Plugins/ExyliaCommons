@@ -1,5 +1,6 @@
 package net.exylia.commons.database.annotations;
 
+@Deprecated
 public enum SerializationType {
     AUTO,        
     JSON,        

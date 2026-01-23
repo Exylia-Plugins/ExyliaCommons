@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
+@Deprecated
 public class OptimizedFlagCache {
      
     private static final int MAX_CACHE_SIZE = 8000;  

@@ -6,6 +6,7 @@ import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 import org.jetbrains.annotations.NotNull;
 
+@Deprecated
 @Getter
 public class RegionDeleteEvent extends Event {
     private static final HandlerList handlers = new HandlerList();

@@ -4,6 +4,7 @@ import org.bukkit.entity.Player;
 
 import java.util.function.Supplier;
 
+@Deprecated
 class ExyliaContextBuilder {
     private final ExyliaContext exyliaContext = new ExyliaContext();
 

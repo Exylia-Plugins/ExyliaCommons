@@ -1,5 +1,6 @@
 package net.exylia.commons.redis.pubsub;
 
+@Deprecated
 public class ChannelMessage {
     private final String channel;
     private final String message;

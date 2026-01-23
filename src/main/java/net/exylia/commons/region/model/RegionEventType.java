@@ -3,6 +3,7 @@ package net.exylia.commons.region.model;
 import lombok.Getter;
 
 @Getter
+@Deprecated
 public enum RegionEventType {
     ENTER("enter", "Entrada a región"),
     EXIT("exit", "Salida de región"),

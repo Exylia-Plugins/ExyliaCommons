@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.util.Set;
 
+@Deprecated
 @Setter
 @Getter
 public class ImportOptions {

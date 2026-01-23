@@ -10,6 +10,7 @@ import java.io.IOException;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class RedisConfigManager {
 
     private static final String CONFIG_FILE_NAME = "redis.yml";

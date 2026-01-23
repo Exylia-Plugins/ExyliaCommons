@@ -31,6 +31,7 @@ import java.util.*;
 import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
+@Deprecated
 public class MongoDBAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;

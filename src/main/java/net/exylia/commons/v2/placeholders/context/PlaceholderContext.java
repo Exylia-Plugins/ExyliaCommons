@@ -1,12 +1,15 @@
 package net.exylia.commons.v2.placeholders.context;
 
+import lombok.Getter;
 import org.bukkit.entity.Player;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 public class PlaceholderContext {
     private final Map<Class<?>, Object> typedData;
     private final Map<String, Object> keyedData;
+    @Getter
     private Player player;
 
     public PlaceholderContext() {
@@ -39,6 +42,13 @@ public class PlaceholderContext {
         return this;
     }
 
+    public PlaceholderContext putDynamic(String key, Supplier<?> supplier) {
+        if (key != null && supplier != null) {
+            keyedData.put(key, supplier);
+        }
+        return this;
+    }
+
     public PlaceholderContext withPlayer(Player player) {
         this.player = player;
         if (player != null) {
@@ -64,7 +74,11 @@ public class PlaceholderContext {
     }
 
     public Object get(String key) {
-        return keyedData.get(key);
+        Object value = keyedData.get(key);
+        if (value instanceof Supplier<?> supplier) {
+            return supplier.get();
+        }
+        return value;
     }
 
     @SuppressWarnings("unchecked")
@@ -76,10 +90,6 @@ public class PlaceholderContext {
         return null;
     }
 
-    public Player getPlayer() {
-        return player;
-    }
-
     @SuppressWarnings("unchecked")
     public <T> T find(Class<T> type) {
         T result = get(type);
@@ -87,17 +97,17 @@ public class PlaceholderContext {
             return result;
         }
 
-        for (Object value : keyedData.values()) {
+        for (Object value : typedData.values()) {
             if (type.isInstance(value)) {
                 return (T) value;
             }
         }
 
-        System.out.println("[DEBUG PlaceholderContext] find() not found for type: " + type.getName());
-        System.out.println("[DEBUG PlaceholderContext] typedData keys: " + typedData.keySet());
-        System.out.println("[DEBUG PlaceholderContext] keyedData keys: " + keyedData.keySet());
-        if (!typedData.isEmpty()) {
-            typedData.forEach((k, v) -> System.out.println("[DEBUG PlaceholderContext]   typed: " + k.getName() + " = " + v));
+        for (Object value : keyedData.values()) {
+            Object resolved = value instanceof Supplier<?> s ? s.get() : value;
+            if (type.isInstance(resolved)) {
+                return (T) resolved;
+            }
         }
 
         return null;
@@ -158,7 +168,9 @@ public class PlaceholderContext {
         }
 
         for (Map.Entry<String, Object> entry : keyedData.entrySet()) {
-            context.put(entry.getKey(), entry.getValue());
+            Object value = entry.getValue();
+            Object resolved = value instanceof Supplier<?> s ? s.get() : value;
+            context.put(entry.getKey(), resolved);
         }
 
         return context;

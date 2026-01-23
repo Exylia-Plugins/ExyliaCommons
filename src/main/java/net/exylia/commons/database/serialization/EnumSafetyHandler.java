@@ -5,6 +5,7 @@ import net.exylia.commons.database.exceptions.DatabaseErrorHandler;
 
 import java.lang.reflect.Field;
 
+@Deprecated
 public class EnumSafetyHandler {
 
     @SuppressWarnings("unchecked")

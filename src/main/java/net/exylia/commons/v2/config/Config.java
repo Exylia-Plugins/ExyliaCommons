@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.configuration.file.YamlConfigurationOptions;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -51,10 +52,12 @@ public class Config {
             }
         }
         config = YamlConfiguration.loadConfiguration(file);
+        ((YamlConfigurationOptions) config.options()).width(Integer.MAX_VALUE);
     }
 
     public void reload() {
         config = YamlConfiguration.loadConfiguration(file);
+        ((YamlConfigurationOptions) config.options()).width(Integer.MAX_VALUE);
     }
 
     public void save() {

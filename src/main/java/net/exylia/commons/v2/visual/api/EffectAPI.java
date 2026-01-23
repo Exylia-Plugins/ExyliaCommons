@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffectType;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 
@@ -39,6 +40,33 @@ public final class EffectAPI {
 
     public static void apply(Player player, EffectConfig config) {
         EffectRenderer.getInstance().render(player, config, PlaceholderContext.create());
+    }
+
+    public static void applyAll(Player player, List<String> effectStrings) {
+        for (String effectString : effectStrings) {
+            apply(player, effectString);
+        }
+    }
+
+    public static void applyAllInfinite(Player player, List<String> effectStrings) {
+        applyAllInfinite(player, effectStrings, true, true);
+    }
+
+    public static void applyAllInfinite(Player player, List<String> effectStrings, boolean particles, boolean icon) {
+        for (String effectString : effectStrings) {
+            EffectConfig config = EffectBuilder.fromString(effectString, true, particles, icon);
+            apply(player, config);
+        }
+    }
+
+    public static void removeAll(Player player, List<String> effectStrings) {
+        for (String effectString : effectStrings) {
+            String effectName = effectString.split("\\|")[0].trim();
+            PotionEffectType effectType = PotionEffectType.getByName(effectName.toUpperCase());
+            if (effectType != null) {
+                player.removePotionEffect(effectType);
+            }
+        }
     }
 
     public static void applyToAll(PotionEffectType effectType, int amplifier, int durationTicks) {

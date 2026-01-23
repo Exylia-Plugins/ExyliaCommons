@@ -285,12 +285,12 @@ public final class MessageAPI {
     }
 
     public static void sendRoute(String filePath, Player player, String route, PlaceholderContext context) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route, context);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route, context);
             send(player, messages, context);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route, context);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route, context);
             send(player, message, context);
         }
     }
@@ -324,12 +324,12 @@ public final class MessageAPI {
         if (sender instanceof Player player) {
             sendRoute(filePath, player, route, context);
         } else {
-            Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+            Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
             if (messageObj instanceof List) {
-                List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route, context);
+                List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route, context);
                 messages.forEach(msg -> sender.sendMessage(ColorAPI.parse(msg)));
             } else {
-                String message = net.exylia.commons.v2.config.Messages.get(filePath, route, context);
+                String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route, context);
                 if (message != null && !message.isEmpty()) {
                     sender.sendMessage(ColorAPI.parse(message));
                 }
@@ -349,12 +349,12 @@ public final class MessageAPI {
     }
 
     public static void broadcastRoute(String filePath, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             broadcast(messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             broadcast(message);
         }
     }
@@ -365,7 +365,7 @@ public final class MessageAPI {
     }
 
     public static void broadcastRouteExcluding(String filePath, String route, Player excludePlayer) {
-        String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+        String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
         broadcastExcluding(message, excludePlayer);
     }
 
@@ -375,7 +375,7 @@ public final class MessageAPI {
     }
 
     public static void broadcastRouteExcluding(String filePath, String route, Collection<Player> excludePlayers) {
-        String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+        String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
         broadcastExcluding(message, excludePlayers);
     }
 
@@ -391,12 +391,12 @@ public final class MessageAPI {
     }
 
     public static void sendRouteToFiltered(String filePath, Predicate<Player> filter, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             sendToFiltered(filter, messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             sendToFiltered(filter, message);
         }
     }
@@ -413,12 +413,12 @@ public final class MessageAPI {
     }
 
     public static void sendRouteToRecipients(String filePath, Collection<Player> recipients, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             sendToRecipients(recipients, messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             sendToRecipients(recipients, message);
         }
     }
@@ -435,12 +435,12 @@ public final class MessageAPI {
     }
 
     public static void sendRouteInRadius(String filePath, Location origin, double radius, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             sendInRadius(origin, radius, messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             sendInRadius(origin, radius, message);
         }
     }
@@ -457,12 +457,12 @@ public final class MessageAPI {
     }
 
     public static void sendRouteCentered(String filePath, Player player, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             sendCentered(player, messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             sendCentered(player, message);
         }
     }
@@ -479,12 +479,12 @@ public final class MessageAPI {
     }
 
     public static void broadcastRouteCentered(String filePath, String route) {
-        Object messageObj = net.exylia.commons.v2.config.Messages.getAny(filePath, route);
+        Object messageObj = net.exylia.commons.v2.config.Messages.getAnyFrom(filePath, route);
         if (messageObj instanceof List) {
-            List<String> messages = net.exylia.commons.v2.config.Messages.getList(filePath, route);
+            List<String> messages = net.exylia.commons.v2.config.Messages.getListFrom(filePath, route);
             broadcastCentered(messages);
         } else {
-            String message = net.exylia.commons.v2.config.Messages.get(filePath, route);
+            String message = net.exylia.commons.v2.config.Messages.getFrom(filePath, route);
             broadcastCentered(message);
         }
     }

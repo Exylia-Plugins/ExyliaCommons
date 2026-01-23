@@ -35,8 +35,8 @@ public class EffectConfig extends VisualConfig {
             errors.add("Amplifier must be between 0 and 255");
         }
 
-        if (durationTicks < 1) {
-            errors.add("Duration must be >= 1 tick");
+        if (durationTicks < 1 && durationTicks != -1) {
+            errors.add("Duration must be >= 1 tick or -1 for infinite");
         }
 
         ValidationResult baseResult = validateBase();

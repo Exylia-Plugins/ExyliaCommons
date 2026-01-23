@@ -7,6 +7,7 @@ import net.exylia.commons.v2.database.cache.CaffeineCacheStrategy;
 import net.exylia.commons.v2.database.cache.CacheKey;
 import net.exylia.commons.v2.database.cache.CacheStrategy;
 import net.exylia.commons.v2.database.config.DatabaseConfig;
+import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.exception.ConnectionException;
@@ -79,6 +80,7 @@ public class DatabaseManager {
             EntityMetadata metadata = new EntityMetadata(entityClass);
             entityMetadataCache.put(entityClass, metadata);
             adapter.createTable(metadata);
+            adapter.updateTable(metadata);
             DebugUtils.logInternalInfo("Entity registered: " + entityClass.getSimpleName());
         } catch (Exception e) {
             throw new ConnectionException("Failed to register entity: " + entityClass.getName(), e);
@@ -121,26 +123,25 @@ public class DatabaseManager {
     }
 
     private CacheStrategy<CacheKey, Object> createCacheStrategy() {
-        DatabaseConfig.CacheConfig cacheConfig = config.getCacheConfig();
-        if (!cacheConfig.isEnabled()) {
+        if (!DatabaseDefaults.Database.Cache.ENABLED) {
             return new NoCacheStrategy<>();
         }
 
         return new CaffeineCacheStrategy<>(
-                cacheConfig.getTtlMinutes(),
-                cacheConfig.getMaxEntries(),
-                cacheConfig.isRecordStats(),
-                cacheConfig.isRefreshAfterAccess()
+                DatabaseDefaults.Database.Cache.TTL_MINUTES,
+                DatabaseDefaults.Database.Cache.MAX_ENTRIES,
+                false,
+                true
         );
     }
 
     private static DatabaseAdapter createAdapter(DatabaseConfig config) throws Exception {
-        String type = config.getDatabaseType().toUpperCase();
+        String type = DatabaseDefaults.Database.TYPE.toLowerCase();
         return switch (type) {
-            case "H2" -> new net.exylia.commons.v2.database.adapter.sql.H2Adapter(config.getAdapterConfig("H2"));
-            case "MYSQL" -> new net.exylia.commons.v2.database.adapter.sql.MySQLAdapter(config.getAdapterConfig("MySQL"));
-            case "MONGODB" -> new net.exylia.commons.v2.database.adapter.mongo.MongoDBAdapter(config.getAdapterConfig("MongoDB"));
-            case "YAML" -> new net.exylia.commons.v2.database.adapter.fallback.YAMLFallbackAdapter(config.getAdapterConfig("H2"));
+            case "h2" -> new net.exylia.commons.v2.database.adapter.sql.H2Adapter(config.getAdapterConfig("h2"));
+            case "mysql" -> new net.exylia.commons.v2.database.adapter.sql.MySQLAdapter(config.getAdapterConfig("mysql"));
+            case "mongodb" -> new net.exylia.commons.v2.database.adapter.mongo.MongoDBAdapter(config.getAdapterConfig("mongodb"));
+            case "yaml" -> new net.exylia.commons.v2.database.adapter.fallback.YAMLFallbackAdapter(config.getAdapterConfig("h2"));
             default -> throw new IllegalArgumentException("Unknown database type: " + type);
         };
     }

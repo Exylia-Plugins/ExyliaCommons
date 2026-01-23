@@ -6,7 +6,8 @@ import org.bukkit.event.inventory.ClickType;
 import java.util.HashMap;
 import java.util.Map;
 
-public class                              ActionContext {
+@Deprecated
+public class ActionContext {
     private final Player player;
     private final ActionSource source;
     private final Map<String, Object> data;

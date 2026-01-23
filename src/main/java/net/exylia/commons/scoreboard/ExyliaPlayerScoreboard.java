@@ -5,6 +5,7 @@ import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.scoreboard.internal.PlayerScoreboardInstance;
 import org.bukkit.entity.Player;
 
+@Deprecated
 public class ExyliaPlayerScoreboard {
 
     private final PlayerScoreboardInstance instance;

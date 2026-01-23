@@ -83,7 +83,7 @@ public class ParticleConfig {
 
     public static ParticleConfig magical() {
         return new ParticleConfig()
-                .particleType(Particle.ENCHANT)
+                .particleType(Particle.ENCHANTMENT_TABLE)
                 .particleCount(3)
                 .offset(0.1, 0.1, 0.1)
                 .speed(0.3)

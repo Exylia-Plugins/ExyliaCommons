@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
+@Deprecated
 public class YAMLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;

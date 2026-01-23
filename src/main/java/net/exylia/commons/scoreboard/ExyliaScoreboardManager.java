@@ -18,6 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static net.exylia.commons.utils.DebugUtils.*;
 
 @Getter
+@Deprecated
 public class ExyliaScoreboardManager {
 
     private final Plugin plugin;

@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
+@Deprecated
 public class RedisUtils {
 
     private static final String PLAYER_PREFIX = "player:";

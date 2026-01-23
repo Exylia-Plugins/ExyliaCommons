@@ -9,11 +9,10 @@ import net.exylia.commons.database.io.*;
 import net.exylia.commons.database.migration.MigrationManager;
 import net.exylia.commons.database.repository.Repository;
 import net.exylia.commons.database.repository.RepositoryImpl;
+import net.exylia.commons.v2.config.Configs;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import static net.exylia.commons.utils.DebugUtils.*;
 
+@Deprecated
 public class DatabaseManager {
     private static DatabaseManager instance;
     private final ExyliaPlugin plugin;
@@ -74,69 +74,11 @@ public class DatabaseManager {
 
     private void loadConfiguration() {
         try {
-            File configFile = new File(plugin.getDataFolder(), "examples/database.yml");
-
-            if (!configFile.exists()) {
-                createDefaultConfig(configFile);
-            }
-
-            databaseConfig = YamlConfiguration.loadConfiguration(configFile);
+            databaseConfig = Configs.file("database").raw();
             logInternalInfo("Database configuration loaded successfully");
-
         } catch (Exception e) {
             throw new DatabaseException("Configuration Loading", "DatabaseManager", "System",
                     "Failed to load database configuration", e);
-        }
-    }
-
-    private void createDefaultConfig(File configFile) {
-        try {
-            configFile.getParentFile().mkdirs();
-            configFile.createNewFile();
-
-            FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-
-            config.set("database.type", "H2");
-
-            config.set("database.yaml.directory", "data");
-            config.set("database.yaml.auto-save", true);
-            config.set("database.yaml.backup-on-shutdown", true);
-
-            config.set("database.h2.file", "database/h2");
-            config.set("database.h2.username", "sa");
-            config.set("database.h2.password", "");
-            config.set("database.h2.pool-size", 5);
-
-            config.set("database.mysql.host", "localhost");
-            config.set("database.mysql.port", 3306);
-            config.set("database.mysql.database", "minecraft");
-            config.set("database.mysql.username", "root");
-            config.set("database.mysql.password", "password");
-            config.set("database.mysql.ssl", false);
-            config.set("database.mysql.pool-size", 10);
-            config.set("database.mysql.minimum-idle", 2);
-            config.set("database.mysql.connection-timeout", 30000);
-            config.set("database.mysql.idle-timeout", 600000);
-            config.set("database.mysql.max-lifetime", 1800000);
-
-            config.set("database.mongodb.host", "localhost");
-            config.set("database.mongodb.port", 27017);
-            config.set("database.mongodb.database", "minecraft");
-            config.set("database.mongodb.username", "");
-            config.set("database.mongodb.password", "");
-            config.set("database.mongodb.auth-database", "admin");
-            config.set("database.mongodb.connection-pool-size", 10);
-
-            config.set("database.auto-migrate", true);
-            config.set("database.debug", false);
-            config.set("database.enable-metrics", false);
-
-            config.save(configFile);
-            logInternalInfo("Default database configuration created with YAML support");
-
-        } catch (IOException e) {
-            throw new DatabaseException("Configuration Creation", "DatabaseManager", "System",
-                    "Failed to create default database configuration file", e);
         }
     }
 

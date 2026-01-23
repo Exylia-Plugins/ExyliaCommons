@@ -6,6 +6,7 @@ import org.bukkit.scoreboard.Team;
 
 @Getter
 @Builder
+@Deprecated
 public class ScoreboardSettings {
 
     @Builder.Default

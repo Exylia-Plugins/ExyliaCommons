@@ -1,5 +1,6 @@
 package net.exylia.commons.redis.serialization;
 
+@Deprecated
 public interface RedisSerializer {
 
     <T> String serialize(T object);

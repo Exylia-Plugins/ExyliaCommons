@@ -29,6 +29,10 @@ public class Messages {
         }
     }
 
+    public static String getPrefix() {
+        return globalPrefix;
+    }
+
     public static void reload() {
         if (messagesConfig != null) {
             messagesConfig.reload();
@@ -57,15 +61,15 @@ public class Messages {
         return message(path).context(context).raw();
     }
 
-    public static String get(String filePath, String path) {
+    public static String getFrom(String filePath, String path) {
         return message(filePath, path).raw();
     }
 
-    public static String get(String filePath, String path, Object... replacements) {
+    public static String getFrom(String filePath, String path, Object... replacements) {
         return message(filePath, path).replace(replacements).raw();
     }
 
-    public static String get(String filePath, String path, PlaceholderContext context) {
+    public static String getFrom(String filePath, String path, PlaceholderContext context) {
         return message(filePath, path).context(context).raw();
     }
 
@@ -81,23 +85,23 @@ public class Messages {
         return message(path).context(context).rawList();
     }
 
-    public static List<String> getList(String filePath, String path) {
+    public static List<String> getListFrom(String filePath, String path) {
         return message(filePath, path).rawList();
     }
 
-    public static List<String> getList(String filePath, String path, Object... replacements) {
+    public static List<String> getListFrom(String filePath, String path, Object... replacements) {
         return message(filePath, path).replace(replacements).rawList();
     }
 
-    public static List<String> getList(String filePath, String path, PlaceholderContext context) {
+    public static List<String> getListFrom(String filePath, String path, PlaceholderContext context) {
         return message(filePath, path).context(context).rawList();
     }
 
     public static Object getAny(String path) {
-        return getAny(null, path);
+        return getAnyFrom(null, path);
     }
 
-    public static Object getAny(String filePath, String path) {
+    public static Object getAnyFrom(String filePath, String path) {
         Config config = getConfigFile(filePath);
         Object value = config.raw().get(path);
         if (value instanceof List) {
@@ -114,11 +118,11 @@ public class Messages {
         return message(path).replace(replacements).build();
     }
 
-    public static Component getComponent(String filePath, String path) {
+    public static Component getComponentFrom(String filePath, String path) {
         return message(filePath, path).build();
     }
 
-    public static Component getComponent(String filePath, String path, Object... replacements) {
+    public static Component getComponentFrom(String filePath, String path, Object... replacements) {
         return message(filePath, path).replace(replacements).build();
     }
 

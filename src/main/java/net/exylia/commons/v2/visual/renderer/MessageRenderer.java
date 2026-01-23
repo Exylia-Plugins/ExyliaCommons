@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.renderer;
 
+import net.exylia.commons.v2.config.Messages;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.cache.CacheManager;
 import net.exylia.commons.v2.visual.color.MessageCenterer;
@@ -49,6 +50,11 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
         List<String> messages = config.getMessages();
 
         for (String message : messages) {
+            String prefix = Messages.getPrefix();
+            if (prefix != null && !prefix.isEmpty()) {
+                message = message.replace("%prefix%", prefix);
+            }
+
             EffectProcessor.ParsedMessage parsed = EffectProcessor.parse(message, player, context);
 
             if (!parsed.getSounds().isEmpty()) {

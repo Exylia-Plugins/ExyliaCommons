@@ -31,6 +31,9 @@ public class MenuData {
     @Builder.Default
     private long refreshInterval = 20L;
 
+    @Builder.Default
+    private long clickRefreshDelay = 1L;
+
     private ItemData globalFiller;
 
     private ItemData borderFiller;
@@ -145,6 +148,7 @@ public class MenuData {
                 .size(size)
                 .refreshMode(refreshMode)
                 .refreshInterval(refreshInterval)
+                .clickRefreshDelay(clickRefreshDelay)
                 .globalFiller(globalFiller != null ? globalFiller.copy() : null)
                 .borderFiller(borderFiller != null ? borderFiller.copy() : null)
                 .paginationFiller(paginationFiller != null ? paginationFiller.copy() : null)

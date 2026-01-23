@@ -74,6 +74,9 @@ public class MenuParser {
 
                 long interval = refreshSection.getLong("interval", 20L);
                 builder.refreshInterval(interval);
+
+                long clickDelay = refreshSection.getLong("click_delay", 1L);
+                builder.clickRefreshDelay(clickDelay);
             }
         }
     }

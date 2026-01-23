@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 import static net.exylia.commons.utils.DebugUtils.logInternalSuccess;
+import static net.exylia.commons.v2.visual.config.ColorDefaults.Text.AUTOMATIC_FONT;
+import static net.exylia.commons.v2.visual.config.ColorDefaults.Text.FORCE_IN_UPPER_CASE;
 
 public class ColorUtils {
 
@@ -240,8 +242,8 @@ public class ColorUtils {
             boolean forceUpperCase = false;
 
             try {
-                automaticFont = Configs.string("text.automatic-font");
-                forceUpperCase = Configs.bool("text.force-in-upper-case");
+                automaticFont = AUTOMATIC_FONT;
+                forceUpperCase = FORCE_IN_UPPER_CASE;
             } catch (Exception ignored) {
             }
 
@@ -276,8 +278,8 @@ public class ColorUtils {
         boolean forceUpperCase = false;
 
         try {
-            automaticFont = Configs.string("text.automatic-font");
-            forceUpperCase = Configs.bool("text.force-in-upper-case");
+            automaticFont = AUTOMATIC_FONT;
+            forceUpperCase = FORCE_IN_UPPER_CASE;
         } catch (Exception ignored) {
         }
 

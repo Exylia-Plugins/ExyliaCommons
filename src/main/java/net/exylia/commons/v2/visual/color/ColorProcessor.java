@@ -11,6 +11,9 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
+import static net.exylia.commons.v2.visual.config.ColorDefaults.Text.AUTOMATIC_FONT;
+import static net.exylia.commons.v2.visual.config.ColorDefaults.Text.FORCE_IN_UPPER_CASE;
+
 public class ColorProcessor {
     private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
@@ -53,8 +56,8 @@ public class ColorProcessor {
         boolean forceUpperCase = false;
 
         try {
-            automaticFont = Configs.string("text.automatic-font");
-            forceUpperCase = Configs.bool("text.force-in-upper-case");
+            automaticFont = AUTOMATIC_FONT;
+            forceUpperCase = FORCE_IN_UPPER_CASE;
         } catch (Exception ignored) {
         }
 

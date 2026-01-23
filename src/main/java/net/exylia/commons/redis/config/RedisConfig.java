@@ -3,6 +3,7 @@ package net.exylia.commons.redis.config;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+@Deprecated
 public class RedisConfig {
 
     private String host = "localhost";
