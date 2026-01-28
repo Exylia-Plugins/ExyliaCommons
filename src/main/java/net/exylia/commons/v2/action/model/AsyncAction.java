@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.action.model;
 
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.v2.action.parser.ParsedArguments;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 
@@ -19,7 +19,7 @@ public class AsyncAction implements Action {
         long startTime = System.currentTimeMillis();
         DebugAPI.logLibDebug(DebugCategory.ACTION, "AsyncAction.execute() called for " + metadata.getFullId());
 
-        return AsyncExecutor.getInstance().supplyAsync(() -> {
+        return Tasks.run(() -> {
             DebugAPI.logLibDebug(DebugCategory.ACTION, "AsyncAction callback executing for " + metadata.getFullId());
             try {
                 DebugAPI.logLibDebug(DebugCategory.ACTION, "AsyncAction calling handler.accept() for " + metadata.getFullId());
@@ -31,7 +31,7 @@ public class AsyncAction implements Action {
                 DebugAPI.logLibError(DebugCategory.ACTION, "AsyncAction handler threw exception for " + metadata.getFullId(), e);
                 return ActionResult.failure(e);
             }
-        }, false);
+        }).thenApply(result -> result.getValue().orElse(ActionResult.failure(new RuntimeException("Task failed"))));
     }
 
     @Override

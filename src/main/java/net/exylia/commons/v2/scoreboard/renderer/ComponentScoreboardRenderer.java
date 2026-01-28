@@ -2,7 +2,7 @@ package net.exylia.commons.v2.scoreboard.renderer;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.scoreboard.cache.ScoreboardCacheManager;
@@ -55,7 +55,7 @@ public class ComponentScoreboardRenderer {
                         Component processedTitle = titleFuture.join();
                         List<Component> processedLines = linesFuture.join();
 
-                        Schedulers.sync(() -> {
+                        Tasks.sync(() -> {
                             if (!adapter.isDeleted()) {
                                 adapter.updateTitle(processedTitle);
                                 adapter.updateLines(processedLines);

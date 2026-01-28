@@ -1,7 +1,6 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.skull.SkullManager;
@@ -12,6 +11,7 @@ import net.exylia.commons.v2.config.ConfigInitializer;
 import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
+import net.exylia.commons.v2.discord.config.DiscordConfig;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.tasks.config.TasksDefaults;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -34,6 +34,7 @@ public class SystemBootstrapper {
             ConfigSchemaRegistry.ensureDefaults(DatabaseDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(ColorDefaults.class);
+            ConfigSchemaRegistry.ensureDefaults(DiscordConfig.class);
 
             logInternalDebug("Initializing Messages...");
             ConfigInitializer.initMessages();

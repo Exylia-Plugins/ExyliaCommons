@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.visual.instance;
 
-import net.exylia.commons.async.SchedulerManager;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.visual.config.VisualConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.core.VisualRegistry;
@@ -44,12 +44,13 @@ public class SimpleVisualInstance<T extends VisualConfig> extends VisualInstance
     }
 
     private void scheduleAutoCleanup() {
-        SchedulerManager.getInstance()
-                .task(() -> {
+        Tasks.build()
+                .run(() -> {
                     lifecycle.complete();
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                 })
                 .delay(AUTO_CLEANUP_TICKS, TimeUnit.MILLISECONDS)
+                .sync()
                 .schedule();
     }
 }

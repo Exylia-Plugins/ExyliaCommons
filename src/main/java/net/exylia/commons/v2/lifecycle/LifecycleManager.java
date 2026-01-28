@@ -25,22 +25,10 @@ public class LifecycleManager {
         logInternalDebug("Starting license validation...");
 
         try {
-            logInternalDebug("Calling license validator...");
             boolean valid = z.a(plugin);
             if (!valid) {
-                logInternalError("License validation failed");
                 return false;
             }
-
-            logInternalDebug("Checking if SunLicenseAPI was set...");
-            if (plugin.getSunLicenseAPI() == null) {
-                logInternalError("License API not set after validation");
-                return false;
-            }
-
-            logInternalDebug("Validating license with SunLicenseAPI...");
-            plugin.getSunLicenseAPI().validate();
-            logInternalInfo("License validated successfully");
             return true;
 
         } catch (Exception e) {

@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.region.blocks;
 
 import lombok.Getter;
-import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -47,7 +47,7 @@ public class TemporaryBlockManager {
         TemporaryBlock tempBlock = new TemporaryBlock(location, player.getUniqueId(), material, System.currentTimeMillis(), seconds, reGiveBlock);
         temporaryBlocks.put(key, tempBlock);
 
-        ScheduledTask task = Schedulers.syncLater(() -> {
+        ScheduledTask task = Tasks.later(() -> {
             removeTemporaryBlock(location, player, reGiveBlock);
         }, 20L * seconds);
 

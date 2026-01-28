@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.visual.instance;
 
 import lombok.Getter;
-import net.exylia.commons.async.SchedulerManager;
+import net.exylia.commons.v2.tasks.api.Tasks;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,9 +97,10 @@ public class InstanceLifecycle {
     }
 
     private void scheduleCleanup() {
-        SchedulerManager.getInstance()
-                .task(listeners::clear)
+        Tasks.build()
+                .run(listeners::clear)
                 .delay(5, TimeUnit.SECONDS)
+                .sync()
                 .schedule();
     }
 

@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.hologram.visibility;
 
 import lombok.AllArgsConstructor;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.hologram.model.Hologram;
 import org.bukkit.entity.Player;
 
@@ -44,7 +44,7 @@ public class VisibilityBatcher {
         }
 
         if (!batch.isEmpty()) {
-            Schedulers.sync(() -> {
+            Tasks.sync(() -> {
                 long now = System.currentTimeMillis();
                 for (VisibilityAction va : batch) {
                     if (!va.player.isOnline()) {

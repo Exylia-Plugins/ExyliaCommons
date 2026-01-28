@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.region.visual;
 
 import lombok.Getter;
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.region.model.Region;
 import org.bukkit.Color;
 import org.bukkit.entity.Player;
@@ -38,7 +38,7 @@ public class SelectionSession {
 
         double optimalStep = renderer.calculateOptimalStep(region.getVolume());
 
-        renderTask = Schedulers.syncTimer(() -> {
+        renderTask = Tasks.timer(() -> {
             if (!active || !player.isOnline()) {
                 stop();
                 return;

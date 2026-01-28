@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.formatter.api;
 
-import net.exylia.commons.async.AsyncAPI;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.formatter.core.FormatterRegistry;
 import net.exylia.commons.v2.formatter.date.DateFormatter;
 import net.exylia.commons.v2.formatter.price.PriceFormatter;
@@ -28,28 +28,28 @@ public class AsyncFormatterAPI {
     }
 
     public CompletableFuture<List<String>> formatTimeBatch(List<Object> inputs) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             TimeFormatter formatter = FormatterRegistry.getTimeFormatter();
             return formatter.formatBatch(inputs);
         });
     }
 
     public CompletableFuture<List<String>> formatDateBatch(List<Object> inputs) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             DateFormatter formatter = FormatterRegistry.getDateFormatter();
             return formatter.formatBatch(inputs);
         });
     }
 
     public CompletableFuture<List<String>> formatPriceBatch(List<Object> inputs) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             PriceFormatter formatter = FormatterRegistry.getPriceFormatter();
             return formatter.formatBatch(inputs);
         });
     }
 
     public CompletableFuture<List<String>> formatTimeBatchWithPattern(List<Object> inputs, String pattern) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             TimeFormatter formatter = FormatterRegistry.getTimeFormatter();
             return inputs.stream()
                 .map(input -> formatter.format(input, pattern))
@@ -58,7 +58,7 @@ public class AsyncFormatterAPI {
     }
 
     public CompletableFuture<List<String>> formatDateBatchWithPattern(List<Object> inputs, String pattern) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             DateFormatter formatter = FormatterRegistry.getDateFormatter();
             return inputs.stream()
                 .map(input -> formatter.format(input, pattern))
@@ -67,7 +67,7 @@ public class AsyncFormatterAPI {
     }
 
     public CompletableFuture<Map<String, String>> formatMixed(Map<String, FormatterType> formatTasks) {
-        return AsyncAPI.compute(() -> {
+        return Tasks.computeValue(() -> {
             Map<String, String> results = new ConcurrentHashMap<>();
             TimeFormatter timeFormatter = FormatterRegistry.getTimeFormatter();
             DateFormatter dateFormatter = FormatterRegistry.getDateFormatter();

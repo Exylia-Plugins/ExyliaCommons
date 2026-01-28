@@ -13,7 +13,7 @@ import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.session.ClipboardHolder;
 import lombok.Getter;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.region.model.Region;
 import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -70,7 +70,7 @@ public class SchematicManager {
     public CompletableFuture<Boolean> saveSchematic(Region region, String schematicName) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             try {
                 Location min = region.getMinimumPoint();
                 Location max = region.getMaximumPoint();
@@ -125,7 +125,7 @@ public class SchematicManager {
             return future;
         }
 
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             try {
                 File schematicFile = new File(schematicsFolder, schematicName + ".schem");
 
@@ -159,7 +159,7 @@ public class SchematicManager {
 
             CompletableFuture<Boolean> future = new CompletableFuture<>();
 
-            Schedulers.async(() -> {
+            Tasks.run(() -> {
                 try {
                     com.sk89q.worldedit.world.World world = BukkitAdapter.adapt(location.getWorld());
                     BlockVector3 pasteLocation = BlockVector3.at(

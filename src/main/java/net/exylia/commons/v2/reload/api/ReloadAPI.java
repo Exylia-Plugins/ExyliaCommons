@@ -2,8 +2,8 @@ package net.exylia.commons.v2.reload.api;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.async.SchedulerManager;
 import net.exylia.commons.v2.reload.core.ReloadManagerV2;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.reload.detector.SystemAvailability;
 import net.exylia.commons.v2.reload.stats.ReloadStats;
 import org.bukkit.command.CommandSender;
@@ -57,8 +57,7 @@ public class ReloadAPI {
         return manager.executeReloadAll(player, Collections.emptySet())
                 .thenApply(stats -> {
                     if (!(sender instanceof Player)) {
-                        SchedulerManager.getInstance().runTask(() ->
-                                sendDetailedStats(sender, stats));
+                        Tasks.sync(() -> sendDetailedStats(sender, stats));
                     }
                     return stats;
                 });
@@ -77,8 +76,7 @@ public class ReloadAPI {
         return manager.executeReloadAll(player, new HashSet<>(Arrays.asList(excludedSystems)))
                 .thenApply(stats -> {
                     if (!(sender instanceof Player)) {
-                        SchedulerManager.getInstance().runTask(() ->
-                                sendDetailedStats(sender, stats));
+                        Tasks.sync(() -> sendDetailedStats(sender, stats));
                     }
                     return stats;
                 });
@@ -116,8 +114,7 @@ public class ReloadAPI {
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .thenApply(stats -> {
                     if (!(sender instanceof Player)) {
-                        SchedulerManager.getInstance().runTask(() ->
-                                sendDetailedStats(sender, stats));
+                        Tasks.sync(() -> sendDetailedStats(sender, stats));
                     }
                     return stats;
                 })

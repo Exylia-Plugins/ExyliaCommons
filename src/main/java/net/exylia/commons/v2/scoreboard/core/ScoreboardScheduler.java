@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.scoreboard.core;
 
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
 import org.bukkit.plugin.Plugin;
 
@@ -71,7 +71,7 @@ public class ScoreboardScheduler {
     }
 
     private void createSchedulerForInterval(long interval) {
-        ScheduledTask task = Schedulers.syncTimer(() -> {
+        ScheduledTask task = Tasks.timer(() -> {
             Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
 
             if (instances == null || instances.isEmpty()) {

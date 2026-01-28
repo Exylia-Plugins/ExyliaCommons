@@ -2,8 +2,8 @@ package net.exylia.commons.v2.clan.provider;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.kingdoms.constants.group.Kingdom;
@@ -65,7 +65,7 @@ public class KingdomsProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Optional<Clan>> getPlayerClanAsync(UUID playerId) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> getPlayerClan(playerId), false);
+        return Tasks.run(() -> getPlayerClan(playerId)).thenApply(r -> r.getValue().orElse(Optional.empty()));
     }
 
     @Override
@@ -87,7 +87,7 @@ public class KingdomsProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Optional<Clan>> getPlayerClanAsync(Player player) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> getPlayerClan(player), false);
+        return Tasks.run(() -> getPlayerClan(player)).thenApply(r -> r.getValue().orElse(Optional.empty()));
     }
 
     @Override
@@ -118,7 +118,7 @@ public class KingdomsProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Optional<Clan>> getClanByIdAsync(String name) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> getClanById(name), false);
+        return Tasks.run(() -> getClanById(name)).thenApply(r -> r.getValue().orElse(Optional.empty()));
     }
 
     @Override
@@ -140,7 +140,7 @@ public class KingdomsProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Collection<Clan>> getAllClansAsync() {
-        return AsyncExecutor.getInstance().supplyAsync(this::getAllClans, false);
+        return Tasks.run(this::getAllClans).thenApply(r -> r.getValue().orElse(Collections.emptyList()));
     }
 
     @Override

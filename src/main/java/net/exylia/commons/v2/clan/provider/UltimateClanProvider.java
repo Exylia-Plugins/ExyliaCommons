@@ -5,8 +5,8 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import me.ulrich.clans.Clans;
 import me.ulrich.clans.api.ClanAPIManager;
 import me.ulrich.clans.data.ClanData;
-import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -81,7 +81,7 @@ public class UltimateClanProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Optional<Clan>> getPlayerClanAsync(UUID playerId) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> getPlayerClan(playerId), false);
+        return Tasks.run(() -> getPlayerClan(playerId)).thenApply(r -> r.getValue().orElse(Optional.empty()));
     }
 
     @Override
@@ -108,7 +108,7 @@ public class UltimateClanProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Optional<Clan>> getClanByTagAsync(String tag) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> getClanByTag(tag), false);
+        return Tasks.run(() -> getClanByTag(tag)).thenApply(r -> r.getValue().orElse(Optional.empty()));
     }
 
     @Override
@@ -136,7 +136,7 @@ public class UltimateClanProvider implements ClanProvider {
 
     @Override
     public CompletableFuture<Collection<Clan>> getAllClansAsync() {
-        return AsyncExecutor.getInstance().supplyAsync(this::getAllClans, false);
+        return Tasks.run(this::getAllClans).thenApply(r -> r.getValue().orElse(Collections.emptyList()));
     }
 
     @Override

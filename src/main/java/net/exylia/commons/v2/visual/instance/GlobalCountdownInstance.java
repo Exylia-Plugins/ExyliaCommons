@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.visual.instance;
 
 import lombok.Getter;
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.formatter.api.FormatterAPI;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.config.ActionBarConfig;
@@ -72,7 +72,7 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
             lifecycle.start();
         }
 
-        countdownTask = Schedulers.syncTimer(this::tick, 0L, 1L);
+        countdownTask = Tasks.timer(this::tick, 0L, 1L);
 
         return CompletableFuture.completedFuture(null);
     }
@@ -194,7 +194,7 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
         if (onCancel != null) {
             GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
             try {
-                Schedulers.sync(() -> onCancel.accept(ctx));
+                Tasks.sync(() -> onCancel.accept(ctx));
             } catch (Exception ignored) {
             }
         }
@@ -216,7 +216,7 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
         if (onComplete != null) {
             GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
             try {
-                Schedulers.sync(() -> onComplete.accept(ctx));
+                Tasks.sync(() -> onComplete.accept(ctx));
             } catch (Exception ignored) {
             }
         }

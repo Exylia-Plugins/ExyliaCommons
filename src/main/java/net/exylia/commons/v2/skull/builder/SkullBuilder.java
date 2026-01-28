@@ -2,7 +2,7 @@ package net.exylia.commons.v2.skull.builder;
 
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.skull.renderer.SkullRenderer;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
@@ -96,7 +96,7 @@ public class SkullBuilder {
     }
 
     public void buildAsync(Consumer<ItemStack> consumer) {
-        buildAsync().thenAccept(skull -> Schedulers.sync(() -> consumer.accept(skull)));
+        buildAsync().thenAccept(skull -> Tasks.sync(() -> consumer.accept(skull)));
     }
 
     private void applyMeta(ItemStack skull) {

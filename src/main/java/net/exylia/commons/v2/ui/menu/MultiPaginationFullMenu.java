@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.ui.menu;
 
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.ui.model.MenuData;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.ui.snapshot.AutoSnapshotHandler;
 import org.bukkit.entity.Player;
 
@@ -28,7 +28,7 @@ public class MultiPaginationFullMenu extends MultiPaginationMenu {
     public void close() {
         if (menuData.isSnapshotEnabled() && menuData.isRestoreOnClose()) {
             AutoSnapshotHandler.restoreSnapshot(player)
-                    .thenRun(() -> Schedulers.sync(() -> {
+                    .thenRun(() -> Tasks.sync(() -> {
                         super.close();
                     }));
         } else {

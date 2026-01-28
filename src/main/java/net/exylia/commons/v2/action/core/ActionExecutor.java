@@ -1,7 +1,6 @@
 package net.exylia.commons.v2.action.core;
 
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.AsyncExecutor;
 import net.exylia.commons.v2.action.audit.AuditLogger;
 import net.exylia.commons.v2.action.cache.ActionCacheManager;
 import net.exylia.commons.v2.action.cooldown.CooldownManager;
@@ -14,6 +13,7 @@ import net.exylia.commons.v2.action.parser.ParsedArguments;
 import net.exylia.commons.v2.action.pipeline.ActionPipeline;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
+import net.exylia.commons.v2.tasks.api.Tasks;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +27,7 @@ public class ActionExecutor {
     private final AuditLogger auditLogger;
 
     public CompletableFuture<ActionResult> executeAsync(String actionString, ActionContext context) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> {
+        return Tasks.run(() -> {
             long startTime = System.currentTimeMillis();
             try {
                 DebugAPI.logLibDebug(DebugCategory.ACTION, "Executing action: " + actionString);
@@ -64,7 +64,7 @@ public class ActionExecutor {
                 DebugAPI.logLibError(DebugCategory.ACTION, "Unexpected error during action execution after " + duration + "ms", ex);
                 return ActionResult.failure(ex);
             }
-        }, false);
+        }).thenApply(result -> result.getValue().orElse(ActionResult.failure(new RuntimeException("Task failed"))));
     }
 
     public ActionResult executeSync(String actionString, ActionContext context) {

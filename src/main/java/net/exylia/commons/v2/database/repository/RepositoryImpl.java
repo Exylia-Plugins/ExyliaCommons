@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.database.repository;
 
 import lombok.Getter;
-import net.exylia.commons.async.AsyncAPI;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.database.adapter.DatabaseAdapter;
 import net.exylia.commons.v2.database.cache.CacheKey;
 import net.exylia.commons.v2.database.cache.CacheStats;
@@ -32,7 +32,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Optional<T>> findByIdAsync(Object id) {
-        return AsyncAPI.computeDb(() -> findById(id));
+        return Tasks.dbValue(() -> findById(id));
     }
 
     @Override
@@ -50,7 +50,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<List<T>> findAllAsync() {
-        return AsyncAPI.computeDb(this::findAll);
+        return Tasks.dbValue(this::findAll);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Optional<T>> findByAsync(String fieldName, Object value) {
-        return AsyncAPI.computeDb(() -> findBy(fieldName, value));
+        return Tasks.dbValue(() -> findBy(fieldName, value));
     }
 
     @Override
@@ -83,7 +83,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<List<T>> findAllByAsync(String fieldName, Object value) {
-        return AsyncAPI.computeDb(() -> findAllBy(fieldName, value));
+        return Tasks.dbValue(() -> findAllBy(fieldName, value));
     }
 
     @Override
@@ -102,7 +102,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Long> countAsync() {
-        return AsyncAPI.computeDb(this::count);
+        return Tasks.dbValue(this::count);
     }
 
     @Override
@@ -116,7 +116,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Long> countByAsync(String fieldName, Object value) {
-        return AsyncAPI.computeDb(() -> countBy(fieldName, value));
+        return Tasks.dbValue(() -> countBy(fieldName, value));
     }
 
     @Override
@@ -130,7 +130,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Boolean> existsAsync(Object id) {
-        return AsyncAPI.computeDb(() -> exists(id));
+        return Tasks.dbValue(() -> exists(id));
     }
 
     @Override
@@ -140,7 +140,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Void> saveAsync(T entity) {
-        return AsyncAPI.executeDb(() -> save(entity));
+        return Tasks.dbRun(() -> save(entity));
     }
 
     @Override
@@ -162,7 +162,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Void> saveAllAsync(List<T> entities) {
-        return AsyncAPI.executeDb(() -> saveAll(entities));
+        return Tasks.dbRun(() -> saveAll(entities));
     }
 
     @Override
@@ -180,7 +180,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Void> deleteAsync(T entity) {
-        return AsyncAPI.executeDb(() -> delete(entity));
+        return Tasks.dbRun(() -> delete(entity));
     }
 
     @Override
@@ -195,7 +195,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<Void> deleteAllAsync(List<T> entities) {
-        return AsyncAPI.executeDb(() -> deleteAll(entities));
+        return Tasks.dbRun(() -> deleteAll(entities));
     }
 
     @Override
@@ -210,7 +210,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit) {
-        return AsyncAPI.computeDb(() -> findAllOrderedBy(fieldName, ascending, limit));
+        return Tasks.dbValue(() -> findAllOrderedBy(fieldName, ascending, limit));
     }
 
     @Override
@@ -225,7 +225,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<List<T>> findAllPagedAsync(int page, int pageSize) {
-        return AsyncAPI.computeDb(() -> findAllPaged(page, pageSize));
+        return Tasks.dbValue(() -> findAllPaged(page, pageSize));
     }
 
     @Override
@@ -239,7 +239,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public CompletableFuture<List<T>> findAllPagedOrderedByAsync(String fieldName, boolean ascending, int page, int pageSize) {
-        return AsyncAPI.computeDb(() -> findAllPagedOrderedBy(fieldName, ascending, page, pageSize));
+        return Tasks.dbValue(() -> findAllPagedOrderedBy(fieldName, ascending, page, pageSize));
     }
 
     @Override

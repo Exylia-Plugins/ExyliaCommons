@@ -2,8 +2,8 @@ package net.exylia.commons.v2.reload.core;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.reload.adapter.*;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.reload.api.ReloadContext;
 import net.exylia.commons.v2.reload.api.ReloadableSystem;
 import net.exylia.commons.v2.reload.detector.SystemAvailability;
@@ -55,6 +55,7 @@ public class ReloadManagerV2 {
         registerSystem("ColorPresetManager", new ColorPresetAdapter());
         registerSystem("FormatterRegistry", new FormatterAdapter());
         registerSystem("ColorSystem", new ColorAdapter());
+        registerSystem("DiscordWebhooks", new DiscordAdapter());
     }
 
     public CompletableFuture<ReloadStats> executeReloadAll() {
@@ -211,7 +212,7 @@ public class ReloadManagerV2 {
 
     private void callPluginHooks(ReloadContext context) {
         try {
-            Schedulers.sync(() -> {
+            Tasks.sync(() -> {
                 ExyliaPlugin instance = ExyliaPlugin.getInstance();
                 if (instance != null) {
                     instance.callOnReload(context);

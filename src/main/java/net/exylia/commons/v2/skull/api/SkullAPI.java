@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.skull.api;
 
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.skull.builder.SkullBuilder;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.core.SkullManager;
 import org.bukkit.inventory.ItemStack;
@@ -34,7 +34,7 @@ public class SkullAPI {
 
     public static void fromTextureAsync(String base64, Consumer<ItemStack> consumer) {
         getManager().getRenderer().renderTextureAsync(base64)
-                .thenAccept(skull -> Schedulers.sync(() -> consumer.accept(skull)));
+                .thenAccept(skull -> Tasks.sync(() -> consumer.accept(skull)));
     }
 
     public static ItemStack fromTextureURL(String url) {
@@ -47,7 +47,7 @@ public class SkullAPI {
 
     public static void fromTextureURLAsync(String url, Consumer<ItemStack> consumer) {
         getManager().getRenderer().renderTextureURLAsync(url)
-                .thenAccept(skull -> Schedulers.sync(() -> consumer.accept(skull)));
+                .thenAccept(skull -> Tasks.sync(() -> consumer.accept(skull)));
     }
 
     public static ItemStack fromPlayer(String playerName) {
@@ -64,7 +64,7 @@ public class SkullAPI {
 
     public static void fromPlayerAsync(String playerName, Consumer<ItemStack> consumer) {
         getManager().getRenderer().renderPlayerAsync(playerName)
-                .thenAccept(skull -> Schedulers.sync(() -> consumer.accept(skull)));
+                .thenAccept(skull -> Tasks.sync(() -> consumer.accept(skull)));
     }
 
     public static SkullBuilder texture(String base64) {

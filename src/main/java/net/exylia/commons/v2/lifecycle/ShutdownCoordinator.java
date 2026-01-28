@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.async.SchedulerManager;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.redis.RedisIntegration;
 import net.exylia.commons.utils.AdapterFactory;
@@ -37,8 +37,8 @@ public class ShutdownCoordinator {
     }
 
     private void shutdownManagers() {
-        if (SchedulerManager.isInitialized()) {
-            SchedulerManager.getInstance().shutdown();
+        if (TaskAPI.isInitialized()) {
+            TaskAPI.shutdown();
         }
 
         if (DatabaseManager.getInstance() != null) {

@@ -1,9 +1,8 @@
 package net.exylia.commons.v2.hologram.core;
 
 import lombok.Getter;
-import net.exylia.commons.async.AsyncExecutor;
-import net.exylia.commons.async.SchedulerManager;
-import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.v2.hologram.cache.HologramCacheManager;
 import net.exylia.commons.v2.hologram.exception.HologramException;
@@ -99,10 +98,7 @@ public class HologramManager {
                             cacheManager.cache(hologram);
                             visibilityManager.getSpatialChunkManager().addHologram(hologram);
 
-                            SchedulerManager.getInstance()
-                                    .task(hologram::spawn)
-                                    .at(hologram.getLocation())
-                                    .schedule();
+                            Tasks.at(hologram.getLocation(), hologram::spawn);
                         } catch (Exception e) {
                             DebugUtils.logInternalError("Failed to load hologram " + entity.getId() + ": " + e.getMessage());
                         }
@@ -149,11 +145,10 @@ public class HologramManager {
             boolean enabled,
             net.exylia.commons.v2.placeholders.context.PlaceholderContext placeholderContext
     ) {
-        return AsyncExecutor.getInstance()
-                .supplyAsync(() -> factory.create(
+        return Tasks.run(() -> factory.create(
                         id, location, lines, properties, config,
                         persistent, perPlayer, visibilityCondition, viewDistance, enabled, placeholderContext
-                ), false)
+                )).thenApply(r -> r.getValue().orElse(null))
                 .thenCompose(hologram -> {
                     registry.register(hologram);
                     cacheManager.cache(hologram);
@@ -177,16 +172,13 @@ public class HologramManager {
 
     private CompletableFuture<Hologram> spawnHologramAsync(Hologram hologram) {
         return CompletableFuture.supplyAsync(() -> {
-            SchedulerManager.getInstance()
-                    .task(() -> hologram.spawn())
-                    .at(hologram.getLocation())
-                    .schedule();
+            Tasks.at(hologram.getLocation(), hologram::spawn);
             return hologram;
         });
     }
 
     public CompletableFuture<Boolean> removeHologramAsync(String id) {
-        return AsyncExecutor.getInstance().supplyAsync(() -> {
+        return Tasks.run(() -> {
             Optional<Hologram> opt = registry.get(id);
             if (opt.isEmpty()) {
                 return false;
@@ -197,10 +189,7 @@ public class HologramManager {
             cacheManager.invalidate(id);
             visibilityManager.getSpatialChunkManager().removeHologram(hologram);
 
-            SchedulerManager.getInstance()
-                    .task(hologram::despawn)
-                    .at(hologram.getLocation())
-                    .run();
+            Tasks.at(hologram.getLocation(), hologram::despawn);
 
             registry.unregister(id);
 
@@ -210,7 +199,7 @@ public class HologramManager {
 
             DebugUtils.logInternalInfo("Hologram removed: " + id);
             return true;
-        }, false);
+        }).thenApply(r -> r.getValue().orElse(false));
     }
 
     public Optional<Hologram> getHologram(String id) {
@@ -234,10 +223,7 @@ public class HologramManager {
 
     public void removeAllHolograms() {
         registry.getAll().forEach(hologram -> {
-            SchedulerManager.getInstance()
-                    .task(hologram::despawn)
-                    .at(hologram.getLocation())
-                    .run();
+            Tasks.at(hologram.getLocation(), hologram::despawn);
         });
 
         registry.clear();
@@ -256,17 +242,9 @@ public class HologramManager {
     }
 
     private void startPeriodicTasks() {
-        updateTask = SchedulerManager.getInstance()
-                .task(() -> updateScheduler.updateAll())
-                .async()
-                .periodTicks(1)
-                .schedule();
+        updateTask = Tasks.asyncTimer(() -> updateScheduler.updateAll(), 0L, 1L);
 
-        cleanupTask = SchedulerManager.getInstance()
-                .task(this::cleanup)
-                .async()
-                .periodTicks(20 * 10)
-                .schedule();
+        cleanupTask = Tasks.asyncTimer(this::cleanup, 0L, 20L * 10);
     }
 
     private void cleanup() {
@@ -284,10 +262,7 @@ public class HologramManager {
         DebugUtils.logInternalInfo("Reloading HologramManager...");
 
         registry.getAll().forEach(hologram -> {
-            SchedulerManager.getInstance()
-                    .task(hologram::despawn)
-                    .at(hologram.getLocation())
-                    .run();
+            Tasks.at(hologram.getLocation(), hologram::despawn);
         });
 
         cacheManager.invalidateAll();
@@ -341,12 +316,13 @@ public class HologramManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        return AsyncExecutor.getInstance()
-                .runAsync(() -> {
+        return Tasks.db(() -> {
                     HologramEntity entity = HologramEntity.fromHologram(hologram);
                     repository.save(entity);
                     DebugUtils.logInternalInfo("Hologram saved: " + hologram.getId());
-                }, true)
+                    return null;
+                })
+                .thenApply(r -> (Void) null)
                 .exceptionally(ex -> {
                     DebugUtils.logInternalError("Failed to save hologram " + hologram.getId() + ": " + ex.getMessage());
                     return null;

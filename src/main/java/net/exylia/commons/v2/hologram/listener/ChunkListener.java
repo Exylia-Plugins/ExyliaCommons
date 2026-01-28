@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.hologram.listener;
 
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
 import org.bukkit.Chunk;
@@ -29,7 +29,7 @@ public class ChunkListener implements Listener {
                 .filter(h -> h.getConfig().isSpawnOnChunkLoad())
                 .forEach(hologram -> {
                     if (!hologram.isSpawned()) {
-                        Schedulers.at(hologram.getLocation(), () -> {
+                        Tasks.at(hologram.getLocation(), () -> {
                             hologram.spawn();
                             pendingRespawns.remove(hologram.getId());
                         });
@@ -46,7 +46,7 @@ public class ChunkListener implements Listener {
                 .filter(h -> h.getConfig().isRemoveOnChunkUnload())
                 .forEach(hologram -> {
                     if (hologram.isSpawned()) {
-                        Schedulers.at(hologram.getLocation(), () -> {
+                        Tasks.at(hologram.getLocation(), () -> {
                             hologram.despawn();
                             pendingRespawns.add(hologram.getId());
                         });

@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.skull.core;
 
 import lombok.Getter;
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.fetcher.MojangFetcher;
@@ -116,7 +116,12 @@ public class SkullManager {
             String name = playerNames[i];
             if (name != null && !name.isEmpty()) {
                 int delay = i * config.getPreloadDelay();
-                Schedulers.asyncLater(() -> renderer.renderPlayerAsync(name), delay / 50L);
+                long delayTicks = delay / 50L;
+                Tasks.build()
+                        .run(() -> renderer.renderPlayerAsync(name))
+                        .delay(delayTicks * 50, java.util.concurrent.TimeUnit.MILLISECONDS)
+                        .async()
+                        .schedule();
             }
         }
     }

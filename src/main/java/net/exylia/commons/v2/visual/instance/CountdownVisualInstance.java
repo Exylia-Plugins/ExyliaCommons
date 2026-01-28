@@ -2,8 +2,8 @@ package net.exylia.commons.v2.visual.instance;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.v2.formatter.api.FormatterAPI;
 import net.exylia.commons.v2.visual.config.VisualConfig;
@@ -42,7 +42,7 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
     public CompletableFuture<Void> start() {
         lifecycle.start();
 
-        countdownTask = Schedulers.syncTimer(() -> {
+        countdownTask = Tasks.timer(() -> {
             if (!player.isOnline()) {
                 cancel();
                 return;

@@ -42,6 +42,10 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     public abstract int getProductID();
 
+    public String getLukittuProductId() {
+        return null;
+    }
+
     @Override
     public final void onEnable() {
         onPreExyliaEnable();

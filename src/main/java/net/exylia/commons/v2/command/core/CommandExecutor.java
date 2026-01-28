@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.command.core;
 
 import lombok.RequiredArgsConstructor;
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.command.model.Command;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.command.model.CommandContext;
 import net.exylia.commons.v2.command.model.CommandResult;
 import net.exylia.commons.v2.command.model.CommandSource;
@@ -53,7 +53,7 @@ public class CommandExecutor {
             try {
                 long startTime = System.currentTimeMillis();
 
-                Schedulers.sync(() -> {
+                Tasks.sync(() -> {
                     Player player = context.getPlayer();
 
                     switch (command.getType()) {
@@ -104,7 +104,7 @@ public class CommandExecutor {
     ) {
         CompletableFuture<CommandResult> future = new CompletableFuture<>();
 
-        Schedulers.syncLater(() -> {
+        Tasks.later(() -> {
             executeCommand(command, context)
                     .thenAccept(future::complete)
                     .exceptionally(throwable -> {

@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.visual.instance;
 
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.visual.config.VisualConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.core.VisualRegistry;
@@ -30,7 +30,7 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
     public CompletableFuture<Void> start() {
         lifecycle.start();
 
-        updateTask = Schedulers.syncTimer(() -> {
+        updateTask = Tasks.timer(() -> {
             if (!player.isOnline()) {
                 cancel();
                 return;

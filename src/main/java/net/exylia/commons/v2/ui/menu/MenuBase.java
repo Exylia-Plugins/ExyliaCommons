@@ -1,9 +1,9 @@
 package net.exylia.commons.v2.ui.menu;
 
 import lombok.Getter;
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.action.api.ActionAPI;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.action.model.ActionContext;
 import net.exylia.commons.v2.action.model.ActionSource;
 import net.exylia.commons.v2.command.api.CommandAPI;
@@ -79,15 +79,15 @@ public abstract class MenuBase {
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        Schedulers.sync(() -> {
+        Tasks.sync(() -> {
             this.inventory = createInventory();
 
-            Schedulers.async(() -> {
+            Tasks.run(() -> {
                 try {
                     populateItems();
                     DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
 
-                    Schedulers.sync(() -> {
+                    Tasks.sync(() -> {
                         player.openInventory(inventory);
                         state.set(MenuState.OPEN);
                         playOpenSounds();
@@ -117,12 +117,12 @@ public abstract class MenuBase {
 
         this.inventory = createInventory();
 
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             try {
                 populateItems();
                 DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
 
-                Schedulers.sync(() -> {
+                Tasks.sync(() -> {
                     player.openInventory(inventory);
                     state.set(MenuState.OPEN);
                     playOpenSounds();
@@ -243,7 +243,7 @@ public abstract class MenuBase {
     }
 
     protected void schedulePostClickRefresh() {
-        Schedulers.syncLater(() -> {
+        Tasks.later(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshInventory();
             }
@@ -251,7 +251,7 @@ public abstract class MenuBase {
     }
 
     protected void scheduleClickedSlotRefresh(int slot) {
-        Schedulers.syncLater(() -> {
+        Tasks.later(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshSlot(slot);
             }
@@ -266,12 +266,12 @@ public abstract class MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Refreshing slot " + slot + " in menu " + menuId);
 
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             ItemData itemData = oldItem.getRawItemData();
             ProcessedItem newItem = ItemsAPI.process(itemData, player, false);
             itemsBySlot.put(slot, newItem);
 
-            Schedulers.sync(() -> {
+            Tasks.sync(() -> {
                 if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
                     inventory.setItem(slot, newItem.getItemStack());
                 }
@@ -295,7 +295,7 @@ public abstract class MenuBase {
         long interval = menuData.getRefreshInterval();
         DebugAPI.logLibDebug(DebugCategory.UI, "Scheduling refresh for menu " + menuId + " (mode: " + menuData.getRefreshMode() + ", interval: " + interval + ")");
 
-        refreshTask = Schedulers.syncTimer(() -> {
+        refreshTask = Tasks.timer(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshInventory();
             } else {
@@ -329,9 +329,9 @@ public abstract class MenuBase {
     }
 
     protected void fullRefresh() {
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             populateItems();
-            Schedulers.sync(this::updateInventoryDisplay);
+            Tasks.sync(this::updateInventoryDisplay);
         });
     }
 
@@ -348,7 +348,7 @@ public abstract class MenuBase {
             return;
         }
 
-        Schedulers.async(() -> {
+        Tasks.run(() -> {
             for (Integer slot : slotsToRefresh) {
                 ProcessedItem oldItem = itemsBySlot.get(slot);
                 if (oldItem != null) {
@@ -358,7 +358,7 @@ public abstract class MenuBase {
                 }
             }
 
-            Schedulers.sync(this::updateInventoryDisplay);
+            Tasks.sync(this::updateInventoryDisplay);
         });
     }
 

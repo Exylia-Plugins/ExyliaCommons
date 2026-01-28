@@ -111,4 +111,40 @@ public final class Tasks {
     public static boolean isFolia() {
         return TaskAPI.isFolia();
     }
+
+    public static ScheduledTask asyncTimer(Runnable task, long delayTicks, long periodTicks) {
+        return TaskAPI.asyncScheduledTimer(task, delayTicks * 50, periodTicks * 50, TimeUnit.MILLISECONDS);
+    }
+
+    public static <T> CompletableFuture<T> dbValue(Supplier<T> supplier) {
+        return db(supplier).thenApply(r -> r.getValue().orElse(null));
+    }
+
+    public static CompletableFuture<Void> dbRun(Runnable runnable) {
+        return db(runnable).thenApply(r -> null);
+    }
+
+    public static CompletableFuture<Void> ioRun(Runnable runnable) {
+        return io(runnable).thenApply(r -> null);
+    }
+
+    public static CompletableFuture<Void> computeRun(Runnable runnable) {
+        return compute(runnable).thenApply(r -> null);
+    }
+
+    public static <T> CompletableFuture<T> ioValue(Supplier<T> supplier) {
+        return io(supplier).thenApply(r -> r.getValue().orElse(null));
+    }
+
+    public static <T> CompletableFuture<T> computeValue(Supplier<T> supplier) {
+        return compute(supplier).thenApply(r -> r.getValue().orElse(null));
+    }
+
+    public static <T> CompletableFuture<T> runValue(Supplier<T> supplier) {
+        return run(supplier).thenApply(r -> r.getValue().orElse(null));
+    }
+
+    public static <T> CompletableFuture<T> runValue(TaskCategory category, Supplier<T> supplier) {
+        return run(category, supplier).thenApply(r -> r.getValue().orElse(null));
+    }
 }

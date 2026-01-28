@@ -3,8 +3,8 @@ package net.exylia.commons.v2.database.cache;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
-import net.exylia.commons.async.ScheduledTask;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.repository.Repository;
 
@@ -76,7 +76,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         }
 
         return builder.buildAsync((key, executor) ->
-            Schedulers.supplyAsyncDb(() -> loadFromDatabase(key))
+            Tasks.dbValue(() -> loadFromDatabase(key))
         );
     }
 
@@ -93,7 +93,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
     private void startScheduledTasks() {
         if (config.isEnableBatchWrite()) {
             long intervalMillis = config.getBatchWriteIntervalMinutes() * 60 * 1000;
-            batchWriteTask = Schedulers.asyncTimer(
+            batchWriteTask = Tasks.asyncTimer(
                 this::flushDirtySessions,
                 intervalMillis,
                 intervalMillis,
@@ -102,7 +102,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         }
 
         long cleanupIntervalMillis = config.getCleanupIntervalMinutes() * 60 * 1000;
-        cleanupTask = Schedulers.asyncTimer(
+        cleanupTask = Tasks.asyncTimer(
             this::cleanupOrphanedSessions,
             cleanupIntervalMillis,
             cleanupIntervalMillis,
@@ -132,7 +132,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         return get(key).thenCompose(entity -> {
             modifier.accept(entity);
             entity.updateTimestamp();
-            return Schedulers.supplyAsyncDb(() -> {
+            return Tasks.dbValue(() -> {
                 repository.save(entity);
                 return entity;
             });
@@ -204,7 +204,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         }
 
         if (!dirtyKeys.isEmpty()) {
-            Schedulers.runAsyncDbTask(() -> {
+            Tasks.db(() -> {
                 for (K key : dirtyKeys) {
                     try {
                         flushSession(key);

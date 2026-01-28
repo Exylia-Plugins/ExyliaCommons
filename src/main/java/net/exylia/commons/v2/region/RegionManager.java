@@ -1,8 +1,8 @@
 package net.exylia.commons.v2.region;
 
 import lombok.Getter;
-import net.exylia.commons.async.Schedulers;
-import net.exylia.commons.async.ScheduledTask;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.region.blocks.PlayerBlockTracker;
 import net.exylia.commons.v2.region.blocks.TemporaryBlockManager;
 import net.exylia.commons.v2.region.cache.RegionCacheManager;
@@ -97,7 +97,7 @@ public class RegionManager implements Listener {
 
         RegionCreateEvent createEvent = new RegionCreateEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Schedulers.async(() -> Bukkit.getPluginManager().callEvent(createEvent));
+            Tasks.run(() -> Bukkit.getPluginManager().callEvent(createEvent));
         } else {
             Bukkit.getPluginManager().callEvent(createEvent);
         }
@@ -129,7 +129,7 @@ public class RegionManager implements Listener {
 
         RegionDeleteEvent deleteEvent = new RegionDeleteEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Schedulers.async(() -> Bukkit.getPluginManager().callEvent(deleteEvent));
+            Tasks.run(() -> Bukkit.getPluginManager().callEvent(deleteEvent));
         } else {
             Bukkit.getPluginManager().callEvent(deleteEvent);
         }
@@ -345,7 +345,7 @@ public class RegionManager implements Listener {
     }
 
     private void startPeriodicTasks() {
-        cleanupTask = Schedulers.asyncTimer(() -> {
+        cleanupTask = Tasks.asyncTimer(() -> {
             for (Region region : regions.values()) {
                 region.cleanupOfflinePlayers();
             }

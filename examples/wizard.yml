@@ -1,0 +1,22 @@
+Uso
+  // Interaction simple
+  WizardAPI.interaction(player, (p, type, event) -> {
+  if (type == InteractionType.LEFT_CLICK) {
+  return WizardResult.complete(event.getClickedBlock().getLocation());
+  }
+  return WizardResult.continueWizard();
+  }).thenAccept(loc -> player.sendMessage("Selected: " + loc));
+  
+  // Location con count
+  WizardAPI.location(player, 3, (p, loc, all, remaining) -> {
+  if (remaining == 0) return WizardResult.complete(all);
+  return WizardResult.continueWizard();
+});
+  
+  // Selection con wand
+  WizardAPI.selection(player, 2, true, (p, sel, all, remaining) -> {
+  if (remaining == 0) return WizardResult.complete(all);
+  return WizardResult.continueWizard();
+});
+
+Init: WizardAPI.init(plugin) en onEnable y WizardAPI.shutdown() en onDisable.

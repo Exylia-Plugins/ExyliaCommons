@@ -6,8 +6,8 @@ import net.exylia.commons.ExyliaPlugin;
 public class z {
 
     public static boolean a(ExyliaPlugin plugin) {
-        a validator = new a(plugin);
-        return validator.v();
+        LicenseVerifier verifier = new LicenseVerifier(plugin);
+        return verifier.validate();
     }
 
     public static boolean b(ExyliaPlugin plugin) {

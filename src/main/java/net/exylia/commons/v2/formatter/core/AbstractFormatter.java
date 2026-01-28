@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.formatter.core;
 
 import lombok.Getter;
-import net.exylia.commons.async.AsyncAPI;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.formatter.api.FormatterStats;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 
@@ -21,7 +21,7 @@ public abstract class AbstractFormatter<I, O> implements Formatter<I, O> {
 
     @Override
     public CompletableFuture<O> formatAsync(I input) {
-        return AsyncAPI.compute(() -> format(input));
+        return Tasks.computeValue(() -> format(input));
     }
 
     @Override
@@ -33,7 +33,7 @@ public abstract class AbstractFormatter<I, O> implements Formatter<I, O> {
 
     @Override
     public CompletableFuture<List<O>> formatBatchAsync(List<I> inputs) {
-        return AsyncAPI.compute(() -> formatBatch(inputs));
+        return Tasks.computeValue(() -> formatBatch(inputs));
     }
 
     @Override

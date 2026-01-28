@@ -2,8 +2,7 @@ package net.exylia.commons.v2.hologram.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.async.SchedulerManager;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.hologram.entity.HologramDisplayEntity;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
@@ -65,7 +64,7 @@ public class Hologram {
     }
 
     public void spawn() {
-        if (!SchedulerManager.getInstance().isMainThread()) {
+        if (!Tasks.isMain()) {
             throw new IllegalStateException("Hologram must be spawned on main thread");
         }
 
@@ -213,7 +212,7 @@ public class Hologram {
     }
 
     private void updateGlobal() {
-        Schedulers.sync(() -> {
+        Tasks.sync(() -> {
             for (int i = 0; i < lines.size() && i < globalDisplays.size(); i++) {
                 HologramLine line = lines.get(i);
                 TextDisplay display = globalDisplays.get(i);
@@ -230,7 +229,7 @@ public class Hologram {
     }
 
     private void updatePerPlayer() {
-        Schedulers.sync(() -> {
+        Tasks.sync(() -> {
             List<UUID> toRemove = new ArrayList<>();
 
             playerDisplays.forEach((playerId, displays) -> {
@@ -353,7 +352,7 @@ public class Hologram {
         }
 
         if (!playerDisplays.containsKey(player.getUniqueId())) {
-            Schedulers.at(location, () -> spawnForPlayer(player));
+            Tasks.at(location, () -> spawnForPlayer(player));
         }
     }
 
@@ -364,7 +363,7 @@ public class Hologram {
 
         List<TextDisplay> displays = playerDisplays.remove(player.getUniqueId());
         if (displays != null) {
-            Schedulers.sync(() -> displays.forEach(this::removeEntity));
+            Tasks.sync(() -> displays.forEach(this::removeEntity));
         }
     }
 

@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.visual.api;
 
-import net.exylia.commons.async.Schedulers;
 import net.exylia.commons.v2.visual.builder.BossBarBuilder;
 import net.exylia.commons.v2.visual.builder.GlobalCountdownBossBarBuilder;
 import net.exylia.commons.v2.visual.config.BossBarConfig;
