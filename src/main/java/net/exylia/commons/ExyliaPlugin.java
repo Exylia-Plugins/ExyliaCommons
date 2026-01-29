@@ -23,110 +23,85 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
-
 public abstract class ExyliaPlugin extends JavaPlugin {
 
-    private static boolean initialized = false;
-    private static final Set<ExyliaPlugin> registeredPlugins = new HashSet<>();
+    private static boolean _0xI = false;
+    private static final Set<ExyliaPlugin> _0xR = new HashSet<>();
     @Getter
     private static ExyliaPlugin instance;
 
-    private BukkitAudiences adventure;
-    private ConfigurationSystem configSystem;
-    private LifecycleManager lifecycleManager;
+    private BukkitAudiences _0xA;
+    private ConfigurationSystem _0xCS;
+    private LifecycleManager _0xL;
+    private volatile int _0xV = 0;
 
-    @Getter
-    @Setter
-    private SunLicenseAPI sunLicenseAPI;
+    @Getter @Setter
+    private SunLicenseAPI x;
+
+    private static final int[] _0xK = {0x45, 0x78, 0x79, 0x6C, 0x69, 0x61};
 
     public abstract int getProductID();
-
-    public String getLukittuProductId() {
-        return null;
-    }
+    public String getLukittuProductId() { return null; }
 
     @Override
     public final void onEnable() {
         onPreExyliaEnable();
 
-        lifecycleManager = new LifecycleManager(this);
+        _0xL = new LifecycleManager(this);
+        _0xV = 0;
 
-        logInternalDebug("Initializing TaskAPI...");
         TaskAPI.initialize(this);
 
-        CompletableFuture<Boolean> licenseValidation = TaskAPI.async(() ->
-            lifecycleManager.executeLicenseValidation()
-        ).thenApply(result -> result.getValue().orElse(false));
+        CompletableFuture<Boolean> _0xLV = TaskAPI.async(() -> _0xL._879nd_()).thenApply(_0xRS -> _0xRS.getValue().orElse(false));
 
-        boolean licenseValid;
-        try {
-            licenseValid = licenseValidation.get();
-        } catch (InterruptedException | ExecutionException e) {
-            net.exylia.commons.utils.DebugUtils.logInternalError("License validation was interrupted", e);
+        boolean _0xVL;
+        try { _0xVL = _0xLV.get(); } catch (InterruptedException | ExecutionException _0xE) {
+            net.exylia.commons.utils.DebugUtils.logInternalError(_0xF1(0x56,0x61,0x6C,0x69,0x64,0x61,0x74,0x69,0x6F,0x6E,0x20,0x69,0x6E,0x74,0x65,0x72,0x72,0x75,0x70,0x74,0x65,0x64), _0xE);
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
 
-        if (!licenseValid) {
-            getServer().getPluginManager().disablePlugin(this);
-            return;
-        }
+        if (!_0xVL || !_0xL._0xH()) { _0xV = 0; getServer().getPluginManager().disablePlugin(this); return; }
+        _0xV = _0xL._0xG() ^ (_0xK[0] + _0xK[5]);
 
         try {
-            net.exylia.commons.utils.DebugUtils.logInternalDebug("Creating BukkitAudiences...");
-            this.adventure = BukkitAudiences.create(this);
-            registeredPlugins.add(this);
+            this._0xA = BukkitAudiences.create(this);
+            _0xR.add(this);
 
-            if (!initialized) {
-                instance = this;
-                initialized = true;
-            }
+            if (!_0xI) { instance = this; _0xI = true; }
 
-            lifecycleManager.executeBootstrap();
+            if (!_0xC1()) { getServer().getPluginManager().disablePlugin(this); return; }
+            _0xL.executeBootstrap();
 
-            net.exylia.commons.utils.DebugUtils.logInternalDebug("Initializing ReloadAPI...");
             ReloadAPI.initialize(this);
 
-            net.exylia.commons.utils.DebugUtils.logInternalDebug("Executing plugin enable...");
-            lifecycleManager.executePluginEnable();
+            _0xL.executePluginEnable();
 
-        } catch (Exception e) {
-            net.exylia.commons.utils.DebugUtils.logInternalError("Critical error during plugin initialization", e);
+        } catch (Exception _0xE) {
+            net.exylia.commons.utils.DebugUtils.logInternalError(_0xF1(0x43,0x72,0x69,0x74,0x69,0x63,0x61,0x6C,0x20,0x65,0x72,0x72,0x6F,0x72), _0xE);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
+
+    private boolean _0xC1() { return _0xV != 0 && _0xL._0xH() && (_0xV & 0xF0) != 0; }
+    private String _0xF1(int... _0xI) { char[] _0xC = new char[_0xI.length]; for (int _0xJ = 0; _0xJ < _0xI.length; _0xJ++) _0xC[_0xJ] = (char) _0xI[_0xJ]; return new String(_0xC); }
 
     @Override
     public final void onDisable() {
-        registeredPlugins.remove(this);
-
-        if (configSystem != null) {
-            configSystem.shutdown();
-        }
-
-        if (this.adventure != null) {
-            this.adventure.close();
-            this.adventure = null;
-        }
-
-        if (lifecycleManager != null) {
-            lifecycleManager.executeShutdown();
-        }
-
-        if (registeredPlugins.isEmpty()) {
-            initialized = false;
-            TaskAPI.shutdown();
-        }
+        _0xR.remove(this);
+        if (_0xCS != null) _0xCS.shutdown();
+        if (this._0xA != null) { this._0xA.close(); this._0xA = null; }
+        if (_0xL != null) _0xL.executeShutdown();
+        _0xV = 0;
+        if (_0xR.isEmpty()) { _0xI = false; TaskAPI.shutdown(); }
     }
 
     public void initializeConfigurationSystem() {
+        if (!_0xC1()) return;
         try {
-            configSystem = new ConfigurationSystem(this);
-
+            _0xCS = new ConfigurationSystem(this);
             Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
             List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
-
             allConfigClasses.add(MainConfigBase.class);
             allConfigClasses.add(MessagesBase.class);
 
@@ -143,71 +118,38 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             }
 
             Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
-
-            configSystem.initialize(finalConfigClasses);
+            _0xCS.initialize(finalConfigClasses);
             setupConfigurationListeners();
-
-            ConfigManager.init(configSystem, finalConfigClasses);
+            ConfigManager.init(_0xCS, finalConfigClasses);
             TimeFormatter.init();
             DateFormatter.init();
-
             ColorUtils.initializePresets(this, getCustomColorPresets());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        } catch (Exception e) { throw new RuntimeException(e); }
     }
 
-    private void setupConfigurationListeners() {
-    }
-
-    protected void onPreExyliaEnable() {
-    }
-
+    private void setupConfigurationListeners() {}
+    protected void onPreExyliaEnable() {}
     protected abstract void onExyliaEnable();
-
     protected abstract void onExyliaDisable();
+    protected Class<? extends ConfigBase>[] getConfigurationClasses() { return new Class[0]; }
+    protected Map<String, String> getCustomColorPresets() { return new LinkedHashMap<>(); }
+    protected void onReload(ReloadContext context) {}
 
-    protected Class<? extends ConfigBase>[] getConfigurationClasses() {
-        return new Class[0];
-    }
-
-    protected Map<String, String> getCustomColorPresets() {
-        return new LinkedHashMap<>();
-    }
-
-    protected void onReload(ReloadContext context) {
-    }
-
-    public final void callOnExyliaEnable() {
-        onExyliaEnable();
-    }
-
-    public final void callOnExyliaDisable() {
-        onExyliaDisable();
-    }
-
-    public final void callOnReload(ReloadContext context) {
-        onReload(context);
-    }
+    public final void callOnExyliaEnable() { if (_0xC1()) onExyliaEnable(); }
+    public final void callOnExyliaDisable() { onExyliaDisable(); }
+    public final void callOnReload(ReloadContext context) { if (_0xC1()) onReload(context); }
 
     public BukkitAudiences adventure() {
-        if (this.adventure == null) {
-            throw new IllegalStateException("Attempted to access Adventure when the plugin was disabled!");
-        }
-        return this.adventure;
+        if (this._0xA == null) throw new IllegalStateException(_0xF1(0x41,0x64,0x76,0x65,0x6E,0x74,0x75,0x72,0x65,0x20,0x6E,0x6F,0x74,0x20,0x61,0x76,0x61,0x69,0x6C,0x61,0x62,0x6C,0x65));
+        return this._0xA;
     }
 
     @SuppressWarnings("unchecked")
     public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
-        for (ExyliaPlugin plugin : registeredPlugins) {
-            if (pluginClass.isInstance(plugin)) {
-                return (T) plugin;
-            }
-        }
+        for (ExyliaPlugin plugin : _0xR) { if (pluginClass.isInstance(plugin)) return (T) plugin; }
         return null;
     }
 
-    public static boolean isPlaceholderAPIEnabled() {
-        return Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
-    }
+    public static boolean isPlaceholderAPIEnabled() { return Bukkit.getServer().getPluginManager().isPluginEnabled(_0xF2(0x50,0x6C,0x61,0x63,0x65,0x68,0x6F,0x6C,0x64,0x65,0x72,0x41,0x50,0x49)); }
+    private static String _0xF2(int... _0xI) { char[] _0xC = new char[_0xI.length]; for (int _0xJ = 0; _0xJ < _0xI.length; _0xJ++) _0xC[_0xJ] = (char) _0xI[_0xJ]; return new String(_0xC); }
 }

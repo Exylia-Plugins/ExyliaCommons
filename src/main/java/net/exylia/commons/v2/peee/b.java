@@ -1,0 +1,24 @@
+package net.exylia.commons.v2.peee;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+
+public class b {
+    private final Map<Integer, Object> _0xD;
+    private final int[] _0xK;
+    private int _0xI;
+
+    public b() { this._0xD = new HashMap<>(); this._0xK = new int[]{0x5A, 0x3F, 0x7B, 0x2E, 0x9A, 0x4C, 0x1D, 0x8F}; this._0xI = 0; }
+
+    public void s(String _0xN, Object _0xV) { _0xD.put(_0xE(_0xN), _0xV); }
+    public Object g(String _0xN) { return _0xD.get(_0xE(_0xN)); }
+    public boolean h(String _0xN) { return _0xD.containsKey(_0xE(_0xN)); }
+
+    private int _0xE(String _0xS) { byte[] _0xB = _0xS.getBytes(StandardCharsets.UTF_8); int _0xH = 0; for (int _0xJ = 0; _0xJ < _0xB.length; _0xJ++) _0xH = _0xH * 0x1F + (_0xB[_0xJ] ^ _0xK[_0xJ % _0xK.length]); return _0xH ^ (++_0xI << 3); }
+
+    public void c() { _0xD.clear(); _0xI = 0; }
+    public int z() { return _0xD.size(); }
+    public boolean v() { return !_0xD.isEmpty(); }
+    public int x() { return _0xI; }
+}
