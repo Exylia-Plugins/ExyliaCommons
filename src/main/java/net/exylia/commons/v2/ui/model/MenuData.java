@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
 
 import java.util.*;
@@ -82,6 +83,9 @@ public class MenuData {
 
     @Builder.Default
     private List<FillerData> customFillers = new ArrayList<>();
+
+    @Builder.Default
+    private AnimationSettings animationSettings = AnimationSettings.builder().build();
 
     public boolean hasGlobalFiller() {
         return globalFiller != null;
@@ -167,6 +171,7 @@ public class MenuData {
                 .closeSounds(new ArrayList<>(closeSounds))
                 .clickSounds(new ArrayList<>(clickSounds))
                 .customFillers(copiedCustomFillers)
+                .animationSettings(animationSettings != null ? animationSettings.copy() : null)
                 .build();
     }
 }

@@ -1,32 +1,45 @@
-stacomplete-item-every-field:
+ultimate_example_item:
   material: "NETHERITE_SWORD"
-  display-name: "&4&lESPADA DEL APOCALIPSIS"
+  name: "&4&l⚔ ESPADA DEL APOCALIPSIS ⚔"
+  display-name: "&c&lNombre Alternativo"
   lore:
+    - ""
     - "&7Una espada forjada en el fin"
-    - "&7de los tiempos por los dioses"
+    - "&7de los tiempos por los dioses."
+    - ""
+    - "&eEstadísticas:"
+    - "&8▸ &7Daño: &c+100"
+    - "&8▸ &7Velocidad: &a+50%"
+    - "&8▸ &7Nivel: &b{player_level}"
+    - ""
+    - "&6Click izquierdo &8» &fAtaque normal"
+    - "&6Click derecho &8» &fHabilidad especial"
+    - "&6Shift + Click &8» &fModo berserker"
+    - ""
+
   amount: "1"
+
   glow: true
-  glowing: true
-  hide_attributes: true
-  hide_tooltip: false
+  hide-attributes: true
+  hide-tooltip: false
   unbreakable: true
   max_stack_size: 1
-  slots: "10-16,19-25,28-34"
-  actions:
-    - "close"
-  commands:
-    - "player: heal"
-    - "console: say {player} activó el item!"
 
+  slot: 13
+  # slots: "10-16,19-25"
+  # slots:
+  #   - 10
+  #   - 13
+  #   - "{dynamic_slot}"
 
-#  item_model: "custom:ultimate_sword_model"
-#  click_sounds:
-#    - "BLOCK_CHEST_LOCKED|1.0|2.0"
-#  requires-target: false
+  item_model: "exylia:ultimate_sword"
+  # item_model: "100"
 
+  tooltip_style: "exylia:legendary"
 
-#  dynamic_update: true
-#  update_interval: 20
+  click_sounds:
+    - "entity.wither.spawn"
+    - "block.anvil.use"
 
 #  enchantments:
 #    SHARPNESS: 10
@@ -36,30 +49,160 @@ stacomplete-item-every-field:
 #    UNBREAKING: 10
 #    MENDING: 1
 #    KNOCKBACK: 3
-#  potion:
-#    base_potion_type: STRONG_HEALING
-#    color: "#FF0000"
-#    effects:
-#      - type: SPEED
-#        amplifier: 2
-#        duration: 600
-#      - type: STRENGTH
-#        amplifier: 1
-#        duration: 1200
-#      - type: REGENERATION
-#        amplifier: 3
-#        duration: 2400
-#  # base_potion_type: STRONG_HEALING
-#  # potion_color: "#FF0000"
-#  # potion_effects:
-#  #   - type: SPEED
-#  #     amplifier: 2
-#  #     duration: 600
-#  armor_trim:
-#    pattern: SENTRY
-#    material: AMETHYST
-#  leather_color: "#FF5500"
+
 #  attributes:
-#    - "GENERIC_ATTACK_DAMAGE:100:ADD"
+#    - "GENERIC_ATTACK_DAMAGE:100:ADD_NUMBER"
+#    - "GENERIC_ATTACK_SPEED:2:ADD_NUMBER"
+#    - "GENERIC_MOVEMENT_SPEED:0.1:ADD_SCALAR"
+#    - "GENERIC_KNOCKBACK_RESISTANCE:0.5:ADD_NUMBER"
+#
 #  nbt:
-#    custom_data: "any_value_here"
+#    item_id: "ultimate_sword"
+#    rarity: "legendary"
+#    soul_bound: "true"
+#    upgrade_level: "5"
+
+  actions:
+    - "left: combat:slash"
+    - "right: skill:fireball"
+    - "shift_left: buff:berserker"
+    - "shift_right: buff:shield"
+    - "middle: teleport:home"
+    - "drop: action:throw_weapon"
+    - "swap: action:switch_mode"
+    - "double: ultimate:apocalypse"
+    - "number_key: quick:slot_action"
+    - "left,right: sound:swing"
+    - "any: log:item_used"
+
+  commands:
+    - "left: player: me ataca con la espada!"
+    - "right: console: effect give {player} strength 10 2"
+    - "shift_left: console: effect give {player} speed 5 3"
+    - "shift_right: console: effect give {player} resistance 10 1"
+    - "middle: player: spawn"
+    - "drop: console: say {player} lanzó su arma!"
+    - "swap: player: say Modo cambiado!"
+    - "double: console: summon lightning_bolt ~ ~ ~"
+    - "left,right: player-proxy: server lobby"
+    - "any: console: playsound entity.experience_orb.pickup player {player}"
+
+#  requires-target: false
+#  dynamic_update: true
+#  update_interval: 20
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# VARIANTES DE MATERIAL (usar en lugar de NETHERITE_SWORD)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Skull de jugador:
+#   material: "playerhead:Notch"
+#   material: "playerhead-Notch"
+#
+# Skull con textura Base64:
+#   material: "headbase:eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYTY..."
+#   material: "headbase-eyJ0ZXh0dXJlcy..."
+#
+# Skull con URL de textura:
+#   material: "urlhead:https://textures.minecraft.net/texture/abc123..."
+#   material: "urlhead-https://textures.minecraft.net/texture/abc123..."
+#
+# Item custom (requiere CustomItemManager):
+#   material: "exylia:custom_item_id"
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CONFIGURACIÓN DE POCIÓN (usar con material: POTION, SPLASH_POTION, LINGERING_POTION)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Formato completo:
+#   potion:
+#     base_type: "STRENGTH"
+#     upgraded: true
+#     extended: false
+#     color: "#FF0000"
+#     custom_effects:
+#       - type: "SPEED"
+#         amplifier: "2"
+#         duration: "600"
+#         ambient: false
+#         particles: true
+#         icon: true
+#       - type: "REGENERATION"
+#         amplifier: "1"
+#         duration: "1200"
+#
+# Formato simple alternativo:
+#   base_potion_type: "STRONG_HEALING"
+#   potion_color: "#FF0000"
+#   potion_effects:
+#     - type: SPEED
+#       amplifier: 2
+#       duration: 600
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ARMOR TRIM (usar con armaduras: HELMET, CHESTPLATE, LEGGINGS, BOOTS)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# armor_trim:
+#   material: "diamond"
+#   pattern: "sentry"
+#
+# Materiales: amethyst, copper, diamond, emerald, gold, iron, lapis, netherite, quartz, redstone
+# Patrones: bolt, coast, dune, eye, host, raiser, rib, sentry, shaper, silence, snout, spire, tide, vex, ward, wayfinder, wild
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LEATHER ARMOR COLOR (usar con LEATHER_HELMET, LEATHER_CHESTPLATE, etc.)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# leather_color: "#FF5500"
+# leather_color: "red"
+# leather_color: "255,85,0"
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CLICK TYPES DISPONIBLES
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# left:        Click izquierdo normal
+# right:       Click derecho normal
+# middle:      Click con rueda del mouse
+# shift_left:  Shift + Click izquierdo
+# shift_right: Shift + Click derecho
+# drop:        Tecla Q (soltar item)
+# swap:        Tecla F (cambiar a mano secundaria)
+# double:      Doble click
+# number_key:  Teclas numéricas 1-9
+# any:         Cualquier tipo de click
+#
+# Combinaciones: "left,right,middle: action_name"
+#
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FORMATOS DE COMANDOS
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# player:        Ejecuta como el jugador
+# console:       Ejecuta desde consola
+# player-proxy:  Ejecuta como jugador en el proxy (BungeeCord/Velocity)
+# console-proxy: Ejecuta desde consola del proxy
+#
+# Formato completo: "click_type: command_type: comando"
+# Ejemplo: "left: console: give {player} diamond 1"
+#
+# Placeholders: {player}, {player_uuid}, {target}, y cualquier PlaceholderAPI
+#
+# ══════════════════════════════════════════════════════════════════════════════

@@ -5,6 +5,8 @@ import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.items.api.ItemsAPI;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.ui.animation.AnimationSettings;
+import net.exylia.commons.v2.ui.animation.AnimationType;
 import net.exylia.commons.v2.ui.exception.InvalidMenuConfigException;
 import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
@@ -32,6 +34,7 @@ public class MenuParser {
 
         parseBasicProperties(config, builder);
         parseRefreshSettings(config, builder);
+        parseAnimationSettings(config, builder);
         parseFillers(config, builder);
         parseItems(config, builder);
         parsePagination(config, builder);
@@ -79,6 +82,37 @@ public class MenuParser {
                 builder.clickRefreshDelay(clickDelay);
             }
         }
+    }
+
+    private static void parseAnimationSettings(ConfigurationSection config, MenuData.MenuDataBuilder builder) {
+        AnimationSettings.AnimationSettingsBuilder animBuilder = AnimationSettings.builder();
+
+        if (config.contains("animation")) {
+            Object animValue = config.get("animation");
+
+            if (animValue instanceof String) {
+                AnimationType type = AnimationType.fromString((String) animValue);
+                animBuilder.openAnimation(type);
+                DebugAPI.logLibDebug(DebugCategory.UI, "Parsed simple animation: " + type);
+            } else if (config.isConfigurationSection("animation")) {
+                ConfigurationSection animSection = config.getConfigurationSection("animation");
+                if (animSection != null) {
+                    if (animSection.contains("open")) {
+                        animBuilder.openAnimation(AnimationType.fromString(animSection.getString("open")));
+                    }
+                    if (animSection.contains("page")) {
+                        animBuilder.pageAnimation(AnimationType.fromString(animSection.getString("page")));
+                    }
+                    if (animSection.contains("speed")) {
+                        animBuilder.speed(animSection.getInt("speed", 1));
+                    }
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Parsed animation settings: open=" +
+                            animBuilder.build().getOpenAnimation() + ", page=" + animBuilder.build().getPageAnimation());
+                }
+            }
+        }
+
+        builder.animationSettings(animBuilder.build());
     }
 
     private static void parseFillers(ConfigurationSection config, MenuData.MenuDataBuilder builder) {

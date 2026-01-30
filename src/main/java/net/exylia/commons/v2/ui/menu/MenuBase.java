@@ -15,6 +15,8 @@ import net.exylia.commons.v2.items.model.ClickTypeGroup;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.ui.animation.AnimationExecutor;
+import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.exception.MenuStateException;
 import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
@@ -28,6 +30,7 @@ import org.bukkit.inventory.Inventory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Getter
@@ -39,6 +42,8 @@ public abstract class MenuBase {
     protected final PlaceholderContext context;
     protected final Map<Integer, ProcessedItem> itemsBySlot;
     protected final AtomicReference<MenuState> state;
+    protected final AtomicBoolean animationCancelFlag;
+    protected final AtomicBoolean suppressDisplay;
 
     protected Inventory inventory;
     protected ScheduledTask refreshTask;
@@ -50,6 +55,8 @@ public abstract class MenuBase {
         this.context = prepareContext(menuData);
         this.itemsBySlot = new ConcurrentHashMap<>();
         this.state = new AtomicReference<>(MenuState.CLOSED);
+        this.animationCancelFlag = new AtomicBoolean(false);
+        this.suppressDisplay = new AtomicBoolean(false);
     }
 
     protected PlaceholderContext prepareContext(MenuData menuData) {
@@ -66,6 +73,15 @@ public abstract class MenuBase {
 
     protected abstract void populateItems();
 
+    protected void populateItemsWithoutDisplay() {
+        suppressDisplay.set(true);
+        try {
+            populateItems();
+        } finally {
+            suppressDisplay.set(false);
+        }
+    }
+
     protected abstract void handleClickInternal(int slot, ClickType clickType);
 
     public CompletableFuture<Void> openAsync() {
@@ -76,6 +92,7 @@ public abstract class MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Opening menu " + menuId + " for " + player.getName());
         state.set(MenuState.TRANSITIONING);
+        animationCancelFlag.set(false);
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -84,16 +101,33 @@ public abstract class MenuBase {
 
             Tasks.run(() -> {
                 try {
-                    populateItems();
-                    DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
+                    populateItemsWithoutDisplay();
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " items prepared");
 
                     Tasks.sync(() -> {
                         player.openInventory(inventory);
                         state.set(MenuState.OPEN);
                         playOpenSounds();
-                        scheduleRefresh();
-                        DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
-                        future.complete(null);
+
+                        AnimationSettings animSettings = menuData.getAnimationSettings();
+                        if (animSettings != null && animSettings.hasOpenAnimation()) {
+                            AnimationExecutor.execute(
+                                    inventory,
+                                    itemsBySlot,
+                                    animSettings.getOpenAnimation(),
+                                    animSettings.getSpeed(),
+                                    animationCancelFlag
+                            ).thenRun(() -> {
+                                scheduleRefresh();
+                                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened with animation for " + player.getName());
+                                future.complete(null);
+                            });
+                        } else {
+                            updateInventoryDisplay();
+                            scheduleRefresh();
+                            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
+                            future.complete(null);
+                        }
                     });
                 } catch (Exception e) {
                     state.set(MenuState.CLOSED);
@@ -114,20 +148,37 @@ public abstract class MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Opening menu " + menuId + " synchronously for " + player.getName());
         state.set(MenuState.TRANSITIONING);
+        animationCancelFlag.set(false);
 
         this.inventory = createInventory();
 
         Tasks.run(() -> {
             try {
-                populateItems();
-                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " inventory populated");
+                populateItemsWithoutDisplay();
+                DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " items prepared");
 
                 Tasks.sync(() -> {
                     player.openInventory(inventory);
                     state.set(MenuState.OPEN);
                     playOpenSounds();
-                    scheduleRefresh();
-                    DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
+
+                    AnimationSettings animSettings = menuData.getAnimationSettings();
+                    if (animSettings != null && animSettings.hasOpenAnimation()) {
+                        AnimationExecutor.execute(
+                                inventory,
+                                itemsBySlot,
+                                animSettings.getOpenAnimation(),
+                                animSettings.getSpeed(),
+                                animationCancelFlag
+                        ).thenRun(() -> {
+                            scheduleRefresh();
+                            DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened with animation for " + player.getName());
+                        });
+                    } else {
+                        updateInventoryDisplay();
+                        scheduleRefresh();
+                        DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " opened successfully for " + player.getName());
+                    }
                 });
             } catch (Exception e) {
                 state.set(MenuState.CLOSED);
@@ -143,6 +194,7 @@ public abstract class MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Closing menu " + menuId + " for " + player.getName());
         state.set(MenuState.CLOSED);
+        animationCancelFlag.set(true);
         playCloseSounds();
         player.closeInventory();
         cancelRefresh();
@@ -386,7 +438,7 @@ public abstract class MenuBase {
 
         itemsBySlot.put(slot, processedItem);
 
-        if (inventory != null) {
+        if (inventory != null && !suppressDisplay.get()) {
             inventory.setItem(slot, processedItem.getItemStack());
         }
     }

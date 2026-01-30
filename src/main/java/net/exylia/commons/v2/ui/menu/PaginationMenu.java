@@ -2,9 +2,12 @@ package net.exylia.commons.v2.ui.menu;
 
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
+import net.exylia.commons.v2.items.api.ProcessedItem;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.ui.animation.AnimationExecutor;
+import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
@@ -15,7 +18,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PaginationMenu extends MenuBase {
 
@@ -172,16 +177,29 @@ public class PaginationMenu extends MenuBase {
     }
 
     private void refresh() {
+        Map<Integer, ProcessedItem> oldItems = new HashMap<>(itemsBySlot);
         itemsBySlot.clear();
         populateItems();
 
         if (inventory != null) {
-            inventory.clear();
-            itemsBySlot.forEach((slot, item) -> {
-                if (slot >= 0 && slot < inventory.getSize()) {
-                    inventory.setItem(slot, item.getItemStack());
-                }
-            });
+            AnimationSettings animSettings = menuData.getAnimationSettings();
+            if (animSettings != null && animSettings.hasPageAnimation()) {
+                AnimationExecutor.executeWithTransition(
+                        inventory,
+                        oldItems,
+                        itemsBySlot,
+                        animSettings.getPageAnimation(),
+                        animSettings.getSpeed(),
+                        animationCancelFlag
+                );
+            } else {
+                inventory.clear();
+                itemsBySlot.forEach((slot, item) -> {
+                    if (slot >= 0 && slot < inventory.getSize()) {
+                        inventory.setItem(slot, item.getItemStack());
+                    }
+                });
+            }
             player.updateInventory();
         }
     }
