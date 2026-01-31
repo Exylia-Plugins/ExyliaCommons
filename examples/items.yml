@@ -4,17 +4,6 @@ ultimate_example_item:
   display-name: "&c&lNombre Alternativo"
   lore:
     - ""
-    - "&7Una espada forjada en el fin"
-    - "&7de los tiempos por los dioses."
-    - ""
-    - "&eEstadísticas:"
-    - "&8▸ &7Daño: &c+100"
-    - "&8▸ &7Velocidad: &a+50%"
-    - "&8▸ &7Nivel: &b{player_level}"
-    - ""
-    - "&6Click izquierdo &8» &fAtaque normal"
-    - "&6Click derecho &8» &fHabilidad especial"
-    - "&6Shift + Click &8» &fModo berserker"
     - ""
 
   amount: "1"
@@ -32,14 +21,13 @@ ultimate_example_item:
   #   - 13
   #   - "{dynamic_slot}"
 
-  item_model: "exylia:ultimate_sword"
+#  item_model: "exylia:ultimate_sword"
   # item_model: "100"
 
-  tooltip_style: "exylia:legendary"
+#  tooltip_style: "exylia:legendary"
 
   click_sounds:
-    - "entity.wither.spawn"
-    - "block.anvil.use"
+    - "UI_BUTTON_CLICK|1.0|2.0"
 
 #  enchantments:
 #    SHARPNESS: 10
@@ -62,30 +50,30 @@ ultimate_example_item:
 #    soul_bound: "true"
 #    upgrade_level: "5"
 
-  actions:
-    - "left: combat:slash"
-    - "right: skill:fireball"
-    - "shift_left: buff:berserker"
-    - "shift_right: buff:shield"
-    - "middle: teleport:home"
-    - "drop: action:throw_weapon"
-    - "swap: action:switch_mode"
-    - "double: ultimate:apocalypse"
-    - "number_key: quick:slot_action"
-    - "left,right: sound:swing"
-    - "any: log:item_used"
-
-  commands:
-    - "left: player: me ataca con la espada!"
-    - "right: console: effect give {player} strength 10 2"
-    - "shift_left: console: effect give {player} speed 5 3"
-    - "shift_right: console: effect give {player} resistance 10 1"
-    - "middle: player: spawn"
-    - "drop: console: say {player} lanzó su arma!"
-    - "swap: player: say Modo cambiado!"
-    - "double: console: summon lightning_bolt ~ ~ ~"
-    - "left,right: player-proxy: server lobby"
-    - "any: console: playsound entity.experience_orb.pickup player {player}"
+#  actions:
+#    - "left: combat:slash"
+#    - "right: skill:fireball"
+#    - "shift_left: buff:berserker"
+#    - "shift_right: buff:shield"
+#    - "middle: teleport:home"
+#    - "drop: action:throw_weapon"
+#    - "swap: action:switch_mode"
+#    - "double: ultimate:apocalypse"
+#    - "number_key: quick:slot_action"
+#    - "left,right: sound:swing"
+#    - "any: log:item_used"
+#
+#  commands:
+#    - "left: player: me ataca con la espada!"
+#    - "right: console: effect give {player} strength 10 2"
+#    - "shift_left: console: effect give {player} speed 5 3"
+#    - "shift_right: console: effect give {player} resistance 10 1"
+#    - "middle: player: spawn"
+#    - "drop: console: say {player} lanzó su arma!"
+#    - "swap: player: say Modo cambiado!"
+#    - "double: console: summon lightning_bolt ~ ~ ~"
+#    - "left,right: player-proxy: server lobby"
+#    - "any: console: playsound entity.experience_orb.pickup player {player}"
 
 #  requires-target: false
 #  dynamic_update: true
@@ -107,9 +95,6 @@ ultimate_example_item:
 # Skull con URL de textura:
 #   material: "urlhead:https://textures.minecraft.net/texture/abc123..."
 #   material: "urlhead-https://textures.minecraft.net/texture/abc123..."
-#
-# Item custom (requiere CustomItemManager):
-#   material: "exylia:custom_item_id"
 #
 # ══════════════════════════════════════════════════════════════════════════════
 

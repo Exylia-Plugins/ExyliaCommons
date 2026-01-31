@@ -1,74 +1,68 @@
-title: '&ePág. %current_page%/%total_pages%'
-type: PAGINATION
-size: 54
+creators:
+  title: "{primary}&lLUNARIS CREATORS &8%current_page%/%total_pages%"
+  size: 36
+  type: PAGINATION
+  #refresh:
+  #  mode: SMART
+  #  interval: 20
 
-refresh:
-  mode: SMART
-  interval: 20
+  open_sounds:
+    - "ENTITY_ARROW_SHOOT|1.0|2.0"
+  close_sounds:
+    - "BLOCK_CHEST_LOCKED|1.0|2.0"
+  click_sounds:
+    - "UI_BUTTON_CLICK|1.0|2.0"
 
-filler:
-  global:
-    material: BLACK_STAINED_GLASS_PANE
-    name: ' '
-    hide_tooltip: true
+  filler:
+    global:
+      material: GRAY_STAINED_GLASS_PANE
+      hide_tooltip: true
+
+    pagination:
+      material: LIGHT_GRAY_STAINED_GLASS_PANE
+      name: '{error_light}Slot vacío'
+      lore:
+        - '{error}No hay más items aquí'
+      hide_tooltip: false
 
   pagination:
-    material: LIGHT_GRAY_STAINED_GLASS_PANE
-    name: '&7Slot vacío'
-    lore:
-      - '&8No hay más items aquí'
-    hide_tooltip: false
+    slots: '10-16,19-25'
+    items:
+      creator:
+        material: "%creator_material%"
+        name: "%creator_display_name%"
+        lore:
+          - '{info}Lore global'
+          - ''
+          - '%creator_lore%'
+          - ''
+          - '{info}Vota por mi!'
+        actions:
+          - 'vote'
 
-pagination:
-  slots: '10-16,19-25,28-34'
-  items: []
-  navigation:
-    previous:
-      slot: 48
-      material: ARROW
-      name: '&e&l← Página Anterior'
-      lore:
-        - '&7Click para ir a la'
-        - '&7página anterior'
-        - ''
-        - '&7Página actual: &e%current_page%/%total_pages%'
-      glowing: false
-      actions:
-        - 'previous_page'  # Acción built-in
-      click_sounds:
-        - 'UI_BUTTON_CLICK'
-    next:
-      slot: 50
-      material: ARROW
-      name: '&e&lPágina Siguiente →'
-      lore:
-        - '&7Click para ir a la'
-        - '&7siguiente página'
-        - ''
-        - '&7Página actual: &e%current_page%/%total_pages%'
-      actions:
-        - 'next_page'  # Acción built-in
-      click_sounds:
-        - 'UI_BUTTON_CLICK'
-    info:
-      slot: 49
-      material: PAPER
-      name: '&7Información de Página'
-      lore:
-        - '&7Página: &e%current_page% &7de &e%total_pages%'
-        - '&7Items totales: &e%total_items%'
-        - '&7Items por página: &e%items_per_page%'
-        - ''
-        - '&7Este item es solo informativo'
-      dynamic_update: true
-      update_interval: 20
+    navigation:
+      previous:
+        slot: 48
+        material: ARROW
+        name: '{error}&l← PÁGINA ANTERIOR'
+        lore:
+          - ' {muted}❙ {letters}Haz click para ir'
+          - ' {muted}❙ {letters}a la página anterior.'
+          - ''
+          - '{info}ℹ Página actual: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'previous_page'
+      next:
+        slot: 50
+        material: ARROW
+        name: '{success}&lPÁGINA SIGUIENTE →'
+        lore:
+          - ' {muted}❙ {letters}Haz click para ir'
+          - ' {muted}❙ {letters}a la siguiente página.'
+          - ''
+          - '{info}ℹ Página actual: {success}%current_page%&8/{error}%total_pages%'
+        actions:
+          - 'next_page'
 
-items: []
 
-# Pagination placeholders:
-#   %current_page%   - Número de página actual
-#   %total_pages%    - Total de páginas
-#   %total_items%    - Total de items paginados
-#   %items_per_page% - Items por página
-#   %index%          - Índice global del item (0-N)
-#   %page_index%     - Índice del item en la página (0-items_per_page)
+  items: [ ]

@@ -1,13 +1,14 @@
-title: 'Simple'
+title: "{primary}&lEXYLIA PRACTICE BOT"
 type: SIMPLE
 size: 54  # 9, 18, 27, 36, 45, 54
+animation: "spiral_out"
 
 refresh:
   mode: SMART  # DISABLED | FULL | SMART | SLOT_ONLY | ON_CLICK
-               # DISABLED: No actualiza
-               # FULL: Refresca todo el inventario
-               # SMART: Solo items con placeholders/dinámicos
-               # SLOT_ONLY: Como SMART pero sin actualizar título
+    # DISABLED: No actualiza
+    # FULL: Refresca todo el inventario
+    # SMART: Solo items con placeholders/dinámicos
+  # SLOT_ONLY: Como SMART pero sin actualizar título
   interval: 20
 
 #filler:
@@ -24,7 +25,16 @@ refresh:
 #      hide_tooltip: true
 #      slots: '0-8,45-53'
 
-items: []
+open_sounds:
+  - "ENTITY_ARROW_SHOOT|1.0|2.0"
+close_sounds:
+  - "BLOCK_CHEST_LOCKED|1.0|2.0"
+click_sounds:
+  - "UI_BUTTON_CLICK|1.0|2.0"
 
-# Menu placeholders:
-#   %menu_id%, %menu_type%, %menu_title%, %menu_size%
+filler:
+  global:
+    material: GRAY_STAINED_GLASS_PANE
+    hide_tooltip: true
+
+items:
