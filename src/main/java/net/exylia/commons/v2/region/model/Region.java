@@ -32,6 +32,7 @@ public class Region {
     private RegionCallback onExit;
 
     private Set<Material> allowedBlocks;
+    private Set<Material> breakableBlocks;
     private volatile int temporaryBlocksSeconds = 30;
 
     public Region(String id, Selection selection) {
@@ -47,6 +48,7 @@ public class Region {
         this.members = ConcurrentHashMap.newKeySet();
         this.playersInside = ConcurrentHashMap.newKeySet();
         this.allowedBlocks = ConcurrentHashMap.newKeySet();
+        this.breakableBlocks = ConcurrentHashMap.newKeySet();
     }
 
     public boolean isValid() {
@@ -235,6 +237,29 @@ public class Region {
         return new HashSet<>(allowedBlocks);
     }
 
+    public void setBreakableBlocks(Set<Material> materials) {
+        this.breakableBlocks = ConcurrentHashMap.newKeySet();
+        if (materials != null) {
+            this.breakableBlocks.addAll(materials);
+        }
+    }
+
+    public void addBreakableMaterial(Material material) {
+        breakableBlocks.add(material);
+    }
+
+    public void removeBreakableMaterial(Material material) {
+        breakableBlocks.remove(material);
+    }
+
+    public boolean isBreakableMaterial(Material material) {
+        return breakableBlocks.contains(material);
+    }
+
+    public Set<Material> getBreakableBlocks() {
+        return new HashSet<>(breakableBlocks);
+    }
+
     public CompletableFuture<Boolean> saveSchematic() {
         return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().saveSchematic(this);
     }
@@ -269,6 +294,7 @@ public class Region {
             owners.forEach(clonedRegion::addOwner);
             members.forEach(clonedRegion::addMember);
             allowedBlocks.forEach(clonedRegion::addAllowedMaterial);
+            breakableBlocks.forEach(clonedRegion::addBreakableMaterial);
             metadata.forEach(clonedRegion::setMetadata);
 
             return clonedRegion;

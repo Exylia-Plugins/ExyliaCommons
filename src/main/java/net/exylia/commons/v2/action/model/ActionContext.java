@@ -15,8 +15,7 @@ import java.util.UUID;
 public class ActionContext {
     private final Player player;
     private final ActionSource source;
-    @Builder.Default
-    private final Map<String, Object> data = new HashMap<>();
+    private final Map<String, Object> data;
     private final ParsedArguments arguments;
     private final Action action;
     @Builder.Default
@@ -25,6 +24,15 @@ public class ActionContext {
     private final long executionStartTime = System.currentTimeMillis();
     @Builder.Default
     private final UUID executionId = UUID.randomUUID();
+
+    public static class ActionContextBuilder {
+        private Map<String, Object> data = new HashMap<>();
+
+        public ActionContextBuilder data(Map<String, Object> data) {
+            this.data = data != null ? new HashMap<>(data) : new HashMap<>();
+            return this;
+        }
+    }
 
     @SuppressWarnings("unchecked")
     public <T> Optional<T> getData(String key, Class<T> type) {

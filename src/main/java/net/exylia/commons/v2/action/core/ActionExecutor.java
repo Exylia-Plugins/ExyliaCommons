@@ -27,6 +27,10 @@ public class ActionExecutor {
     private final AuditLogger auditLogger;
 
     public CompletableFuture<ActionResult> executeAsync(String actionString, ActionContext context) {
+        if (actionString == null || actionString.isBlank()) {
+            return CompletableFuture.completedFuture(ActionResult.success());
+        }
+
         return Tasks.run(() -> {
             long startTime = System.currentTimeMillis();
             try {

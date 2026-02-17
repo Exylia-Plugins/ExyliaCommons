@@ -21,6 +21,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -74,7 +75,9 @@ public class VisualManager {
             VisualType type
     ) {
         validateInitialized();
-        validateParameters(player, config);
+        if (!validateParameters(player, config)) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         if (!VisualLimiter.canAdd(player, type)) {
             DebugAPI.logLibDebug(DebugCategory.VISUAL,
@@ -118,7 +121,9 @@ public class VisualManager {
             VisualType type
     ) {
         validateInitialized();
-        validateParameters(player, config);
+        if (!validateParameters(player, config)) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         if (!VisualLimiter.canAdd(player, type)) {
             DebugAPI.logLibDebug(DebugCategory.VISUAL,
@@ -163,7 +168,9 @@ public class VisualManager {
             long durationTicks
     ) {
         validateInitialized();
-        validateParameters(player, config);
+        if (!validateParameters(player, config)) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         if (!VisualLimiter.canAdd(player, type)) {
             DebugAPI.logLibDebug(DebugCategory.VISUAL,
@@ -199,6 +206,33 @@ public class VisualManager {
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                     throw new VisualException("Failed to send countdown visual", throwable);
                 });
+    }
+
+    public <T extends VisualConfig> void sendOrUpdateContinuous(
+            Player player,
+            String key,
+            T config,
+            PlaceholderContext context,
+            VisualRenderer<T> renderer,
+            VisualType type
+    ) {
+        validateInitialized();
+        if (!validateParameters(player, config)) return;
+
+        PlaceholderContext enrichedContext = enrichContext(context, player, key);
+
+        Optional<VisualInstance<?>> existing = VisualRegistry.getInstance().get(player.getUniqueId(), key);
+        if (existing.isPresent()) {
+            existing.get().updateContext(enrichedContext);
+            return;
+        }
+
+        ContinuousVisualInstance<T> instance = new ContinuousVisualInstance<>(
+                key, config, player, enrichedContext, renderer
+        );
+
+        VisualRegistry.getInstance().register(player.getUniqueId(), key, instance, type);
+        instance.start();
     }
 
     public boolean cancel(UUID playerId, String visualId) {
@@ -252,14 +286,10 @@ public class VisualManager {
         }
     }
 
-    private void validateParameters(Player player, VisualConfig config) {
-        if (player == null || !player.isOnline()) {
-            throw new IllegalArgumentException("Player must be online");
-        }
-
-        if (config == null || !config.isEnabled()) {
-            throw new IllegalArgumentException("Config must be enabled");
-        }
+    private boolean validateParameters(Player player, VisualConfig config) {
+        if (player == null || !player.isOnline()) return false;
+        if (config == null || !config.isEnabled()) return false;
+        return true;
     }
 
     public CompletableFuture<String> playSound(Player player, SoundConfig config, PlaceholderContext context) {

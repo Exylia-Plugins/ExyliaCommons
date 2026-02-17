@@ -10,6 +10,7 @@ import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
 
 import java.util.*;
+import java.util.function.Function;
 
 @Data
 @Builder(toBuilder = true)
@@ -49,6 +50,8 @@ public class MenuData {
 
     @Builder.Default
     private List<ItemData> paginationItems = new ArrayList<>();
+
+    private ItemData paginationItemTemplate;
 
     private NavigationData paginationNavigation;
 
@@ -119,6 +122,28 @@ public class MenuData {
         return !paginationSlots.isEmpty() && !paginationItems.isEmpty();
     }
 
+    public boolean hasPaginationItemTemplate() {
+        return paginationItemTemplate != null;
+    }
+
+    public <T> MenuData withPaginationData(List<T> dataList, Function<T, PlaceholderContext> contextMapper) {
+        if (paginationItemTemplate == null) {
+            return this;
+        }
+
+        List<ItemData> generatedItems = new ArrayList<>();
+        for (T data : dataList) {
+            PlaceholderContext ctx = contextMapper.apply(data);
+            ItemData item = paginationItemTemplate.copy().toBuilder()
+                    .context(ctx)
+                    .build();
+            generatedItems.add(item);
+        }
+
+        this.paginationItems = generatedItems;
+        return this;
+    }
+
     public boolean hasSections() {
         return !sections.isEmpty();
     }
@@ -159,6 +184,7 @@ public class MenuData {
                 .items(copiedItems)
                 .paginationSlots(new ArrayList<>(paginationSlots))
                 .paginationItems(copiedPaginationItems)
+                .paginationItemTemplate(paginationItemTemplate != null ? paginationItemTemplate.copy() : null)
                 .paginationNavigation(paginationNavigation != null ? paginationNavigation.copy() : null)
                 .sections(copiedSections)
                 .snapshotEnabled(snapshotEnabled)

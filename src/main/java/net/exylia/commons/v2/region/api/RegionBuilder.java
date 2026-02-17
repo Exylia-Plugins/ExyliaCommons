@@ -18,6 +18,7 @@ public class RegionBuilder {
     private final Set<UUID> owners = new HashSet<>();
     private final Set<UUID> members = new HashSet<>();
     private final Set<Material> allowedBlocks = new HashSet<>();
+    private final Set<Material> breakableBlocks = new HashSet<>();
     private RegionCallback onEnter;
     private RegionCallback onExit;
     private int temporaryBlocksSeconds = 30;
@@ -83,6 +84,16 @@ public class RegionBuilder {
 
     public RegionBuilder allowedBlocks(Set<Material> materials) {
         this.allowedBlocks.addAll(materials);
+        return this;
+    }
+
+    public RegionBuilder breakableBlocks(Material... materials) {
+        this.breakableBlocks.addAll(Arrays.asList(materials));
+        return this;
+    }
+
+    public RegionBuilder breakableBlocks(Set<Material> materials) {
+        this.breakableBlocks.addAll(materials);
         return this;
     }
 
@@ -169,6 +180,10 @@ public class RegionBuilder {
 
         if (!allowedBlocks.isEmpty()) {
             region.setAllowedBlocks(allowedBlocks);
+        }
+
+        if (!breakableBlocks.isEmpty()) {
+            region.setBreakableBlocks(breakableBlocks);
         }
 
         if (onEnter != null) {

@@ -10,6 +10,7 @@ public enum RegionFlag {
     INTERACT("interact", "Permite interactuar con bloques y entidades", true),
     PLAYER_BUILD_ONLY("player_build_only", "Solo permite romper bloques colocados por jugadores", false),
     ALLOWED_BLOCKS_ONLY("allowed_blocks_only", "Solo permite colocar materiales específicos", false),
+    BREAKABLE_BLOCKS_ONLY("breakable_blocks_only", "Solo permite romper materiales específicos", false),
     TEMPORARY_BLOCKS("temporary_blocks", "Los bloques colocados desaparecen después de X segundos", false),
     RE_GIVE_BLOCKS("re_give_blocks", "Devuelve bloques temporales al inventario al desaparecer", false),
     REGION_MEMBERS_ONLY("region_members_only", "Solo miembros pueden realizar acciones", false),
@@ -42,7 +43,7 @@ public enum RegionFlag {
 
     public boolean isSpecialFlag() {
         return this == PLAYER_BUILD_ONLY || this == ALLOWED_BLOCKS_ONLY ||
-               this == TEMPORARY_BLOCKS || this == RE_GIVE_BLOCKS ||
-               this == REGION_MEMBERS_ONLY;
+               this == BREAKABLE_BLOCKS_ONLY || this == TEMPORARY_BLOCKS ||
+               this == RE_GIVE_BLOCKS || this == REGION_MEMBERS_ONLY;
     }
 }

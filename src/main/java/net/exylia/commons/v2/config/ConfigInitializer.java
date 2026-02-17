@@ -5,7 +5,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class ConfigInitializer {
 
     public static void initConfigs(JavaPlugin plugin) {
-        Configs.init(plugin);
+        if (!Configs.isInitialized()) {
+            Configs.init(plugin);
+        }
     }
 
     public static void initMessages() {

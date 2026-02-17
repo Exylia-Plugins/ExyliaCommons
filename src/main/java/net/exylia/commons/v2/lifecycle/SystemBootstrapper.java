@@ -1,6 +1,10 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import org.bukkit.plugin.java.JavaPlugin;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.AdapterFactory;
 import net.exylia.commons.utils.skull.SkullManager;
@@ -9,13 +13,9 @@ import net.exylia.commons.utils.visuals.BossbarUtils;
 import net.exylia.commons.utils.visuals.TitleUtils;
 import net.exylia.commons.v2.config.ConfigInitializer;
 import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
-import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
-import net.exylia.commons.v2.discord.config.DiscordConfig;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
-import net.exylia.commons.v2.tasks.config.TasksDefaults;
 import net.exylia.commons.v2.visual.api.ColorAPI;
-import net.exylia.commons.v2.visual.config.ColorDefaults;
 import net.exylia.commons.v2.visual.core.VisualManager;
 
 import static net.exylia.commons.utils.DebugUtils.*;
@@ -24,17 +24,19 @@ import static net.exylia.commons.utils.DebugUtils.*;
 public class SystemBootstrapper {
 
     public void initializeCoreSystemsAsync(ExyliaPlugin plugin) {
+        initializeCoreSystemsAsync((JavaPlugin) plugin);
+    }
+
+    public void initializeCoreSystemsAsync(JavaPlugin plugin) {
         try {
-            logInternalDebug("Initializing Configs...");
+            DebugAPI.logLibInfo("Initializing Configs...");
             ConfigInitializer.initConfigs(plugin);
 
-            logInternalDebug("Loading config schemas...");
+            DebugAPI.logLibInfo("Loading core config schemas...");
             ConfigSchemaRegistry.ensureDefaults(DebugDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(FormattersDefaults.class);
-            ConfigSchemaRegistry.ensureDefaults(DatabaseDefaults.class);
-            ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
-            ConfigSchemaRegistry.ensureDefaults(ColorDefaults.class);
-            ConfigSchemaRegistry.ensureDefaults(DiscordConfig.class);
+
+            TaskAPI.initialize(plugin);
 
             logInternalDebug("Initializing Messages...");
             ConfigInitializer.initMessages();

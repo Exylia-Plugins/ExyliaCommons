@@ -9,6 +9,7 @@ import org.bukkit.scoreboard.Team;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @UtilityClass
 public class ScoreboardLoader {
@@ -32,8 +33,8 @@ public class ScoreboardLoader {
             throw new IllegalArgumentException("Scoreboard cannot have more than 15 lines");
         }
 
-        List<ScoreboardLine> lines = rawLines.stream()
-                .map(line -> ScoreboardLine.of(rawLines.indexOf(line), line))
+        List<ScoreboardLine> lines = IntStream.range(0, rawLines.size())
+                .mapToObj(i -> ScoreboardLine.of(i, rawLines.get(i)))
                 .collect(Collectors.toList());
 
         UpdateConfig updateConfig = loadUpdateConfig(section);

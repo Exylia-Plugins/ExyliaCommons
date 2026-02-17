@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.region.detection;
 
 import lombok.Getter;
-import net.exylia.commons.v2.region.cache.RegionCacheManager;
+import net.exylia.commons.v2.region.detection.PlayerTracker.PlayerMovementState;
 import net.exylia.commons.v2.region.model.Region;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -12,7 +12,7 @@ public class MovementDetector {
     private static final double MICRO_MOVEMENT_THRESHOLD = 0.01;
     private static final double TELEPORT_THRESHOLD = 100.0;
 
-    private final RegionCacheManager cacheManager;
+    private final SpatialIndex spatialIndex;
     private final PlayerTracker playerTracker;
 
     @Getter
@@ -24,8 +24,8 @@ public class MovementDetector {
     @Getter
     private volatile long teleportDetections = 0;
 
-    public MovementDetector(RegionCacheManager cacheManager, PlayerTracker playerTracker) {
-        this.cacheManager = cacheManager;
+    public MovementDetector(SpatialIndex spatialIndex, PlayerTracker playerTracker) {
+        this.spatialIndex = spatialIndex;
         this.playerTracker = playerTracker;
     }
 
@@ -33,14 +33,14 @@ public class MovementDetector {
         totalMovements++;
 
         if (from == null || to == null || !from.getWorld().equals(to.getWorld())) {
-            return new MovementResult(false, Collections.emptySet(), Collections.emptySet(), Collections.emptyList());
+            return MovementResult.NO_CHANGE;
         }
 
-        if (isMicroMovement(from, to)) {
-            PlayerTracker.PlayerMovementState state = playerTracker.getState(player.getUniqueId());
-            if (state != null) {
-                return new MovementResult(false, state.getCurrentRegionsAsSet(), state.getCurrentRegionsAsSet(), state.getCurrentRegions());
-            }
+        PlayerMovementState state = playerTracker.getState(player.getUniqueId());
+
+        if (isMicroMovement(from, to) && state != null) {
+            return new MovementResult(false, state.getCurrentRegions(), state.getCurrentRegionSet(),
+                    Collections.emptyList(), Collections.emptyList(), false);
         }
 
         processedMovements++;
@@ -50,22 +50,38 @@ public class MovementDetector {
             teleportDetections++;
         }
 
-        PlayerTracker.PlayerMovementState state = playerTracker.getState(player.getUniqueId());
-        List<Region> newRegions = cacheManager.getRegionsAt(to);
-        Set<Region> newRegionSet = new LinkedHashSet<>(newRegions);
+        List<Region> newRegions = spatialIndex.getRegionsAt(to);
+        Set<Region> oldRegionSet = state != null ? state.getCurrentRegionSet() : Collections.emptySet();
 
-        Set<Region> oldRegionSet;
-        if (state == null) {
-            oldRegionSet = Collections.emptySet();
-        } else {
-            oldRegionSet = state.getCurrentRegionsAsSet();
+        if (newRegions.size() == oldRegionSet.size() && oldRegionSet.containsAll(newRegions)) {
+            playerTracker.updateState(player.getUniqueId(), to, newRegions);
+            return new MovementResult(false, newRegions, oldRegionSet,
+                    Collections.emptyList(), Collections.emptyList(), isTeleport);
         }
 
-        Set<Region> enterRegions = new LinkedHashSet<>(newRegionSet);
-        enterRegions.removeAll(oldRegionSet);
+        List<Region> enterRegions = null;
+        List<Region> exitRegions = null;
 
-        Set<Region> exitRegions = new LinkedHashSet<>(oldRegionSet);
-        exitRegions.removeAll(newRegionSet);
+        for (Region region : newRegions) {
+            if (!oldRegionSet.contains(region)) {
+                if (enterRegions == null) enterRegions = new ArrayList<>(2);
+                enterRegions.add(region);
+            }
+        }
+
+        if (state != null) {
+            Set<Region> newRegionSet = newRegions.size() <= 4 ? null : new HashSet<>(newRegions);
+            for (Region region : state.getCurrentRegions()) {
+                boolean inNew = newRegionSet != null ? newRegionSet.contains(region) : newRegions.contains(region);
+                if (!inNew) {
+                    if (exitRegions == null) exitRegions = new ArrayList<>(2);
+                    exitRegions.add(region);
+                }
+            }
+        }
+
+        if (enterRegions == null) enterRegions = Collections.emptyList();
+        if (exitRegions == null) exitRegions = Collections.emptyList();
 
         boolean hasChanges = !enterRegions.isEmpty() || !exitRegions.isEmpty();
         if (hasChanges) {
@@ -74,7 +90,8 @@ public class MovementDetector {
 
         playerTracker.updateState(player.getUniqueId(), to, newRegions);
 
-        return new MovementResult(hasChanges, newRegionSet, oldRegionSet, newRegions, enterRegions, exitRegions, isTeleport);
+        return new MovementResult(hasChanges, newRegions, oldRegionSet,
+                enterRegions, exitRegions, isTeleport);
     }
 
     private boolean isMicroMovement(Location from, Location to) {
@@ -98,26 +115,23 @@ public class MovementDetector {
 
     @Getter
     public static class MovementResult {
+        static final MovementResult NO_CHANGE = new MovementResult(false, Collections.emptyList(),
+                Collections.emptySet(), Collections.emptyList(), Collections.emptyList(), false);
+
         private final boolean requiresUpdate;
-        private final Set<Region> currentRegions;
+        private final List<Region> currentRegions;
         private final Set<Region> previousRegions;
-        private final List<Region> currentRegionsList;
-        private final Set<Region> enterRegions;
-        private final Set<Region> exitRegions;
+        private final List<Region> enterRegions;
+        private final List<Region> exitRegions;
         private final boolean isTeleport;
 
-        public MovementResult(boolean requiresUpdate, Set<Region> currentRegions, Set<Region> previousRegions, List<Region> currentRegionsList) {
-            this(requiresUpdate, currentRegions, previousRegions, currentRegionsList, Collections.emptySet(), Collections.emptySet(), false);
-        }
-
-        public MovementResult(boolean requiresUpdate, Set<Region> currentRegions, Set<Region> previousRegions,
-                              List<Region> currentRegionsList, Set<Region> enterRegions, Set<Region> exitRegions, boolean isTeleport) {
+        public MovementResult(boolean requiresUpdate, List<Region> currentRegions, Set<Region> previousRegions,
+                              List<Region> enterRegions, List<Region> exitRegions, boolean isTeleport) {
             this.requiresUpdate = requiresUpdate;
-            this.currentRegions = new LinkedHashSet<>(currentRegions);
-            this.previousRegions = new LinkedHashSet<>(previousRegions);
-            this.currentRegionsList = new ArrayList<>(currentRegionsList);
-            this.enterRegions = new LinkedHashSet<>(enterRegions);
-            this.exitRegions = new LinkedHashSet<>(exitRegions);
+            this.currentRegions = currentRegions;
+            this.previousRegions = previousRegions;
+            this.enterRegions = enterRegions;
+            this.exitRegions = exitRegions;
             this.isTeleport = isTeleport;
         }
 
@@ -126,7 +140,7 @@ public class MovementDetector {
         }
 
         public Optional<Region> getHighestPriorityRegion() {
-            return currentRegionsList.isEmpty() ? Optional.empty() : Optional.of(currentRegionsList.get(0));
+            return currentRegions.isEmpty() ? Optional.empty() : Optional.of(currentRegions.getFirst());
         }
 
         @Override

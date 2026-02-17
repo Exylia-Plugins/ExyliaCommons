@@ -46,6 +46,10 @@ public final class MenuAPI {
         return MenuManager.getInstance().getActiveMenu(player);
     }
 
+    public static boolean refresh(Player player) {
+        return MenuManager.getInstance().refreshActiveMenu(player);
+    }
+
     public static void close(Player player) {
         MenuManager.getInstance().closeMenu(player);
     }

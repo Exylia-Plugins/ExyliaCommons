@@ -1,6 +1,8 @@
 package net.exylia.commons.utils.player;
 
 import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 
 public class PlayerUtils {
@@ -17,7 +19,11 @@ public class PlayerUtils {
     public static void resetPlayer(Player player) {
         player.getActivePotionEffects().forEach(effect ->
                 player.removePotionEffect(effect.getType()));
-        player.setMaxHealth(20);
+        AttributeInstance maxHealth = player.getAttribute(Attribute.GENERIC_MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.getModifiers().forEach(maxHealth::removeModifier);
+            maxHealth.setBaseValue(20.0);
+        }
         player.setHealth(20);
         player.setNoDamageTicks(20);
         player.setMaximumNoDamageTicks(20);

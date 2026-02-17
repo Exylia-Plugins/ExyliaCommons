@@ -30,7 +30,8 @@ public enum DebugCategory {
     LICENSE("LICENSE"),
     ASYNC("ASYNC"),
     CONVERSATION("CONVERSATION"),
-    DISCORD("DISCORD");
+    DISCORD("DISCORD"),
+    ECONOMY("ECONOMY");
 
     private final String name;
 

@@ -21,7 +21,9 @@ import net.exylia.commons.v2.ui.exception.MenuStateException;
 import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuState;
+import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.api.SoundAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
@@ -200,6 +202,18 @@ public abstract class MenuBase {
         cancelRefresh();
         cleanup();
         DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " closed successfully");
+    }
+
+    public void prepareTransition() {
+        if (state.get() == MenuState.CLOSED) {
+            return;
+        }
+
+        DebugAPI.logLibDebug(DebugCategory.UI, "Preparing transition from menu " + menuId + " for " + player.getName());
+        state.set(MenuState.CLOSED);
+        animationCancelFlag.set(true);
+        cancelRefresh();
+        cleanup();
     }
 
     public void handleClick(int slot, ClickType clickType) {
@@ -383,7 +397,10 @@ public abstract class MenuBase {
     protected void fullRefresh() {
         Tasks.run(() -> {
             populateItems();
-            Tasks.sync(this::updateInventoryDisplay);
+            Tasks.sync(() -> {
+                updateInventoryDisplay();
+                refreshTitle();
+            });
         });
     }
 
@@ -410,8 +427,19 @@ public abstract class MenuBase {
                 }
             }
 
-            Tasks.sync(this::updateInventoryDisplay);
+            Tasks.sync(() -> {
+                updateInventoryDisplay();
+                refreshTitle();
+            });
         });
+    }
+
+    protected void refreshTitle() {
+        if (inventory == null) {
+            return;
+        }
+        String processedTitle = processTitle(menuData.getTitle());
+        InventoryTitleUpdater.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
     }
 
     protected void slotOnlyRefresh() {

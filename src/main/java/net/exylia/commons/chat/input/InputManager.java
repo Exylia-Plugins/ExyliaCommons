@@ -12,6 +12,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -21,13 +22,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class InputManager implements Listener {
 
     private static InputManager instance;
-    private static ExyliaPlugin plugin;
+    private static JavaPlugin plugin;
 
     private final Map<UUID, InputSession> activeSessions = new ConcurrentHashMap<>();
 
     private InputManager() {}
 
-    public static void init(ExyliaPlugin pluginInstance) {
+    public static void init(JavaPlugin pluginInstance) {
         if (instance != null) {
             return;
         }

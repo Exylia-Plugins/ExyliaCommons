@@ -148,7 +148,7 @@ public class ItemProcessor {
         processAmount(itemStack, itemData, player);
         processEnchantments(itemStack, itemData, player);
         processPotionConfig(itemStack, itemData, player);
-        processArmorTrim(itemStack, itemData);
+        processArmorTrim(itemStack, itemData, player);
         processLeatherArmorColor(itemStack, itemData, player);
         processItemModel(itemStack, itemData, player);
         processTooltipStyle(itemStack, itemData, player);
@@ -190,10 +190,18 @@ public class ItemProcessor {
                               itemData.getLoreDynamicSupplier().get() : itemData.getRawLore();
 
         if (rawLore != null && !rawLore.isEmpty()) {
-            List<net.kyori.adventure.text.Component> processedLore = rawLore.stream()
-                .map(line -> Placeholders.process(line, player, itemData.getContext()))
-                .map(ColorAPI::parse)
-                .collect(Collectors.toList());
+            List<net.kyori.adventure.text.Component> processedLore = new ArrayList<>();
+            for (String line : rawLore) {
+                String processed = Placeholders.process(line, player, itemData.getContext());
+                String normalized = processed.replace("\\n", "\n");
+                if (normalized.contains("\n")) {
+                    for (String subLine : normalized.split("\n", -1)) {
+                        processedLore.add(ColorAPI.parse(subLine));
+                    }
+                } else {
+                    processedLore.add(ColorAPI.parse(normalized));
+                }
+            }
             meta.lore(processedLore);
         }
 
@@ -221,8 +229,8 @@ public class ItemProcessor {
         PotionProcessor.apply(itemStack, itemData.getPotionConfig(), player, itemData.getContext());
     }
 
-    private static void processArmorTrim(ItemStack itemStack, ItemData itemData) {
-        ArmorTrimProcessor.apply(itemStack, itemData.getArmorTrimConfig());
+    private static void processArmorTrim(ItemStack itemStack, ItemData itemData, Player player) {
+        ArmorTrimProcessor.apply(itemStack, itemData.getArmorTrimConfig(), player, itemData.getContext());
     }
 
     private static void processLeatherArmorColor(ItemStack itemStack, ItemData itemData, Player player) {

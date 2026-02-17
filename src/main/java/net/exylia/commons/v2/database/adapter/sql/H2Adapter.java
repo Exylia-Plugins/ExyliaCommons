@@ -5,6 +5,7 @@ import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
 
+import java.io.File;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,6 +14,16 @@ public class H2Adapter extends SQLAdapter {
 
     public H2Adapter(AdapterConfig config) {
         super(config);
+    }
+
+    @Override
+    public void connect() throws Exception {
+        File dbFile = new File(config.getFile());
+        File parentDir = dbFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+        super.connect();
     }
 
     @Override

@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
+import org.bukkit.plugin.java.JavaPlugin;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.database.DatabaseManager;
 import net.exylia.commons.redis.RedisIntegration;
@@ -18,6 +19,10 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class ShutdownCoordinator {
 
     public void executeOrderedShutdown(ExyliaPlugin plugin) {
+        executeOrderedShutdown((JavaPlugin) plugin);
+    }
+
+    public void executeOrderedShutdown(JavaPlugin plugin) {
         logInternalInfo("Starting ordered shutdown for: " + plugin.getDescription().getName());
 
         cleanupPlayerState();

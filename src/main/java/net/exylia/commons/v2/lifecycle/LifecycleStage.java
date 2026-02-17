@@ -5,13 +5,12 @@ import lombok.Getter;
 @Getter
 public enum LifecycleStage {
     PRE_INIT(0),
-    LICENSE_VALIDATION(1),
-    CORE_INIT(2),
-    PLUGIN_INIT(3),
-    POST_INIT(4),
-    RUNNING(5),
-    PRE_SHUTDOWN(6),
-    SHUTDOWN(7);
+    CORE_INIT(1),
+    PLUGIN_INIT(2),
+    POST_INIT(3),
+    RUNNING(4),
+    PRE_SHUTDOWN(5),
+    SHUTDOWN(6);
 
     private final int order;
 

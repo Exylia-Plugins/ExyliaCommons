@@ -14,6 +14,7 @@ import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -28,14 +29,14 @@ import static net.exylia.commons.utils.DebugUtils.*;
 public class YAMLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final DatabaseErrorHandler errorHandler;
     private File dataDirectory;
     private final Map<Class<?>, YamlConfiguration> entityConfigs = new ConcurrentHashMap<>();
     private final Map<Class<?>, File> entityFiles = new ConcurrentHashMap<>();
     private boolean connected = false;
 
-    public YAMLAdapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
+    public YAMLAdapter(FileConfiguration config, JavaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
         this.errorHandler = errorHandler;

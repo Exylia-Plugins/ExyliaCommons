@@ -11,6 +11,7 @@ import net.exylia.commons.database.repository.Repository;
 import net.exylia.commons.database.repository.RepositoryImpl;
 import net.exylia.commons.v2.config.Configs;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.lang.reflect.Constructor;
@@ -25,7 +26,7 @@ import static net.exylia.commons.utils.DebugUtils.*;
 @Deprecated
 public class DatabaseManager {
     private static DatabaseManager instance;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     @Getter
     private DatabaseAdapter adapter;
     private final ExecutorService executor;
@@ -41,7 +42,7 @@ public class DatabaseManager {
     @Getter
     private DatabaseErrorHandler errorHandler;
 
-    private DatabaseManager(ExyliaPlugin plugin) {
+    private DatabaseManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.executor = Executors.newFixedThreadPool(4);
         this.repositories = new HashMap<>();
@@ -51,7 +52,7 @@ public class DatabaseManager {
         this.exportImportManager = new DatabaseExportImportManager(plugin, this);
     }
 
-    public static void initialize(ExyliaPlugin plugin) {
+    public static void initialize(JavaPlugin plugin) {
         if (instance == null) {
             instance = new DatabaseManager(plugin);
             try {

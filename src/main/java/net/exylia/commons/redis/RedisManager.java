@@ -7,6 +7,7 @@ import net.exylia.commons.redis.pubsub.RedisPubSubManager;
 import net.exylia.commons.redis.cache.RedisCache;
 import net.exylia.commons.redis.serialization.RedisSerializer;
 import net.exylia.commons.redis.serialization.GsonRedisSerializer;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.exceptions.JedisException;
@@ -25,7 +26,7 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class RedisManager {
 
     private static RedisManager instance;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final RedisConfig config;
     private final RedisConnectionManager connectionManager;
     private final RedisPubSubManager pubSubManager;
@@ -34,7 +35,7 @@ public class RedisManager {
     private final Executor asyncExecutor;
     private boolean initialized = false;
 
-    private RedisManager(ExyliaPlugin plugin, RedisConfig config) {
+    private RedisManager(JavaPlugin plugin, RedisConfig config) {
         this.plugin = plugin;
         this.config = config;
         this.connectionManager = new RedisConnectionManager(config);
@@ -48,7 +49,7 @@ public class RedisManager {
         });
     }
 
-    public static synchronized void start(ExyliaPlugin plugin, RedisConfig config) {
+    public static synchronized void start(JavaPlugin plugin, RedisConfig config) {
         if (instance != null) {
             logInternalError("RedisManager ya está inicializado!");
             return;

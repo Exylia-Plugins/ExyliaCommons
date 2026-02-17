@@ -54,7 +54,7 @@ public abstract class VisualInstance<T extends VisualConfig> {
         return System.currentTimeMillis() - createdAt;
     }
 
-    protected void render() {
+    public void render() {
         renderer.render(player, config, context);
     }
 }

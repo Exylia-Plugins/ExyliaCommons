@@ -7,6 +7,7 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.discord.config.DiscordConfig;
 import net.exylia.commons.v2.discord.exception.WebhookException;
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.discord.model.WebhookEmbed;
 import net.exylia.commons.v2.discord.model.WebhookField;
 import net.exylia.commons.v2.discord.model.WebhookTemplate;
@@ -55,6 +56,7 @@ public class WebhookManager {
     }
 
     public void initialize(JavaPlugin plugin, String configPath) {
+        ConfigSchemaRegistry.ensureDefaults(DiscordConfig.class);
         this.plugin = plugin;
         this.configPath = configPath;
         loadTemplates();

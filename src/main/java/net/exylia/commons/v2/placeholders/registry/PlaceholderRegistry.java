@@ -33,6 +33,7 @@ public class PlaceholderRegistry {
     private final Map<String, GlobalPlaceholderResolver> globalResolvers = new ConcurrentHashMap<>();
     private final Map<String, PlayerPlaceholderResolver> playerResolvers = new ConcurrentHashMap<>();
     private final Map<String, ContextPlaceholderResolver> contextResolvers = new ConcurrentHashMap<>();
+    private final List<PlaceholderResolver> argumentResolvers = new ArrayList<>();
 
     private final PlaceholderAnnotationScanner scanner;
     private boolean initialized = false;
@@ -88,10 +89,14 @@ public class PlaceholderRegistry {
         PlaceholderScope scope = annotation.scope();
 
         DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-            String.format("Registering placeholder '%s' with scope: %s", name, scope));
+            String.format("Registering placeholder '%s' with scope: %s, hasArgument: %s", name, scope, annotation.hasArgument() || name.endsWith("_*")));
 
         PlaceholderResolver resolver = new PlaceholderResolver(name, method, instance, annotation);
         resolvers.put(name, resolver);
+
+        if (resolver.hasArgument()) {
+            argumentResolvers.add(resolver);
+        }
 
         switch (scope) {
             case GLOBAL:
@@ -164,6 +169,15 @@ public class PlaceholderRegistry {
             return result;
         }
 
+        for (PlaceholderResolver resolver : argumentResolvers) {
+            if (resolver.matches(key)) {
+                String argument = resolver.extractArgument(key);
+                Object result = safeResolve(() -> resolver.resolve(player, context, argument), key);
+                logResolveSuccess(key, "argument-resolver(" + resolver.getName() + ")", System.nanoTime() - startTime);
+                return result;
+            }
+        }
+
         try {
             PapiAdapter papiAdapter = PapiAdapter.getInstance();
             if (papiAdapter != null && !papiAdapter.canResolvePlaceholder(key)) {
@@ -201,6 +215,13 @@ public class PlaceholderRegistry {
         GlobalPlaceholderResolver globalResolver = globalResolvers.get(key);
         if (globalResolver != null) {
             return asyncExecutor.executeAsyncPlaceholder(globalResolver::resolve);
+        }
+
+        for (PlaceholderResolver resolver : argumentResolvers) {
+            if (resolver.matches(key)) {
+                String argument = resolver.extractArgument(key);
+                return asyncExecutor.executeAsyncPlaceholder(() -> resolver.resolve(player, context, argument));
+            }
         }
 
         return CompletableFuture.completedFuture(null);
@@ -249,6 +270,7 @@ public class PlaceholderRegistry {
         globalResolvers.clear();
         playerResolvers.clear();
         contextResolvers.clear();
+        argumentResolvers.clear();
         DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry shutdown complete");
     }
 

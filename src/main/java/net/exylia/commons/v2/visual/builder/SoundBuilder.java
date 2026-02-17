@@ -4,13 +4,21 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
+import org.bukkit.Keyed;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
+    private static final Map<String, Sound> SOUND_CACHE = new ConcurrentHashMap<>();
+    private static volatile boolean cacheInitialized = false;
+
     private Sound sound;
     private float volume = 1.0f;
     private float pitch = 1.0f;
@@ -30,12 +38,79 @@ public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
     }
 
     public SoundBuilder sound(String soundName) {
-        try {
-            this.sound = Sound.valueOf(soundName.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        this.sound = resolveSound(soundName);
+        if (this.sound == null) {
             throw new IllegalArgumentException("Invalid sound name: " + soundName);
         }
         return this;
+    }
+
+    private Sound resolveSound(String soundName) {
+        Sound result = tryRegistryLookup(soundName);
+        if (result != null) return result;
+
+        result = tryEnumValueOf(soundName);
+        if (result != null) return result;
+
+        result = tryRegistrySearch(soundName);
+        if (result != null) return result;
+
+        return null;
+    }
+
+    private Sound tryRegistryLookup(String soundName) {
+        try {
+            String key = soundName.toLowerCase();
+            if (!key.contains(":")) {
+                key = "minecraft:" + key;
+            }
+            String[] parts = key.split(":", 2);
+            NamespacedKey namespacedKey = new NamespacedKey(parts[0], parts[1]);
+            return Registry.SOUNDS.get(namespacedKey);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Sound tryRegistrySearch(String soundName) {
+        try {
+            initCacheIfNeeded();
+            String normalized = normalize(soundName);
+            return SOUND_CACHE.get(normalized);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String normalize(String name) {
+        return name.toLowerCase().replace("_", "").replace(".", "").replace(":", "");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void initCacheIfNeeded() {
+        if (cacheInitialized) return;
+        synchronized (SOUND_CACHE) {
+            if (cacheInitialized) return;
+            try {
+                Iterable<? extends Keyed> sounds = (Iterable<? extends Keyed>) Registry.SOUNDS;
+                for (Keyed keyed : sounds) {
+                    SOUND_CACHE.put(normalize(keyed.getKey().getKey()), (Sound) keyed);
+                }
+            } catch (Exception ignored) {}
+            cacheInitialized = true;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Sound tryEnumValueOf(String soundName) {
+        try {
+            Class<?> soundClass = Sound.class;
+            if (!soundClass.isEnum()) return null;
+            String enumName = soundName.toUpperCase().replace(".", "_").replace(":", "_");
+            return (Sound) Enum.valueOf((Class<Enum>) soundClass, enumName);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public SoundBuilder volume(float volume) {

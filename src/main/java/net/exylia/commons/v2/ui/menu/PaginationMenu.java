@@ -10,6 +10,7 @@ import net.exylia.commons.v2.ui.animation.AnimationExecutor;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.NavigationData;
+import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
 import net.exylia.commons.v2.ui.pagination.PaginationTracker;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -56,16 +57,18 @@ public class PaginationMenu extends MenuBase {
     }
 
     private void applyPaginationItems() {
-        if (!menuData.hasPagination()) {
+        List<Integer> slots = menuData.getPaginationSlots();
+        if (slots.isEmpty()) {
             return;
         }
 
         int currentPage = getCurrentPage();
-        List<Integer> slots = menuData.getPaginationSlots();
         List<ItemData> allItems = menuData.getPaginationItems();
 
         int itemsPerPage = slots.size();
-        List<ItemData> pageItems = PageCalculator.getPageItems(allItems, currentPage, itemsPerPage);
+        List<ItemData> pageItems = allItems.isEmpty()
+                ? List.of()
+                : PageCalculator.getPageItems(allItems, currentPage, itemsPerPage);
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Applying pagination items for menu " + menuId + ": page " + currentPage + ", displaying " + pageItems.size() + " items");
 
@@ -181,27 +184,31 @@ public class PaginationMenu extends MenuBase {
         itemsBySlot.clear();
         populateItems();
 
-        if (inventory != null) {
-            AnimationSettings animSettings = menuData.getAnimationSettings();
-            if (animSettings != null && animSettings.hasPageAnimation()) {
-                AnimationExecutor.executeWithTransition(
-                        inventory,
-                        oldItems,
-                        itemsBySlot,
-                        animSettings.getPageAnimation(),
-                        animSettings.getSpeed(),
-                        animationCancelFlag
-                );
-            } else {
-                inventory.clear();
-                itemsBySlot.forEach((slot, item) -> {
-                    if (slot >= 0 && slot < inventory.getSize()) {
-                        inventory.setItem(slot, item.getItemStack());
-                    }
-                });
-            }
-            player.updateInventory();
+        if (inventory == null) {
+            return;
         }
+
+        InventoryTitleUpdater.updateTitle(player, inventory, processPaginationTitle(menuData.getTitle()));
+
+        AnimationSettings animSettings = menuData.getAnimationSettings();
+        if (animSettings != null && animSettings.hasPageAnimation()) {
+            AnimationExecutor.executeWithTransition(
+                    inventory,
+                    oldItems,
+                    itemsBySlot,
+                    animSettings.getPageAnimation(),
+                    animSettings.getSpeed(),
+                    animationCancelFlag
+            );
+        } else {
+            inventory.clear();
+            itemsBySlot.forEach((slot, item) -> {
+                if (slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, item.getItemStack());
+                }
+            });
+        }
+        player.updateInventory();
     }
 
     private net.kyori.adventure.text.Component processPaginationTitle(String title) {

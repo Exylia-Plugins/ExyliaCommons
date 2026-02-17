@@ -8,6 +8,7 @@ import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.model.SectionData;
+import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
 import net.exylia.commons.v2.ui.pagination.PaginationTracker;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -103,6 +104,7 @@ public class MultiPaginationMenu extends MenuBase {
             int totalPages = section.getTotalPages(allItems.size());
 
             PlaceholderContext itemContext = context.copy()
+                    .merge(itemData.getContext())
                     .put("index", globalIndex)
                     .put("page_index", i)
                     .put("section_name", section.getName())
@@ -111,21 +113,36 @@ public class MultiPaginationMenu extends MenuBase {
                     .put("current_page", currentPage)
                     .put("total_pages", totalPages);
 
-            ItemData enhancedItemData = itemData.toBuilder()
-                    .context(itemContext)
-                    .build();
-
             Integer selectedIndex = PaginationTracker.getSelectedIndex(player.getUniqueId(), section.getName());
-            if (selectedIndex != null && selectedIndex == globalIndex && section.hasSelectedTemplate()) {
-                ItemData selectedTemplate = section.getSelectedItemTemplate().toBuilder()
-                        .context(itemContext)
-                        .build();
+            boolean isSelected = selectedIndex != null && selectedIndex == globalIndex;
 
-                setItem(slot, selectedTemplate);
+            if (isSelected && section.hasSelectedTemplate()) {
+                ItemData selectedTemplate = section.resolveSelectedTemplate();
+                setItem(slot, applyTemplate(selectedTemplate, itemData, itemContext));
+            } else if (itemData.getTemplateKey() != null && section.hasTemplate(itemData.getTemplateKey())) {
+                ItemData template = section.getTemplate(itemData.getTemplateKey());
+                setItem(slot, applyTemplate(template, itemData, itemContext));
             } else {
-                setItem(slot, enhancedItemData);
+                setItem(slot, itemData.toBuilder().context(itemContext).build());
             }
         }
+    }
+
+    private ItemData applyTemplate(ItemData template, ItemData sourceItem, PlaceholderContext itemContext) {
+        PlaceholderContext mergedContext = itemContext.copy()
+                .merge(template.getContext());
+
+        ItemData.ItemDataBuilder builder = template.toBuilder()
+                .context(mergedContext);
+
+        if (!sourceItem.getActions().isEmpty()) {
+            builder.actions(sourceItem.getActions());
+        }
+        if (!sourceItem.getCommands().isEmpty()) {
+            builder.commands(sourceItem.getCommands());
+        }
+
+        return builder.build();
     }
 
     private void applySectionNavigation(SectionData section) {
@@ -229,32 +246,44 @@ public class MultiPaginationMenu extends MenuBase {
         refresh();
     }
 
-    private void refresh() {
+    public void updateSectionItems(String sectionName, List<ItemData> items) {
+        SectionData section = getSection(sectionName);
+        if (section != null) {
+            section.setItems(items);
+        }
+    }
+
+    public void refresh() {
         Map<Integer, ProcessedItem> oldItems = new HashMap<>(itemsBySlot);
         itemsBySlot.clear();
         populateItems();
 
-        if (inventory != null) {
-            AnimationSettings animSettings = menuData.getAnimationSettings();
-            if (animSettings != null && animSettings.hasPageAnimation()) {
-                AnimationExecutor.executeWithTransition(
-                        inventory,
-                        oldItems,
-                        itemsBySlot,
-                        animSettings.getPageAnimation(),
-                        animSettings.getSpeed(),
-                        animationCancelFlag
-                );
-            } else {
-                inventory.clear();
-                itemsBySlot.forEach((slot, item) -> {
-                    if (slot >= 0 && slot < inventory.getSize()) {
-                        inventory.setItem(slot, item.getItemStack());
-                    }
-                });
-            }
-            player.updateInventory();
+        if (inventory == null) {
+            return;
         }
+
+        String processedTitle = processTitle(menuData.getTitle());
+        InventoryTitleUpdater.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
+
+        AnimationSettings animSettings = menuData.getAnimationSettings();
+        if (animSettings != null && animSettings.hasPageAnimation()) {
+            AnimationExecutor.executeWithTransition(
+                    inventory,
+                    oldItems,
+                    itemsBySlot,
+                    animSettings.getPageAnimation(),
+                    animSettings.getSpeed(),
+                    animationCancelFlag
+            );
+        } else {
+            inventory.clear();
+            itemsBySlot.forEach((slot, item) -> {
+                if (slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, item.getItemStack());
+                }
+            });
+        }
+        player.updateInventory();
     }
 
     private int getSectionPage(String sectionName) {

@@ -6,7 +6,6 @@ import java.util.concurrent.TimeUnit;
 
 @Getter
 public enum CacheStrategy {
-    LOCATION_CACHE(2, TimeUnit.SECONDS, 10_000),
     FLAG_CACHE(5, TimeUnit.SECONDS, 50_000),
     PLAYER_STATE_CACHE(10, TimeUnit.MINUTES, 5_000);
 

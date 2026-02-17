@@ -9,6 +9,7 @@ import net.exylia.commons.database.adapters.DatabaseAdapter;
 import net.exylia.commons.database.annotations.Table;
 import net.exylia.commons.database.exceptions.DatabaseException;
 import net.exylia.commons.database.repository.Repository;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -27,13 +28,13 @@ import static net.exylia.commons.utils.DebugUtils.logInternalWarn;
 @Deprecated
 public class DatabaseExportImportManager {
 
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final DatabaseManager databaseManager;
     private final Gson gson;
     @Getter
     private final Path exportDirectory;
 
-    public DatabaseExportImportManager(ExyliaPlugin plugin, DatabaseManager databaseManager) {
+    public DatabaseExportImportManager(JavaPlugin plugin, DatabaseManager databaseManager) {
         this.plugin = plugin;
         this.databaseManager = databaseManager;
         this.gson = new GsonBuilder()

@@ -14,6 +14,7 @@ import net.exylia.commons.database.serialization.EnumSafetyHandler;
 import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.file.FileConfiguration;
 import net.exylia.commons.database.repository.Repository.SortOrder;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Field;
 import java.sql.*;
@@ -27,11 +28,11 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class H2Adapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final DatabaseErrorHandler errorHandler;
     private HikariDataSource dataSource;
 
-    public H2Adapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
+    public H2Adapter(FileConfiguration config, JavaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
         this.errorHandler = errorHandler;

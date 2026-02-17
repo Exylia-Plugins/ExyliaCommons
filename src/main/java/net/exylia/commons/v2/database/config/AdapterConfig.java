@@ -85,14 +85,10 @@ public class AdapterConfig {
         }
 
         if (plugin != null) {
-            File dataFolder = new File(plugin.getDataFolder(), "data");
-            if (!dataFolder.exists()) {
-                dataFolder.mkdirs();
-            }
-            return new File(dataFolder, "database").getAbsolutePath();
+            return new File(plugin.getDataFolder(), "database").getAbsolutePath();
         }
 
-        return "./data/database";
+        return "./database";
     }
 
     private String resolvePlaceholders(String path, Plugin plugin) {

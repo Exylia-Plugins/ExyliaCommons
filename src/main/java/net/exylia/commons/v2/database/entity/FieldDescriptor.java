@@ -1,11 +1,12 @@
 package net.exylia.commons.v2.database.entity;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonPrimitive;
 import lombok.Getter;
 import net.exylia.commons.v2.database.annotation.Column;
 import net.exylia.commons.v2.database.annotation.SerializationType;
-import net.exylia.commons.v2.database.serialization.Deserializer;
-import net.exylia.commons.v2.database.serialization.Serializer;
 import net.exylia.commons.v2.database.serialization.SerializationRegistry;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
@@ -14,15 +15,20 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
-import java.util.Base64;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.*;
 
 @Getter
 public class FieldDescriptor {
+
+    private static final Gson GSON = new Gson();
 
     private final String fieldName;
     private final String columnName;
     private final Field field;
     private final Class<?> type;
+    private final Class<?> elementType;
 
     private final boolean primaryKey;
     private final boolean autoIncrement;
@@ -38,6 +44,7 @@ public class FieldDescriptor {
         this.field = field;
         this.fieldName = field.getName();
         this.type = field.getType();
+        this.elementType = extractElementType(field);
 
         String colName = column.name();
         this.columnName = colName.isEmpty() ? fieldName : colName;
@@ -55,6 +62,22 @@ public class FieldDescriptor {
         field.setAccessible(true);
     }
 
+    private Class<?> extractElementType(Field field) {
+        Type genericType = field.getGenericType();
+        if (genericType instanceof ParameterizedType) {
+            ParameterizedType pt = (ParameterizedType) genericType;
+            Type[] typeArgs = pt.getActualTypeArguments();
+            if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
+                return (Class<?>) typeArgs[0];
+            }
+        }
+        return null;
+    }
+
+    private boolean isCollection() {
+        return Collection.class.isAssignableFrom(type);
+    }
+
     public Object getValue(Entity entity) {
         try {
             Object value = field.get(entity);
@@ -69,9 +92,14 @@ public class FieldDescriptor {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private String serializeValue(Object value) {
         if (value == null) {
             return null;
+        }
+
+        if (isCollection() && elementType != null) {
+            return serializeCollection((Collection<?>) value);
         }
 
         if (SerializationRegistry.getInstance().hasSerializer(type)) {
@@ -85,7 +113,7 @@ public class FieldDescriptor {
         }
 
         if (serializationType == SerializationType.JSON) {
-            return new Gson().toJson(value);
+            return GSON.toJson(value);
         }
 
         if (serializationType == SerializationType.AUTO) {
@@ -95,6 +123,27 @@ public class FieldDescriptor {
         }
 
         return value.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String serializeCollection(Collection<?> collection) {
+        if (collection == null || collection.isEmpty()) {
+            return null;
+        }
+
+        SerializationRegistry registry = SerializationRegistry.getInstance();
+        if (!registry.hasSerializer(elementType)) {
+            return GSON.toJson(collection);
+        }
+
+        JsonArray jsonArray = new JsonArray();
+        for (Object element : collection) {
+            String serialized = registry.serialize(element, (Class) elementType);
+            if (serialized != null) {
+                jsonArray.add(serialized);
+            }
+        }
+        return GSON.toJson(jsonArray);
     }
 
     private String serializeItemStackArray(ItemStack[] items) {
@@ -132,9 +181,14 @@ public class FieldDescriptor {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Object deserializeValue(String value) {
         if (value == null || value.isEmpty()) {
             return null;
+        }
+
+        if (isCollection() && elementType != null) {
+            return deserializeCollection(value);
         }
 
         if (SerializationRegistry.getInstance().hasDeserializer(type)) {
@@ -148,7 +202,7 @@ public class FieldDescriptor {
         }
 
         if (serializationType == SerializationType.JSON) {
-            return new Gson().fromJson(value, type);
+            return GSON.fromJson(value, type);
         }
 
         if (serializationType == SerializationType.AUTO) {
@@ -158,6 +212,42 @@ public class FieldDescriptor {
         }
 
         return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collection<?> deserializeCollection(String value) {
+        SerializationRegistry registry = SerializationRegistry.getInstance();
+
+        if (!registry.hasDeserializer(elementType)) {
+            return GSON.fromJson(value, (Type) type);
+        }
+
+        Collection<Object> collection = createCollectionInstance();
+
+        try {
+            JsonArray jsonArray = GSON.fromJson(value, JsonArray.class);
+            for (JsonElement element : jsonArray) {
+                String elementStr = element.getAsString();
+                Object deserialized = registry.deserialize(elementStr, (Class) elementType);
+                if (deserialized != null) {
+                    collection.add(deserialized);
+                }
+            }
+        } catch (Exception e) {
+            return collection;
+        }
+
+        return collection;
+    }
+
+    private Collection<Object> createCollectionInstance() {
+        if (List.class.isAssignableFrom(type)) {
+            return new ArrayList<>();
+        } else if (Set.class.isAssignableFrom(type)) {
+            return new HashSet<>();
+        } else {
+            return new ArrayList<>();
+        }
     }
 
     private ItemStack[] deserializeItemStackArray(String value) {

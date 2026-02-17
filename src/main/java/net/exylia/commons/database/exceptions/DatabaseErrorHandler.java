@@ -2,14 +2,16 @@ package net.exylia.commons.database.exceptions;
 
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.utils.DebugUtils;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import java.util.logging.Level;
 
 @Deprecated
 public class DatabaseErrorHandler {
 
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
 
-    public DatabaseErrorHandler(ExyliaPlugin plugin) {
+    public DatabaseErrorHandler(JavaPlugin plugin) {
         this.plugin = plugin;
     }
 

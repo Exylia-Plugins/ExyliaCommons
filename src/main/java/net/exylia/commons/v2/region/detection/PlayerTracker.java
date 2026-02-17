@@ -61,22 +61,21 @@ public class PlayerTracker {
     public static class PlayerMovementState {
         private volatile Location lastLocation;
         private volatile List<Region> currentRegions;
+        private volatile Set<Region> currentRegionSet;
         private volatile long lastUpdate;
 
         public PlayerMovementState(Location location, List<Region> regions) {
-            this.lastLocation = location.clone();
-            this.currentRegions = new ArrayList<>(regions);
+            this.lastLocation = location;
+            this.currentRegions = List.copyOf(regions);
+            this.currentRegionSet = Set.copyOf(regions);
             this.lastUpdate = System.currentTimeMillis();
         }
 
         public void update(Location location, List<Region> regions) {
-            this.lastLocation = location.clone();
-            this.currentRegions = new ArrayList<>(regions);
+            this.lastLocation = location;
+            this.currentRegions = List.copyOf(regions);
+            this.currentRegionSet = Set.copyOf(regions);
             this.lastUpdate = System.currentTimeMillis();
-        }
-
-        public Set<Region> getCurrentRegionsAsSet() {
-            return new LinkedHashSet<>(currentRegions);
         }
 
         public long getTimeSinceUpdate() {

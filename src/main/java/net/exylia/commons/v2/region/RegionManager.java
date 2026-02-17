@@ -58,12 +58,17 @@ public class RegionManager implements Listener {
         this.spatialIndex = new SpatialIndex();
         this.cacheManager = new RegionCacheManager(spatialIndex);
         this.playerTracker = new PlayerTracker();
-        this.movementDetector = new MovementDetector(cacheManager, playerTracker);
+        this.movementDetector = new MovementDetector(spatialIndex, playerTracker);
 
         PlayerBlockTracker.initialize(plugin);
         TemporaryBlockManager.initialize(plugin);
         SelectionManager.initialize(plugin);
-        SchematicManager.initialize(plugin);
+
+        if (isWorldEditAvailable()) {
+            SchematicManager.initialize(plugin);
+        } else {
+            logInternalInfo("WorldEdit/FAWE not found - SchematicManager disabled");
+        }
 
         this.regionListener = new RegionListener(plugin, this);
         SelectionListener selectionListener = new SelectionListener(plugin, SelectionManager.getInstance());
@@ -207,8 +212,8 @@ public class RegionManager implements Listener {
             return true;
         }
 
-        Set<Region> enterRegions = result.getEnterRegions();
-        Set<Region> exitRegions = result.getExitRegions();
+        List<Region> enterRegions = result.getEnterRegions();
+        List<Region> exitRegions = result.getExitRegions();
 
         for (Region region : exitRegions) {
             if (!canPlayerExitRegion(player, region, from, to)) {
@@ -372,7 +377,12 @@ public class RegionManager implements Listener {
         PlayerBlockTracker.getInstance().cleanup();
         TemporaryBlockManager.getInstance().shutdown();
         SelectionManager.getInstance().cleanupAll();
-        SchematicManager.getInstance().unloadAllSchematics();
+
+        if (isWorldEditAvailable()) {
+            try {
+                SchematicManager.getInstance().unloadAllSchematics();
+            } catch (IllegalStateException ignored) {}
+        }
 
         regions.clear();
         playerRegions.clear();
@@ -389,5 +399,10 @@ public class RegionManager implements Listener {
         stats.put("cache", cacheManager.getStats());
         stats.put("movement_detector", movementDetector.getStats());
         return stats;
+    }
+
+    private static boolean isWorldEditAvailable() {
+        return Bukkit.getPluginManager().getPlugin("WorldEdit") != null
+                || Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
     }
 }

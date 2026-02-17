@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.builder;
 
+import net.exylia.commons.v2.visual.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
@@ -172,7 +173,7 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
             errors.add("Location must be specified when scope is LOCATION");
         }
 
-        if (particle == Particle.REDSTONE && color == null) {
+        if (ParticleCompat.isDustParticle(particle) && color == null) {
             errors.add("Color must be specified for DUST particle");
         }
 

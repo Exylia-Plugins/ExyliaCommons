@@ -7,7 +7,9 @@ import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.model.ItemData;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder(toBuilder = true)
@@ -29,6 +31,9 @@ public class SectionData {
 
     private ItemData selectedItemTemplate;
 
+    @Builder.Default
+    private Map<String, ItemData> templates = new HashMap<>();
+
     public int getItemsPerPage() {
         return slots.size();
     }
@@ -49,13 +54,31 @@ public class SectionData {
     }
 
     public boolean hasSelectedTemplate() {
-        return selectedItemTemplate != null;
+        return selectedItemTemplate != null || templates.containsKey("selected");
+    }
+
+    public ItemData getTemplate(String key) {
+        return templates.get(key);
+    }
+
+    public boolean hasTemplate(String key) {
+        return templates.containsKey(key);
+    }
+
+    public ItemData resolveSelectedTemplate() {
+        if (selectedItemTemplate != null) return selectedItemTemplate;
+        return templates.get("selected");
     }
 
     public SectionData copy() {
         List<ItemData> copiedItems = new ArrayList<>();
         for (ItemData item : items) {
             copiedItems.add(item != null ? item.copy() : null);
+        }
+
+        Map<String, ItemData> copiedTemplates = new HashMap<>();
+        for (Map.Entry<String, ItemData> entry : templates.entrySet()) {
+            copiedTemplates.put(entry.getKey(), entry.getValue().copy());
         }
 
         return SectionData.builder()
@@ -65,6 +88,7 @@ public class SectionData {
                 .navigation(navigation != null ? navigation.copy() : null)
                 .fillerItem(fillerItem != null ? fillerItem.copy() : null)
                 .selectedItemTemplate(selectedItemTemplate != null ? selectedItemTemplate.copy() : null)
+                .templates(copiedTemplates)
                 .build();
     }
 }

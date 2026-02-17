@@ -9,6 +9,7 @@ import net.exylia.commons.v2.database.cache.CacheStrategy;
 import net.exylia.commons.v2.database.config.DatabaseConfig;
 import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.database.entity.Entity;
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.exception.ConnectionException;
 import net.exylia.commons.v2.database.repository.Repository;
@@ -56,6 +57,7 @@ public class DatabaseManager {
             }
 
             try {
+                ConfigSchemaRegistry.ensureDefaults(DatabaseDefaults.class);
                 DatabaseConfig dbConfig = new DatabaseConfig(configFile, plugin);
                 DatabaseAdapter dbAdapter = createAdapter(dbConfig);
                 dbAdapter.connect();

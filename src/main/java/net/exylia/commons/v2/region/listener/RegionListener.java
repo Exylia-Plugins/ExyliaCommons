@@ -5,6 +5,7 @@ import net.exylia.commons.v2.region.blocks.PlayerBlockTracker;
 import net.exylia.commons.v2.region.blocks.TemporaryBlockManager;
 import net.exylia.commons.v2.region.model.RegionFlag;
 import net.exylia.commons.v2.region.model.Region;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.EntityType;
@@ -72,10 +73,13 @@ public class RegionListener implements Listener {
         if (regions.isEmpty()) {
             return;
         }
-
-        Region region = regions.get(0);
-
+        Region region = regions.getFirst();
         if (!region.getFlagValue(RegionFlag.BREAK)) {
+            if (region.getFlagValue(RegionFlag.BREAKABLE_BLOCKS_ONLY)
+                    && region.isBreakableMaterial(event.getBlock().getType())) {
+                event.setCancelled(false);
+                return;
+            }
             if (!player.hasPermission("exylia.region.bypass.break") && !region.isOwner(player.getUniqueId())) {
                 event.setCancelled(true);
                 return;

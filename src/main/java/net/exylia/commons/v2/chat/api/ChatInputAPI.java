@@ -3,6 +3,7 @@ package net.exylia.commons.v2.chat.api;
 import net.exylia.commons.v2.chat.config.ChatInputConfig;
 import net.exylia.commons.v2.chat.core.ChatInputManager;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.function.Consumer;
 
@@ -10,6 +11,10 @@ public final class ChatInputAPI {
 
     private ChatInputAPI() {
         throw new UnsupportedOperationException("Utility class");
+    }
+
+    public static void init(Plugin pluginInstance) {
+        ChatInputManager.init(pluginInstance);
     }
 
     public static void ask(Player player, String prompt, Consumer<String> callback) {

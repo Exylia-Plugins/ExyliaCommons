@@ -10,6 +10,13 @@ version = '1.0.0'
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri('https://maven.pkg.github.com/KasperiP/lukittu-loader')
+        credentials {
+            username = providers.gradleProperty('gpr.user').orNull ?: System.getenv('GITHUB_ACTOR') ?: ''
+            password = providers.gradleProperty('gpr.key').orNull ?: System.getenv('GITHUB_TOKEN') ?: ''
+        }
+    }
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url 'https://jitpack.io' }
     maven { url 'https://oss.sonatype.org/content/groups/public/' }
@@ -19,6 +26,7 @@ repositories {
     maven { url "https://repo.codemc.org/repository/maven-public/" }
     maven { url "https://repository.minecodes.pl/releases" }
     maven { url "https://maven.devs.beer/" }
+    maven { url 'https://repo.rosewooddev.io/repository/public/' }
     maven {
         name = "minecraft-libraries"
         url = uri("https://libraries.minecraft.net")
@@ -63,11 +71,23 @@ dependencies {
     implementation 'com.github.lalyos:jfiglet:0.0.9'
     implementation 'com.hapangama:SunLicenseAPI:1.0.3'
 
+    compileOnly 'de.exlll:configlib-yaml:4.8.0'
+    compileOnly 'com.lukittu.loader:lukittu-common:v1.0.7'
+    compileOnly 'com.lukittu.loader:lukittu-spigot:v1.0.7'
+
     compileOnly 'com.github.UlrichBR:UClans-API:8.15.6'
     compileOnly "net.sacredlabyrinth.phaed.simpleclans:SimpleClans:2.19.2"
     compileOnly('com.github.cryptomorin:kingdoms:1.17.18.1-BETA') {
         transitive = false
     }
+
+
+    compileOnly 'com.github.timderspieler:DeluxeCombat-API:1.5.1'
+    compileOnly 'me.chancesd.pvpmanager:pvpmanager:4.0.4'
+
+
+
+    compileOnly 'org.black_ixx:playerpoints:3.2.7'
 }
 
 java {

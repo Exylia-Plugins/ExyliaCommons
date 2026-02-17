@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.visual.renderer;
 
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.visual.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -26,7 +27,7 @@ public class ParticleRenderer implements VisualRenderer<ParticleConfig> {
         Location location = determineLocation(player, config);
         Collection<Player> targets = determineTargets(player, config);
 
-        if (config.getParticle() == Particle.REDSTONE && config.getColor() != null) {
+        if (ParticleCompat.isDustParticle(config.getParticle()) && config.getColor() != null) {
             Particle.DustOptions dustOptions = new Particle.DustOptions(
                     org.bukkit.Color.fromRGB(
                             config.getColor().getRed(),

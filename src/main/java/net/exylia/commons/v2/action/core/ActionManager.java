@@ -98,6 +98,7 @@ public class ActionManager {
         pipeline.registerMiddleware(PipelineStage.PRE_EXECUTE, new CooldownMiddleware(cooldownManager));
         pipeline.registerMiddleware(PipelineStage.PRE_EXECUTE, new RateLimitMiddleware(rateLimiter));
 
+        pipeline.registerMiddleware(PipelineStage.POST_EXECUTE, new CooldownApplyMiddleware(cooldownManager));
         pipeline.registerMiddleware(PipelineStage.POST_EXECUTE, new LoggingMiddleware(auditLogger));
 
         DebugAPI.logLibDebug(DebugCategory.ACTION, "Default middlewares initialized");

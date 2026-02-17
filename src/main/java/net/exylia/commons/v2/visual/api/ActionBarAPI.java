@@ -140,6 +140,17 @@ public final class ActionBarAPI {
         return ActionBarBuilder.create();
     }
 
+    public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context) {
+        ActionBarConfig config = ActionBarBuilder.create()
+                .text(text)
+                .permanent()
+                .build();
+
+        VisualManager.getInstance().sendOrUpdateContinuous(
+                player, key, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR
+        );
+    }
+
     public static boolean cancel(Player player, String actionBarId) {
         return VisualManager.getInstance().cancel(player.getUniqueId(), actionBarId);
     }

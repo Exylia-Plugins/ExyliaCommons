@@ -90,6 +90,7 @@ public class InteractiveItem {
 
         initializeUses();
         initializeExpiration();
+        applyItemPlaceholders(null);
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -107,6 +108,7 @@ public class InteractiveItem {
 
         initializeUses();
         initializeExpiration();
+        applyItemPlaceholders(player);
 
         if (config.getAmount() > 1) {
             this.itemStack.setAmount(config.getAmount());
@@ -381,6 +383,38 @@ public class InteractiveItem {
         ExyliaContext commandContext = context.copy().add(this);
         if (placeholderPlayer != null) commandContext.add(placeholderPlayer);
         CommandAPI.executeAll(player,getCommands(), context.toPlaceholderContext());
+    }
+
+    private void applyItemPlaceholders(Player player) {
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        boolean changed = false;
+
+        String rawName = getRawName();
+        if (rawName != null && ItemPlaceholderUtils.containsItemPlaceholders(rawName)) {
+            String processedName = ItemPlaceholderUtils.processAllItemPlaceholders(rawName, this, player);
+            adapter.setDisplayName(meta, ColorUtils.parse(processedName));
+            changed = true;
+        }
+
+        List<String> rawLore = getRawLore();
+        if (rawLore != null && !rawLore.isEmpty()) {
+            boolean loreHasPlaceholders = rawLore.stream().anyMatch(ItemPlaceholderUtils::containsItemPlaceholders);
+            if (loreHasPlaceholders) {
+                List<Component> loreComponents = new ArrayList<>();
+                for (String line : rawLore) {
+                    String processedLine = ItemPlaceholderUtils.processAllItemPlaceholders(line, this, player);
+                    loreComponents.add(ColorUtils.parse(processedLine));
+                }
+                adapter.setLore(meta, loreComponents);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            itemStack.setItemMeta(meta);
+        }
     }
 
     private void initializeUses() {

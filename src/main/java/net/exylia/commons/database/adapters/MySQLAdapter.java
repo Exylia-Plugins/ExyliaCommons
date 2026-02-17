@@ -16,6 +16,7 @@ import net.exylia.commons.database.serialization.EnumSafetyHandler;
 import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bukkit.configuration.file.FileConfiguration;
 import net.exylia.commons.database.repository.Repository.SortOrder;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
@@ -31,11 +32,11 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class MySQLAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final DatabaseErrorHandler errorHandler;
     private HikariDataSource dataSource;
 
-    public MySQLAdapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
+    public MySQLAdapter(FileConfiguration config, JavaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
         this.errorHandler = errorHandler;

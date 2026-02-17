@@ -4,6 +4,7 @@ import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.redis.config.RedisConfig;
 import net.exylia.commons.redis.config.RedisConfigManager;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 import static net.exylia.commons.utils.DebugUtils.logInternalError;
@@ -15,9 +16,9 @@ public class RedisIntegration {
     private static boolean autoInitialized = false;
     @Getter
     private static RedisConfigManager configManager;
-    private static ExyliaPlugin currentPlugin;
+    private static JavaPlugin currentPlugin;
 
-    public static void init(ExyliaPlugin plugin) {
+    public static void init(JavaPlugin plugin) {
         currentPlugin = plugin;
 
         if (autoInitialized) {

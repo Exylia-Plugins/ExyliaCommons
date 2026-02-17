@@ -1,7 +1,9 @@
 package net.exylia.commons.v2.visual.color;
 
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
+import net.exylia.commons.v2.visual.config.ColorDefaults;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -44,6 +46,7 @@ public class ColorPresetManager {
             return;
         }
 
+        ConfigSchemaRegistry.ensureDefaults(ColorDefaults.class);
         this.plugin = plugin;
         loadColorPresets();
         this.initialized = true;
@@ -54,6 +57,7 @@ public class ColorPresetManager {
             return;
         }
 
+        ConfigSchemaRegistry.ensureDefaults(ColorDefaults.class);
         this.plugin = plugin;
 
         if (customPresets != null && !customPresets.isEmpty()) {

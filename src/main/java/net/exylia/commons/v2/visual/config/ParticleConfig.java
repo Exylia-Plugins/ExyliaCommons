@@ -2,6 +2,7 @@ package net.exylia.commons.v2.visual.config;
 
 import lombok.Builder;
 import lombok.Getter;
+import net.exylia.commons.v2.visual.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -45,7 +46,7 @@ public class ParticleConfig extends VisualConfig {
             errors.add("Location must be specified when scope is LOCATION");
         }
 
-        if (particle == Particle.REDSTONE && color == null) {
+        if (ParticleCompat.isDustParticle(particle) && color == null) {
             errors.add("Color must be specified for DUST particle");
         }
 

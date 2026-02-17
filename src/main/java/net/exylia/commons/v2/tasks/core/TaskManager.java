@@ -6,7 +6,9 @@ import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.tasks.builder.TaskBuilder;
 import net.exylia.commons.v2.tasks.builder.TaskChainBuilder;
 import net.exylia.commons.v2.tasks.config.TaskConfig;
+import net.exylia.commons.v2.tasks.config.TasksDefaults;
 import net.exylia.commons.v2.tasks.model.TaskCategory;
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.tasks.model.TaskPriority;
 import net.exylia.commons.v2.tasks.model.TaskResult;
 import net.exylia.commons.v2.tasks.scheduler.BukkitServerScheduler;
@@ -55,6 +57,7 @@ public class TaskManager {
 
     public static synchronized void initialize(Plugin plugin, TaskConfig config) {
         if (instance == null) {
+            ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
             instance = new TaskManager(plugin, config);
         }
     }

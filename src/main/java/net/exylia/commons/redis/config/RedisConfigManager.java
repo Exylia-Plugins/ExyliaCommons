@@ -3,6 +3,7 @@ package net.exylia.commons.redis.config;
 import net.exylia.commons.ExyliaPlugin;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,11 +15,11 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class RedisConfigManager {
 
     private static final String CONFIG_FILE_NAME = "redis.yml";
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final File configFile;
     private FileConfiguration config;
 
-    public RedisConfigManager(ExyliaPlugin plugin) {
+    public RedisConfigManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.configFile = new File(plugin.getDataFolder(), CONFIG_FILE_NAME);
     }
@@ -180,7 +181,7 @@ public class RedisConfigManager {
         return configFile;
     }
 
-    public ExyliaPlugin getPlugin() {
+    public JavaPlugin getPlugin() {
         return plugin;
     }
 }

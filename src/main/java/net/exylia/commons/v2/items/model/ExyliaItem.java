@@ -91,7 +91,7 @@ public abstract class ExyliaItem {
     }
 
     private void processName(Player player) {
-        String rawName = itemData.getRawDisplayName() != null ? itemData.getRawDisplayName() : itemData.getRawName();
+        String rawName = itemData.getRawName() != null ? itemData.getRawName() : itemData.getRawDisplayName();
         if (rawName == null) {
             return;
         }

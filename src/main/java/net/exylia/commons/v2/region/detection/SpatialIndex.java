@@ -101,15 +101,32 @@ public class SpatialIndex {
             return Collections.emptyList();
         }
 
-        List<Region> result = new ArrayList<>();
+        Region single = null;
+        List<Region> result = null;
+
         for (Region region : candidateRegions) {
             if (region.contains(location)) {
-                result.add(region);
+                if (single == null && result == null) {
+                    single = region;
+                } else {
+                    if (result == null) {
+                        result = new ArrayList<>(4);
+                        result.add(single);
+                        single = null;
+                    }
+                    result.add(region);
+                }
             }
         }
 
-        result.sort((r1, r2) -> r2.getPriority().getLevel() - r1.getPriority().getLevel());
-        return result;
+        if (result != null) {
+            result.sort((r1, r2) -> r2.getPriority().getLevel() - r1.getPriority().getLevel());
+            return result;
+        }
+        if (single != null) {
+            return Collections.singletonList(single);
+        }
+        return Collections.emptyList();
     }
 
     public Set<Region> getRegionsInArea(Location corner1, Location corner2) {

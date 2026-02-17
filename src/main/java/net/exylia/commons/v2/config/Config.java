@@ -7,7 +7,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.file.YamlConfigurationOptions;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
+import java.io.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,21 +38,55 @@ public class Config {
     private void load() {
         if (!file.exists()) {
             file.getParentFile().mkdirs();
-            try {
-                String resourcePath = fileName.replace("\\", "/") + ".yml";
-                plugin.saveResource(resourcePath, false);
-            } catch (IllegalArgumentException e) {
-                plugin.getLogger().warning("Config file not found in resources: " + fileName + ".yml");
-                plugin.getLogger().warning("Creating empty config file...");
+            String resourcePath = fileName.replace("\\", "/") + ".yml";
+
+            ClassLoader resourceLoader = Configs.getResourceClassLoader();
+            if (resourceLoader != null) {
+                saveResourceFromClassLoader(resourcePath, resourceLoader);
+            } else {
                 try {
-                    file.createNewFile();
-                } catch (Exception ex) {
-                    throw new RuntimeException("Could not create config file: " + fileName, ex);
+                    plugin.saveResource(resourcePath, false);
+                } catch (IllegalArgumentException e) {
+                    plugin.getLogger().warning("Config file not found in resources: " + fileName + ".yml");
+                    plugin.getLogger().warning("Creating empty config file...");
+                    try {
+                        file.createNewFile();
+                    } catch (Exception ex) {
+                        throw new RuntimeException("Could not create config file: " + fileName, ex);
+                    }
                 }
             }
         }
         config = YamlConfiguration.loadConfiguration(file);
         ((YamlConfigurationOptions) config.options()).width(Integer.MAX_VALUE);
+    }
+
+    private void saveResourceFromClassLoader(String resourcePath, ClassLoader classLoader) {
+        InputStream in = classLoader.getResourceAsStream(resourcePath);
+        if (in == null) {
+            plugin.getLogger().warning("Config file not found in resources: " + resourcePath);
+            plugin.getLogger().warning("Creating empty config file...");
+            try {
+                file.createNewFile();
+            } catch (Exception ex) {
+                throw new RuntimeException("Could not create config file: " + fileName, ex);
+            }
+            return;
+        }
+
+        try (OutputStream out = new FileOutputStream(file)) {
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+        } catch (IOException ex) {
+            plugin.getLogger().severe("Could not save " + file.getName());
+        } finally {
+            try {
+                in.close();
+            } catch (IOException ignored) {}
+        }
     }
 
     public void reload() {

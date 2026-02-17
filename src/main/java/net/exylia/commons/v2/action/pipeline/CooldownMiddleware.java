@@ -17,22 +17,20 @@ public class CooldownMiddleware implements Middleware {
     @Override
     public void execute(Action action, ActionContext context) throws ActionException {
         long cooldownMillis = action.getMetadata().getCooldownMillis();
+        if (cooldownMillis <= 0) return;
 
-        if (cooldownMillis > 0) {
-            UUID playerId = context.getPlayer().getUniqueId();
-            String actionId = action.getMetadata().getFullId();
+        UUID playerId = context.getPlayer().getUniqueId();
+        String actionId = action.getMetadata().getFullId();
 
-            if (cooldownManager.isOnCooldown(playerId, actionId)) {
-                long remaining = cooldownManager.getRemainingMillis(playerId, actionId);
-                DebugAPI.logLibDebug(DebugCategory.ACTION, "Cooldown check failed for " + actionId +
-                        " - player: " + context.getPlayer().getName() + ", remaining: " + remaining + "ms");
-                throw new ActionException.ActionCooldownException(actionId, remaining);
-            }
-
-            cooldownManager.setCooldown(playerId, actionId, cooldownMillis);
-            DebugAPI.logLibDebug(DebugCategory.ACTION, "Cooldown set for " + actionId +
-                    " - player: " + context.getPlayer().getName() + ", duration: " + cooldownMillis + "ms");
+        if (cooldownManager.isOnCooldown(playerId, actionId)) {
+            long remaining = cooldownManager.getRemainingMillis(playerId, actionId);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Cooldown check failed for " + actionId +
+                    " - player: " + context.getPlayer().getName() + ", remaining: " + remaining + "ms");
+            throw new ActionException.ActionCooldownException(actionId, remaining);
         }
+
+        DebugAPI.logLibDebug(DebugCategory.ACTION, "Cooldown validation passed for " + actionId +
+                " - player: " + context.getPlayer().getName());
     }
 
     @Override

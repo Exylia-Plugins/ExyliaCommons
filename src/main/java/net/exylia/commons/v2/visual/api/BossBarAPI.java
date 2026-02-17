@@ -107,6 +107,17 @@ public final class BossBarAPI {
         return BossBarBuilder.create();
     }
 
+    public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context) {
+        BossBarConfig config = BossBarBuilder.create()
+                .text(text)
+                .permanent()
+                .build();
+
+        VisualManager.getInstance().sendOrUpdateContinuous(
+                player, key, config, context, BossBarRenderer.getInstance(), VisualType.BOSSBAR
+        );
+    }
+
     public static boolean cancel(Player player, String bossBarId) {
         boolean cancelled = VisualManager.getInstance().cancel(player.getUniqueId(), bossBarId);
         if (cancelled) {

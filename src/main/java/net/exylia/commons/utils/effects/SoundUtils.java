@@ -5,6 +5,8 @@ import lombok.Data;
 import net.exylia.commons.async.Schedulers;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
@@ -74,9 +76,16 @@ public class SoundUtils {
         float pitch = parts.length > 2 ? parseFloat(parts[2]) : 1.0f;
 
         try {
-            Sound sound = Sound.valueOf(soundName);
+            String key = soundName.toLowerCase().replace("_", ".");
+            if (!key.contains(":")) {
+                key = "minecraft:" + key;
+            }
+            String[] keyParts = key.split(":");
+            NamespacedKey namespacedKey = new NamespacedKey(keyParts[0], keyParts[1]);
+            Sound sound = Registry.SOUNDS.get(namespacedKey);
+            if (sound == null) return null;
             return new SoundData(sound, volume, pitch, scope);
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             return null;
         }
     }

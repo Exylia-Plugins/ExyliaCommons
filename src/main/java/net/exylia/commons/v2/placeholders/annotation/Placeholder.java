@@ -12,4 +12,5 @@ public @interface Placeholder {
     boolean cacheable() default true;
     long cacheTtlMs() default 1000;
     boolean async() default false;
+    boolean hasArgument() default false;
 }

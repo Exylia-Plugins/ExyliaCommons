@@ -16,10 +16,7 @@ import net.exylia.commons.v2.ui.model.SectionData;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
 import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MenuParser {
 
@@ -226,6 +223,15 @@ public class MenuParser {
                     builder.paginationItems(paginationItems);
                 }
 
+                if (paginationSection.contains("item_template")) {
+                    ConfigurationSection templateSection = paginationSection.getConfigurationSection("item_template");
+                    if (templateSection != null) {
+                        ItemData template = ItemsAPI.parseFromConfig(templateSection);
+                        builder.paginationItemTemplate(template);
+                        DebugAPI.logLibDebug(DebugCategory.UI, "Parsed pagination item template");
+                    }
+                }
+
                 if (paginationSection.contains("navigation")) {
                     NavigationData navigationData = parseNavigationData(paginationSection.getConfigurationSection("navigation"));
                     builder.paginationNavigation(navigationData);
@@ -298,6 +304,22 @@ public class MenuParser {
                 ItemData template = ItemsAPI.parseFromConfig(templateSection);
                 builder.selectedItemTemplate(template);
             }
+        }
+
+        Set<String> reservedKeys = Set.of("slots", "items", "navigation", "filler", "selected_template");
+        Map<String, ItemData> templates = new HashMap<>();
+        for (String key : config.getKeys(false)) {
+            if (key.endsWith("_template") && !reservedKeys.contains(key)) {
+                ConfigurationSection templateSection = config.getConfigurationSection(key);
+                if (templateSection != null) {
+                    String templateName = key.substring(0, key.length() - "_template".length());
+                    templates.put(templateName, ItemsAPI.parseFromConfig(templateSection));
+                    DebugAPI.logLibDebug(DebugCategory.UI, "Parsed section template: " + templateName);
+                }
+            }
+        }
+        if (!templates.isEmpty()) {
+            builder.templates(templates);
         }
 
         return builder.build();

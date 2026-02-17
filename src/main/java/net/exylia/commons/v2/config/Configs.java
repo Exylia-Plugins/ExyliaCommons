@@ -14,17 +14,33 @@ import java.util.function.Function;
 
 public class Configs {
     private static JavaPlugin plugin;
+    private static ClassLoader resourceClassLoader;
     private static final Map<String, Config> cache = new ConcurrentHashMap<>();
     private static Config mainConfig;
 
     public static void init(JavaPlugin plugin) {
         Configs.plugin = plugin;
+        Configs.resourceClassLoader = null;
         mainConfig = get("config");
+    }
+
+    public static void init(JavaPlugin plugin, ClassLoader resourceClassLoader) {
+        Configs.plugin = plugin;
+        Configs.resourceClassLoader = resourceClassLoader;
+        mainConfig = get("config");
+    }
+
+    public static ClassLoader getResourceClassLoader() {
+        return resourceClassLoader;
+    }
+
+    public static boolean isInitialized() {
+        return plugin != null;
     }
 
     public static Config get(String fileName) {
         if (plugin == null) {
-            throw new IllegalStateException("Configs not initialized. Call Configs.init(plugin) first.");
+            throw new IllegalStateException("Configs not initialized. Call Configs.init(plugin) first. Stack trace:", new Exception());
         }
         return cache.computeIfAbsent(fileName, name -> new Config(plugin, name));
     }

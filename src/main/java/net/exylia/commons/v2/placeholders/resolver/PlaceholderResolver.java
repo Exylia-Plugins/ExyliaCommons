@@ -11,13 +11,42 @@ public class PlaceholderResolver {
     private final Method method;
     private final Object instance;
     private final Placeholder annotation;
+    private final boolean hasArgument;
+    private final String basePattern;
 
     public PlaceholderResolver(String name, Method method, Object instance, Placeholder annotation) {
         this.name = name;
         this.method = method;
         this.instance = instance;
         this.annotation = annotation;
+        this.hasArgument = annotation.hasArgument() || name.endsWith("_*");
+        this.basePattern = hasArgument ? name.replace("_*", "_") : name;
         this.method.setAccessible(true);
+    }
+
+    public boolean hasArgument() {
+        return hasArgument;
+    }
+
+    public String getBasePattern() {
+        return basePattern;
+    }
+
+    public boolean matches(String placeholderName) {
+        if (!hasArgument) {
+            return name.equalsIgnoreCase(placeholderName);
+        }
+        return placeholderName.toLowerCase().startsWith(basePattern.toLowerCase());
+    }
+
+    public String extractArgument(String placeholderName) {
+        if (!hasArgument) {
+            return null;
+        }
+        if (placeholderName.toLowerCase().startsWith(basePattern.toLowerCase())) {
+            return placeholderName.substring(basePattern.length());
+        }
+        return null;
     }
 
     public String getName() {
@@ -37,6 +66,10 @@ public class PlaceholderResolver {
     }
 
     public Object resolve(Player player, PlaceholderContext context) {
+        return resolve(player, context, null);
+    }
+
+    public Object resolve(Player player, PlaceholderContext context, String argument) {
         try {
             Class<?>[] paramTypes = method.getParameterTypes();
             Object[] args = new Object[paramTypes.length];
@@ -47,6 +80,8 @@ public class PlaceholderResolver {
                     args[i] = player;
                 } else if (paramType == PlaceholderContext.class) {
                     args[i] = context;
+                } else if (paramType == String.class && hasArgument && argument != null) {
+                    args[i] = argument;
                 } else if (context != null) {
                     args[i] = context.find(paramType);
                 }

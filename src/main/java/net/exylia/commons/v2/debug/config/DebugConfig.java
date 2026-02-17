@@ -27,8 +27,12 @@ public class DebugConfig {
     }
 
     public static boolean isEnabled(DebugLevel requiredLevel) {
-        DebugLevel currentLevel = DebugLevel.fromLevel(DebugDefaults.Debug.LEVEL);
-        return currentLevel == DebugLevel.ALL || currentLevel == requiredLevel;
+        try {
+            DebugLevel currentLevel = DebugLevel.fromLevel(DebugDefaults.Debug.LEVEL);
+            return currentLevel == DebugLevel.ALL || currentLevel == requiredLevel;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public static boolean isCategoryAllowed(DebugCategory category) {

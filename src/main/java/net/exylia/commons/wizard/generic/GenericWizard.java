@@ -13,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class GenericWizard implements Listener {
 
     private static GenericWizard instance;
-    private static ExyliaPlugin plugin;
+    private static JavaPlugin plugin;
 
     private final Map<UUID, GenericWizardSession> activeSessions = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastInteractionTime = new ConcurrentHashMap<>();
@@ -30,7 +31,7 @@ public final class GenericWizard implements Listener {
 
     private GenericWizard() {}
 
-    public static void init(ExyliaPlugin pluginInstance) {
+    public static void init(JavaPlugin pluginInstance) {
         if (instance != null) {
             return;
         }

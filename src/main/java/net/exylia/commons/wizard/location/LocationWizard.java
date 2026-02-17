@@ -15,6 +15,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import net.exylia.commons.ExyliaPlugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -24,13 +25,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class LocationWizard implements Listener {
 
     private static LocationWizard instance;
-    private static ExyliaPlugin plugin;
+    private static JavaPlugin plugin;
 
     private final Map<UUID, WizardSession> activeSessions = new ConcurrentHashMap<>();
 
     private LocationWizard() {}
 
-    public static void init(ExyliaPlugin pluginInstance) {
+    public static void init(JavaPlugin pluginInstance) {
         if (instance != null) {
             return;
         }

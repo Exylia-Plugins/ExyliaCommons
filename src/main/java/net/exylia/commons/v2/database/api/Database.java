@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.database.api;
 
-import net.exylia.commons.v2.config.Config;
 import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.v2.database.core.DatabaseManager;
 import net.exylia.commons.v2.database.entity.Entity;
@@ -13,18 +12,6 @@ public final class Database {
 
     private Database() {
         throw new UnsupportedOperationException("Utility class");
-    }
-
-    public static void initialize(Config config) {
-        DatabaseManager.initialize(config);
-    }
-
-    public static void initialize(Config config, Plugin plugin) {
-        DatabaseManager.initialize(config, plugin);
-    }
-
-    public static void initialize() {
-        DatabaseManager.initialize(Configs.get("database"));
     }
 
     public static void initialize(Plugin plugin) {

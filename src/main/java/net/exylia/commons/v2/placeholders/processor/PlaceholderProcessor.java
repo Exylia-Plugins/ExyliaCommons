@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 
 public class PlaceholderProcessor {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%]+)%");
+    private static final int MAX_NESTING_DEPTH = 10;
     private static final PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
 
     private PlaceholderProcessor() {
@@ -28,23 +29,13 @@ public class PlaceholderProcessor {
             return text;
         }
 
-        long startTime = System.nanoTime();
         String result = text;
-        Matcher matcher = PLACEHOLDER_PATTERN.matcher(result);
-        StringBuffer sb = new StringBuffer();
-        int placeholdersFound = 0;
+        int depth = 0;
 
-        while (matcher.find()) {
-            placeholdersFound++;
-            String placeholderName = matcher.group(1);
-            Object resolved = registry.resolve(placeholderName, player, context);
-            String replacement = objectToString(resolved, matcher.group(0));
-
-            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        while (containsPlaceholders(result) && depth < MAX_NESTING_DEPTH) {
+            result = processSinglePass(result, player, context);
+            depth++;
         }
-
-        matcher.appendTail(sb);
-        result = sb.toString();
 
         if (player != null) {
             try {
@@ -54,13 +45,22 @@ public class PlaceholderProcessor {
             }
         }
 
-//        double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-//        if (placeholdersFound > 0) {
-//            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-//                String.format("Processed %d placeholder(s) in %.3fms", placeholdersFound, millis));
-//        }
-
         return result;
+    }
+
+    private static String processSinglePass(String text, Player player, PlaceholderContext context) {
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
+        StringBuffer sb = new StringBuffer();
+
+        while (matcher.find()) {
+            String placeholderName = matcher.group(1);
+            Object resolved = registry.resolve(placeholderName, player, context);
+            String replacement = objectToString(resolved, matcher.group(0));
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     public static String process(String text, Player player) {
@@ -80,7 +80,14 @@ public class PlaceholderProcessor {
             return CompletableFuture.completedFuture(text);
         }
 
-        long startTime = System.nanoTime();
+        return processAsyncRecursive(text, player, context, 0);
+    }
+
+    private static CompletableFuture<String> processAsyncRecursive(String text, Player player, PlaceholderContext context, int depth) {
+        if (depth >= MAX_NESTING_DEPTH || !containsPlaceholders(text)) {
+            return CompletableFuture.completedFuture(text);
+        }
+
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         List<String> placeholders = new ArrayList<>();
         List<Integer> starts = new ArrayList<>();
@@ -96,16 +103,13 @@ public class PlaceholderProcessor {
             return CompletableFuture.completedFuture(text);
         }
 
-//        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-//            String.format("Processing %d placeholder(s) asynchronously", placeholders.size()));
-
         List<CompletableFuture<String>> futures = new ArrayList<>();
         for (String placeholder : placeholders) {
             futures.add(registry.resolveAsync(placeholder, player, context));
         }
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenApply(v -> {
+                .thenCompose(v -> {
                     String result = text;
                     for (int i = placeholders.size() - 1; i >= 0; i--) {
                         String replacement = futures.get(i).join();
@@ -117,12 +121,7 @@ public class PlaceholderProcessor {
                         }
                         result = result.substring(0, start) + replacement + result.substring(end);
                     }
-
-//                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-//                    DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-//                        String.format("Async processing completed in %.3fms", millis));
-
-                    return result;
+                    return processAsyncRecursive(result, player, context, depth + 1);
                 })
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.PLACEHOLDER,

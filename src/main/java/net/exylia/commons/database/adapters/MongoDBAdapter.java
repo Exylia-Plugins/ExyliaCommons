@@ -24,6 +24,7 @@ import net.exylia.commons.database.serialization.SerializationHelper;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -35,12 +36,12 @@ import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 public class MongoDBAdapter implements DatabaseAdapter {
 
     private final FileConfiguration config;
-    private final ExyliaPlugin plugin;
+    private final JavaPlugin plugin;
     private final DatabaseErrorHandler errorHandler;
     private MongoClient mongoClient;
     private MongoDatabase database;
 
-    public MongoDBAdapter(FileConfiguration config, ExyliaPlugin plugin, DatabaseErrorHandler errorHandler) {
+    public MongoDBAdapter(FileConfiguration config, JavaPlugin plugin, DatabaseErrorHandler errorHandler) {
         this.config = config;
         this.plugin = plugin;
         this.errorHandler = errorHandler;

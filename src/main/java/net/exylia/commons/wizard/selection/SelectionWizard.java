@@ -19,6 +19,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.UUID;
@@ -28,14 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SelectionWizard implements Listener {
 
     private static SelectionWizard instance;
-    private static ExyliaPlugin plugin;
+    private static JavaPlugin plugin;
     private static SelectionManager selectionManager;
 
     private final Map<UUID, SelectionWizardSession> activeSessions = new ConcurrentHashMap<>();
 
     private SelectionWizard() {}
 
-    public static void init(ExyliaPlugin pluginInstance) {
+    public static void init(JavaPlugin pluginInstance) {
         if (instance != null) {
             return;
         }

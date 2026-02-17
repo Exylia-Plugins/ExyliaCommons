@@ -101,7 +101,18 @@ public class SimpleRedis {
             throw new IllegalStateException("SimpleRedis already initialized");
         }
         DebugUtils.logInternalDebug("SimpleRedis.init: Loading configuration from redis.yml");
-        SimpleRedisConfig config = loadOrCreateConfig(plugin);
+
+        File configFile = new File(plugin.getDataFolder(), "redis.yml");
+        if (!configFile.exists()) {
+            createDefaultConfig(plugin, configFile);
+        }
+        FileConfiguration rawConfig = YamlConfiguration.loadConfiguration(configFile);
+        if (!rawConfig.getBoolean("redis.enabled", true)) {
+            DebugUtils.logInternalInfo("Redis is disabled in redis.yml, skipping initialization");
+            return;
+        }
+
+        SimpleRedisConfig config = loadConfigFromFile(rawConfig);
         DebugUtils.logInternalDebug("SimpleRedis.init: Configuration loaded, creating instance");
         instance = new SimpleRedis(plugin, config);
         DebugUtils.logInternalDebug("SimpleRedis.init: Instance created successfully");
@@ -120,7 +131,11 @@ public class SimpleRedis {
         }
 
         FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-        DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: YAML loaded successfully");
+        return loadConfigFromFile(config);
+    }
+
+    private static SimpleRedisConfig loadConfigFromFile(FileConfiguration config) {
+        DebugUtils.logInternalDebug("SimpleRedis.loadConfigFromFile: YAML loaded successfully");
 
         String host = config.getString("redis.host", "localhost");
         int port = config.getInt("redis.port", 6379);
@@ -130,7 +145,7 @@ public class SimpleRedis {
         int poolSize = config.getInt("redis.pool-size", 8);
         String keyPrefix = config.getString("redis.key-prefix", "");
 
-        DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: Loaded values - host=" + host +
+        DebugUtils.logInternalDebug("SimpleRedis.loadConfigFromFile: Loaded values - host=" + host +
                 ", port=" + port + ", database=" + database + ", timeout=" + timeout +
                 ", poolSize=" + poolSize + ", keyPrefix='" + keyPrefix + "'");
 
@@ -157,6 +172,7 @@ public class SimpleRedis {
             FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
             DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Setting default values");
 
+            config.set("redis.enabled", true);
             config.set("redis.host", "localhost");
             config.set("redis.port", 6379);
             config.set("redis.password", "");
