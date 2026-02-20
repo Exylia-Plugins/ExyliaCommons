@@ -16,10 +16,7 @@ public enum ClockFormat {
     public static ClockFormat detect(long millis) {
         if (millis >= 3600000) {
             return HH_MM_SS;
-        } else if (millis >= 60000) {
-            return MM_SS;
-        } else {
-            return SS;
         }
+        return MM_SS;
     }
 }

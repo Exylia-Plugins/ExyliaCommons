@@ -3,6 +3,13 @@ package net.exylia.commons.v2.config.schema;
 import net.exylia.commons.utils.DebugUtils;
 import net.exylia.commons.v2.config.Config;
 import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardSerializer;
+import net.exylia.commons.v2.visual.config.serializer.ActionBarConfigSerializer;
+import net.exylia.commons.v2.visual.config.serializer.BossBarConfigSerializer;
+import net.exylia.commons.v2.visual.config.serializer.HologramTemplateSerializer;
+import net.exylia.commons.v2.visual.config.serializer.ScoreboardConfigSerializer;
+import net.exylia.commons.v2.visual.config.serializer.TitleConfigSerializer;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.lang.reflect.Field;
@@ -12,6 +19,25 @@ import java.util.*;
 public class ConfigSchemaRegistry {
 
     private static final Map<String, Class<?>> registeredSchemas = new HashMap<>();
+    private static final Map<Class<?>, ConfigSerializer<?>> serializers = new HashMap<>();
+
+    static {
+        registerSerializer(new BossBarConfigSerializer());
+        registerSerializer(new ActionBarConfigSerializer());
+        registerSerializer(new TitleConfigSerializer());
+        registerSerializer(new ScoreboardConfigSerializer());
+        registerSerializer(new ScoreboardSerializer());
+        registerSerializer(new HologramTemplateSerializer());
+    }
+
+    public static <T> void registerSerializer(ConfigSerializer<T> serializer) {
+        serializers.put(serializer.getType(), serializer);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> ConfigSerializer<T> getSerializer(Class<T> type) {
+        return (ConfigSerializer<T>) serializers.get(type);
+    }
 
     public static void ensureDefaults(Class<?> schemaClass) {
         if (!schemaClass.isAnnotationPresent(ConfigSchema.class)) {
@@ -67,6 +93,7 @@ public class ConfigSchemaRegistry {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static void loadField(Field field, String prefix, Config config) {
         ConfigValue configValue = field.getAnnotation(ConfigValue.class);
         String path = prefix.isEmpty() ? configValue.value() : prefix + "." + configValue.value();
@@ -74,13 +101,23 @@ public class ConfigSchemaRegistry {
         try {
             field.setAccessible(true);
             Object defaultValue = field.get(null);
-            Object rawValue = config.raw().get(path);
-            Object value = rawValue != null ? rawValue : defaultValue;
 
-            DebugUtils.logInternalDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
+            ConfigSerializer serializer = getSerializer(field.getType());
 
-            if (value != null) {
-                field.set(null, value);
+            if (serializer != null) {
+                ConfigurationSection section = config.raw().getConfigurationSection(path);
+                Object value = section != null ? serializer.deserialize(section) : defaultValue;
+                DebugUtils.logInternalDebug("[ConfigSchema] Loading (serialized) " + path + " | found=" + (section != null));
+                if (value != null) {
+                    field.set(null, value);
+                }
+            } else {
+                Object rawValue = config.raw().get(path);
+                Object value = rawValue != null ? rawValue : defaultValue;
+                DebugUtils.logInternalDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
+                if (value != null) {
+                    field.set(null, value);
+                }
             }
 
         } catch (IllegalAccessException e) {
@@ -117,6 +154,7 @@ public class ConfigSchemaRegistry {
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static void processField(Field field, String prefix, Config config) {
         ConfigValue configValue = field.getAnnotation(ConfigValue.class);
         String path = prefix.isEmpty() ? configValue.value() : prefix + "." + configValue.value();
@@ -126,7 +164,13 @@ public class ConfigSchemaRegistry {
             Object value = field.get(null);
 
             if (!config.exists(path)) {
-                config.set(path, value);
+                ConfigSerializer serializer = getSerializer(field.getType());
+                if (serializer != null) {
+                    Object serialized = serializer.serialize(value);
+                    config.set(path, serialized);
+                } else {
+                    config.set(path, value);
+                }
             }
 
             if (field.isAnnotationPresent(Comment.class)) {
