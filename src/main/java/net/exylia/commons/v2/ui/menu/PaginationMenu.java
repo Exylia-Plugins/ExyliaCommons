@@ -25,6 +25,9 @@ import java.util.Map;
 
 public class PaginationMenu extends MenuBase {
 
+    private static final long NAVIGATION_DEBOUNCE_MILLIS = 150L;
+    private long lastNavigationMillis;
+
     public PaginationMenu(Player player, MenuData menuData) {
         super(player, menuData);
     }
@@ -153,7 +156,7 @@ public class PaginationMenu extends MenuBase {
         int currentPage = getCurrentPage();
         int totalPages = getTotalPages();
 
-        if (currentPage < totalPages) {
+        if (currentPage < totalPages && canNavigate()) {
             DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " navigating to next page: " + (currentPage + 1) + "/" + totalPages);
             setCurrentPage(currentPage + 1);
             refresh();
@@ -163,11 +166,20 @@ public class PaginationMenu extends MenuBase {
     public void previousPage() {
         int currentPage = getCurrentPage();
 
-        if (currentPage > 1) {
+        if (currentPage > 1 && canNavigate()) {
             DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " navigating to previous page: " + (currentPage - 1) + "/" + getTotalPages());
             setCurrentPage(currentPage - 1);
             refresh();
         }
+    }
+
+    private boolean canNavigate() {
+        long now = System.currentTimeMillis();
+        if (now - lastNavigationMillis < NAVIGATION_DEBOUNCE_MILLIS) {
+            return false;
+        }
+        lastNavigationMillis = now;
+        return true;
     }
 
     public void setPage(int page) {

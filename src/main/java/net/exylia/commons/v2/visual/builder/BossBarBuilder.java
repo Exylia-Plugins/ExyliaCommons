@@ -61,7 +61,13 @@ public class BossBarBuilder extends VisualBuilder<BossBarConfig, BossBarBuilder>
 
     @Override
     protected BossBarConfig buildInternal() {
-        BossBarConfig config = new BossBarConfig(text, color, style, progress, permanent, updateInterval);
+        BossBarConfig config = BossBarConfig.builder(text)
+                .color(color)
+                .style(style)
+                .progress(progress)
+                .permanent(permanent)
+                .updateInterval(updateInterval)
+                .build();
         config.setEnabled(enabled);
         return config;
     }

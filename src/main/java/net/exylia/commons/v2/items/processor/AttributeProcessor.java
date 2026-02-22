@@ -1,8 +1,6 @@
 package net.exylia.commons.v2.items.processor;
 
-import org.bukkit.Keyed;
-import org.bukkit.NamespacedKey;
-import org.bukkit.Registry;
+import net.exylia.commons.v2.compat.EnchantmentCompat;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -85,7 +83,7 @@ public class AttributeProcessor {
     public static void applyGlowing(ItemStack itemStack, boolean glowing) {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta != null) {
-            Enchantment unbreaking = getUnbreakingEnchantment();
+            Enchantment unbreaking = EnchantmentCompat.getUnbreaking();
             if (unbreaking != null) {
                 if (glowing) {
                     meta.addEnchant(unbreaking, 1, true);
@@ -96,42 +94,6 @@ public class AttributeProcessor {
             }
             itemStack.setItemMeta(meta);
         }
-    }
-
-    private static Enchantment cachedUnbreaking = null;
-    private static boolean enchantmentResolved = false;
-
-    private static Enchantment getUnbreakingEnchantment() {
-        if (enchantmentResolved) return cachedUnbreaking;
-        synchronized (AttributeProcessor.class) {
-            if (enchantmentResolved) return cachedUnbreaking;
-            cachedUnbreaking = resolveEnchantment();
-            enchantmentResolved = true;
-            return cachedUnbreaking;
-        }
-    }
-
-    private static Enchantment resolveEnchantment() {
-        try {
-            Enchantment ench = Registry.ENCHANTMENT.get(NamespacedKey.minecraft("unbreaking"));
-            if (ench != null) return ench;
-        } catch (Exception ignored) {}
-
-        try {
-            java.lang.reflect.Field field = Enchantment.class.getField("DURABILITY");
-            return (Enchantment) field.get(null);
-        } catch (Exception ignored) {}
-
-        try {
-            Iterable<? extends Keyed> enchants = (Iterable<? extends Keyed>) Registry.ENCHANTMENT;
-            for (Keyed keyed : enchants) {
-                if (keyed.getKey().getKey().equals("unbreaking")) {
-                    return (Enchantment) keyed;
-                }
-            }
-        } catch (Exception ignored) {}
-
-        return null;
     }
 
     public static void applyItemFlags(ItemStack itemStack, ItemFlag... flags) {

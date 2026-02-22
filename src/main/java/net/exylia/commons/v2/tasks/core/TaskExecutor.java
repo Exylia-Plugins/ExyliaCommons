@@ -55,8 +55,7 @@ public class TaskExecutor {
             queue,
             new NamedThreadFactory("Exylia-" + category.getDisplayName()),
             (r, e) -> {
-                metrics.recordRejected(category);
-                DebugAPI.logLibWarn(DebugCategory.ASYNC, "Task rejected for category " + category + ": queue full");
+                throw new RejectedExecutionException("Task rejected for category " + category + ": queue full");
             }
         );
 
@@ -78,22 +77,28 @@ public class TaskExecutor {
 
         ThreadPoolExecutor executor = executors.get(category);
 
-        return CompletableFuture.supplyAsync(() -> {
-            Thread.currentThread().setPriority(priority.getThreadPriority());
-            metrics.recordStart(category);
-            long startNanos = System.nanoTime();
+        try {
+            return CompletableFuture.supplyAsync(() -> {
+                Thread.currentThread().setPriority(priority.getThreadPriority());
+                metrics.recordStart(category);
+                long startNanos = System.nanoTime();
 
-            try {
-                T result = supplier.get();
-                long durationNanos = System.nanoTime() - startNanos;
-                metrics.recordComplete(category, durationNanos);
-                return TaskResult.success(taskId, result, startTime, category);
-            } catch (Exception e) {
-                metrics.recordFailure(category);
-                DebugAPI.logLibError(DebugCategory.ASYNC, "Task failed [" + category + "]: " + e.getMessage(), e);
-                return TaskResult.failure(taskId, e, startTime, category);
-            }
-        }, executor);
+                try {
+                    T result = supplier.get();
+                    long durationNanos = System.nanoTime() - startNanos;
+                    metrics.recordComplete(category, durationNanos);
+                    return TaskResult.success(taskId, result, startTime, category);
+                } catch (Exception e) {
+                    metrics.recordFailure(category);
+                    DebugAPI.logLibError(DebugCategory.ASYNC, "Task failed [" + category + "]: " + e.getMessage(), e);
+                    return TaskResult.failure(taskId, e, startTime, category);
+                }
+            }, executor);
+        } catch (RejectedExecutionException ex) {
+            metrics.recordRejected(category);
+            DebugAPI.logLibWarn(DebugCategory.ASYNC, "Task rejected for category " + category + ": " + ex.getMessage());
+            return CompletableFuture.completedFuture(TaskResult.failure(taskId, ex, startTime, category));
+        }
     }
 
     public CompletableFuture<TaskResult<Void>> submit(Runnable runnable, TaskCategory category, TaskPriority priority) {

@@ -32,26 +32,37 @@ public class MovementDetector {
     public MovementResult checkMovement(Player player, Location from, Location to) {
         totalMovements++;
 
-        if (from == null || to == null || !from.getWorld().equals(to.getWorld())) {
+        if (from == null || to == null) {
             return MovementResult.NO_CHANGE;
         }
 
         PlayerMovementState state = playerTracker.getState(player.getUniqueId());
+        boolean crossWorld = !from.getWorld().equals(to.getWorld());
 
-        if (isMicroMovement(from, to) && state != null) {
+        if (!crossWorld && isMicroMovement(from, to) && state != null) {
             return new MovementResult(false, state.getCurrentRegions(), state.getCurrentRegionSet(),
                     Collections.emptyList(), Collections.emptyList(), false);
         }
 
         processedMovements++;
 
-        boolean isTeleport = isTeleport(from, to);
-        if (isTeleport) {
-            teleportDetections++;
-        }
-
         List<Region> newRegions = spatialIndex.getRegionsAt(to);
         Set<Region> oldRegionSet = state != null ? state.getCurrentRegionSet() : Collections.emptySet();
+
+        if (crossWorld) {
+            teleportDetections++;
+            List<Region> exitRegions = state != null && !state.getCurrentRegions().isEmpty()
+                    ? new ArrayList<>(state.getCurrentRegions())
+                    : Collections.emptyList();
+            List<Region> enterRegions = newRegions.isEmpty() ? Collections.emptyList() : new ArrayList<>(newRegions);
+            boolean hasChanges = !exitRegions.isEmpty() || !enterRegions.isEmpty();
+            if (hasChanges) regionChanges++;
+            playerTracker.updateState(player.getUniqueId(), to, newRegions);
+            return new MovementResult(hasChanges, newRegions, oldRegionSet, enterRegions, exitRegions, true);
+        }
+
+        boolean isTeleport = isTeleport(from, to);
+        if (isTeleport) teleportDetections++;
 
         if (newRegions.size() == oldRegionSet.size() && oldRegionSet.containsAll(newRegions)) {
             playerTracker.updateState(player.getUniqueId(), to, newRegions);
@@ -84,9 +95,7 @@ public class MovementDetector {
         if (exitRegions == null) exitRegions = Collections.emptyList();
 
         boolean hasChanges = !enterRegions.isEmpty() || !exitRegions.isEmpty();
-        if (hasChanges) {
-            regionChanges++;
-        }
+        if (hasChanges) regionChanges++;
 
         playerTracker.updateState(player.getUniqueId(), to, newRegions);
 

@@ -73,6 +73,9 @@ public class MenuData {
     private List<Integer> allowedPlayerSlots = new ArrayList<>();
 
     @Builder.Default
+    private List<Integer> editableSlots = new ArrayList<>();
+
+    @Builder.Default
     private PlaceholderContext context = PlaceholderContext.create();
 
     @Builder.Default
@@ -192,6 +195,7 @@ public class MenuData {
                 .restoreOnClose(restoreOnClose)
                 .playerInventoryEnabled(playerInventoryEnabled)
                 .allowedPlayerSlots(new ArrayList<>(allowedPlayerSlots))
+                .editableSlots(new ArrayList<>(editableSlots))
                 .context(context.copy())
                 .openSounds(new ArrayList<>(openSounds))
                 .closeSounds(new ArrayList<>(closeSounds))

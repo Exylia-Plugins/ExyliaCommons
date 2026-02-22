@@ -154,6 +154,19 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
     protected Map<String, String> getCustomColorPresets() { return new LinkedHashMap<>(); }
     protected void onReload(ReloadContext context) {}
 
+    public final void callOnReload(ReloadContext context) {
+        onReload(context);
+    }
+
+    public static void callOnReloadForActivePlugins(ReloadContext context) {
+        for (ExyliaLoaderPlugin plugin : activePlugins) {
+            try {
+                plugin.callOnReload(context);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
     public BukkitAudiences adventure() {
         if (audiences == null) throw new IllegalStateException("Adventure not available");
         return audiences;

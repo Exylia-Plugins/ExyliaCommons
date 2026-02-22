@@ -199,6 +199,12 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
             }
         }
 
+        viewers.clear();
+        playerFilter = null;
+        onTick = null;
+        onCancel = null;
+        onComplete = null;
+
         lifecycle.cancel();
         GlobalVisualRegistry.getInstance().unregister(id);
     }
@@ -220,6 +226,12 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
             } catch (Exception ignored) {
             }
         }
+
+        viewers.clear();
+        playerFilter = null;
+        onTick = null;
+        onCancel = null;
+        onComplete = null;
 
         lifecycle.complete();
         GlobalVisualRegistry.getInstance().unregister(id);

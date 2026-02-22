@@ -79,7 +79,13 @@ public class VisualRegistry {
     }
 
     public void removeAllByPlayer(UUID playerId) {
-        Map<String, VisualInstance<?>> instances = playerInstances.remove(playerId);
+        Map<String, VisualInstance<?>> instances = playerInstances.get(playerId);
+        if (instances != null) {
+            new ArrayList<>(instances.values()).forEach(VisualInstance::cancel);
+        }
+
+        playerInstances.remove(playerId);
+
         if (instances != null) {
             for (String instanceId : instances.keySet()) {
                 instanceTypes.remove(instanceId);
@@ -102,6 +108,8 @@ public class VisualRegistry {
     }
 
     public void clear() {
+        List<VisualInstance<?>> instances = getAllInstances();
+        instances.forEach(VisualInstance::cancel);
         playerInstances.clear();
         instanceTypes.clear();
     }

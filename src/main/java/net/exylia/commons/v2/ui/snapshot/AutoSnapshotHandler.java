@@ -19,22 +19,32 @@ public class AutoSnapshotHandler {
         }
 
         String finalSnapshotId = snapshotId;
-        activeSnapshots.put(player.getUniqueId(), finalSnapshotId);
+        UUID playerId = player.getUniqueId();
+        activeSnapshots.put(playerId, finalSnapshotId);
 
-        return SnapshotAPI.createAndRegisterAsync(player, finalSnapshotId);
+        return SnapshotAPI.createAndRegisterAsync(player, finalSnapshotId)
+                .whenComplete((snapshot, throwable) -> {
+                    if (throwable != null) {
+                        activeSnapshots.remove(playerId);
+                    }
+                });
     }
 
     public static CompletableFuture<Boolean> restoreSnapshot(Player player) {
-        String snapshotId = activeSnapshots.get(player.getUniqueId());
+        UUID playerId = player.getUniqueId();
+        String snapshotId = activeSnapshots.get(playerId);
         if (snapshotId == null) {
             return CompletableFuture.completedFuture(false);
         }
 
         return SnapshotAPI.restoreRegisteredAsync(player, snapshotId)
-                .thenApply(result -> {
+                .handle((result, throwable) -> {
                     SnapshotAPI.unregister(player.getUniqueId(), snapshotId);
-                    activeSnapshots.remove(player.getUniqueId());
-                    return result;
+                    activeSnapshots.remove(playerId);
+                    if (throwable != null) {
+                        return false;
+                    }
+                    return Boolean.TRUE.equals(result);
                 });
     }
 

@@ -21,7 +21,7 @@ public class ScoreboardAdapter extends ReloadableSystemAdapter {
     protected void performReload() throws Exception {
         ScoreboardManager instance = ScoreboardManager.getInstance();
         if (instance != null) {
-            instance.hideAll();
+            instance.clearCache();
         }
     }
 

@@ -9,7 +9,7 @@ import org.bukkit.ChatColor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 public class ScoreboardBuilder {
 
@@ -111,9 +111,9 @@ public class ScoreboardBuilder {
                     .build();
         }
 
-        List<ScoreboardLine> scoreboardLines = lines.stream()
-                .map(line -> ScoreboardLine.of(lines.indexOf(line), line))
-                .collect(Collectors.toList());
+        List<ScoreboardLine> scoreboardLines = IntStream.range(0, lines.size())
+                .mapToObj(i -> ScoreboardLine.of(i, lines.get(i)))
+                .toList();
 
         return Scoreboard.builder()
                 .title(title)

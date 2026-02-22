@@ -17,6 +17,8 @@ import net.exylia.commons.v2.visual.exception.LimitExceededException;
 import net.exylia.commons.v2.visual.exception.VisualException;
 import net.exylia.commons.v2.visual.instance.*;
 import net.exylia.commons.v2.visual.renderer.VisualRenderer;
+import net.exylia.commons.v2.visual.renderer.BossBarRenderer;
+import net.exylia.commons.v2.visual.cache.CacheManager;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -64,6 +66,7 @@ public class VisualManager {
         DebugAPI.logLibInfo(DebugCategory.VISUAL, "Initializing VisualManager for plugin: " + plugin.getName());
         this.plugin = plugin;
         this.initialized = true;
+        plugin.getServer().getPluginManager().registerEvents(new VisualPlayerCleanupListener(), plugin);
         DebugAPI.logLibSuccess(DebugCategory.VISUAL, "VisualManager initialized successfully");
     }
 
@@ -257,7 +260,6 @@ public class VisualManager {
         int count = VisualRegistry.getInstance().getByPlayer(playerId).size();
         DebugAPI.logLibDebug(DebugCategory.VISUAL,
             "Cancelling all visuals for player: " + playerId + " (count: " + count + ")");
-        VisualRegistry.getInstance().getByPlayer(playerId).forEach(VisualInstance::cancel);
         VisualRegistry.getInstance().removeAllByPlayer(playerId);
     }
 
@@ -390,12 +392,16 @@ public class VisualManager {
     public void softReset() {
         VisualRegistry.getInstance().clear();
         GlobalVisualRegistry.getInstance().clear();
+        CacheManager.getInstance().clearAll();
+        Bukkit.getOnlinePlayers().forEach(BossBarRenderer.getInstance()::removeAllBossBars);
         DebugAPI.logLibInfo(DebugCategory.VISUAL, "VisualManager soft reset completed (caches cleared, still initialized)");
     }
 
     public void shutdown() {
         VisualRegistry.getInstance().clear();
         GlobalVisualRegistry.getInstance().clear();
+        CacheManager.getInstance().clearAll();
+        Bukkit.getOnlinePlayers().forEach(BossBarRenderer.getInstance()::removeAllBossBars);
         initialized = false;
         plugin = null;
         DebugAPI.logLibInfo(DebugCategory.VISUAL, "VisualManager shutdown completed");

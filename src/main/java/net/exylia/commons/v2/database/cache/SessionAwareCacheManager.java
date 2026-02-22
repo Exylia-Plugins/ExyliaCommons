@@ -148,6 +148,7 @@ public class SessionAwareCacheManager<K, V extends Entity> {
 
     public void invalidateAll() {
         cache.synchronous().invalidateAll();
+        activeSessions.clear();
     }
 
     public void registerActiveSession(K key, SessionMetadata metadata) {
@@ -164,6 +165,13 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         SessionMetadata metadata = activeSessions.remove(key);
         if (metadata != null && config.isEnableBatchWrite() && metadata.isDirty()) {
             flushSession(key);
+        }
+
+        if (config.getMode() == ExpirationMode.ACTIVE) {
+            V cached = cache.synchronous().getIfPresent(key);
+            if (cached != null) {
+                cache.synchronous().put(key, cached);
+            }
         }
     }
 
@@ -249,12 +257,11 @@ public class SessionAwareCacheManager<K, V extends Entity> {
     }
 
     public void reload() {
+        activeSessions.clear();
         invalidateAll();
     }
 
     public void shutdown() {
-        shutdown = true;
-
         if (batchWriteTask != null) {
             batchWriteTask.cancel();
         }
@@ -263,8 +270,23 @@ public class SessionAwareCacheManager<K, V extends Entity> {
         }
 
         if (config.isEnableBatchWrite()) {
-            flushDirtySessions();
+            List<K> dirtyKeys = new ArrayList<>();
+            for (Map.Entry<K, SessionMetadata> entry : activeSessions.entrySet()) {
+                if (entry.getValue().isDirty()) {
+                    dirtyKeys.add(entry.getKey());
+                }
+            }
+
+            for (K key : dirtyKeys) {
+                try {
+                    flushSession(key);
+                } catch (Exception e) {
+                    LOGGER.warning("Failed to flush session for key: " + key + " - " + e.getMessage());
+                }
+            }
         }
+
+        shutdown = true;
 
         activeSessions.clear();
         cache.synchronous().invalidateAll();

@@ -106,8 +106,10 @@ public final class Placeholders {
 
     public static void shutdown() {
         DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Shutting down Placeholder System");
-        PapiAdapter.getInstance().unregister();
-        PlaceholderRegistry.getInstance().shutdown();
+        PapiAdapter.shutdown();
+        if (PlaceholderRegistry.isInitialized()) {
+            PlaceholderRegistry.getInstance().shutdown();
+        }
         DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Placeholder System shutdown complete");
     }
 

@@ -39,6 +39,7 @@ public class SimpleVisualInstance<T extends VisualConfig> extends VisualInstance
 
     @Override
     public void cancel() {
+        renderer.cleanup(player, id);
         lifecycle.cancel();
         VisualRegistry.getInstance().remove(player.getUniqueId(), id);
     }
@@ -46,6 +47,7 @@ public class SimpleVisualInstance<T extends VisualConfig> extends VisualInstance
     private void scheduleAutoCleanup() {
         Tasks.build()
                 .run(() -> {
+                    renderer.cleanup(player, id);
                     lifecycle.complete();
                     VisualRegistry.getInstance().remove(player.getUniqueId(), id);
                 })

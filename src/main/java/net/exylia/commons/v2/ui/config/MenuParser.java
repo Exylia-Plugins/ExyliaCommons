@@ -395,6 +395,12 @@ public class MenuParser {
                 }
             }
         }
+
+        if (config.contains("editable_slots")) {
+            List<Integer> editableSlots = parseSlots(config, "editable_slots");
+            builder.editableSlots(editableSlots);
+            DebugAPI.logLibDebug(DebugCategory.UI, "Parsed " + editableSlots.size() + " editable slots");
+        }
     }
 
     private static void parseContext(ConfigurationSection config, MenuData.MenuDataBuilder builder) {

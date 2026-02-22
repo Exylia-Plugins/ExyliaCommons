@@ -2,6 +2,7 @@ package net.exylia.commons.v2.reload.core;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.v2.loader.ExyliaLoaderPlugin;
 import net.exylia.commons.v2.reload.adapter.*;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.reload.api.ReloadContext;
@@ -217,6 +218,7 @@ public class ReloadManagerV2 {
                 if (instance != null) {
                     instance.callOnReload(context);
                 }
+                ExyliaLoaderPlugin.callOnReloadForActivePlugins(context);
             });
         } catch (Exception e) {
             logInternalError("Error calling plugin hooks: " + e.getMessage());

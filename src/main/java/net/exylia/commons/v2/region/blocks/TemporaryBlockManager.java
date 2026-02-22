@@ -5,6 +5,7 @@ import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -18,12 +19,12 @@ public class TemporaryBlockManager {
 
     private final JavaPlugin plugin;
     private final Map<BlockKey, TemporaryBlock> temporaryBlocks;
-    private final Set<ScheduledTask> activeTasks;
+    private final Map<BlockKey, ScheduledTask> activeTasks;
 
     private TemporaryBlockManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.temporaryBlocks = new ConcurrentHashMap<>();
-        this.activeTasks = ConcurrentHashMap.newKeySet();
+        this.activeTasks = new ConcurrentHashMap<>();
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -44,27 +45,43 @@ public class TemporaryBlockManager {
         Material material = block.getType();
         BlockKey key = new BlockKey(location);
 
+        ScheduledTask previousTask = activeTasks.remove(key);
+        if (previousTask != null) {
+            previousTask.cancel();
+        }
+
         TemporaryBlock tempBlock = new TemporaryBlock(location, player.getUniqueId(), material, System.currentTimeMillis(), seconds, reGiveBlock);
         temporaryBlocks.put(key, tempBlock);
 
-        ScheduledTask task = Tasks.later(() -> {
-            removeTemporaryBlock(location, player, reGiveBlock);
+        final ScheduledTask[] taskRef = new ScheduledTask[1];
+        taskRef[0] = Tasks.later(() -> {
+            try {
+                removeTemporaryBlock(key, tempBlock.playerId, tempBlock.material, tempBlock.reGiveBlock);
+            } finally {
+                activeTasks.remove(key, taskRef[0]);
+            }
         }, 20L * seconds);
 
-        activeTasks.add(task);
+        activeTasks.put(key, taskRef[0]);
     }
 
-    private void removeTemporaryBlock(Location location, Player player, boolean reGiveBlock) {
-        Block block = location.getBlock();
-        Material material = block.getType();
+    private void removeTemporaryBlock(BlockKey key, UUID playerId, Material originalMaterial, boolean reGiveBlock) {
+        TemporaryBlock removed = temporaryBlocks.remove(key);
+        if (removed == null) {
+            return;
+        }
 
+        Location location = removed.location;
+        Block block = location.getBlock();
         block.setType(Material.AIR);
 
-        BlockKey key = new BlockKey(location);
-        temporaryBlocks.remove(key);
+        if (reGiveBlock) {
+            Player player = Bukkit.getPlayer(playerId);
+            if (player == null || !player.isOnline()) {
+                return;
+            }
 
-        if (reGiveBlock && player != null && player.isOnline()) {
-            ItemStack item = new ItemStack(material, 1);
+            ItemStack item = new ItemStack(originalMaterial, 1);
             player.getInventory().addItem(item);
         }
     }
@@ -82,20 +99,24 @@ public class TemporaryBlockManager {
     public void cancelBlockRemoval(Location location) {
         BlockKey key = new BlockKey(location);
         temporaryBlocks.remove(key);
+        ScheduledTask task = activeTasks.remove(key);
+        if (task != null) {
+            task.cancel();
+        }
     }
 
     public int clearAll() {
         int count = temporaryBlocks.size();
 
         for (TemporaryBlock tempBlock : temporaryBlocks.values()) {
-            Location location = tempBlock.getLocation();
+            Location location = tempBlock.location;
             Block block = location.getBlock();
             block.setType(Material.AIR);
         }
 
         temporaryBlocks.clear();
 
-        for (ScheduledTask task : activeTasks) {
+        for (ScheduledTask task : activeTasks.values()) {
             task.cancel();
         }
         activeTasks.clear();
@@ -109,6 +130,11 @@ public class TemporaryBlockManager {
 
     public void shutdown() {
         clearAll();
+        synchronized (TemporaryBlockManager.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
     }
 
     private record BlockKey(String world, int x, int y, int z) {

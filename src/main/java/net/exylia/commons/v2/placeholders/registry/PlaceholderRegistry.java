@@ -33,7 +33,7 @@ public class PlaceholderRegistry {
     private final Map<String, GlobalPlaceholderResolver> globalResolvers = new ConcurrentHashMap<>();
     private final Map<String, PlayerPlaceholderResolver> playerResolvers = new ConcurrentHashMap<>();
     private final Map<String, ContextPlaceholderResolver> contextResolvers = new ConcurrentHashMap<>();
-    private final List<PlaceholderResolver> argumentResolvers = new ArrayList<>();
+    private final Map<String, PlaceholderResolver> argumentResolvers = new ConcurrentHashMap<>();
 
     private final PlaceholderAnnotationScanner scanner;
     private boolean initialized = false;
@@ -46,13 +46,17 @@ public class PlaceholderRegistry {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        if (instance == null) {
-            synchronized (PlaceholderRegistry.class) {
-                if (instance == null) {
-                    instance = new PlaceholderRegistry(plugin);
-                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry initialized");
-                }
+        synchronized (PlaceholderRegistry.class) {
+            if (instance != null && instance.plugin == plugin) {
+                return;
             }
+
+            if (instance != null) {
+                instance.shutdown();
+            }
+
+            instance = new PlaceholderRegistry(plugin);
+            DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry initialized");
         }
     }
 
@@ -61,6 +65,10 @@ public class PlaceholderRegistry {
             throw new IllegalStateException("PlaceholderRegistryV2 not initialized. Call initialize() first.");
         }
         return instance;
+    }
+
+    public static boolean isInitialized() {
+        return instance != null;
     }
 
     public void registerAnnotatedClass(Object instance) throws PlaceholderRegistrationException {
@@ -95,7 +103,9 @@ public class PlaceholderRegistry {
         resolvers.put(name, resolver);
 
         if (resolver.hasArgument()) {
-            argumentResolvers.add(resolver);
+            argumentResolvers.put(name, resolver);
+        } else {
+            argumentResolvers.remove(name);
         }
 
         switch (scope) {
@@ -169,7 +179,7 @@ public class PlaceholderRegistry {
             return result;
         }
 
-        for (PlaceholderResolver resolver : argumentResolvers) {
+        for (PlaceholderResolver resolver : argumentResolvers.values()) {
             if (resolver.matches(key)) {
                 String argument = resolver.extractArgument(key);
                 Object result = safeResolve(() -> resolver.resolve(player, context, argument), key);
@@ -217,7 +227,7 @@ public class PlaceholderRegistry {
             return asyncExecutor.executeAsyncPlaceholder(globalResolver::resolve);
         }
 
-        for (PlaceholderResolver resolver : argumentResolvers) {
+        for (PlaceholderResolver resolver : argumentResolvers.values()) {
             if (resolver.matches(key)) {
                 String argument = resolver.extractArgument(key);
                 return asyncExecutor.executeAsyncPlaceholder(() -> resolver.resolve(player, context, argument));
@@ -271,6 +281,12 @@ public class PlaceholderRegistry {
         playerResolvers.clear();
         contextResolvers.clear();
         argumentResolvers.clear();
+        initialized = false;
+        synchronized (PlaceholderRegistry.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
         DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry shutdown complete");
     }
 

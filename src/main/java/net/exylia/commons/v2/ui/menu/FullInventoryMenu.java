@@ -48,9 +48,7 @@ public class FullInventoryMenu extends MenuBase {
     public void close() {
         if (menuData.isSnapshotEnabled() && menuData.isRestoreOnClose()) {
             AutoSnapshotHandler.restoreSnapshot(player)
-                    .thenRun(() -> Tasks.sync(() -> {
-                        super.close();
-                    }));
+                    .whenComplete((result, throwable) -> Tasks.sync(super::close));
         } else {
             super.close();
         }

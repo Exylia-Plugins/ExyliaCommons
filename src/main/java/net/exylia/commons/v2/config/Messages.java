@@ -5,7 +5,9 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,12 +23,21 @@ public class Messages {
     static void init(Config config) {
         messagesConfig = config;
         loadGlobalPrefix();
+        schedulePrefixRetry(config);
     }
 
     private static void loadGlobalPrefix() {
         if (messagesConfig != null) {
             globalPrefix = messagesConfig.string("prefix", "");
         }
+    }
+
+    private static void schedulePrefixRetry(Config config) {
+        JavaPlugin plugin = config != null ? config.getPlugin() : null;
+        if (plugin == null || !plugin.isEnabled()) {
+            return;
+        }
+        Bukkit.getScheduler().runTaskLater(plugin, Messages::loadGlobalPrefix, 60L);
     }
 
     public static String getPrefix() {

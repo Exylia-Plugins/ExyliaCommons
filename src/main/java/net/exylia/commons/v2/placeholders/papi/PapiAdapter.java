@@ -21,16 +21,20 @@ public class PapiAdapter {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        if (instance == null) {
-            synchronized (PapiAdapter.class) {
-                if (instance == null) {
-                    instance = new PapiAdapter(plugin);
-                    if (instance.papiAvailable) {
-                        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI detected");
-                    } else {
-                        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI not found");
-                    }
-                }
+        synchronized (PapiAdapter.class) {
+            if (instance != null && instance.plugin == plugin) {
+                return;
+            }
+
+            if (instance != null) {
+                instance.unregister();
+            }
+
+            instance = new PapiAdapter(plugin);
+            if (instance.papiAvailable) {
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI detected");
+            } else {
+                DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI not found");
             }
         }
     }
@@ -69,6 +73,16 @@ public class PapiAdapter {
                 DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered");
             } catch (Exception e) {
                 DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander: " + e.getMessage(), e);
+            }
+        }
+        expander = null;
+    }
+
+    public static void shutdown() {
+        synchronized (PapiAdapter.class) {
+            if (instance != null) {
+                instance.unregister();
+                instance = null;
             }
         }
     }

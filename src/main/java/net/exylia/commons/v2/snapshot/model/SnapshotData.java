@@ -22,6 +22,17 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 public class SnapshotData {
 
+    private static final Attribute MAX_HEALTH_ATTR = resolveAttribute("GENERIC_MAX_HEALTH", "MAX_HEALTH");
+
+    private static Attribute resolveAttribute(String... names) {
+        for (String name : names) {
+            try {
+                return (Attribute) Attribute.class.getField(name).get(null);
+            } catch (NoSuchFieldException | IllegalAccessException ignored) {}
+        }
+        throw new IllegalStateException("Cannot resolve Attribute from names: " + Arrays.toString(names));
+    }
+
     private GameMode gameMode;
 
     private ItemStack[] armor;
@@ -53,7 +64,7 @@ public class SnapshotData {
         data.setOffHand(player.getInventory().getItemInOffHand());
 
         data.setHealth(player.getHealth());
-        data.setMaxHealth(player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue());
+        data.setMaxHealth(player.getAttribute(MAX_HEALTH_ATTR).getValue());
 
         data.setFoodLevel(player.getFoodLevel());
         data.setSaturation(player.getSaturation());
@@ -94,7 +105,7 @@ public class SnapshotData {
             player.getInventory().setItemInOffHand(offHand);
         }
 
-        player.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(maxHealth);
+        player.getAttribute(MAX_HEALTH_ATTR).setBaseValue(maxHealth);
         player.setHealth(Math.min(health, maxHealth));
 
         player.setFoodLevel(foodLevel);

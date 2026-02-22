@@ -2,14 +2,18 @@ package net.exylia.commons.v2.ui.api;
 
 import net.exylia.commons.v2.ui.config.MenuParser;
 import net.exylia.commons.v2.ui.core.MenuManager;
+import net.exylia.commons.v2.ui.menu.ItemInputMenu;
 import net.exylia.commons.v2.ui.menu.MenuBase;
 import net.exylia.commons.v2.ui.model.MenuData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public final class MenuAPI {
 
@@ -40,6 +44,15 @@ public final class MenuAPI {
 
     public static CompletableFuture<Void> openAsync(Player player, MenuData menuData) {
         return MenuManager.getInstance().openMenuAsync(player, menuData);
+    }
+
+    public static ItemInputMenu openItemInput(Player player, ConfigurationSection config, Consumer<Map<Integer, ItemStack>> onClose) {
+        MenuData menuData = parse(config);
+        return MenuManager.getInstance().openItemInputMenu(player, menuData, onClose);
+    }
+
+    public static ItemInputMenu openItemInput(Player player, MenuData menuData, Consumer<Map<Integer, ItemStack>> onClose) {
+        return MenuManager.getInstance().openItemInputMenu(player, menuData, onClose);
     }
 
     public static Optional<MenuBase> getActiveMenu(Player player) {

@@ -50,8 +50,9 @@ public class ConfigSchemaRegistry {
         registeredSchemas.put(fileName, schemaClass);
 
         Config config = Configs.file(fileName);
+        config.reload();
 
-        DebugUtils.logInternalDebug("[ConfigSchema] ensureDefaults for " + fileName + ".yml - File exists: " + config.exists("database"));
+        DebugUtils.logInternalDebug("[ConfigSchema] ensureDefaults for " + fileName + ".yml");
 
         processClass(schemaClass, "", config);
 
@@ -69,6 +70,7 @@ public class ConfigSchemaRegistry {
         String fileName = schema.file();
 
         Config config = Configs.file(fileName);
+        config.reload();
 
         loadClass(schemaClass, "", config);
     }
@@ -105,7 +107,16 @@ public class ConfigSchemaRegistry {
             ConfigSerializer serializer = getSerializer(field.getType());
 
             if (serializer != null) {
-                ConfigurationSection section = config.raw().getConfigurationSection(path);
+                ConfigurationSection section = resolveSerializedSection(config, path);
+
+                if (section == null && !prefix.isEmpty()) {
+                    String legacyPath = configValue.value();
+                    section = resolveSerializedSection(config, legacyPath);
+                    if (section != null) {
+                        DebugUtils.logInternalDebug("[ConfigSchema] Loading (serialized) " + path + " from legacy path " + legacyPath);
+                    }
+                }
+
                 Object value = section != null ? serializer.deserialize(section) : defaultValue;
                 DebugUtils.logInternalDebug("[ConfigSchema] Loading (serialized) " + path + " | found=" + (section != null));
                 if (value != null) {
@@ -163,14 +174,16 @@ public class ConfigSchemaRegistry {
             field.setAccessible(true);
             Object value = field.get(null);
 
-            if (!config.exists(path)) {
-                ConfigSerializer serializer = getSerializer(field.getType());
-                if (serializer != null) {
-                    Object serialized = serializer.serialize(value);
+            ConfigSerializer serializer = getSerializer(field.getType());
+            if (serializer != null) {
+                Object serialized = serializer.serialize(value);
+                if (!config.exists(path)) {
                     config.set(path, serialized);
                 } else {
-                    config.set(path, value);
+                    mergeSerializedDefaults(config, path, serialized);
                 }
+            } else if (!config.exists(path)) {
+                config.set(path, value);
             }
 
             if (field.isAnnotationPresent(Comment.class)) {
@@ -181,6 +194,87 @@ public class ConfigSchemaRegistry {
         } catch (IllegalAccessException e) {
             throw new RuntimeException("Failed to access field: " + field.getName(), e);
         }
+    }
+
+    private static ConfigurationSection resolveSerializedSection(Config config, String path) {
+        ConfigurationSection section = config.raw().getConfigurationSection(path);
+        if (section != null) {
+            return section;
+        }
+
+        Object raw = config.raw().get(path);
+        if (raw instanceof ConfigurationSection rawSection) {
+            return rawSection;
+        }
+
+        if (raw instanceof Map<?, ?> rawMap) {
+            YamlConfiguration temp = new YamlConfiguration();
+            temp.set("tmp", normalizeMap(rawMap));
+            return temp.getConfigurationSection("tmp");
+        }
+
+        return null;
+    }
+
+    private static void mergeSerializedDefaults(Config config, String path, Object serializedDefaults) {
+        if (!(serializedDefaults instanceof Map<?, ?> defaultsMapRaw)) {
+            return;
+        }
+
+        Map<String, Object> defaults = normalizeMap(defaultsMapRaw);
+        mergeMissingKeys(config, path, defaults);
+    }
+
+    private static void mergeMissingKeys(Config config, String basePath, Map<String, Object> defaults) {
+        for (Map.Entry<String, Object> entry : defaults.entrySet()) {
+            String key = entry.getKey();
+            Object defaultValue = entry.getValue();
+            String fullPath = basePath + "." + key;
+
+            if (!config.exists(fullPath)) {
+                config.set(fullPath, defaultValue);
+            }
+
+            if (defaultValue instanceof Map<?, ?> defaultMapRaw) {
+                Map<String, Object> defaultMap = normalizeMap(defaultMapRaw);
+                mergeMissingKeys(config, fullPath, defaultMap);
+            }
+        }
+    }
+
+    private static Map<String, Object> normalizeMap(Map<?, ?> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
+            if (entry.getKey() == null) {
+                continue;
+            }
+            result.put(String.valueOf(entry.getKey()), normalizeValue(entry.getValue()));
+        }
+        return result;
+    }
+
+    private static Object normalizeValue(Object value) {
+        if (value instanceof ConfigurationSection section) {
+            Map<String, Object> converted = new LinkedHashMap<>();
+            for (String key : section.getKeys(false)) {
+                converted.put(key, normalizeValue(section.get(key)));
+            }
+            return converted;
+        }
+
+        if (value instanceof Map<?, ?> map) {
+            return normalizeMap(map);
+        }
+
+        if (value instanceof List<?> list) {
+            List<Object> converted = new ArrayList<>(list.size());
+            for (Object item : list) {
+                converted.add(normalizeValue(item));
+            }
+            return converted;
+        }
+
+        return value;
     }
 
     private static void setComments(Config config, String path, String[] comments) {
@@ -198,11 +292,10 @@ public class ConfigSchemaRegistry {
     }
 
     public static void reloadAll() {
-        registeredSchemas.forEach((fileName, schemaClass) -> {
-            Config config = Configs.file(fileName);
-            config.reload();
-            loadClass(schemaClass, "", config);
-        });
+        List<Class<?>> schemas = new ArrayList<>(registeredSchemas.values());
+        for (Class<?> schemaClass : schemas) {
+            ensureDefaults(schemaClass);
+        }
     }
 
     public static Map<String, Class<?>> getRegisteredSchemas() {

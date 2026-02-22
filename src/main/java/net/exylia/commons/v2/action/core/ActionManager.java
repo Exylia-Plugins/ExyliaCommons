@@ -137,6 +137,12 @@ public class ActionManager {
         DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager cleared");
     }
 
+    public void clearCache() {
+        cacheManager.invalidateAll();
+        auditLogger.clear();
+        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager cache cleared");
+    }
+
     public void reload() {
         cacheManager.invalidateAll();
         DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager reloaded");

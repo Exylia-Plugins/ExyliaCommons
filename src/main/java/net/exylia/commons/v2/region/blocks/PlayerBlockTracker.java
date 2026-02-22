@@ -33,6 +33,10 @@ public class PlayerBlockTracker {
         return instance;
     }
 
+    public static boolean isInitialized() {
+        return instance != null;
+    }
+
     public void trackBlock(String regionId, UUID playerId, Location location) {
         BlockPosition position = new BlockPosition(location);
 
@@ -51,13 +55,32 @@ public class PlayerBlockTracker {
 
     public boolean removeBlock(String regionId, Location location) {
         BlockPosition position = new BlockPosition(location);
+        boolean removed = false;
 
         Set<BlockPosition> regionBlockSet = regionBlocks.get(regionId);
         if (regionBlockSet != null) {
-            return regionBlockSet.remove(position);
+            removed = regionBlockSet.remove(position);
+            if (regionBlockSet.isEmpty()) {
+                regionBlocks.remove(regionId);
+            }
         }
 
-        return false;
+        if (removed) {
+            playerBlocks.values().forEach(set -> set.remove(position));
+            playerBlocks.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+        }
+
+        return removed;
+    }
+
+    public void clearRegionBlocks(String regionId) {
+        Set<BlockPosition> removed = regionBlocks.remove(regionId);
+        if (removed == null || removed.isEmpty()) {
+            return;
+        }
+
+        playerBlocks.values().forEach(set -> set.removeAll(removed));
+        playerBlocks.entrySet().removeIf(entry -> entry.getValue().isEmpty());
     }
 
     public Set<BlockPosition> getPlayerBlocks(UUID playerId) {
@@ -70,12 +93,14 @@ public class PlayerBlockTracker {
         return blocks != null ? new HashSet<>(blocks) : Collections.emptySet();
     }
 
-    public void clearRegionBlocks(String regionId) {
-        regionBlocks.remove(regionId);
-    }
-
     public void clearPlayerBlocks(UUID playerId) {
-        playerBlocks.remove(playerId);
+        Set<BlockPosition> removed = playerBlocks.remove(playerId);
+        if (removed == null || removed.isEmpty()) {
+            return;
+        }
+
+        regionBlocks.values().forEach(set -> set.removeAll(removed));
+        regionBlocks.entrySet().removeIf(entry -> entry.getValue().isEmpty());
     }
 
     public int getRegionBlockCount(String regionId) {
@@ -94,6 +119,11 @@ public class PlayerBlockTracker {
     public void cleanup() {
         regionBlocks.clear();
         playerBlocks.clear();
+        synchronized (PlayerBlockTracker.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
     }
 
     @Getter

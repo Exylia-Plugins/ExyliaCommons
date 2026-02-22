@@ -68,5 +68,10 @@ public class RegionSelector {
 
     public void cleanup() {
         stopAllSessions();
+        synchronized (RegionSelector.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
     }
 }

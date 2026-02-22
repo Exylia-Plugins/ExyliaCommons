@@ -12,7 +12,7 @@ public class ActionAdapter extends ReloadableSystemAdapter {
     @Override
     protected void performCacheClear() throws Exception {
         if (ActionManager.isInitialized()) {
-            ActionManager.getInstance().clearAll();
+            ActionManager.getInstance().clearCache();
         }
     }
 

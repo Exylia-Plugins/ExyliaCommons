@@ -2,6 +2,7 @@ package net.exylia.commons.v2.database.core;
 
 import lombok.Getter;
 import net.exylia.commons.v2.config.Config;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.database.adapter.DatabaseAdapter;
 import net.exylia.commons.v2.database.cache.CaffeineCacheStrategy;
 import net.exylia.commons.v2.database.cache.CacheKey;
@@ -90,7 +91,7 @@ public class DatabaseManager {
     }
 
     public <T extends Entity> CompletableFuture<Void> registerEntityAsync(Class<T> entityClass) {
-        return CompletableFuture.runAsync(() -> registerEntity(entityClass));
+        return Tasks.dbRun(() -> registerEntity(entityClass));
     }
 
     public <T extends Entity> Repository<T> getRepository(Class<T> entityClass) {

@@ -97,6 +97,7 @@ public class HologramManager {
                             registry.register(hologram);
                             cacheManager.cache(hologram);
                             visibilityManager.getSpatialChunkManager().addHologram(hologram);
+                            updateScheduler.scheduleUpdate(hologram);
 
                             Tasks.at(hologram.getLocation(), hologram::spawn);
                         } catch (Exception e) {
@@ -153,6 +154,7 @@ public class HologramManager {
                     registry.register(hologram);
                     cacheManager.cache(hologram);
                     visibilityManager.getSpatialChunkManager().addHologram(hologram);
+                    updateScheduler.scheduleUpdate(hologram);
 
                     if (persistent) {
                         return saveHologramAsync(hologram)
@@ -188,6 +190,7 @@ public class HologramManager {
 
             cacheManager.invalidate(id);
             visibilityManager.getSpatialChunkManager().removeHologram(hologram);
+            updateScheduler.unscheduleUpdate(id);
 
             Tasks.at(hologram.getLocation(), hologram::despawn);
 
@@ -261,12 +264,15 @@ public class HologramManager {
     public void reload() {
         DebugUtils.logInternalInfo("Reloading HologramManager...");
 
-        registry.getAll().forEach(hologram -> {
-            Tasks.at(hologram.getLocation(), hologram::despawn);
-        });
+        registry.getAll().forEach(hologram ->
+                Tasks.at(hologram.getLocation(), () -> {
+                    hologram.despawn();
+                    hologram.spawn();
+                })
+        );
 
         cacheManager.invalidateAll();
-        registry.clear();
+        registry.getAll().forEach(cacheManager::cache);
 
         DebugUtils.logInternalSuccess("HologramManager reloaded");
     }

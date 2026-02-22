@@ -51,9 +51,7 @@ public class MessageRenderer implements VisualRenderer<MessageConfig> {
 
         for (String message : messages) {
             String prefix = Messages.getPrefix();
-            if (prefix != null && !prefix.isEmpty()) {
-                message = message.replace("%prefix%", prefix);
-            }
+            message = message.replace("%prefix%", prefix != null ? prefix : "");
 
             EffectProcessor.ParsedMessage parsed = EffectProcessor.parse(message, player, context);
 

@@ -19,12 +19,14 @@ public class Configs {
     private static Config mainConfig;
 
     public static void init(JavaPlugin plugin) {
+        cache.clear();
         Configs.plugin = plugin;
         Configs.resourceClassLoader = null;
         mainConfig = get("config");
     }
 
     public static void init(JavaPlugin plugin, ClassLoader resourceClassLoader) {
+        cache.clear();
         Configs.plugin = plugin;
         Configs.resourceClassLoader = resourceClassLoader;
         mainConfig = get("config");

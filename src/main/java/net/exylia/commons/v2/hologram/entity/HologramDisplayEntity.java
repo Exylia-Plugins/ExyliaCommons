@@ -14,7 +14,7 @@ import java.util.Collection;
 
 @Getter
 public class HologramDisplayEntity {
-    private static final double DUPLICATE_CHECK_RADIUS = 0.75;
+    private static final double DUPLICATE_CHECK_RADIUS = 0.1;
 
     private final TextDisplay entity;
     private final HologramProperties properties;

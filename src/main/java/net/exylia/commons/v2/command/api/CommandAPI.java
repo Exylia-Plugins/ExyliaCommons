@@ -22,6 +22,10 @@ public final class CommandAPI {
         CommandManager.getInstance().initialize(plugin);
     }
 
+    public static boolean isInitialized() {
+        return CommandManager.getInstance().isInitialized();
+    }
+
     public static CompletableFuture<CommandResult> execute(Player player, String commandString) {
         return execute(player, commandString, PlaceholderContext.create());
     }

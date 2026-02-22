@@ -69,6 +69,10 @@ public class SkullManager {
         return instance;
     }
 
+    public static boolean isInitialized() {
+        return instance != null && instance.initialized;
+    }
+
     private void start() {
         if (initialized) {
             return;

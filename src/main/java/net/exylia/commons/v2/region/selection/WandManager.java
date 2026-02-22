@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.region.selection;
 
+import net.exylia.commons.v2.compat.EnchantmentCompat;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -49,8 +50,11 @@ public class WandManager {
 
             meta.setUnbreakable(true);
             meta.addItemFlags(ItemFlag.HIDE_UNBREAKABLE);
-            meta.addEnchant(Enchantment.DURABILITY, 1, true);
-            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            Enchantment unbreaking = EnchantmentCompat.getUnbreaking();
+            if (unbreaking != null) {
+                meta.addEnchant(unbreaking, 1, true);
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
             meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
 
             meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);

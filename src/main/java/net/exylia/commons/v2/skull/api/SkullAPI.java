@@ -20,6 +20,10 @@ public class SkullAPI {
         SkullManager.initialize(config);
     }
 
+    public static boolean isInitialized() {
+        return SkullManager.isInitialized();
+    }
+
     private static SkullManager getManager() {
         return SkullManager.getInstance();
     }

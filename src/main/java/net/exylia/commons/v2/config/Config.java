@@ -8,10 +8,7 @@ import org.bukkit.configuration.file.YamlConfigurationOptions;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 
 public class Config {
@@ -201,7 +198,19 @@ public class Config {
         return config.isSet(path);
     }
 
+    public boolean merge(Collection<String> optionalPaths) {
+        return ConfigMerger.merge(this, optionalPaths);
+    }
+
+    public boolean merge() {
+        return ConfigMerger.merge(this, Set.of());
+    }
+
     public FileConfiguration raw() {
         return config;
+    }
+
+    public JavaPlugin getPlugin() {
+        return plugin;
     }
 }

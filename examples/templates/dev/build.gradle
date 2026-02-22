@@ -13,8 +13,15 @@ group = mainPackage
 version = '1.0.0'
 
 repositories {
-    mavenCentral()
     mavenLocal()
+    mavenCentral()
+    maven {
+        url = uri('https://maven.pkg.github.com/KasperiP/lukittu-loader')
+        credentials {
+            username = providers.gradleProperty('gpr.user').orNull ?: System.getenv('GITHUB_ACTOR') ?: ''
+            password = providers.gradleProperty('gpr.key').orNull ?: System.getenv('GITHUB_TOKEN') ?: ''
+        }
+    }
     maven {
         name = "papermc-repo"
         url = "https://repo.papermc.io/repository/maven-public/"
@@ -25,6 +32,8 @@ repositories {
     maven { url "https://maven.enginehub.org/repo/" }
     maven { url "https://repo.dmulloy2.net/repository/public/" }
     maven { url "https://repo.codemc.org/repository/maven-public/" }
+    maven { url = uri("https://repo.codemc.io/repository/maven-releases/") }
+    maven { url = uri("https://repo.codemc.io/repository/maven-snapshots/") }
     maven { url "https://repository.minecodes.pl/releases" }
     maven {
         name = "minecraft-libraries"
@@ -33,6 +42,10 @@ repositories {
     maven {
         name = "sundevs"
         url = uri("https://repo.hapangama.com/releases")
+    }
+    maven {
+        name "thenextlvlReleases"
+        url "https://repo.thenextlvl.net/releases"
     }
 }
 

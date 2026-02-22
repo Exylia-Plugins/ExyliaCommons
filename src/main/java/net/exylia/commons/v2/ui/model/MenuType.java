@@ -6,7 +6,8 @@ public enum MenuType {
     MULTI_PAGINATION,
     FULL_INVENTORY,
     PAGINATION_FULL,
-    MULTI_PAGINATION_FULL;
+    MULTI_PAGINATION_FULL,
+    ITEM_INPUT;
 
     public boolean isPaginationMenu() {
         return this == PAGINATION || this == MULTI_PAGINATION ||
@@ -19,6 +20,10 @@ public enum MenuType {
 
     public boolean isFullInventoryMenu() {
         return this == FULL_INVENTORY || this == PAGINATION_FULL || this == MULTI_PAGINATION_FULL;
+    }
+
+    public boolean isItemInputMenu() {
+        return this == ITEM_INPUT;
     }
 
     public static MenuType fromString(String type) {

@@ -4,6 +4,7 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.ui.exception.MenuException;
 import net.exylia.commons.v2.ui.menu.*;
+import net.exylia.commons.v2.ui.menu.ItemInputMenu;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuType;
 import org.bukkit.entity.Player;
@@ -22,6 +23,7 @@ public class MenuFactory {
             case FULL_INVENTORY -> new FullInventoryMenu(player, menuData);
             case PAGINATION_FULL -> new PaginationFullMenu(player, menuData);
             case MULTI_PAGINATION_FULL -> new MultiPaginationFullMenu(player, menuData);
+            case ITEM_INPUT -> new ItemInputMenu(player, menuData);
             default -> throw new MenuException("Unknown menu type: " + type);
         };
 

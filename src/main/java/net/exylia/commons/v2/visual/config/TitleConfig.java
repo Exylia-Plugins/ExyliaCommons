@@ -8,58 +8,61 @@ import java.util.List;
 
 @Getter
 public class TitleConfig extends VisualConfig {
+
     private final String title;
     private final String subtitle;
     private final int fadeIn;
     private final int stay;
     private final int fadeOut;
 
-    public TitleConfig(
-            String title,
-            String subtitle,
-            int fadeIn,
-            int stay,
-            int fadeOut,
-            boolean permanent,
-            long updateInterval
-    ) {
-        this.title = title != null ? title : "";
-        this.subtitle = subtitle != null ? subtitle : "";
-        this.fadeIn = fadeIn;
-        this.stay = stay;
-        this.fadeOut = fadeOut;
-        this.permanent = permanent;
-        this.updateInterval = updateInterval;
+    private TitleConfig(Builder builder) {
+        this.title = builder.title != null ? builder.title : "";
+        this.subtitle = builder.subtitle != null ? builder.subtitle : "";
+        this.fadeIn = builder.fadeIn;
+        this.stay = builder.stay;
+        this.fadeOut = builder.fadeOut;
+        this.updateInterval = builder.updateInterval;
+        this.permanent = builder.permanent;
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private String title = "";
+        private String subtitle = "";
+        private int fadeIn = 10;
+        private int stay = 70;
+        private int fadeOut = 20;
+        private long updateInterval = 20L;
+        private boolean permanent = false;
+
+        private Builder() {}
+
+        public Builder title(String title) { this.title = title; return this; }
+        public Builder subtitle(String subtitle) { this.subtitle = subtitle; return this; }
+        public Builder fadeIn(int fadeIn) { this.fadeIn = fadeIn; return this; }
+        public Builder stay(int stay) { this.stay = stay; return this; }
+        public Builder fadeOut(int fadeOut) { this.fadeOut = fadeOut; return this; }
+        public Builder updateInterval(long updateInterval) { this.updateInterval = updateInterval; return this; }
+        public Builder permanent(boolean permanent) { this.permanent = permanent; return this; }
+
+        public TitleConfig build() { return new TitleConfig(this); }
     }
 
     @Override
     public ValidationResult validate() {
         ValidationResult baseResult = validateBase();
-        if (!baseResult.isValid()) {
-            return baseResult;
-        }
+        if (!baseResult.isValid()) return baseResult;
 
         List<String> errors = new ArrayList<>();
-
-        if ((title == null || title.isBlank()) && (subtitle == null || subtitle.isBlank())) {
+        if ((title == null || title.isBlank()) && (subtitle == null || subtitle.isBlank()))
             errors.add("Title or subtitle must be provided");
-        }
-
-        if (fadeIn < 0) {
-            errors.add("Fade in must be >= 0");
-        }
-
-        if (stay < 0) {
-            errors.add("Stay must be >= 0");
-        }
-
-        if (fadeOut < 0) {
-            errors.add("Fade out must be >= 0");
-        }
-
-        if (permanent && updateInterval < 1) {
-            errors.add("Update interval must be >= 1 for permanent titles");
-        }
+        if (fadeIn < 0) errors.add("Fade in must be >= 0");
+        if (stay < 0) errors.add("Stay must be >= 0");
+        if (fadeOut < 0) errors.add("Fade out must be >= 0");
+        if (permanent && updateInterval < 1) errors.add("Update interval must be >= 1 for permanent titles");
 
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }

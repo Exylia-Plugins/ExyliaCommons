@@ -441,6 +441,10 @@ public class PlaceholderSystemManager {
         }
     }
 
+    public void clearCache() {
+        cache.clear();
+    }
+
     public void clearAll() {
         globalPlaceholders.clear();
         contextPlaceholders.clear();

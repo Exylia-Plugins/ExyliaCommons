@@ -7,6 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.entity.Entity;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -134,16 +135,15 @@ public class TaskChainBuilder<T> {
     }
 
     public TaskChainBuilder<T> delay(long delay, TimeUnit unit) {
-        CompletableFuture<T> next = future.thenCompose(v ->
-            CompletableFuture.supplyAsync(() -> {
-                try {
-                    unit.sleep(delay);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                return v;
-            })
-        );
+        CompletableFuture<T> next = future.thenCompose(v -> {
+            CompletableFuture<T> delayed = new CompletableFuture<>();
+            try {
+                manager.getExecutor().schedule(() -> delayed.complete(v), delay, unit);
+            } catch (RejectedExecutionException e) {
+                delayed.completeExceptionally(e);
+            }
+            return delayed;
+        });
         return new TaskChainBuilder<>(manager, next);
     }
 

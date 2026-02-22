@@ -56,10 +56,15 @@ public class TaskManager {
     }
 
     public static synchronized void initialize(Plugin plugin, TaskConfig config) {
-        if (instance == null) {
-            ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
-            instance = new TaskManager(plugin, config);
+        if (instance != null) {
+            if (instance.plugin == plugin) {
+                return;
+            }
+            instance.shutdown();
         }
+
+        ConfigSchemaRegistry.ensureDefaults(TasksDefaults.class);
+        instance = new TaskManager(plugin, config);
     }
 
     public static TaskManager getInstance() {

@@ -37,10 +37,9 @@ public class HologramListener implements Listener {
         manager.getAllHolograms().stream()
                 .filter(h -> !h.isPerPlayer())
                 .forEach(hologram -> {
-                    if (!hologram.canSee(player)) {
-                        for (org.bukkit.entity.TextDisplay display : hologram.getGlobalDisplays()) {
-                            player.hideEntity(manager.getPlugin(), display);
-                        }
+                    org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
+                    if (!hologram.canSee(player) && display != null) {
+                        player.hideEntity(manager.getPlugin(), display);
                     }
                 });
     }
@@ -117,17 +116,15 @@ public class HologramListener implements Listener {
                 .forEach(hologram -> {
                     boolean canSee = hologram.canSee(player);
 
+                    org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
+                    if (display == null) return;
                     if (canSee) {
-                        for (org.bukkit.entity.TextDisplay display : hologram.getGlobalDisplays()) {
-                            if (!player.canSee(display)) {
-                                player.showEntity(manager.getPlugin(), display);
-                            }
+                        if (!player.canSee(display)) {
+                            player.showEntity(manager.getPlugin(), display);
                         }
                     } else {
-                        for (org.bukkit.entity.TextDisplay display : hologram.getGlobalDisplays()) {
-                            if (player.canSee(display)) {
-                                player.hideEntity(manager.getPlugin(), display);
-                            }
+                        if (player.canSee(display)) {
+                            player.hideEntity(manager.getPlugin(), display);
                         }
                     }
                 });

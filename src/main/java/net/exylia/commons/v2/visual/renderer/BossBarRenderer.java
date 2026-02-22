@@ -111,4 +111,8 @@ public class BossBarRenderer implements VisualRenderer<BossBarConfig> {
             }
         }
     }
+
+    public void removeAllBossBars(UUID playerId) {
+        activeBossBars.remove(playerId);
+    }
 }

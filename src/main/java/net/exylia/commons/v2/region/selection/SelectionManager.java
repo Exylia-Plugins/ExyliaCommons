@@ -35,7 +35,15 @@ public class SelectionManager {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        if (instance == null) {
+        synchronized (SelectionManager.class) {
+            if (instance != null && instance.plugin == plugin) {
+                return;
+            }
+
+            if (instance != null) {
+                instance.cleanupAll();
+            }
+
             instance = new SelectionManager(plugin);
         }
     }
@@ -180,6 +188,15 @@ public class SelectionManager {
         playerSelections.clear();
         selectionCallbacks.clear();
         activeVisualizations.clear();
+    }
+
+    public void shutdown() {
+        cleanupAll();
+        synchronized (SelectionManager.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
     }
 
     public Map<String, Object> getStats() {

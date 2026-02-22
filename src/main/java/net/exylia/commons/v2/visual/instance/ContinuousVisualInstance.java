@@ -59,6 +59,7 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
             updateTask.cancel();
         }
 
+        renderer.cleanup(player, id);
         lifecycle.cancel();
         VisualRegistry.getInstance().remove(player.getUniqueId(), id);
     }

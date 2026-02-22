@@ -81,6 +81,14 @@ public class TitleBuilder extends VisualBuilder<TitleConfig, TitleBuilder> {
 
     @Override
     protected TitleConfig buildInternal() {
-        return new TitleConfig(title, subtitle, fadeIn, stay, fadeOut, permanent, updateInterval);
+        return TitleConfig.builder()
+                .title(title)
+                .subtitle(subtitle)
+                .fadeIn(fadeIn)
+                .stay(stay)
+                .fadeOut(fadeOut)
+                .permanent(permanent)
+                .updateInterval(updateInterval)
+                .build();
     }
 }

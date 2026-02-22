@@ -33,10 +33,13 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Getter
 public abstract class MenuBase {
+
+    private static final long CLICK_PROTECTION_COOLDOWN_MILLIS = 150L;
 
     protected final UUID menuId;
     protected final Player player;
@@ -46,6 +49,7 @@ public abstract class MenuBase {
     protected final AtomicReference<MenuState> state;
     protected final AtomicBoolean animationCancelFlag;
     protected final AtomicBoolean suppressDisplay;
+    protected final AtomicLong lastClickAtMillis;
 
     protected Inventory inventory;
     protected ScheduledTask refreshTask;
@@ -59,6 +63,7 @@ public abstract class MenuBase {
         this.state = new AtomicReference<>(MenuState.CLOSED);
         this.animationCancelFlag = new AtomicBoolean(false);
         this.suppressDisplay = new AtomicBoolean(false);
+        this.lastClickAtMillis = new AtomicLong(0L);
     }
 
     protected PlaceholderContext prepareContext(MenuData menuData) {
@@ -133,6 +138,8 @@ public abstract class MenuBase {
                     });
                 } catch (Exception e) {
                     state.set(MenuState.CLOSED);
+                    cancelRefresh();
+                    cleanup();
                     DebugAPI.logLibError(DebugCategory.UI, "Failed to populate menu " + menuId, e);
                     future.completeExceptionally(e);
                 }
@@ -184,6 +191,8 @@ public abstract class MenuBase {
                 });
             } catch (Exception e) {
                 state.set(MenuState.CLOSED);
+                cancelRefresh();
+                cleanup();
                 DebugAPI.logLibError(DebugCategory.UI, "Failed to populate menu " + menuId, e);
             }
         });
@@ -221,6 +230,10 @@ public abstract class MenuBase {
             return;
         }
 
+        if (!canProcessClick()) {
+            return;
+        }
+
         DebugAPI.logLibDebug(DebugCategory.UI, "Click on menu " + menuId + " slot " + slot + " (type: " + clickType + ")");
 
         ProcessedItem item = itemsBySlot.get(slot);
@@ -237,6 +250,18 @@ public abstract class MenuBase {
                 schedulePostClickRefresh();
             }
         }
+    }
+
+    protected boolean canProcessClick() {
+        long now = System.currentTimeMillis();
+        long lastClick = lastClickAtMillis.get();
+
+        if (now - lastClick < CLICK_PROTECTION_COOLDOWN_MILLIS) {
+            return false;
+        }
+
+        lastClickAtMillis.set(now);
+        return true;
     }
 
     protected void executeItemActions(ProcessedItem item, int slot, ClickType clickType) {
@@ -645,6 +670,10 @@ public abstract class MenuBase {
 
     public boolean isOpen() {
         return state.get() == MenuState.OPEN;
+    }
+
+    public MenuData getMenuData() {
+        return menuData;
     }
 
     public void ensureOpen() {

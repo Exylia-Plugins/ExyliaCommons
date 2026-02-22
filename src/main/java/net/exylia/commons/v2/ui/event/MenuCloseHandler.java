@@ -3,6 +3,9 @@ package net.exylia.commons.v2.ui.event;
 import net.exylia.commons.v2.ui.core.MenuManager;
 import net.exylia.commons.v2.ui.menu.MenuBase;
 import net.exylia.commons.v2.ui.model.MenuState;
+import net.exylia.commons.v2.ui.packet.ContainerIdTracker;
+import net.exylia.commons.v2.ui.pagination.PaginationTracker;
+import net.exylia.commons.v2.ui.snapshot.AutoSnapshotHandler;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -40,13 +43,17 @@ public class MenuCloseHandler implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        MenuManager manager = MenuManager.getInstance();
 
-        Optional<MenuBase> menuOptional = MenuManager.getInstance().getActiveMenu(player);
+        Optional<MenuBase> menuOptional = manager.getActiveMenu(player);
         menuOptional.ifPresent(menu -> {
             menu.close();
-            MenuManager.getInstance().getRegistry().unregister(player.getUniqueId());
+            manager.getRegistry().unregister(player.getUniqueId());
         });
 
-        MenuManager.getInstance().clearHistory(player);
+        manager.clearHistory(player);
+        PaginationTracker.clearPlayer(player.getUniqueId());
+        ContainerIdTracker.remove(player.getUniqueId());
+        AutoSnapshotHandler.clearSnapshot(player);
     }
 }

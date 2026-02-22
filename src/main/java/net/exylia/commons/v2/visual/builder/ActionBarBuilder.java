@@ -38,6 +38,9 @@ public class ActionBarBuilder extends VisualBuilder<ActionBarConfig, ActionBarBu
 
     @Override
     protected ActionBarConfig buildInternal() {
-        return new ActionBarConfig(text, permanent, updateInterval);
+        return ActionBarConfig.builder(text)
+                .permanent(permanent)
+                .updateInterval(updateInterval)
+                .build();
     }
 }

@@ -23,7 +23,7 @@ public class PlaceholderAdapter extends ReloadableSystemAdapter {
         try {
             PlaceholderSystemManager managerV1 = PlaceholderSystemManager.getInstance();
             if (managerV1 != null) {
-                managerV1.clearAll();
+                managerV1.clearCache();
             }
         } catch (Exception ignored) {
         }

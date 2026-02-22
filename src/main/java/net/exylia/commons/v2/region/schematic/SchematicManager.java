@@ -51,7 +51,15 @@ public class SchematicManager {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        if (instance == null) {
+        synchronized (SchematicManager.class) {
+            if (instance != null && instance.plugin == plugin) {
+                return;
+            }
+
+            if (instance != null) {
+                instance.unloadAllSchematics();
+            }
+
             instance = new SchematicManager(plugin);
         }
     }
@@ -244,6 +252,15 @@ public class SchematicManager {
     public void unloadAllSchematics() {
         loadedSchematics.clear();
         logInternalInfo("All schematics unloaded from memory");
+    }
+
+    public void shutdown() {
+        unloadAllSchematics();
+        synchronized (SchematicManager.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
     }
 
     public File getSchematicsFolder() {

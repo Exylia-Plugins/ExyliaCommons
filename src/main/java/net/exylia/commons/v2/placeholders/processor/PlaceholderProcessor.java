@@ -18,7 +18,6 @@ import java.util.regex.Pattern;
 public class PlaceholderProcessor {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%]+)%");
     private static final int MAX_NESTING_DEPTH = 10;
-    private static final PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
 
     private PlaceholderProcessor() {
         throw new UnsupportedOperationException("Utility class");
@@ -49,6 +48,7 @@ public class PlaceholderProcessor {
     }
 
     private static String processSinglePass(String text, Player player, PlaceholderContext context) {
+        PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         StringBuffer sb = new StringBuffer();
 
@@ -87,6 +87,8 @@ public class PlaceholderProcessor {
         if (depth >= MAX_NESTING_DEPTH || !containsPlaceholders(text)) {
             return CompletableFuture.completedFuture(text);
         }
+
+        PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
 
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
         List<String> placeholders = new ArrayList<>();

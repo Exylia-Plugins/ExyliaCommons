@@ -16,6 +16,7 @@ import net.exylia.commons.v2.region.model.RegionFlag;
 import net.exylia.commons.v2.region.model.Region;
 import net.exylia.commons.v2.region.selection.SelectionListener;
 import net.exylia.commons.v2.region.selection.SelectionManager;
+import net.exylia.commons.v2.region.visual.RegionSelector;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -49,6 +50,7 @@ public class RegionManager implements Listener {
 
     private RegionListener regionListener;
     private ScheduledTask cleanupTask;
+    private volatile boolean shuttingDown;
 
     private RegionManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -72,6 +74,7 @@ public class RegionManager implements Listener {
 
         this.regionListener = new RegionListener(plugin, this);
         SelectionListener selectionListener = new SelectionListener(plugin, SelectionManager.getInstance());
+        this.shuttingDown = false;
 
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
         plugin.getServer().getPluginManager().registerEvents(regionListener, plugin);
@@ -83,7 +86,15 @@ public class RegionManager implements Listener {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        if (instance == null) {
+        synchronized (RegionManager.class) {
+            if (instance != null && instance.plugin == plugin) {
+                return;
+            }
+
+            if (instance != null) {
+                instance.cleanup();
+            }
+
             instance = new RegionManager(plugin);
         }
     }
@@ -141,6 +152,7 @@ public class RegionManager implements Listener {
 
         spatialIndex.removeRegion(region);
         cacheManager.invalidateRegion(region);
+        PlayerBlockTracker.getInstance().clearRegionBlocks(region.getId());
 
         Set<Player> playersToRemove = new HashSet<>(region.getPlayersInside());
         for (Player player : playersToRemove) {
@@ -156,6 +168,7 @@ public class RegionManager implements Listener {
 
         for (Region region : allRegions) {
             spatialIndex.removeRegion(region);
+            PlayerBlockTracker.getInstance().clearRegionBlocks(region.getId());
 
             Set<Player> playersToRemove = new HashSet<>(region.getPlayersInside());
             for (Player player : playersToRemove) {
@@ -206,6 +219,10 @@ public class RegionManager implements Listener {
     }
 
     public boolean processPlayerMovement(Player player, Location from, Location to) {
+        if (shuttingDown) {
+            return true;
+        }
+
         MovementDetector.MovementResult result = movementDetector.checkMovement(player, from, to);
 
         if (!result.isRequiresUpdate()) {
@@ -311,6 +328,9 @@ public class RegionManager implements Listener {
         Set<Region> regions = playerRegions.get(player.getUniqueId());
         if (regions != null) {
             regions.remove(region);
+            if (regions.isEmpty()) {
+                playerRegions.remove(player.getUniqueId());
+            }
         }
 
         RegionExitEvent exitEvent = new RegionExitEvent(player, region);
@@ -327,6 +347,10 @@ public class RegionManager implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        if (shuttingDown) {
+            return;
+        }
+
         Player player = event.getPlayer();
         cleanupPlayer(player);
     }
@@ -345,6 +369,9 @@ public class RegionManager implements Listener {
         }
 
         playerTracker.removePlayer(playerId);
+        if (PlayerBlockTracker.isInitialized()) {
+            PlayerBlockTracker.getInstance().clearPlayerBlocks(playerId);
+        }
         cacheManager.removePlayerState(playerId);
         cacheManager.invalidatePlayerFlags(playerId);
     }
@@ -368,6 +395,7 @@ public class RegionManager implements Listener {
     }
 
     public void cleanup() {
+        shuttingDown = true;
         stopPeriodicTasks();
 
         for (Player player : Bukkit.getOnlinePlayers()) {
@@ -376,17 +404,26 @@ public class RegionManager implements Listener {
 
         PlayerBlockTracker.getInstance().cleanup();
         TemporaryBlockManager.getInstance().shutdown();
-        SelectionManager.getInstance().cleanupAll();
+        SelectionManager.getInstance().shutdown();
+        RegionSelector.getInstance().cleanup();
 
         if (isWorldEditAvailable()) {
             try {
-                SchematicManager.getInstance().unloadAllSchematics();
+                SchematicManager.getInstance().shutdown();
             } catch (IllegalStateException ignored) {}
         }
 
         regions.clear();
         playerRegions.clear();
+        playerTracker.clear();
+        spatialIndex.clear();
         cacheManager.invalidateAll();
+
+        synchronized (RegionManager.class) {
+            if (instance == this) {
+                instance = null;
+            }
+        }
 
         logInternalInfo("RegionManagerV2 cleaned up");
     }
