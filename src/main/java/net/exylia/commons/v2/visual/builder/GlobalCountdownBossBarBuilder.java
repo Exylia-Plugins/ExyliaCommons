@@ -16,7 +16,7 @@ import java.util.function.Predicate;
 public class GlobalCountdownBossBarBuilder {
     private String id;
     private final int durationSeconds;
-    private String text = "Tiempo: {time_formatted}";
+    private String text = "Tiempo: %time_formatted%";
     private BossBar.Color color = BossBar.Color.BLUE;
     private BossBar.Overlay overlay = BossBar.Overlay.PROGRESS;
     private PlaceholderContext context = PlaceholderContext.create();

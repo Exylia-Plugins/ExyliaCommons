@@ -268,12 +268,28 @@ public class Region {
         return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().saveSchematic(this, schematicName);
     }
 
+    public CompletableFuture<Boolean> saveSchematic(net.exylia.commons.v2.region.schematic.SchematicManager.SchematicType type) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().saveSchematic(this, this.id, type);
+    }
+
+    public CompletableFuture<Boolean> saveSchematic(String schematicName, net.exylia.commons.v2.region.schematic.SchematicManager.SchematicType type) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().saveSchematic(this, schematicName, type);
+    }
+
     public CompletableFuture<Boolean> regenerate() {
-        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this);
+        return net.exylia.commons.v2.region.RegionManager.getInstance().restoreRegion(this);
     }
 
     public CompletableFuture<Boolean> regenerate(String schematicName) {
         return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName);
+    }
+
+    public CompletableFuture<Boolean> regenerate(net.exylia.commons.v2.region.schematic.SchematicManager.SchematicType type) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, this.id, type);
+    }
+
+    public CompletableFuture<Boolean> regenerate(String schematicName, net.exylia.commons.v2.region.schematic.SchematicManager.SchematicType type) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName, type);
     }
 
     public CompletableFuture<Region> cloneTo(Location targetCenter) {

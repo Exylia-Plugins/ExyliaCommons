@@ -1,7 +1,7 @@
 package net.exylia.commons.config;
 
 import lombok.Getter;
-import net.exylia.commons.async.Schedulers;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.placeholders.PlaceholderSystemManager;
 import net.exylia.commons.utils.ColorUtils;
@@ -391,7 +391,7 @@ public class ConfigurationSystem {
 
                 logInternalSuccess("Reloaded " + configInstances.size() + " configs");
 
-                Schedulers.sync(this::notifyReloadListeners);
+                TaskAPI.sync(this::notifyReloadListeners);
                 return true;
 
             } catch (Exception e) {

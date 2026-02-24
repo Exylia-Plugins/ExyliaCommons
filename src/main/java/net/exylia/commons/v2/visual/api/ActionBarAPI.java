@@ -65,7 +65,7 @@ public final class ActionBarAPI {
     }
 
     public static CompletableFuture<String> countdown(Player player, int durationSeconds) {
-        return countdown(player, durationSeconds, "{time_formatted}");
+        return countdown(player, durationSeconds, "%time_formatted%");
     }
 
     public static CompletableFuture<String> countdown(Player player, int durationSeconds, String text) {
@@ -97,7 +97,7 @@ public final class ActionBarAPI {
     }
 
     public static CompletableFuture<String> countdownMillis(Player player, long durationMillis) {
-        return countdownMillis(player, durationMillis, "{time_formatted}");
+        return countdownMillis(player, durationMillis, "%time_formatted%");
     }
 
     public static CompletableFuture<String> countdownMillis(Player player, long durationMillis, String text) {
@@ -140,6 +140,31 @@ public final class ActionBarAPI {
         return ActionBarBuilder.create();
     }
 
+    public static void countdownMillis(
+            Player player,
+            String key,
+            long durationMillis,
+            ActionBarConfig config,
+            PlaceholderContext context,
+            Runnable onComplete
+    ) {
+        long durationTicks = durationMillis / 50L;
+        boolean isNew = VisualRegistry.getInstance().get(player.getUniqueId(), key).isEmpty();
+
+        VisualManager.getInstance().sendOrUpdateCountdown(
+                player, key, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR, durationTicks
+        );
+
+        if (isNew && onComplete != null) {
+            VisualRegistry.getInstance().get(player.getUniqueId(), key)
+                    .ifPresent(instance -> {
+                        if (instance instanceof CountdownVisualInstance<?> countdown) {
+                            countdown.setOnComplete(onComplete);
+                        }
+                    });
+        }
+    }
+
     public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context) {
         ActionBarConfig config = ActionBarBuilder.create()
                 .text(text)
@@ -162,7 +187,7 @@ public final class ActionBarAPI {
     public static class CountdownActionBarBuilder {
         private final Player player;
         private final int durationSeconds;
-        private String text = "{time_formatted}";
+        private String text = "%time_formatted%";
         private long updateInterval = 10L;
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;

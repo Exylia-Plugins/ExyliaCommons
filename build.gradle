@@ -32,10 +32,6 @@ repositories {
         url = uri("https://libraries.minecraft.net")
     }
     maven {
-        name = "sundevs"
-        url = uri("https://repo.hapangama.com/releases")
-    }
-    maven {
         name = "roinujnosde-repo"
         url = uri("https://repo.roinujnosde.me/releases/")
     }
@@ -69,7 +65,6 @@ dependencies {
     compileOnly 'com.google.inject:guice:7.0.0'
     compileOnly 'dev.lone:api-itemsadder:4.0.10'
     implementation 'com.github.lalyos:jfiglet:0.0.9'
-    implementation 'com.hapangama:SunLicenseAPI:1.0.3'
 
     compileOnly 'de.exlll:configlib-yaml:4.8.0'
     compileOnly 'com.lukittu.loader:lukittu-common:v1.0.7'

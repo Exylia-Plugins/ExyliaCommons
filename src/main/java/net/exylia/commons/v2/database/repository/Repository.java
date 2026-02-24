@@ -57,6 +57,10 @@ public interface Repository<T extends Entity> {
 
     List<T> findAllOrderedBy(String fieldName, boolean ascending, int limit);
 
+    CompletableFuture<List<T>> findAllByOrderedByAsync(String whereField, Object whereValue, String orderField, boolean ascending, int limit);
+
+    List<T> findAllByOrderedBy(String whereField, Object whereValue, String orderField, boolean ascending, int limit);
+
     CompletableFuture<List<T>> findAllPagedAsync(int page, int pageSize);
 
     List<T> findAllPaged(int page, int pageSize);

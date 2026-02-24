@@ -208,6 +208,19 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public <T extends Entity> List<T> findByFieldSorted(String whereField, Object whereValue, String orderField, boolean ascending, int limit, Class<T> entityClass, EntityMetadata metadata) throws Exception {
+        List<Map<String, Object>> table = getTable(metadata.getTableName());
+        List<T> results = new ArrayList<>();
+        for (Map<String, Object> record : table) {
+            Object val = record.get(whereField);
+            if (val != null && val.equals(whereValue)) {
+                results.add(mapToEntity(record, entityClass, metadata));
+            }
+        }
+        return results.size() > limit ? new ArrayList<>(results.subList(0, limit)) : results;
+    }
+
+    @Override
     public String getAdapterName() {
         return "YAML";
     }

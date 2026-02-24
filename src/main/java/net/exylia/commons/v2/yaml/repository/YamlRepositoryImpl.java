@@ -246,6 +246,40 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
     }
 
     @Override
+    public CompletableFuture<List<T>> findAllByOrderedByAsync(String whereField, Object whereValue, String orderField, boolean ascending, int limit) {
+        return Tasks.dbValue(() -> findAllByOrderedBy(whereField, whereValue, orderField, ascending, limit));
+    }
+
+    @Override
+    public List<T> findAllByOrderedBy(String whereField, Object whereValue, String orderField, boolean ascending, int limit) {
+        List<T> filtered = findAllBy(whereField, whereValue);
+
+        Comparator<T> comparator = (e1, e2) -> {
+            try {
+                Object v1 = metadata.getField(orderField) != null
+                        ? metadata.getField(orderField).getValue(e1)
+                        : null;
+                Object v2 = metadata.getField(orderField) != null
+                        ? metadata.getField(orderField).getValue(e2)
+                        : null;
+                if (v1 instanceof Comparable && v2 instanceof Comparable) {
+                    return ((Comparable) v1).compareTo(v2);
+                }
+                return 0;
+            } catch (Exception e) {
+                return 0;
+            }
+        };
+
+        if (!ascending) comparator = comparator.reversed();
+
+        return filtered.stream()
+                .sorted(comparator)
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public CompletableFuture<List<T>> findAllPagedAsync(int page, int pageSize) {
         return Tasks.dbValue(() -> findAllPaged(page, pageSize));
     }

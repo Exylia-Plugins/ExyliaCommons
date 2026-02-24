@@ -67,7 +67,7 @@ public final class BossBarAPI {
     }
 
     public static CompletableFuture<String> countdown(Player player, int durationSeconds) {
-        return countdown(player, durationSeconds, "Tiempo: {time_formatted}");
+        return countdown(player, durationSeconds, "Tiempo: %time_formatted%");
     }
 
     public static CompletableFuture<String> countdown(Player player, int durationSeconds, String text) {
@@ -134,7 +134,7 @@ public final class BossBarAPI {
     public static class CountdownBossBarBuilder {
         private final Player player;
         private final int durationSeconds;
-        private String text = "Tiempo: {time_formatted}";
+        private String text = "Tiempo: %time_formatted%";
         private BossBar.Color color = BossBar.Color.BLUE;
         private BossBar.Overlay style = BossBar.Overlay.PROGRESS;
         private PlaceholderContext context = PlaceholderContext.create();

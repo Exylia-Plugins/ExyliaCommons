@@ -216,7 +216,19 @@ public class ItemProcessor {
 
         try {
             int amount = Integer.parseInt(processedAmount.trim());
-            itemStack.setAmount(Math.max(1, Math.min(64, amount)));
+            amount = Math.max(1, Math.min(99, amount));
+            itemStack.setAmount(amount);
+
+            if (amount > 1 && itemData.getMaxStackSize() == -1 && isMaxStackSizeAvailable()) {
+                ItemMeta meta = itemStack.getItemMeta();
+                if (meta != null) {
+                    try {
+                        setMaxStackSizeMethod.invoke(meta, amount);
+                        itemStack.setItemMeta(meta);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
         } catch (NumberFormatException ignored) {
         }
     }

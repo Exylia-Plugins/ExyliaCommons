@@ -17,7 +17,8 @@ public enum RegionFlag {
     ENTRY("entry", "Permite entrar a la región (incluye teleports)", true),
     EXIT("exit", "Permite salir de la región (incluye teleports)", true),
     ITEM_DROP("item_drop", "Permite dropear items", true),
-    ITEM_PICKUP("item_pickup", "Permite recoger items", true);
+    ITEM_PICKUP("item_pickup", "Permite recoger items", true),
+    FALL_DAMAGE("fall_damage", "Permite daño por caída a jugadores", true);
 
     private final String key;
     private final String description;

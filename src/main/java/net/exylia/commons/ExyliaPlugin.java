@@ -50,6 +50,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
             lifecycleManager.executeBootstrap();
             ReloadAPI.initialize(this);
+
+            initializeConfigurationSystem();
+
             lifecycleManager.executePluginEnable();
 
         } catch (Exception e) {

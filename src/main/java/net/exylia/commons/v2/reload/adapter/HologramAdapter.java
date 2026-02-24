@@ -13,7 +13,7 @@ public class HologramAdapter extends ReloadableSystemAdapter {
     protected void performCacheClear() throws Exception {
         HologramManager instance = HologramManager.getInstance();
         if (instance != null) {
-            instance.removeAllHolograms();
+            instance.getCacheManager().invalidateAll();
         }
     }
 

@@ -238,6 +238,40 @@ public class VisualManager {
         instance.start();
     }
 
+    public <T extends VisualConfig> void sendOrUpdateCountdown(
+            Player player,
+            String key,
+            T config,
+            PlaceholderContext context,
+            VisualRenderer<T> renderer,
+            VisualType type,
+            long durationTicks
+    ) {
+        validateInitialized();
+        if (!validateParameters(player, config)) return;
+
+        PlaceholderContext enrichedContext = enrichContext(context, player, key);
+        enrichedContext.put("countdown_duration", durationTicks);
+
+        Optional<VisualInstance<?>> existing = VisualRegistry.getInstance().get(player.getUniqueId(), key);
+        if (existing.isPresent()) {
+            VisualInstance<?> inst = existing.get();
+            if (inst instanceof CountdownVisualInstance<?> countdown) {
+                countdown.resetDuration(durationTicks);
+                countdown.updateContext(enrichedContext);
+                return;
+            }
+            inst.cancel();
+        }
+
+        CountdownVisualInstance<T> instance = new CountdownVisualInstance<>(
+                key, config, player, enrichedContext, renderer, durationTicks
+        );
+
+        VisualRegistry.getInstance().register(player.getUniqueId(), key, instance, type);
+        instance.start();
+    }
+
     public boolean cancel(UUID playerId, String visualId) {
         boolean result = VisualRegistry.getInstance().get(playerId, visualId)
                 .map(instance -> {

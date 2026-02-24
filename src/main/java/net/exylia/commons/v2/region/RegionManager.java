@@ -19,13 +19,16 @@ import net.exylia.commons.v2.region.selection.SelectionManager;
 import net.exylia.commons.v2.region.visual.RegionSelector;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.entity.Player;
+import org.bukkit.World;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.BoundingBox;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -66,11 +69,7 @@ public class RegionManager implements Listener {
         TemporaryBlockManager.initialize(plugin);
         SelectionManager.initialize(plugin);
 
-        if (isWorldEditAvailable()) {
-            SchematicManager.initialize(plugin);
-        } else {
-            logInternalInfo("WorldEdit/FAWE not found - SchematicManager disabled");
-        }
+        SchematicManager.initialize(plugin);
 
         this.regionListener = new RegionListener(plugin, this);
         SelectionListener selectionListener = new SelectionListener(plugin, SelectionManager.getInstance());
@@ -111,6 +110,12 @@ public class RegionManager implements Listener {
             return false;
         }
 
+        Region previousRegion = regions.put(region.getId(), region);
+        if (previousRegion != null) {
+            spatialIndex.removeRegion(previousRegion);
+            cacheManager.invalidateRegion(previousRegion);
+        }
+
         RegionCreateEvent createEvent = new RegionCreateEvent(region);
         if (Bukkit.isPrimaryThread()) {
             Tasks.run(() -> Bukkit.getPluginManager().callEvent(createEvent));
@@ -118,7 +123,6 @@ public class RegionManager implements Listener {
             Bukkit.getPluginManager().callEvent(createEvent);
         }
 
-        regions.put(region.getId(), region);
         spatialIndex.addRegion(region);
         cacheManager.invalidateRegion(region);
 
@@ -355,6 +359,38 @@ public class RegionManager implements Listener {
         cleanupPlayer(player);
     }
 
+    public CompletableFuture<Boolean> restoreRegion(Region region) {
+        return SchematicManager.getInstance().regenerateRegion(region);
+    }
+
+    public void cleanEntities(Region region) {
+        World world = region.getWorld();
+        if (world == null) return;
+
+        Location min = region.getMinimumPoint();
+        Location max = region.getMaximumPoint();
+        BoundingBox box = new BoundingBox(
+                min.getX(), min.getY(), min.getZ(),
+                max.getX() + 1, max.getY() + 1, max.getZ() + 1
+        );
+
+        int[] count = {0};
+        world.getNearbyEntities(box, e ->
+                e instanceof EnderCrystal
+                || e instanceof Minecart
+                || e instanceof AbstractArrow
+                || e instanceof Item
+                || e instanceof ExperienceOrb
+                || e instanceof Fireball
+                || e instanceof Snowball
+                || e instanceof Egg
+                || e instanceof ThrownExpBottle
+                || e instanceof Firework
+        ).forEach(e -> { e.remove(); count[0]++; });
+
+        logInternalInfo("[Restore] Removed " + count[0] + " entities in region '" + region.getId() + "'");
+    }
+
     public void cleanupPlayer(Player player) {
         UUID playerId = player.getUniqueId();
 
@@ -407,11 +443,9 @@ public class RegionManager implements Listener {
         SelectionManager.getInstance().shutdown();
         RegionSelector.getInstance().cleanup();
 
-        if (isWorldEditAvailable()) {
-            try {
-                SchematicManager.getInstance().shutdown();
-            } catch (IllegalStateException ignored) {}
-        }
+        try {
+            SchematicManager.getInstance().shutdown();
+        } catch (IllegalStateException ignored) {}
 
         regions.clear();
         playerRegions.clear();
@@ -438,8 +472,4 @@ public class RegionManager implements Listener {
         return stats;
     }
 
-    private static boolean isWorldEditAvailable() {
-        return Bukkit.getPluginManager().getPlugin("WorldEdit") != null
-                || Bukkit.getPluginManager().getPlugin("FastAsyncWorldEdit") != null;
-    }
 }

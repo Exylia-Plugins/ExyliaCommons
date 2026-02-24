@@ -2,6 +2,7 @@ package net.exylia.commons.v2.database.serialization;
 
 import lombok.Getter;
 import net.exylia.commons.v2.database.exception.SerializationException;
+import net.exylia.commons.v2.database.serialization.builtin.EnumSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -38,6 +39,9 @@ public class SerializationRegistry {
 
         Serializer<T> serializer = (Serializer<T>) serializers.get(type);
         if (serializer == null) {
+            if (type.isEnum()) {
+                return EnumSerializer.INSTANCE.serialize((Enum<?>) value);
+            }
             throw new SerializationException("No serializer registered for type " + type.getName());
         }
 
@@ -52,6 +56,13 @@ public class SerializationRegistry {
 
         Deserializer<T> deserializer = (Deserializer<T>) deserializers.get(type);
         if (deserializer == null) {
+            if (type.isEnum()) {
+                try {
+                    return (T) Enum.valueOf((Class<Enum>) type, value);
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            }
             throw new SerializationException("No deserializer registered for type " + type.getName());
         }
 
@@ -59,10 +70,10 @@ public class SerializationRegistry {
     }
 
     public <T> boolean hasSerializer(Class<T> type) {
-        return serializers.containsKey(type);
+        return serializers.containsKey(type) || type.isEnum();
     }
 
     public <T> boolean hasDeserializer(Class<T> type) {
-        return deserializers.containsKey(type);
+        return deserializers.containsKey(type) || type.isEnum();
     }
 }

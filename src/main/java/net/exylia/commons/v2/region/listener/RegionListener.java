@@ -16,6 +16,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -234,6 +235,20 @@ public class RegionListener implements Listener {
             if (!player.hasPermission("exylia.region.bypass.item_pickup") && !region.isMember(player.getUniqueId())) {
                 event.setCancelled(true);
             }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFallDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.getCause() != EntityDamageEvent.DamageCause.FALL) return;
+
+        List<Region> regions = manager.getRegionsAt(player.getLocation());
+        if (regions.isEmpty()) return;
+
+        Region region = regions.get(0);
+        if (!region.getFlagValue(RegionFlag.FALL_DAMAGE)) {
+            event.setCancelled(true);
         }
     }
 

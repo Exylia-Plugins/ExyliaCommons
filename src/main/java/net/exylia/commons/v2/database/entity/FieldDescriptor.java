@@ -120,6 +120,9 @@ public class FieldDescriptor {
             if (type.isArray() && type.getComponentType() == ItemStack.class) {
                 return serializeItemStackArray((ItemStack[]) value);
             }
+            if (!type.isPrimitive() && !type.isEnum() && type != String.class) {
+                return GSON.toJson(value);
+            }
         }
 
         return value.toString();
@@ -208,6 +211,13 @@ public class FieldDescriptor {
         if (serializationType == SerializationType.AUTO) {
             if (type.isArray() && type.getComponentType() == ItemStack.class) {
                 return deserializeItemStackArray(value);
+            }
+            if (!type.isPrimitive() && !type.isEnum() && type != String.class) {
+                try {
+                    return GSON.fromJson(value, type);
+                } catch (Exception e) {
+                    return null;
+                }
             }
         }
 

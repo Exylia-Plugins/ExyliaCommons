@@ -224,6 +224,20 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     }
 
     @Override
+    public CompletableFuture<List<T>> findAllByOrderedByAsync(String whereField, Object whereValue, String orderField, boolean ascending, int limit) {
+        return Tasks.dbValue(() -> findAllByOrderedBy(whereField, whereValue, orderField, ascending, limit));
+    }
+
+    @Override
+    public List<T> findAllByOrderedBy(String whereField, Object whereValue, String orderField, boolean ascending, int limit) {
+        try {
+            return adapter.findByFieldSorted(whereField, whereValue, orderField, ascending, limit, entityClass, metadata);
+        } catch (Exception e) {
+            throw new RepositoryException("Error finding ordered entities by field", e);
+        }
+    }
+
+    @Override
     public CompletableFuture<List<T>> findAllPagedAsync(int page, int pageSize) {
         return Tasks.dbValue(() -> findAllPaged(page, pageSize));
     }

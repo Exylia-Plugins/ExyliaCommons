@@ -208,6 +208,19 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public <T extends Entity> List<T> findByFieldSorted(String whereField, Object whereValue, String orderField, boolean ascending, int limit, Class<T> entityClass, EntityMetadata metadata) throws Exception {
+        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
+        List<T> results = new ArrayList<>();
+        FindIterable<Document> query = collection.find(Filters.eq(whereField, whereValue))
+                .sort(new Document(orderField, ascending ? 1 : -1))
+                .limit(limit);
+        for (Document doc : query) {
+            results.add(documentToEntity(doc, entityClass, metadata));
+        }
+        return results;
+    }
+
+    @Override
     public String getAdapterName() {
         return "MongoDB";
     }

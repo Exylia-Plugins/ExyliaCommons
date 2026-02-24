@@ -56,9 +56,11 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
             long secondsRemaining = (ticksRemaining + 19) / 20;
             long millisRemaining = ticksRemaining * 50;
             double progress = durationTicks > 0 ? (double) ticksRemaining / durationTicks : 0.0;
+            double decimalSeconds = ticksRemaining / 20.0;
 
             PlaceholderContext updateContext = context.copy()
                     .put("time", secondsRemaining)
+                    .put("time_decimal", String.format("%.1f", decimalSeconds))
                     .put("time_formatted", FormatterAPI.formatTime(millisRemaining))
                     .put("ticks_remaining", ticksRemaining)
                     .put("progress", progress)
@@ -114,6 +116,10 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
         lifecycle.complete();
         VisualRegistry.getInstance().remove(player.getUniqueId(), id);
+    }
+
+    public void resetDuration(long newDurationTicks) {
+        this.ticksRemaining = newDurationTicks;
     }
 
     public int getDurationSeconds() {

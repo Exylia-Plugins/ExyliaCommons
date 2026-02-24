@@ -15,7 +15,7 @@ import java.util.function.Predicate;
 public class GlobalCountdownActionBarBuilder {
     private String id;
     private final int durationSeconds;
-    private String text = "Tiempo: {time_formatted}";
+    private String text = "Tiempo: %time_formatted%";
     private PlaceholderContext context = PlaceholderContext.create();
     private Predicate<Player> playerFilter;
     private Consumer<GlobalCountdownContext> onComplete;

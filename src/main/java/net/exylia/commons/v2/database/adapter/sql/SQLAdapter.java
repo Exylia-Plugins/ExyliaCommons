@@ -9,6 +9,8 @@ import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
 import net.exylia.commons.utils.DebugUtils;
 
+import net.exylia.commons.v2.database.annotation.Index;
+
 import java.sql.*;
 import java.util.*;
 
@@ -94,6 +96,23 @@ public abstract class SQLAdapter implements DatabaseAdapter {
                 stmt.execute(sql);
                 DebugUtils.logInternalInfo("Created table: " + metadata.getTableName());
             }
+        }
+        createIndexes(metadata);
+    }
+
+    private void createIndexes(EntityMetadata metadata) {
+        if (metadata.getIndexes().isEmpty()) return;
+        try (Connection conn = dataSource.getConnection()) {
+            for (Index index : metadata.getIndexes()) {
+                String columns = String.join(", ", index.fields());
+                String sql = "CREATE INDEX " + index.name() + " ON " + metadata.getTableName() + " (" + columns + ")";
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute(sql);
+                } catch (SQLException ignored) {
+                }
+            }
+        } catch (SQLException e) {
+            DebugUtils.logInternalError("Failed to create indexes for " + metadata.getTableName() + ": " + e.getMessage());
         }
     }
 
@@ -379,6 +398,25 @@ public abstract class SQLAdapter implements DatabaseAdapter {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, pageSize);
             stmt.setInt(2, page * pageSize);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                results.add(mapResultSetToEntity(rs, entityClass, metadata));
+            }
+        }
+        return results;
+    }
+
+    @Override
+    public <T extends Entity> List<T> findByFieldSorted(String whereField, Object whereValue, String orderField, boolean ascending, int limit, Class<T> entityClass, EntityMetadata metadata) throws Exception {
+        FieldDescriptor field = metadata.getField(whereField);
+        if (field == null) throw new IllegalArgumentException("Field not found: " + whereField);
+        String order = ascending ? "ASC" : "DESC";
+        String sql = "SELECT * FROM " + metadata.getTableName() + " WHERE " + field.getColumnName() + " = ? ORDER BY " + orderField + " " + order + " LIMIT ?";
+        List<T> results = new ArrayList<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, whereValue);
+            stmt.setInt(2, limit);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 results.add(mapResultSetToEntity(rs, entityClass, metadata));

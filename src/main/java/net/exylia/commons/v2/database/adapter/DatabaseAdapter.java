@@ -50,6 +50,8 @@ public interface DatabaseAdapter {
 
     <T extends Entity> List<T> findAllSortedPaged(String orderByField, boolean ascending, int page, int pageSize, Class<T> entityClass, EntityMetadata metadata) throws Exception;
 
+    <T extends Entity> List<T> findByFieldSorted(String whereField, Object whereValue, String orderField, boolean ascending, int limit, Class<T> entityClass, EntityMetadata metadata) throws Exception;
+
     String getAdapterName();
 
     boolean supportsBatchOperations();
