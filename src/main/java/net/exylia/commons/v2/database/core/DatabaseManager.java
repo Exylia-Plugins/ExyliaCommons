@@ -17,7 +17,7 @@ import net.exylia.commons.v2.database.repository.Repository;
 import net.exylia.commons.v2.database.repository.RepositoryImpl;
 import net.exylia.commons.v2.database.repository.RepositoryRegistry;
 import net.exylia.commons.v2.database.serialization.builtin.SerializerFactory;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -44,7 +44,7 @@ public class DatabaseManager {
 
         SerializerFactory.registerBuiltinSerializers();
 
-        DebugUtils.logInternalInfo("DatabaseManager initialized with adapter: " + adapter.getAdapterName());
+        DebugAPI.logLibInfo("DatabaseManager initialized with adapter: " + adapter.getAdapterName());
     }
 
     public static void initialize(Config configFile) {
@@ -63,9 +63,8 @@ public class DatabaseManager {
                 DatabaseAdapter dbAdapter = createAdapter(dbConfig);
                 dbAdapter.connect();
                 instance = new DatabaseManager(dbConfig, dbAdapter);
-                DebugUtils.logInternalInfo("Database initialized successfully");
             } catch (Exception e) {
-                DebugUtils.logInternalError("Failed to initialize Database: " + e.getMessage());
+                DebugAPI.logLibError("Failed to initialize Database: " + e.getMessage());
                 throw new ConnectionException("Failed to initialize Database", e);
             }
         }
@@ -84,7 +83,6 @@ public class DatabaseManager {
             entityMetadataCache.put(entityClass, metadata);
             adapter.createTable(metadata);
             adapter.updateTable(metadata);
-            DebugUtils.logInternalInfo("Entity registered: " + entityClass.getSimpleName());
         } catch (Exception e) {
             throw new ConnectionException("Failed to register entity: " + entityClass.getName(), e);
         }
@@ -118,9 +116,9 @@ public class DatabaseManager {
                 repositoryRegistry.clear();
                 entityMetadataCache.clear();
                 instance = null;
-                DebugUtils.logInternalInfo("DatabaseManager shutdown complete");
+                DebugAPI.logLibInfo("DatabaseManager shutdown complete");
             } catch (Exception e) {
-                DebugUtils.logInternalError("Error during DatabaseManager shutdown: " + e.getMessage());
+                DebugAPI.logLibError("Error during DatabaseManager shutdown: " + e.getMessage());
             }
         }
     }

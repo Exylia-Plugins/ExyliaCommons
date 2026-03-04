@@ -112,6 +112,22 @@ public final class Tasks {
         return TaskAPI.isFolia();
     }
 
+    public static void runOnEntity(Entity entity, Runnable task) {
+        if (TaskAPI.isEntityThread(entity)) {
+            task.run();
+        } else {
+            TaskAPI.at(entity, task);
+        }
+    }
+
+    public static void runOnLocation(Location location, Runnable task) {
+        if (TaskAPI.isRegionThread(location)) {
+            task.run();
+        } else {
+            TaskAPI.at(location, task);
+        }
+    }
+
     public static ScheduledTask asyncTimer(Runnable task, long delayTicks, long periodTicks) {
         return TaskAPI.asyncScheduledTimer(task, delayTicks * 50, periodTicks * 50, TimeUnit.MILLISECONDS);
     }

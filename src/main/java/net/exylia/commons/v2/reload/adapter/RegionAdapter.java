@@ -21,7 +21,7 @@ public class RegionAdapter extends ReloadableSystemAdapter {
     protected void performReload() throws Exception {
         RegionManager instance = RegionManager.getInstance();
         if (instance != null) {
-            instance.cleanup();
+            instance.getSpatialIndex().rebuild(instance.getAllRegions());
         }
     }
 

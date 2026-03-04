@@ -1,25 +1,17 @@
 package net.exylia.commons;
 
 import lombok.Getter;
-import net.exylia.commons.v2.tasks.api.TaskAPI;
-import net.exylia.commons.config.ConfigBase;
-import net.exylia.commons.config.ConfigManager;
-import net.exylia.commons.config.ConfigurationSystem;
-import net.exylia.commons.config.base.MainConfigBase;
-import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.DateFormatter;
-import net.exylia.commons.utils.TimeFormatter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.lifecycle.LifecycleManager;
 import net.exylia.commons.v2.reload.api.ReloadAPI;
 import net.exylia.commons.v2.reload.api.ReloadContext;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
-
-import static net.exylia.commons.utils.DebugUtils.logInternalError;
+import java.util.HashSet;
+import java.util.Set;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
 
@@ -30,7 +22,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     private static ExyliaPlugin instance;
 
     private BukkitAudiences adventure;
-    private ConfigurationSystem configurationSystem;
     private LifecycleManager lifecycleManager;
 
     @Override
@@ -50,13 +41,10 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
             lifecycleManager.executeBootstrap();
             ReloadAPI.initialize(this);
-
-            initializeConfigurationSystem();
-
             lifecycleManager.executePluginEnable();
 
         } catch (Exception e) {
-            logInternalError("Critical error during plugin enable", e);
+            DebugAPI.logLibError("Critical error during plugin enable", e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -64,10 +52,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     @Override
     public final void onDisable() {
         registeredPlugins.remove(this);
-
-        if (configurationSystem != null) {
-            configurationSystem.shutdown();
-        }
 
         if (this.adventure != null) {
             this.adventure.close();
@@ -84,53 +68,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
         }
     }
 
-    public void initializeConfigurationSystem() {
-        try {
-            configurationSystem = new ConfigurationSystem(this);
-            Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
-            List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
-            allConfigClasses.add(MainConfigBase.class);
-            allConfigClasses.add(MessagesBase.class);
-
-            if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
-                for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
-                    if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
-                        allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
-                    }
-                    if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
-                        allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
-                    }
-                    allConfigClasses.add(pluginClass);
-                }
-            }
-
-            Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
-            configurationSystem.initialize(finalConfigClasses);
-            setupConfigurationListeners();
-            ConfigManager.init(configurationSystem, finalConfigClasses);
-            TimeFormatter.init();
-            DateFormatter.init();
-            ColorUtils.initializePresets(this, getCustomColorPresets());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void setupConfigurationListeners() {}
-
     protected void onPreExyliaEnable() {}
 
     protected abstract void onExyliaEnable();
 
     protected abstract void onExyliaDisable();
-
-    protected Class<? extends ConfigBase>[] getConfigurationClasses() {
-        return new Class[0];
-    }
-
-    protected Map<String, String> getCustomColorPresets() {
-        return new LinkedHashMap<>();
-    }
 
     protected void onReload(ReloadContext context) {}
 

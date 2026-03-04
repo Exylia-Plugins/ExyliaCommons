@@ -1,4 +1,5 @@
 package net.exylia.commons.v2.reload.core;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
@@ -16,7 +17,6 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import static net.exylia.commons.utils.DebugUtils.*;
 
 @Getter
 public class ReloadManagerV2 {
@@ -40,7 +40,6 @@ public class ReloadManagerV2 {
         registerSystem("ConfigSystem", new ConfigSystemAdapter());
         registerSystem("DebugConfig", new DebugConfigAdapter());
         registerSystem("Messages", new MessagesAdapter());
-        registerSystem("DatabaseV1", new DatabaseV1Adapter());
         registerSystem("DatabaseV2", new DatabaseV2Adapter());
         registerSystem("Redis", new RedisAdapter(plugin));
         registerSystem("ClanManager", new ClanAdapter());
@@ -70,10 +69,10 @@ public class ReloadManagerV2 {
     public CompletableFuture<ReloadStats> executeReloadAll(org.bukkit.entity.Player player, Set<String> excludedSystems) {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-            logInternalInfo("=== Starting Complete Reload ===");
+            DebugAPI.logLibInfo("=== Starting Complete Reload ===");
 
             if (!excludedSystems.isEmpty()) {
-                logInternalInfo("Excluding systems: " + String.join(", ", excludedSystems));
+                DebugAPI.logLibInfo("Excluding systems: " + String.join(", ", excludedSystems));
             }
 
             if (player != null) {
@@ -93,20 +92,20 @@ public class ReloadManagerV2 {
 
             for (ReloadableSystem system : sortedSystems) {
                 if (excludedSystems.contains(system.getName())) {
-                    logInternalDebug("Skipping " + system.getName() + ": Excluded by request");
+                    DebugAPI.logLibDebug("Skipping " + system.getName() + ": Excluded by request");
                     statsBuilder.skip(system.getName(), "Excluded by request");
                     continue;
                 }
 
                 if (!availability.isAvailable(system.getName())) {
                     String reason = availability.getReason(system.getName());
-                    logInternalDebug("Skipping " + system.getName() + ": " + reason);
+                    DebugAPI.logLibDebug("Skipping " + system.getName() + ": " + reason);
                     statsBuilder.skip(system.getName(), reason);
                     continue;
                 }
 
                 currentSystem++;
-                logInternalDebug("Reloading " + system.getName() + "...");
+                DebugAPI.logLibDebug("Reloading " + system.getName() + "...");
 
                 if (player != null) {
                     net.exylia.commons.v2.reload.notification.ReloadNotifier.notifySystemStart(player, system.getName());
@@ -120,9 +119,9 @@ public class ReloadManagerV2 {
 
                     if (metrics.isSuccess()) {
                         context.markReloaded(system.getName());
-                        logInternalSuccess(system.getName() + " reloaded in " + metrics.getFormattedDuration());
+                        DebugAPI.logLibInfo(system.getName() + " reloaded in " + metrics.getFormattedDuration());
                     } else {
-                        logInternalError(system.getName() + " reload failed: " + metrics.getPhase());
+                        DebugAPI.logLibError(system.getName() + " reload failed: " + metrics.getPhase());
                     }
 
                     statsBuilder.add(system.getName(), metrics);
@@ -132,16 +131,16 @@ public class ReloadManagerV2 {
                     }
 
                     if (!metrics.isSuccess() && system.isCritical()) {
-                        logInternalError("Critical system " + system.getName() + " failed. Stopping reload.");
+                        DebugAPI.logLibError("Critical system " + system.getName() + " failed. Stopping reload.");
                         break;
                     }
 
                 } catch (Exception e) {
-                    logInternalError("Exception during " + system.getName() + " reload: " + e.getMessage());
+                    DebugAPI.logLibError("Exception during " + system.getName() + " reload: " + e.getMessage());
                     statsBuilder.addError(system.getName(), e);
 
                     if (system.isCritical()) {
-                        logInternalError("Critical system " + system.getName() + " failed. Stopping reload.");
+                        DebugAPI.logLibError("Critical system " + system.getName() + " failed. Stopping reload.");
                         break;
                     }
                 }
@@ -160,9 +159,9 @@ public class ReloadManagerV2 {
             }
 
             if (stats.isSuccess()) {
-                logInternalSuccess("=== RELOAD COMPLETED: " + stats.getSuccessCount() + " systems in " + stats.getFormattedDuration() + " ===");
+                DebugAPI.logLibInfo("=== RELOAD COMPLETED: " + stats.getSuccessCount() + " systems in " + stats.getFormattedDuration() + " ===");
             } else {
-                logInternalError("=== RELOAD COMPLETED WITH ERRORS: " + stats.getFailureCount() + " failures ===");
+                DebugAPI.logLibError("=== RELOAD COMPLETED WITH ERRORS: " + stats.getFailureCount() + " failures ===");
             }
 
             return stats;
@@ -221,7 +220,7 @@ public class ReloadManagerV2 {
                 ExyliaLoaderPlugin.callOnReloadForActivePlugins(context);
             });
         } catch (Exception e) {
-            logInternalError("Error calling plugin hooks: " + e.getMessage());
+            DebugAPI.logLibError("Error calling plugin hooks: " + e.getMessage());
         }
     }
 

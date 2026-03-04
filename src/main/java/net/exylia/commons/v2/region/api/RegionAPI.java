@@ -153,7 +153,7 @@ public class RegionAPI {
             return null;
         }
 
-        Region region = new Region(regionId, selection.toSelection());
+        Region region = new Region(regionId, selection);
         if (registerRegion(region)) {
             return region;
         }

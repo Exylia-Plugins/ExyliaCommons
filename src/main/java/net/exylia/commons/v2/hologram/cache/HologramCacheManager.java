@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.hologram.cache;
 
-import net.exylia.commons.cache.CaffeineCache;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.hologram.model.Hologram;
 import org.bukkit.Location;
 
@@ -9,17 +10,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class HologramCacheManager {
-    private final CaffeineCache<String, Hologram> hologramCache;
-    private final CaffeineCache<UUID, Set<String>> playerVisibilityCache;
+    private final Cache<String, Hologram> hologramCache;
+    private final Cache<UUID, Set<String>> playerVisibilityCache;
 
     public HologramCacheManager() {
-        this.hologramCache = CaffeineCache.<String, Hologram>builder()
+        this.hologramCache = Caffeine.newBuilder()
                 .expireAfterAccess(30, TimeUnit.MINUTES)
                 .maximumSize(5000)
                 .recordStats()
                 .build();
 
-        this.playerVisibilityCache = CaffeineCache.<UUID, Set<String>>builder()
+        this.playerVisibilityCache = Caffeine.newBuilder()
                 .expireAfterAccess(10, TimeUnit.MINUTES)
                 .maximumSize(2000)
                 .recordStats()
@@ -31,7 +32,7 @@ public class HologramCacheManager {
     }
 
     public Optional<Hologram> get(String id) {
-        return Optional.ofNullable(hologramCache.get(id));
+        return Optional.ofNullable(hologramCache.getIfPresent(id));
     }
 
     public void invalidate(String id) {
@@ -57,23 +58,23 @@ public class HologramCacheManager {
     }
 
     public Optional<Set<String>> getPlayerVisibility(UUID playerId) {
-        return Optional.ofNullable(playerVisibilityCache.get(playerId));
+        return Optional.ofNullable(playerVisibilityCache.getIfPresent(playerId));
     }
 
     public Map<String, Object> getStats() {
         Map<String, Object> stats = new HashMap<>();
 
-        com.github.benmanes.caffeine.cache.stats.CacheStats hologramStats = hologramCache.getCache().stats();
+        com.github.benmanes.caffeine.cache.stats.CacheStats hologramStats = hologramCache.stats();
         stats.put("hologram_cache", Map.of(
-                "size", hologramCache.size(),
+                "size", hologramCache.estimatedSize(),
                 "hitRate", hologramStats.hitRate(),
                 "missRate", hologramStats.missRate(),
                 "evictionCount", hologramStats.evictionCount()
         ));
 
-        com.github.benmanes.caffeine.cache.stats.CacheStats visibilityStats = playerVisibilityCache.getCache().stats();
+        com.github.benmanes.caffeine.cache.stats.CacheStats visibilityStats = playerVisibilityCache.stats();
         stats.put("visibility_cache", Map.of(
-                "size", playerVisibilityCache.size(),
+                "size", playerVisibilityCache.estimatedSize(),
                 "hitRate", visibilityStats.hitRate(),
                 "missRate", visibilityStats.missRate(),
                 "evictionCount", visibilityStats.evictionCount()

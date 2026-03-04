@@ -7,7 +7,7 @@ import net.exylia.commons.v2.database.config.AdapterConfig;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bson.Document;
 
 import java.util.*;
@@ -30,9 +30,9 @@ public class MongoDBAdapter implements DatabaseAdapter {
                     config.getUri();
             mongoClient = MongoClients.create(uri);
             database = mongoClient.getDatabase(config.getDatabase());
-            DebugUtils.logInternalInfo("Connected to MongoDB");
+            DebugAPI.logLibInfo("Connected to MongoDB");
         } catch (Exception e) {
-            DebugUtils.logInternalError("Failed to connect to MongoDB: " + e.getMessage());
+            DebugAPI.logLibError("Failed to connect to MongoDB: " + e.getMessage());
             throw e;
         }
     }
@@ -41,7 +41,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
     public void disconnect() throws Exception {
         if (mongoClient != null) {
             mongoClient.close();
-            DebugUtils.logInternalInfo("Disconnected from MongoDB");
+            DebugAPI.logLibInfo("Disconnected from MongoDB");
         }
     }
 

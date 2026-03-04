@@ -1,7 +1,8 @@
 package net.exylia.commons.v2.region.cache;
 
 import lombok.Getter;
-import net.exylia.commons.cache.CaffeineCache;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.region.detection.SpatialIndex;
 import net.exylia.commons.v2.region.model.RegionFlag;
 import net.exylia.commons.v2.region.model.Region;
@@ -12,19 +13,19 @@ import java.util.UUID;
 
 public class RegionCacheManager {
     private final SpatialIndex spatialIndex;
-    private final CaffeineCache<FlagCacheKey, Boolean> flagCache;
-    private final CaffeineCache<UUID, PlayerRegionState> playerStateCache;
+    private final Cache<FlagCacheKey, Boolean> flagCache;
+    private final Cache<UUID, PlayerRegionState> playerStateCache;
 
     public RegionCacheManager(SpatialIndex spatialIndex) {
         this.spatialIndex = spatialIndex;
 
-        this.flagCache = CaffeineCache.<FlagCacheKey, Boolean>builder()
+        this.flagCache = Caffeine.newBuilder()
                 .expireAfterWrite(CacheStrategy.FLAG_CACHE.getDuration(), CacheStrategy.FLAG_CACHE.getTimeUnit())
                 .maximumSize(CacheStrategy.FLAG_CACHE.getMaxSize())
                 .recordStats()
                 .build();
 
-        this.playerStateCache = CaffeineCache.<UUID, PlayerRegionState>builder()
+        this.playerStateCache = Caffeine.newBuilder()
                 .expireAfterAccess(CacheStrategy.PLAYER_STATE_CACHE.getDuration(), CacheStrategy.PLAYER_STATE_CACHE.getTimeUnit())
                 .maximumSize(CacheStrategy.PLAYER_STATE_CACHE.getMaxSize())
                 .recordStats()
@@ -41,7 +42,7 @@ public class RegionCacheManager {
 
     public Boolean getFlagValue(String regionId, UUID playerId, RegionFlag flag) {
         FlagCacheKey key = new FlagCacheKey(regionId, playerId, flag);
-        return flagCache.get(key);
+        return flagCache.getIfPresent(key);
     }
 
     public void cacheFlagValue(String regionId, UUID playerId, RegionFlag flag, boolean value) {
@@ -58,7 +59,7 @@ public class RegionCacheManager {
     }
 
     public PlayerRegionState getPlayerState(UUID playerId) {
-        return playerStateCache.get(playerId);
+        return playerStateCache.getIfPresent(playerId);
     }
 
     public void updatePlayerState(UUID playerId, PlayerRegionState state) {
@@ -71,8 +72,8 @@ public class RegionCacheManager {
 
     public CacheStats getStats() {
         return new CacheStats(
-                flagCache.getStats(),
-                playerStateCache.getStats()
+                flagCache.stats(),
+                playerStateCache.stats()
         );
     }
 
@@ -106,10 +107,10 @@ public class RegionCacheManager {
 
     @Getter
     public static class CacheStats {
-        private final net.exylia.commons.cache.CacheStats flagStats;
-        private final net.exylia.commons.cache.CacheStats playerStateStats;
+        private final com.github.benmanes.caffeine.cache.stats.CacheStats flagStats;
+        private final com.github.benmanes.caffeine.cache.stats.CacheStats playerStateStats;
 
-        public CacheStats(net.exylia.commons.cache.CacheStats flagStats, net.exylia.commons.cache.CacheStats playerStateStats) {
+        public CacheStats(com.github.benmanes.caffeine.cache.stats.CacheStats flagStats, com.github.benmanes.caffeine.cache.stats.CacheStats playerStateStats) {
             this.flagStats = flagStats;
             this.playerStateStats = playerStateStats;
         }

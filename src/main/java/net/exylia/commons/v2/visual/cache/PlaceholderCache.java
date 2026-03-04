@@ -9,10 +9,10 @@ import org.bukkit.entity.Player;
 import java.util.concurrent.TimeUnit;
 
 public class PlaceholderCache {
-    private static final Cache<CacheKey, String> cache = Caffeine.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(5, TimeUnit.SECONDS)
-            .recordStats()
+    private static final Cache<CacheKey, String> papiCache = Caffeine.newBuilder()
+            .maximumSize(500)
+            .expireAfterWrite(30, TimeUnit.SECONDS)
+            .executor(Runnable::run)
             .build();
 
     public static String getOrProcess(String text, Player player, PlaceholderContext context) {
@@ -24,28 +24,29 @@ public class PlaceholderCache {
                 ? context.getPlayer()
                 : player;
 
-        if (targetPlayer == null) {
-            return Placeholders.process(text, null, context);
+        String contextProcessed = Placeholders.processContextOnly(text, targetPlayer, context);
+
+        if (targetPlayer == null || !contextProcessed.contains("%")) {
+            return contextProcessed;
         }
 
-        CacheKey key = CacheKey.of(text, targetPlayer.getUniqueId(), context.hashCode());
-
-        return cache.get(key, k -> Placeholders.process(text, targetPlayer, context));
+        CacheKey key = CacheKey.of(contextProcessed, targetPlayer.getUniqueId(), 0);
+        return papiCache.get(key, k -> Placeholders.processPapiOnly(contextProcessed, targetPlayer));
     }
 
     public static void invalidate(Player player) {
-        cache.asMap().keySet().removeIf(key -> key.getPlayerId() != null && key.getPlayerId().equals(player.getUniqueId()));
+        papiCache.asMap().keySet().removeIf(key -> key.getPlayerId() != null && key.getPlayerId().equals(player.getUniqueId()));
     }
 
     public static void clear() {
-        cache.invalidateAll();
+        papiCache.invalidateAll();
     }
 
     public static long size() {
-        return cache.estimatedSize();
+        return papiCache.estimatedSize();
     }
 
     public static com.github.benmanes.caffeine.cache.stats.CacheStats stats() {
-        return cache.stats();
+        return papiCache.stats();
     }
 }

@@ -10,7 +10,7 @@ import net.exylia.commons.v2.items.model.ClickAction;
 import net.exylia.commons.v2.items.model.ClickCommand;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 
@@ -128,11 +128,11 @@ public class ConfigurationParser {
                             try {
                                 enchantments.put(enchantName, Integer.parseInt((String) level));
                             } catch (NumberFormatException ignored) {
-                                DebugUtils.logInternalWarn("Invalid enchantment level for " + enchantName + ": " + level);
+                                DebugAPI.logLibWarn("Invalid enchantment level for " + enchantName + ": " + level);
                             }
                         }
                     } catch (Exception e) {
-                        DebugUtils.logInternalWarn("Error parsing enchantment '" + enchantName + "': " + e.getMessage());
+                        DebugAPI.logLibWarn("Error parsing enchantment '" + enchantName + "': " + e.getMessage());
                     }
                 }
                 if (!enchantments.isEmpty()) {

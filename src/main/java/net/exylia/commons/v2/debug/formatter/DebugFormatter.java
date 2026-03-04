@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.debug.formatter;
 
-import net.exylia.commons.utils.ColorUtils;
+import net.exylia.commons.v2.visual.color.ColorProcessor;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.debug.core.DebugSource;
@@ -58,7 +58,7 @@ public class DebugFormatter {
         sb.append(color)
                 .append(message);
 
-        return ColorUtils.parse(sb.toString());
+        return ColorProcessor.parseToComponent(sb.toString());
     }
 
     private static String getCallerClassName() {

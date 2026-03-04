@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.visual.renderer;
 
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
-import net.exylia.commons.v2.visual.compat.ParticleCompat;
+import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -34,7 +34,7 @@ public class ParticleRenderer implements VisualRenderer<ParticleConfig> {
                             config.getColor().getGreen(),
                             config.getColor().getBlue()
                     ),
-                    1.0f
+                    config.getDustSize()
             );
             for (Player target : targets) {
                 if (target.isOnline()) {

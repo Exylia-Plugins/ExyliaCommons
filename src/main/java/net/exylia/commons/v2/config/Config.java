@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.config;
 
 import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -44,8 +45,7 @@ public class Config {
                 try {
                     plugin.saveResource(resourcePath, false);
                 } catch (IllegalArgumentException e) {
-                    plugin.getLogger().warning("Config file not found in resources: " + fileName + ".yml");
-                    plugin.getLogger().warning("Creating empty config file...");
+                    DebugAPI.logLibInfo("Config file not found in resources: " + fileName + ".yml | Creating it with default values");
                     try {
                         file.createNewFile();
                     } catch (Exception ex) {
@@ -61,8 +61,7 @@ public class Config {
     private void saveResourceFromClassLoader(String resourcePath, ClassLoader classLoader) {
         InputStream in = classLoader.getResourceAsStream(resourcePath);
         if (in == null) {
-            plugin.getLogger().warning("Config file not found in resources: " + resourcePath);
-            plugin.getLogger().warning("Creating empty config file...");
+            DebugAPI.logLibInfo("Config file not found in resources: " + resourcePath + ".yml | Creating it with default values");
             try {
                 file.createNewFile();
             } catch (Exception ex) {

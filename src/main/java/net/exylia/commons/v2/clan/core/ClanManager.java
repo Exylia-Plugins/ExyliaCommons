@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.clan.core;
 
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.clan.cache.ClanCacheManager;
 import net.exylia.commons.v2.clan.config.ClanConfig;
 import net.exylia.commons.v2.clan.listener.PlayerCacheListener;
@@ -45,7 +45,7 @@ public class ClanManager {
 
         registerListeners();
 
-        DebugUtils.logInternalInfo("ClanManager initialized with provider: " + activeProvider.getProviderName());
+        DebugAPI.logLibInfo("ClanManager initialized with provider: " + activeProvider.getProviderName());
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -71,7 +71,7 @@ public class ClanManager {
         ClanProvider provider = detector.detectBestProvider();
 
         if (provider instanceof NoClanProvider) {
-            DebugUtils.logInternalWarn("No clan plugin detected. Clan functionality will be limited.");
+            DebugAPI.logLibWarn("No clan plugin detected. Clan functionality will be limited.");
         }
 
         return provider;
@@ -174,22 +174,22 @@ public class ClanManager {
     }
 
     public void reload() {
-        DebugUtils.logInternalInfo("Reloading ClanManager...");
+        DebugAPI.logLibInfo("Reloading ClanManager...");
         cacheManager.invalidateAll();
         activeProvider.invalidateCache();
         activeProvider = detectProvider();
-        DebugUtils.logInternalSuccess("ClanManager reloaded with provider: " + activeProvider.getProviderName());
+        DebugAPI.logLibInfo("ClanManager reloaded with provider: " + activeProvider.getProviderName());
     }
 
     public void shutdown() {
-        DebugUtils.logInternalInfo("Shutting down ClanManager...");
+        DebugAPI.logLibInfo("Shutting down ClanManager...");
         cacheManager.invalidateAll();
 
         synchronized (LOCK) {
             instance = null;
         }
 
-        DebugUtils.logInternalInfo("ClanManager shutdown complete");
+        DebugAPI.logLibInfo("ClanManager shutdown complete");
     }
 
     private void registerListeners() {

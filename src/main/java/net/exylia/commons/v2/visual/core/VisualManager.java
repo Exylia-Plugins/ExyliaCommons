@@ -63,11 +63,9 @@ public class VisualManager {
             shutdown();
         }
 
-        DebugAPI.logLibInfo(DebugCategory.VISUAL, "Initializing VisualManager for plugin: " + plugin.getName());
         this.plugin = plugin;
         this.initialized = true;
         plugin.getServer().getPluginManager().registerEvents(new VisualPlayerCleanupListener(), plugin);
-        DebugAPI.logLibSuccess(DebugCategory.VISUAL, "VisualManager initialized successfully");
     }
 
     public <T extends VisualConfig> CompletableFuture<String> sendSimple(
@@ -226,7 +224,10 @@ public class VisualManager {
 
         Optional<VisualInstance<?>> existing = VisualRegistry.getInstance().get(player.getUniqueId(), key);
         if (existing.isPresent()) {
-            existing.get().updateContext(enrichedContext);
+            @SuppressWarnings("unchecked")
+            VisualInstance<T> inst = (VisualInstance<T>) existing.get();
+            inst.updateConfig(config);
+            inst.updateContext(enrichedContext);
             return;
         }
 

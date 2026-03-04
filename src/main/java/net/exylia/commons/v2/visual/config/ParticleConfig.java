@@ -2,7 +2,7 @@ package net.exylia.commons.v2.visual.config;
 
 import lombok.Builder;
 import lombok.Getter;
-import net.exylia.commons.v2.visual.compat.ParticleCompat;
+import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -26,6 +26,8 @@ public class ParticleConfig extends VisualConfig {
     @Builder.Default
     private final double extra = 0.0;
     private final Color color;
+    @Builder.Default
+    private final float dustSize = 1.0f;
     @Builder.Default
     private final ParticleScope scope = ParticleScope.PLAYER;
     private final Location location;

@@ -2,7 +2,7 @@ package net.exylia.commons.v2.database.serialization.builtin;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.database.serialization.Deserializer;
 import net.exylia.commons.v2.database.serialization.Serializer;
 import org.bukkit.Bukkit;
@@ -56,7 +56,7 @@ class SelectionDeserializer implements Deserializer<Selection> {
             Location pos1 = new Location(Bukkit.getWorld(worldName), x1, y1, z1);
             Location pos2 = new Location(Bukkit.getWorld(worldName), x2, y2, z2);
 
-            return new Selection(pos1, pos2);
+            return Selection.of(pos1, pos2);
         } catch (Exception e) {
             return null;
         }

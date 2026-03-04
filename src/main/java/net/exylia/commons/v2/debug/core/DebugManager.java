@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.debug.core;
 
 import com.github.lalyos.jfiglet.FigletFont;
-import net.exylia.commons.utils.AnsiComponentLogger;
+import net.exylia.commons.v2.debug.AnsiComponentLogger;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.debug.config.DebugConfig;
 import net.exylia.commons.v2.debug.config.DebugDefaults;

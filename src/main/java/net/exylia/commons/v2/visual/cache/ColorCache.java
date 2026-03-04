@@ -10,7 +10,7 @@ public class ColorCache {
     private static final Cache<String, String> cache = Caffeine.newBuilder()
             .maximumSize(500)
             .expireAfterWrite(30, TimeUnit.SECONDS)
-            .recordStats()
+            .executor(Runnable::run)
             .build();
 
     public static String getOrParse(String text) {

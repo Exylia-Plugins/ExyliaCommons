@@ -9,7 +9,6 @@ import org.bukkit.entity.Player;
 import java.util.*;
 
 public class MovementDetector {
-    private static final double MICRO_MOVEMENT_THRESHOLD = 0.01;
     private static final double TELEPORT_THRESHOLD = 100.0;
 
     private final SpatialIndex spatialIndex;
@@ -104,7 +103,9 @@ public class MovementDetector {
     }
 
     private boolean isMicroMovement(Location from, Location to) {
-        return from.distanceSquared(to) <= MICRO_MOVEMENT_THRESHOLD;
+        return from.getBlockX() == to.getBlockX()
+                && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ();
     }
 
     private boolean isTeleport(Location from, Location to) {

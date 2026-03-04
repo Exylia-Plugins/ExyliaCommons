@@ -159,25 +159,4 @@ public class PlaceholderContext {
         return typedData.isEmpty() && keyedData.isEmpty();
     }
 
-    @SuppressWarnings("unchecked")
-    public net.exylia.commons.placeholders.ExyliaContext toExyliaContext() {
-        net.exylia.commons.placeholders.ExyliaContext context = net.exylia.commons.placeholders.ExyliaContext.create();
-
-        for (Map.Entry<Class<?>, Object> entry : typedData.entrySet()) {
-            addToExyliaContextSafe(context, entry.getKey(), entry.getValue());
-        }
-
-        for (Map.Entry<String, Object> entry : keyedData.entrySet()) {
-            Object value = entry.getValue();
-            Object resolved = value instanceof Supplier<?> s ? s.get() : value;
-            context.put(entry.getKey(), resolved);
-        }
-
-        return context;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> void addToExyliaContextSafe(net.exylia.commons.placeholders.ExyliaContext context, Class<?> type, Object value) {
-        context.add((Class<T>) type, (T) value);
-    }
 }

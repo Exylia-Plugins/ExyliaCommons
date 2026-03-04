@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.visual.context;
 
-import net.exylia.commons.placeholders.ExyliaContext;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 
@@ -19,25 +18,6 @@ public class VisualContext {
 
     public static VisualContext empty() {
         return new VisualContext();
-    }
-
-    public static VisualContext from(ExyliaContext exyliaContext) {
-        VisualContext context = new VisualContext();
-        if (exyliaContext != null) {
-            for (String key : exyliaContext.getKeys()) {
-                Object value = exyliaContext.get(key);
-                if (value != null) {
-                    context.data.put(key, value);
-                }
-            }
-            for (Class<?> type : exyliaContext.getTypes()) {
-                Object value = exyliaContext.get(type);
-                if (value != null) {
-                    context.typedData.put(type, value);
-                }
-            }
-        }
-        return context;
     }
 
     public VisualContext put(String key, Object value) {
@@ -88,17 +68,6 @@ public class VisualContext {
         put("current_time", currentTime);
         put("current_time_seconds", currentTime / 1000);
         return this;
-    }
-
-    public ExyliaContext toExyliaContext() {
-        ExyliaContext exyliaContext = ExyliaContext.create();
-        for (Map.Entry<String, Object> entry : data.entrySet()) {
-            exyliaContext.put(entry.getKey(), entry.getValue());
-        }
-        for (Map.Entry<Class<?>, Object> entry : typedData.entrySet()) {
-            exyliaContext.add((Class<Object>) entry.getKey(), entry.getValue());
-        }
-        return exyliaContext;
     }
 
     @SuppressWarnings("unchecked")

@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.scoreboard.renderer;
 
-import net.exylia.commons.scoreboard.fastBoard.FastBoardBase;
-import net.exylia.commons.scoreboard.fastBoard.FastReflection;
+import net.exylia.commons.v2.scoreboard.fastboard.FastBoardBase;
+import net.exylia.commons.v2.scoreboard.fastboard.FastReflection;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;

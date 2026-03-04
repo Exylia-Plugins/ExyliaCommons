@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.config.schema;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.config.Config;
 import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardSerializer;
@@ -52,7 +52,7 @@ public class ConfigSchemaRegistry {
         Config config = Configs.file(fileName);
         config.reload();
 
-        DebugUtils.logInternalDebug("[ConfigSchema] ensureDefaults for " + fileName + ".yml");
+        DebugAPI.logLibDebug("[ConfigSchema] ensureDefaults for " + fileName + ".yml");
 
         processClass(schemaClass, "", config);
 
@@ -113,19 +113,19 @@ public class ConfigSchemaRegistry {
                     String legacyPath = configValue.value();
                     section = resolveSerializedSection(config, legacyPath);
                     if (section != null) {
-                        DebugUtils.logInternalDebug("[ConfigSchema] Loading (serialized) " + path + " from legacy path " + legacyPath);
+                        DebugAPI.logLibDebug("[ConfigSchema] Loading (serialized) " + path + " from legacy path " + legacyPath);
                     }
                 }
 
                 Object value = section != null ? serializer.deserialize(section) : defaultValue;
-                DebugUtils.logInternalDebug("[ConfigSchema] Loading (serialized) " + path + " | found=" + (section != null));
+                DebugAPI.logLibDebug("[ConfigSchema] Loading (serialized) " + path + " | found=" + (section != null));
                 if (value != null) {
                     field.set(null, value);
                 }
             } else {
                 Object rawValue = config.raw().get(path);
                 Object value = rawValue != null ? rawValue : defaultValue;
-                DebugUtils.logInternalDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
+                DebugAPI.logLibDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
                 if (value != null) {
                     field.set(null, value);
                 }

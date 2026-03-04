@@ -171,7 +171,7 @@ public class ColorPresetManager {
     }
 
     public String applyColorPresets(String message) {
-        if (message == null || message.isEmpty() || !initialized) {
+        if (message == null || message.isEmpty() || !initialized || !message.contains("{")) {
             return message;
         }
 

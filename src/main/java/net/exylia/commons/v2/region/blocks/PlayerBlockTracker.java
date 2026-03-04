@@ -116,9 +116,13 @@ public class PlayerBlockTracker {
         return new TrackerStats(totalRegions, totalPlayers, totalBlocks);
     }
 
-    public void cleanup() {
+    public void clearAll() {
         regionBlocks.clear();
         playerBlocks.clear();
+    }
+
+    public void cleanup() {
+        clearAll();
         synchronized (PlayerBlockTracker.class) {
             if (instance == this) {
                 instance = null;

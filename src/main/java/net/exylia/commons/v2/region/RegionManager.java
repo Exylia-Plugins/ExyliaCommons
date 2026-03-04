@@ -1,4 +1,5 @@
 package net.exylia.commons.v2.region;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import lombok.Getter;
 import net.exylia.commons.v2.tasks.api.Tasks;
@@ -32,8 +33,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
-import static net.exylia.commons.utils.DebugUtils.logInternalDebug;
-import static net.exylia.commons.utils.DebugUtils.logInternalInfo;
 
 public class RegionManager implements Listener {
     private static RegionManager instance;
@@ -81,7 +80,6 @@ public class RegionManager implements Listener {
 
         startPeriodicTasks();
 
-        logInternalInfo("RegionManagerV2 initialized with optimized caching and spatial indexing");
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -118,20 +116,20 @@ public class RegionManager implements Listener {
 
         RegionCreateEvent createEvent = new RegionCreateEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Tasks.run(() -> Bukkit.getPluginManager().callEvent(createEvent));
-        } else {
             Bukkit.getPluginManager().callEvent(createEvent);
+        } else {
+            Tasks.run(() -> Bukkit.getPluginManager().callEvent(createEvent));
         }
 
         spatialIndex.addRegion(region);
         cacheManager.invalidateRegion(region);
 
-        logInternalDebug("Region registered: " + region.getInfo());
+        DebugAPI.logLibDebug("Region registered: " + region.getInfo());
         return true;
     }
 
     public Region createRegion(String regionId, Location pos1, Location pos2) {
-        net.exylia.commons.selection.model.Selection selection = new net.exylia.commons.selection.model.Selection(pos1, pos2);
+        net.exylia.commons.v2.region.selection.Selection selection = net.exylia.commons.v2.region.selection.Selection.of(pos1, pos2);
         Region region = new Region(regionId, selection);
 
         if (registerRegion(region)) {
@@ -149,9 +147,9 @@ public class RegionManager implements Listener {
 
         RegionDeleteEvent deleteEvent = new RegionDeleteEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Tasks.run(() -> Bukkit.getPluginManager().callEvent(deleteEvent));
-        } else {
             Bukkit.getPluginManager().callEvent(deleteEvent);
+        } else {
+            Tasks.run(() -> Bukkit.getPluginManager().callEvent(deleteEvent));
         }
 
         spatialIndex.removeRegion(region);
@@ -163,7 +161,7 @@ public class RegionManager implements Listener {
             handlePlayerExit(player, region);
         }
 
-        logInternalDebug("Region unregistered: " + region.getId());
+        DebugAPI.logLibDebug("Region unregistered: " + region.getId());
         return true;
     }
 
@@ -182,7 +180,7 @@ public class RegionManager implements Listener {
 
         regions.clear();
         cacheManager.invalidateAll();
-        logInternalInfo("All regions unregistered");
+        DebugAPI.logLibInfo("All regions unregistered");
     }
 
     public Optional<Region> getRegion(String regionId) {
@@ -238,14 +236,14 @@ public class RegionManager implements Listener {
 
         for (Region region : exitRegions) {
             if (!canPlayerExitRegion(player, region, from, to)) {
-                logInternalDebug(String.format("Exit blocked for player %s from region %s", player.getName(), region.getId()));
+                DebugAPI.logLibDebug(String.format("Exit blocked for player %s from region %s", player.getName(), region.getId()));
                 return false;
             }
         }
 
         for (Region region : enterRegions) {
             if (!canPlayerEnterRegion(player, region, from, to)) {
-                logInternalDebug(String.format("Entry blocked for player %s to region %s", player.getName(), region.getId()));
+                DebugAPI.logLibDebug(String.format("Entry blocked for player %s to region %s", player.getName(), region.getId()));
                 return false;
             }
         }
@@ -308,7 +306,7 @@ public class RegionManager implements Listener {
     }
 
     private void handlePlayerEnter(Player player, Region region) {
-        logInternalDebug(String.format("Player %s entering region %s", player.getName(), region.getId()));
+        DebugAPI.logLibDebug(String.format("Player %s entering region %s", player.getName(), region.getId()));
 
         region.addPlayer(player);
         playerRegions.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(region);
@@ -320,13 +318,13 @@ public class RegionManager implements Listener {
             try {
                 region.getOnEnter().execute(player, region);
             } catch (Exception e) {
-                logInternalDebug("Error executing onEnter callback: " + e.getMessage());
+                DebugAPI.logLibDebug("Error executing onEnter callback: " + e.getMessage());
             }
         }
     }
 
     private void handlePlayerExit(Player player, Region region) {
-        logInternalDebug(String.format("Player %s exiting region %s", player.getName(), region.getId()));
+        DebugAPI.logLibDebug(String.format("Player %s exiting region %s", player.getName(), region.getId()));
 
         region.removePlayer(player);
         Set<Region> regions = playerRegions.get(player.getUniqueId());
@@ -344,7 +342,7 @@ public class RegionManager implements Listener {
             try {
                 region.getOnExit().execute(player, region);
             } catch (Exception e) {
-                logInternalDebug("Error executing onExit callback: " + e.getMessage());
+                DebugAPI.logLibDebug("Error executing onExit callback: " + e.getMessage());
             }
         }
     }
@@ -388,7 +386,7 @@ public class RegionManager implements Listener {
                 || e instanceof Firework
         ).forEach(e -> { e.remove(); count[0]++; });
 
-        logInternalInfo("[Restore] Removed " + count[0] + " entities in region '" + region.getId() + "'");
+        DebugAPI.logLibInfo("[Restore] Removed " + count[0] + " entities in region '" + region.getId() + "'");
     }
 
     public void cleanupPlayer(Player player) {
@@ -438,14 +436,10 @@ public class RegionManager implements Listener {
             cleanupPlayer(player);
         }
 
-        PlayerBlockTracker.getInstance().cleanup();
-        TemporaryBlockManager.getInstance().shutdown();
-        SelectionManager.getInstance().shutdown();
-        RegionSelector.getInstance().cleanup();
-
-        try {
-            SchematicManager.getInstance().shutdown();
-        } catch (IllegalStateException ignored) {}
+//        PlayerBlockTracker.getInstance().clearAll();
+//        TemporaryBlockManager.getInstance().clearAll();
+        SelectionManager.getInstance().cleanupAll();
+        RegionSelector.getInstance().stopAllSessions();
 
         regions.clear();
         playerRegions.clear();
@@ -459,7 +453,7 @@ public class RegionManager implements Listener {
             }
         }
 
-        logInternalInfo("RegionManagerV2 cleaned up");
+        DebugAPI.logLibInfo("RegionManagerV2 cleaned up");
     }
 
     public Map<String, Object> getStats() {

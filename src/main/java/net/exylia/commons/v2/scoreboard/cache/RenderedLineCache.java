@@ -1,15 +1,16 @@
 package net.exylia.commons.v2.scoreboard.cache;
 
-import net.exylia.commons.cache.CaffeineCache;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.util.concurrent.TimeUnit;
 
 public class RenderedLineCache {
 
-    private final CaffeineCache<LineCacheKey, String> cache;
+    private final Cache<LineCacheKey, String> cache;
 
     public RenderedLineCache() {
-        this.cache = CaffeineCache.<LineCacheKey, String>builder()
+        this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(5, TimeUnit.SECONDS)
                 .maximumSize(2000)
                 .recordStats()
@@ -17,7 +18,7 @@ public class RenderedLineCache {
     }
 
     public String get(LineCacheKey key) {
-        return cache.get(key);
+        return cache.getIfPresent(key);
     }
 
     public void put(LineCacheKey key, String value) {
@@ -33,10 +34,10 @@ public class RenderedLineCache {
     }
 
     public long size() {
-        return cache.size();
+        return cache.estimatedSize();
     }
 
     public double hitRate() {
-        return cache.getStats().hitRate();
+        return cache.stats().hitRate();
     }
 }

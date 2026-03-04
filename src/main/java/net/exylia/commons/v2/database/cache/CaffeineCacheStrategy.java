@@ -3,7 +3,7 @@ package net.exylia.commons.v2.database.cache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
@@ -35,7 +35,7 @@ public class CaffeineCacheStrategy<K, V> implements CacheStrategy<K, V> {
             if (cause != null && cause.wasEvicted()) {
                 evictionCount.incrementAndGet();
                 if (recordStats) {
-                    DebugUtils.logDebug("Cache evicted: " + key);
+                    DebugAPI.logLibDebug("Cache evicted: " + key);
                 }
             }
         });

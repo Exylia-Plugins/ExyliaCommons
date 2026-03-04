@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.formatter.cache;
 
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import lombok.Value;
-import net.exylia.commons.cache.CacheStats;
 
 @Value
 public class FormatterCacheStats {
@@ -12,20 +12,19 @@ public class FormatterCacheStats {
     CacheStats configCache;
 
     public double getOverallHitRate() {
-        long totalHits = patternCache.getHitCount() + dateTimeFormatterCache.getHitCount()
-                + decimalFormatCache.getHitCount() + resultCache.getHitCount()
-                + configCache.getHitCount();
-        long totalMisses = patternCache.getMissCount() + dateTimeFormatterCache.getMissCount()
-                + decimalFormatCache.getMissCount() + resultCache.getMissCount()
-                + configCache.getMissCount();
+        long totalHits = patternCache.hitCount() + dateTimeFormatterCache.hitCount()
+                + decimalFormatCache.hitCount() + resultCache.hitCount()
+                + configCache.hitCount();
+        long totalMisses = patternCache.missCount() + dateTimeFormatterCache.missCount()
+                + decimalFormatCache.missCount() + resultCache.missCount()
+                + configCache.missCount();
         long totalRequests = totalHits + totalMisses;
-
         return totalRequests == 0 ? 0.0 : (double) totalHits / totalRequests;
     }
 
     public long getTotalEvictions() {
-        return patternCache.getEvictionCount() + dateTimeFormatterCache.getEvictionCount()
-                + decimalFormatCache.getEvictionCount() + resultCache.getEvictionCount()
-                + configCache.getEvictionCount();
+        return patternCache.evictionCount() + dateTimeFormatterCache.evictionCount()
+                + decimalFormatCache.evictionCount() + resultCache.evictionCount()
+                + configCache.evictionCount();
     }
 }

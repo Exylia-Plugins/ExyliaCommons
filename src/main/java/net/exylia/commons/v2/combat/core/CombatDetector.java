@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.combat.core;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.combat.provider.*;
 import org.bukkit.Bukkit;
 
@@ -11,7 +11,7 @@ public class CombatDetector {
 
     public CombatProvider detectBestProvider() {
         if (isPluginAvailable(DELUXE_COMBAT)) {
-            DebugUtils.logInternalInfo("Detected DeluxeCombat");
+            DebugAPI.logLibInfo("Detected DeluxeCombat");
             DeluxeCombatProvider provider = new DeluxeCombatProvider();
             if (provider.isEnabled()) {
                 return provider;
@@ -19,14 +19,14 @@ public class CombatDetector {
         }
 
         if (isPluginAvailable(PVP_MANAGER)) {
-            DebugUtils.logInternalInfo("Detected PvPManager");
+            DebugAPI.logLibInfo("Detected PvPManager");
             PvPManagerProvider provider = new PvPManagerProvider();
             if (provider.isEnabled()) {
                 return provider;
             }
         }
 
-        DebugUtils.logInternalWarn("No combat plugin detected");
+        DebugAPI.logLibWarn("No combat plugin detected");
         return new NoCombatProvider();
     }
 

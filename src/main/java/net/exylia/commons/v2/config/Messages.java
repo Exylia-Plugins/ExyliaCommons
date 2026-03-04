@@ -2,10 +2,11 @@ package net.exylia.commons.v2.config;
 
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.tasks.core.TaskManager;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -37,7 +38,9 @@ public class Messages {
         if (plugin == null || !plugin.isEnabled()) {
             return;
         }
-        Bukkit.getScheduler().runTaskLater(plugin, Messages::loadGlobalPrefix, 60L);
+        if (TaskManager.isInitialized()) {
+            TaskAPI.syncLater(Messages::loadGlobalPrefix, 60L);
+        }
     }
 
     public static String getPrefix() {

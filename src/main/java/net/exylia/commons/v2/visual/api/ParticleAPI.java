@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.api;
 
+import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.builder.ParticleBuilder;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
@@ -50,13 +51,40 @@ public final class ParticleAPI {
         ParticleRenderer.getInstance().render(nearestPlayer, config, PlaceholderContext.create());
     }
 
-    public static void spawn(Player player, String particleString) {
-        ParticleConfig config = ParticleBuilder.fromString(particleString);
-        ParticleRenderer.getInstance().render(player, config, PlaceholderContext.create());
+    public static void spawn(Player player, String particleName) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawn(player, particle, 1);
+    }
+
+    public static void spawn(Player player, String particleName, int count) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawn(player, particle, count);
+    }
+
+    public static void spawn(Location location, String particleName) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawn(location, particle, 1);
+    }
+
+    public static void spawn(Location location, String particleName, int count) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawn(location, particle, count);
     }
 
     public static void spawn(Player player, ParticleConfig config) {
         ParticleRenderer.getInstance().render(player, config, PlaceholderContext.create());
+    }
+
+    public static void spawn(Location location, ParticleConfig config) {
+        if (location == null || location.getWorld() == null) return;
+        java.util.List<Player> players = location.getWorld().getPlayers();
+        if (players.isEmpty()) return;
+        ParticleRenderer.getInstance().render(players.get(0), config, PlaceholderContext.create());
+    }
+
+    public static void spawnNearby(Player player, String particleName, int count) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawnNearby(player, particle, count);
     }
 
     public static void spawnNearby(Player player, Particle particle, int count) {
@@ -67,6 +95,11 @@ public final class ParticleAPI {
                 .build();
 
         ParticleRenderer.getInstance().render(player, config, PlaceholderContext.create());
+    }
+
+    public static void spawnToFiltered(Predicate<Player> filter, String particleName, int count) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawnToFiltered(filter, particle, count);
     }
 
     public static void spawnToFiltered(Predicate<Player> filter, Particle particle, int count) {
@@ -80,6 +113,11 @@ public final class ParticleAPI {
                 ParticleRenderer.getInstance().render(player, config, PlaceholderContext.create());
             }
         }
+    }
+
+    public static void spawnInRadius(Location origin, double radius, String particleName, int count) {
+        Particle particle = ParticleCompat.fromName(particleName);
+        if (particle != null) spawnInRadius(origin, radius, particle, count);
     }
 
     public static void spawnInRadius(Location origin, double radius, Particle particle, int count) {

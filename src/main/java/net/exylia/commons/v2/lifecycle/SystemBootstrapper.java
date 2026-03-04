@@ -1,24 +1,18 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.v2.config.Configs;
-import net.exylia.commons.v2.debug.api.DebugAPI;
-import net.exylia.commons.v2.tasks.api.TaskAPI;
-import org.bukkit.plugin.java.JavaPlugin;
-import net.exylia.commons.placeholders.PlaceholderSystemManager;
-import net.exylia.commons.utils.AdapterFactory;
-import net.exylia.commons.utils.skull.SkullManager;
-import net.exylia.commons.utils.visuals.ActionBarUtils;
-import net.exylia.commons.utils.visuals.BossbarUtils;
-import net.exylia.commons.utils.visuals.TitleUtils;
 import net.exylia.commons.v2.config.ConfigInitializer;
 import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.utils.PlayerUtils;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.core.VisualManager;
+import org.bukkit.plugin.java.JavaPlugin;
 
-import static net.exylia.commons.utils.DebugUtils.*;
+import java.io.File;
 
 
 public class SystemBootstrapper {
@@ -29,48 +23,32 @@ public class SystemBootstrapper {
 
     public void initializeCoreSystemsAsync(JavaPlugin plugin) {
         try {
-            DebugAPI.logLibInfo("Initializing Configs...");
+            deleteDirectory(new File(plugin.getDataFolder(), "menus/admin"));
             ConfigInitializer.initConfigs(plugin);
 
-            DebugAPI.logLibInfo("Loading core config schemas...");
             ConfigSchemaRegistry.ensureDefaults(DebugDefaults.class);
             ConfigSchemaRegistry.ensureDefaults(FormattersDefaults.class);
 
             TaskAPI.initialize(plugin);
 
-            logInternalDebug("Initializing Messages...");
+            DebugAPI.logLibDebug("Initializing Messages...");
             ConfigInitializer.initMessages();
 
-            logInternalDebug("Reloading DebugConfig cache...");
+            DebugAPI.logLibDebug("Reloading DebugConfig cache...");
             net.exylia.commons.v2.debug.config.DebugConfig.reload();
 
-            logInternalDebug("Initializing ColorAPI...");
+            DebugAPI.logLibDebug("Initializing ColorAPI...");
             ColorAPI.initialize(plugin);
 
-            logInternalDebug("Initializing VisualManager...");
+            DebugAPI.logLibDebug("Initializing VisualManager...");
             VisualManager.getInstance().initialize(plugin);
 
-            logInternalDebug("Initializing PlaceholderSystemManager...");
-            PlaceholderSystemManager.initialize(plugin);
+            DebugAPI.logLibDebug("Initializing PlayerUtils...");
+            PlayerUtils.initialize(plugin);
 
-            logInternalDebug("Initializing AdapterFactory...");
-            AdapterFactory.initialize(plugin);
-
-            logInternalDebug("Initializing ActionBarUtils...");
-            ActionBarUtils.init(plugin);
-
-            logInternalDebug("Initializing BossbarUtils...");
-            BossbarUtils.init(plugin);
-
-            logInternalDebug("Initializing TitleUtils...");
-            TitleUtils.init(plugin);
-
-            logInternalDebug("Initializing SkullManager...");
-            SkullManager.initialize(plugin);
-
-            logInternalInfo("Core systems initialized successfully");
+            DebugAPI.logLibInfo("Core systems initialized successfully");
         } catch (Exception e) {
-            logInternalError("Error initializing core systems: " + e.getMessage());
+            DebugAPI.logLibError("Error initializing core systems: " + e.getMessage());
             throw new RuntimeException("Failed to initialize core systems", e);
         }
     }
@@ -108,5 +86,17 @@ public class SystemBootstrapper {
             Class.forName("com.zaxxer.hikari.HikariDataSource");
         } catch (ClassNotFoundException ignored) {
         }
+    }
+
+    private void deleteDirectory(File dir) {
+        if (!dir.exists()) return;
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                if (f.isDirectory()) deleteDirectory(f);
+                else f.delete();
+            }
+        }
+        dir.delete();
     }
 }

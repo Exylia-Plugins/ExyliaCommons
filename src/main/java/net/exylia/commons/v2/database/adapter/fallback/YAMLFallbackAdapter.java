@@ -5,7 +5,7 @@ import net.exylia.commons.v2.database.config.AdapterConfig;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.*;
@@ -28,14 +28,14 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
     @Override
     public void connect() throws Exception {
         Files.createDirectories(basePath);
-        DebugUtils.logInternalInfo("YAML Fallback adapter initialized at " + basePath);
+        DebugAPI.logLibInfo("YAML Fallback adapter initialized at " + basePath);
     }
 
     @Override
     public void disconnect() throws Exception {
         saveAll();
         tableCache.clear();
-        DebugUtils.logInternalInfo("YAML Fallback adapter disconnected");
+        DebugAPI.logLibInfo("YAML Fallback adapter disconnected");
     }
 
     @Override
@@ -246,7 +246,7 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
                 loadTableFromFile(k);
                 return tableCache.get(k);
             } catch (Exception e) {
-                DebugUtils.logInternalWarn("Failed to load table " + k);
+                DebugAPI.logLibWarn("Failed to load table " + k);
                 return new ArrayList<>();
             }
         });

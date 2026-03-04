@@ -12,7 +12,7 @@ public class VisualRegistry {
     private static final Object LOCK = new Object();
 
     private final Map<UUID, Map<String, VisualInstance<?>>> playerInstances;
-    private final Map<String, VisualType> instanceTypes;
+    private final Map<UUID, Map<String, VisualType>> instanceTypes;
 
     private VisualRegistry() {
         this.playerInstances = new ConcurrentHashMap<>();
@@ -33,7 +33,8 @@ public class VisualRegistry {
     public void register(UUID playerId, String instanceId, VisualInstance<?> instance, VisualType type) {
         playerInstances.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
                 .put(instanceId, instance);
-        instanceTypes.put(instanceId, type);
+        instanceTypes.computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
+                .put(instanceId, type);
     }
 
     public void remove(UUID playerId, String instanceId) {
@@ -44,7 +45,13 @@ public class VisualRegistry {
                 playerInstances.remove(playerId);
             }
         }
-        instanceTypes.remove(instanceId);
+        Map<String, VisualType> types = instanceTypes.get(playerId);
+        if (types != null) {
+            types.remove(instanceId);
+            if (types.isEmpty()) {
+                instanceTypes.remove(playerId);
+            }
+        }
     }
 
     public Optional<VisualInstance<?>> get(UUID playerId, String instanceId) {
@@ -62,8 +69,11 @@ public class VisualRegistry {
     }
 
     public List<VisualInstance<?>> getByPlayerAndType(Player player, VisualType type) {
-        return getByPlayer(player).stream()
-                .filter(instance -> instanceTypes.get(instance.getId()) == type)
+        UUID playerId = player.getUniqueId();
+        Map<String, VisualType> types = instanceTypes.get(playerId);
+        if (types == null) return Collections.emptyList();
+        return getByPlayer(playerId).stream()
+                .filter(instance -> types.get(instance.getId()) == type)
                 .collect(Collectors.toList());
     }
 
@@ -73,9 +83,7 @@ public class VisualRegistry {
     }
 
     public int countByPlayerAndType(Player player, VisualType type) {
-        return (int) getByPlayer(player).stream()
-                .filter(instance -> instanceTypes.get(instance.getId()) == type)
-                .count();
+        return getByPlayerAndType(player, type).size();
     }
 
     public void removeAllByPlayer(UUID playerId) {
@@ -85,12 +93,7 @@ public class VisualRegistry {
         }
 
         playerInstances.remove(playerId);
-
-        if (instances != null) {
-            for (String instanceId : instances.keySet()) {
-                instanceTypes.remove(instanceId);
-            }
-        }
+        instanceTypes.remove(playerId);
     }
 
     public void removeAllByPlayer(Player player) {
@@ -104,12 +107,11 @@ public class VisualRegistry {
     }
 
     public int size() {
-        return instanceTypes.size();
+        return (int) playerInstances.values().stream().mapToLong(Map::size).sum();
     }
 
     public void clear() {
-        List<VisualInstance<?>> instances = getAllInstances();
-        instances.forEach(VisualInstance::cancel);
+        getAllInstances().forEach(VisualInstance::cancel);
         playerInstances.clear();
         instanceTypes.clear();
     }
@@ -119,7 +121,8 @@ public class VisualRegistry {
         return instances != null && instances.containsKey(instanceId);
     }
 
-    public Optional<VisualType> getType(String instanceId) {
-        return Optional.ofNullable(instanceTypes.get(instanceId));
+    public Optional<VisualType> getType(UUID playerId, String instanceId) {
+        Map<String, VisualType> types = instanceTypes.get(playerId);
+        return Optional.ofNullable(types != null ? types.get(instanceId) : null);
     }
 }

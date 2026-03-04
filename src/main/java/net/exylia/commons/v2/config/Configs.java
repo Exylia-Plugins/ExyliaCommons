@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.config;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -172,7 +172,7 @@ public class Configs {
     public static void reloadAll() {
         cache.values().forEach(Config::reload);
         cache.values().forEach((config) -> {
-            DebugUtils.logInternalInfo("Reloaded config: " + config.getFileName());
+            DebugAPI.logLibInfo("Reloaded config: " + config.getFileName());
         });
     }
 

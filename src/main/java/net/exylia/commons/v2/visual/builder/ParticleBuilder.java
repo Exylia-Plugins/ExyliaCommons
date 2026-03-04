@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.visual.builder;
 
-import net.exylia.commons.v2.visual.compat.ParticleCompat;
+import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
@@ -18,6 +18,7 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
     private double offsetZ = 0.0;
     private double extra = 0.0;
     private Color color;
+    private float dustSize = 1.0f;
     private ParticleConfig.ParticleScope scope = ParticleConfig.ParticleScope.PLAYER;
     private Location location;
 
@@ -34,9 +35,8 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
     }
 
     public ParticleBuilder particle(String particleName) {
-        try {
-            this.particle = Particle.valueOf(particleName.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        this.particle = ParticleCompat.fromName(particleName);
+        if (this.particle == null) {
             throw new IllegalArgumentException("Invalid particle name: " + particleName);
         }
         return this;
@@ -81,6 +81,11 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
 
     public ParticleBuilder color(int r, int g, int b) {
         this.color = Color.fromRGB(r, g, b);
+        return this;
+    }
+
+    public ParticleBuilder dustSize(float dustSize) {
+        this.dustSize = dustSize;
         return this;
     }
 
@@ -190,6 +195,7 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
                 .offsetZ(offsetZ)
                 .extra(extra)
                 .color(color)
+                .dustSize(dustSize)
                 .scope(scope)
                 .location(location)
                 .build();

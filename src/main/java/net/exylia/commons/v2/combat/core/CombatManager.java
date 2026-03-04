@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.combat.core;
 
 import lombok.Getter;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.combat.cache.CombatDataCache;
 import net.exylia.commons.v2.combat.config.CombatConfig;
 import net.exylia.commons.v2.combat.listener.PlayerCacheListener;
@@ -45,7 +45,7 @@ public class CombatManager {
 
         registerListeners();
 
-        DebugUtils.logInternalInfo("CombatManager initialized with provider: " + activeProvider.getProviderName());
+        DebugAPI.logLibInfo("CombatManager initialized with provider: " + activeProvider.getProviderName());
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -71,7 +71,7 @@ public class CombatManager {
         CombatProvider provider = detector.detectBestProvider();
 
         if (provider instanceof NoCombatProvider) {
-            DebugUtils.logInternalWarn("No combat plugin detected. Combat functionality will be limited.");
+            DebugAPI.logLibWarn("No combat plugin detected. Combat functionality will be limited.");
         }
 
         return provider;
@@ -167,22 +167,22 @@ public class CombatManager {
     }
 
     public void reload() {
-        DebugUtils.logInternalInfo("Reloading CombatManager...");
+        DebugAPI.logLibInfo("Reloading CombatManager...");
         combatDataCache.invalidateAll();
         activeProvider.invalidateCache();
         activeProvider = detectProvider();
-        DebugUtils.logInternalSuccess("CombatManager reloaded with provider: " + activeProvider.getProviderName());
+        DebugAPI.logLibInfo("CombatManager reloaded with provider: " + activeProvider.getProviderName());
     }
 
     public void shutdown() {
-        DebugUtils.logInternalInfo("Shutting down CombatManager...");
+        DebugAPI.logLibInfo("Shutting down CombatManager...");
         combatDataCache.invalidateAll();
 
         synchronized (LOCK) {
             instance = null;
         }
 
-        DebugUtils.logInternalInfo("CombatManager shutdown complete");
+        DebugAPI.logLibInfo("CombatManager shutdown complete");
     }
 
     private void registerListeners() {

@@ -1,14 +1,11 @@
 package net.exylia.commons.v2.reload.core;
 
-import net.exylia.commons.config.ConfigManager;
-import net.exylia.commons.database.DatabaseManager;
-import net.exylia.commons.placeholders.PlaceholderSystemManager;
-import net.exylia.commons.v2.reload.api.ReloadableSystem;
-import net.exylia.commons.v2.reload.detector.SystemAvailability;
 import net.exylia.commons.v2.action.core.ActionManager;
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.placeholders.registry.PlaceholderRegistry;
 import net.exylia.commons.v2.region.RegionManager;
+import net.exylia.commons.v2.reload.api.ReloadableSystem;
+import net.exylia.commons.v2.reload.detector.SystemAvailability;
 import net.exylia.commons.v2.scoreboard.core.ScoreboardManager;
 import net.exylia.commons.v2.visual.core.VisualManager;
 
@@ -43,9 +40,6 @@ public class SystemDetector {
     public SystemAvailability detectAll() {
         SystemAvailability.Builder builder = new SystemAvailability.Builder();
 
-        detectConfigSystem(builder);
-
-        detectDatabaseV1(builder);
         detectDatabaseV2(builder);
         detectRedis(builder);
         detectScoreboardManager(builder);
@@ -53,26 +47,13 @@ public class SystemDetector {
         detectActionManager(builder);
         detectRegionManager(builder);
         detectPlaceholderRegistry(builder);
-        detectPlaceholderSystemManager(builder);
         detectVisualManager(builder);
 
         builder.check("FormatterRegistry", true, "Always available");
         builder.check("ColorSystem", true, "Always available");
+        builder.check("ConfigSystem", true, "Always available");
 
         return builder.build();
-    }
-
-    private void detectDatabaseV1(SystemAvailability.Builder builder) {
-        try {
-            DatabaseManager instance = DatabaseManager.getInstance();
-            if (instance != null && instance.isConnected()) {
-                builder.available("DatabaseV1");
-            } else {
-                builder.unavailable("DatabaseV1", "Not connected");
-            }
-        } catch (Exception e) {
-            builder.unavailable("DatabaseV1", "Not initialized: " + e.getMessage());
-        }
     }
 
     private void detectDatabaseV2(SystemAvailability.Builder builder) {
@@ -174,19 +155,6 @@ public class SystemDetector {
         }
     }
 
-    private void detectPlaceholderSystemManager(SystemAvailability.Builder builder) {
-        try {
-            PlaceholderSystemManager instance = PlaceholderSystemManager.getInstance();
-            if (instance != null) {
-                builder.available("PlaceholderSystemManager");
-            } else {
-                builder.unavailable("PlaceholderSystemManager", "Instance is null");
-            }
-        } catch (Exception e) {
-            builder.unavailable("PlaceholderSystemManager", "Error: " + e.getMessage());
-        }
-    }
-
     private void detectVisualManager(SystemAvailability.Builder builder) {
         try {
             VisualManager instance = VisualManager.getInstance();
@@ -199,14 +167,6 @@ public class SystemDetector {
             builder.unavailable("VisualManager", "Not initialized");
         } catch (Exception e) {
             builder.unavailable("VisualManager", "Error: " + e.getMessage());
-        }
-    }
-
-    private void detectConfigSystem(SystemAvailability.Builder builder) {
-        if (ConfigManager.isSystemInitialized()) {
-            builder.available("ConfigSystem");
-        } else {
-            builder.unavailable("ConfigSystem", "Using V2 config system only");
         }
     }
 }

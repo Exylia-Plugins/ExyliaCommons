@@ -1,4 +1,5 @@
 package net.exylia.commons.v2.reload.api;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
@@ -15,7 +16,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static net.exylia.commons.utils.DebugUtils.logInternalError;
 
 @Getter
 public class ReloadAPI {
@@ -87,9 +87,9 @@ public class ReloadAPI {
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally(throwable -> {
                     if (throwable instanceof TimeoutException) {
-                        logInternalError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
+                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
                     } else {
-                        logInternalError("Error in reload with timeout: " + throwable.getMessage());
+                        DebugAPI.logLibError("Error in reload with timeout: " + throwable.getMessage());
                     }
                     return null;
                 });
@@ -100,9 +100,9 @@ public class ReloadAPI {
                 .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
                 .exceptionally(throwable -> {
                     if (throwable instanceof TimeoutException) {
-                        logInternalError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
+                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
                     } else {
-                        logInternalError("Error in reload with timeout: " + throwable.getMessage());
+                        DebugAPI.logLibError("Error in reload with timeout: " + throwable.getMessage());
                     }
                     return null;
                 });
@@ -120,10 +120,10 @@ public class ReloadAPI {
                 })
                 .exceptionally(throwable -> {
                     if (throwable instanceof TimeoutException) {
-                        logInternalError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
+                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
                         sender.sendMessage("§c✖ Reload cancelled: Timeout after " + timeoutSeconds + " seconds");
                     } else {
-                        logInternalError("Error in reload: " + throwable.getMessage());
+                        DebugAPI.logLibError("Error in reload: " + throwable.getMessage());
                         sender.sendMessage("§c✖ Reload error: " + throwable.getMessage());
                     }
                     return null;

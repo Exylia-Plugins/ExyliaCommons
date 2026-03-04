@@ -11,7 +11,7 @@ import java.util.concurrent.CompletableFuture;
 @Getter
 public abstract class VisualInstance<T extends VisualConfig> {
     protected final String id;
-    protected final T config;
+    protected T config;
     protected final Player player;
     protected final VisualRenderer<T> renderer;
     protected final InstanceLifecycle lifecycle;
@@ -40,6 +40,12 @@ public abstract class VisualInstance<T extends VisualConfig> {
 
     public void updateContext(PlaceholderContext newContext) {
         this.context = newContext != null ? newContext : PlaceholderContext.create();
+    }
+
+    public void updateConfig(T newConfig) {
+        if (newConfig != null) {
+            this.config = newConfig;
+        }
     }
 
     public boolean isActive() {

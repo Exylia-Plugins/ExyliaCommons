@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.api;
 
+import net.exylia.commons.v2.compat.SoundCompat;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.builder.SoundBuilder;
 import net.exylia.commons.v2.visual.config.SoundConfig;
@@ -8,6 +9,7 @@ import net.exylia.commons.v2.visual.renderer.SoundRenderer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.entity.Player;
 
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +63,18 @@ public final class SoundAPI {
         SoundRenderer.getInstance().render(nearestPlayer, config, PlaceholderContext.create());
     }
 
+    public static void playAt(Location location, String soundString) {
+        SoundConfig config = SoundBuilder.fromString(soundString);
+        if (location.getWorld() == null || location.getWorld().getPlayers().isEmpty()) return;
+        Player nearestPlayer = location.getWorld().getPlayers().get(0);
+        SoundRenderer.getInstance().render(nearestPlayer, SoundBuilder.create()
+                .sound(config.getSound())
+                .volume(config.getVolume())
+                .pitch(config.getPitch())
+                .atLocation(location)
+                .build(), PlaceholderContext.create());
+    }
+
     public static void playNearby(Player player, Sound sound) {
         playNearby(player, sound, 1.0f, 1.0f);
     }
@@ -76,6 +90,16 @@ public final class SoundAPI {
         SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
     }
 
+    public static void playNearby(Player player, String soundString) {
+        SoundConfig config = SoundBuilder.fromString(soundString);
+        SoundRenderer.getInstance().render(player, SoundBuilder.create()
+                .sound(config.getSound())
+                .volume(config.getVolume())
+                .pitch(config.getPitch())
+                .nearby()
+                .build(), PlaceholderContext.create());
+    }
+
     public static void playToFiltered(Predicate<Player> filter, Sound sound) {
         playToFiltered(filter, sound, 1.0f, 1.0f);
     }
@@ -87,6 +111,15 @@ public final class SoundAPI {
                 .pitch(pitch)
                 .build();
 
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (filter.test(player)) {
+                SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
+            }
+        }
+    }
+
+    public static void playToFiltered(Predicate<Player> filter, String soundString) {
+        SoundConfig config = SoundBuilder.fromString(soundString);
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (filter.test(player)) {
                 SoundRenderer.getInstance().render(player, config, PlaceholderContext.create());
@@ -111,12 +144,43 @@ public final class SoundAPI {
         playToFiltered(filter, sound, volume, pitch);
     }
 
+    public static void playInRadius(Location origin, double radius, String soundString) {
+        if (origin == null) return;
+        double radiusSquared = radius * radius;
+        Predicate<Player> filter = player ->
+                player.getWorld().equals(origin.getWorld()) &&
+                        player.getLocation().distanceSquared(origin) <= radiusSquared;
+        playToFiltered(filter, soundString);
+    }
+
     public static CompletableFuture<String> playContinuous(Player player, SoundConfig config) {
         return VisualManager.getInstance().playSoundContinuous(player, config, PlaceholderContext.create());
     }
 
     public static CompletableFuture<String> playCountdown(Player player, SoundConfig config, long durationTicks) {
         return VisualManager.getInstance().playSoundCountdown(player, config, PlaceholderContext.create(), durationTicks);
+    }
+
+    public static void stop(Player player, Sound sound) {
+        player.stopSound(sound);
+    }
+
+    public static void stop(Player player, Sound sound, SoundCategory category) {
+        player.stopSound(sound, category);
+    }
+
+    public static void stop(Player player, String soundName) {
+        Sound sound = SoundCompat.fromName(soundName);
+        if (sound != null) {
+            player.stopSound(sound);
+        }
+    }
+
+    public static void stop(Player player, String soundName, SoundCategory category) {
+        Sound sound = SoundCompat.fromName(soundName);
+        if (sound != null) {
+            player.stopSound(sound, category);
+        }
     }
 
     public static SoundBuilder builder() {

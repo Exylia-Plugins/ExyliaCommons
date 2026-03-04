@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.database.serialization.Deserializer;
 import net.exylia.commons.v2.database.serialization.Serializer;
 import net.exylia.commons.v2.region.model.RegionFlag;

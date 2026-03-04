@@ -157,7 +157,7 @@ public class SelectionManager {
             existingSession.stop();
         }
 
-        Region tempRegion = new Region("temp-selection-" + player.getUniqueId(), selection.toSelection());
+        Region tempRegion = new Region("temp-selection-" + player.getUniqueId(), selection);
         SelectionSession session = RegionSelector.getInstance().showSelector(player, tempRegion, Color.AQUA);
         activeVisualizations.put(player.getUniqueId(), session);
     }

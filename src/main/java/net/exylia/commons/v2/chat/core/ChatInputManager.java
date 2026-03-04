@@ -3,6 +3,9 @@ package net.exylia.commons.v2.chat.core;
 import lombok.Getter;
 import net.exylia.commons.v2.chat.config.ChatInputConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.tasks.core.TaskManager;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.visual.api.MessageAPI;
 import net.exylia.commons.v2.visual.api.TitleAPI;
 import net.exylia.commons.v2.visual.builder.TitleBuilder;
@@ -14,7 +17,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.Map;
 import java.util.UUID;
@@ -65,7 +67,7 @@ public final class ChatInputManager implements Listener {
             startTitleCountdown(player, session);
         }
 
-        session.timeoutTask = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        session.timeoutTask = TaskAPI.syncLater(() -> {
             if (sessions.remove(player.getUniqueId()) != null) {
                 session.cancelled = true;
                 if (config.getTimeoutMessage() != null) {
@@ -99,7 +101,7 @@ public final class ChatInputManager implements Listener {
         event.setCancelled(true);
         String input = event.getMessage();
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> handleInput(event.getPlayer(), input));
+        TaskAPI.sync(() -> handleInput(event.getPlayer(), input));
     }
 
     @EventHandler
@@ -143,7 +145,7 @@ public final class ChatInputManager implements Listener {
         ChatInputConfig config = session.config;
         final int[] remaining = {config.getTimeout()};
 
-        session.titleTask = plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
+        session.titleTask = TaskAPI.syncTimer(() -> {
             if (!sessions.containsKey(player.getUniqueId()) || session.cancelled) {
                 if (session.titleTask != null) session.titleTask.cancel();
                 return;
@@ -165,8 +167,8 @@ public final class ChatInputManager implements Listener {
         final Player player;
         final ChatInputConfig config;
         final Consumer<String> callback;
-        BukkitTask timeoutTask;
-        BukkitTask titleTask;
+        ScheduledTask timeoutTask;
+        ScheduledTask titleTask;
         volatile boolean cancelled = false;
 
         Session(Player player, ChatInputConfig config, Consumer<String> callback) {

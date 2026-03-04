@@ -34,7 +34,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
 
         String pattern = config.isUseIsoDefault() ? DatePattern.ISO.getPattern() : config.getDefaultPattern();
         String cacheKey = getCacheKey(input, "default");
-        String cachedResult = cache.getResultCache().get(cacheKey);
+        String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
             stats.recordFormat(System.nanoTime() - startTime, true);
@@ -54,7 +54,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, customPattern);
-        String cachedResult = cache.getResultCache().get(cacheKey);
+        String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
             stats.recordFormat(System.nanoTime() - startTime, true);
@@ -73,7 +73,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "date");
-        String cachedResult = cache.getResultCache().get(cacheKey);
+        String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
             stats.recordFormat(System.nanoTime() - startTime, true);
@@ -92,7 +92,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "time");
-        String cachedResult = cache.getResultCache().get(cacheKey);
+        String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
             stats.recordFormat(System.nanoTime() - startTime, true);
@@ -111,7 +111,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "iso");
-        String cachedResult = cache.getResultCache().get(cacheKey);
+        String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
             stats.recordFormat(System.nanoTime() - startTime, true);

@@ -5,15 +5,8 @@ import com.lukittu.loader.entry.ILukittuLoader;
 import com.lukittu.loader.spigot.SpigotLukittuLoader;
 import com.lukittu.loader.util.PlatformHelper;
 import lombok.Getter;
-import net.exylia.commons.config.ConfigBase;
-import net.exylia.commons.config.ConfigManager;
-import net.exylia.commons.config.ConfigurationSystem;
-import net.exylia.commons.config.base.MainConfigBase;
-import net.exylia.commons.config.base.MessagesBase;
-import net.exylia.commons.utils.ColorUtils;
-import net.exylia.commons.utils.DateFormatter;
-import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.lifecycle.ShutdownCoordinator;
 import net.exylia.commons.v2.lifecycle.SystemBootstrapper;
 import net.exylia.commons.v2.reload.api.ReloadAPI;
@@ -25,8 +18,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
-
-import static net.exylia.commons.utils.DebugUtils.*;
 
 public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
 
@@ -42,7 +33,6 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
     private SpigotLukittuLoader loader;
 
     private BukkitAudiences audiences;
-    private ConfigurationSystem configSystem;
     private SystemBootstrapper bootstrapper;
     private ShutdownCoordinator shutdownCoordinator;
 
@@ -51,16 +41,13 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
         loader = PlatformHelper.cast(lukittuLoader, SpigotLukittuLoader.class);
         plugin = loader.getPlugin();
 
-        plugin.getLogger().info("[Loader] Initializing Configs...");
         Configs.init(plugin, getClass().getClassLoader());
-
-        plugin.getLogger().info("[Loader] Initializing TaskAPI...");
         TaskAPI.initialize(plugin);
 
         bootstrapper = new SystemBootstrapper();
         shutdownCoordinator = new ShutdownCoordinator();
 
-        logInternalDebug("Calling onPreExyliaEnable...");
+        DebugAPI.logLibDebug("Calling onPreExyliaEnable...");
         onPreExyliaEnable();
 
         try {
@@ -72,19 +59,18 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
                 initialized = true;
             }
 
-            logInternalDebug("Executing bootstrap...");
+            DebugAPI.logLibDebug("Executing bootstrap...");
             bootstrapper.initializeCoreSystemsAsync(plugin);
             bootstrapper.checkOptionalDependencies();
 
             ReloadAPI.initialize(plugin);
 
-            logInternalDebug("Calling onExyliaEnable...");
+            DebugAPI.logLibDebug("Calling onExyliaEnable...");
             onExyliaEnable();
-            logInternalInfo("Plugin enabled: " + plugin.getDescription().getName());
+            DebugAPI.logLibInfo("Plugin enabled: " + plugin.getDescription().getName());
 
         } catch (Exception e) {
-            logInternalError("Error enabling plugin: " + e.getMessage());
-            e.printStackTrace();
+            DebugAPI.logLibError("Error enabling plugin: " + e.getMessage(), e);
             plugin.getServer().getPluginManager().disablePlugin(plugin);
         }
     }
@@ -96,10 +82,9 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
         try {
             onExyliaDisable();
         } catch (Exception e) {
-            logInternalError("Error in disable: " + e.getMessage());
+            DebugAPI.logLibError("Error in disable: " + e.getMessage());
         }
 
-        if (configSystem != null) configSystem.shutdown();
         if (audiences != null) {
             audiences.close();
             audiences = null;
@@ -113,45 +98,12 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
             initialized = false;
         }
 
-        logInternalInfo("Plugin disabled: " + plugin.getDescription().getName());
-    }
-
-    public void initializeConfigurationSystem() {
-        try {
-            configSystem = new ConfigurationSystem(plugin);
-            Class<? extends ConfigBase>[] pluginConfigClasses = getConfigurationClasses();
-            List<Class<? extends ConfigBase>> allConfigClasses = new ArrayList<>();
-            allConfigClasses.add(MainConfigBase.class);
-            allConfigClasses.add(MessagesBase.class);
-
-            if (pluginConfigClasses != null && pluginConfigClasses.length > 0) {
-                for (Class<? extends ConfigBase> pluginClass : pluginConfigClasses) {
-                    if (MainConfigBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MainConfigBase.class)) {
-                        allConfigClasses.removeIf(cls -> cls.equals(MainConfigBase.class));
-                    }
-                    if (MessagesBase.class.isAssignableFrom(pluginClass) && !pluginClass.equals(MessagesBase.class)) {
-                        allConfigClasses.removeIf(cls -> cls.equals(MessagesBase.class));
-                    }
-                    allConfigClasses.add(pluginClass);
-                }
-            }
-
-            Class<? extends ConfigBase>[] finalConfigClasses = allConfigClasses.toArray(new Class[0]);
-            configSystem.initialize(finalConfigClasses);
-            ConfigManager.init(configSystem, finalConfigClasses);
-            TimeFormatter.init();
-            DateFormatter.init();
-            ColorUtils.initializePresets(plugin, getCustomColorPresets());
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        DebugAPI.logLibInfo("Plugin disabled: " + plugin.getDescription().getName());
     }
 
     protected void onPreExyliaEnable() {}
     protected abstract void onExyliaEnable();
     protected abstract void onExyliaDisable();
-    protected Class<? extends ConfigBase>[] getConfigurationClasses() { return new Class[0]; }
-    protected Map<String, String> getCustomColorPresets() { return new LinkedHashMap<>(); }
     protected void onReload(ReloadContext context) {}
 
     public final void callOnReload(ReloadContext context) {

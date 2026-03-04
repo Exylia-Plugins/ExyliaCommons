@@ -56,7 +56,6 @@ public class PlaceholderRegistry {
             }
 
             instance = new PlaceholderRegistry(plugin);
-            DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PlaceholderRegistry initialized");
         }
     }
 

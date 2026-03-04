@@ -166,9 +166,14 @@ public final class ActionBarAPI {
     }
 
     public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context) {
+        sendUpdatable(player, key, text, context, 20L);
+    }
+
+    public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context, long updateIntervalTicks) {
         ActionBarConfig config = ActionBarBuilder.create()
                 .text(text)
                 .permanent()
+                .updateInterval(updateIntervalTicks)
                 .build();
 
         VisualManager.getInstance().sendOrUpdateContinuous(

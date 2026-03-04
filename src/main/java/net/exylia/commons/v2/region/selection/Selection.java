@@ -27,8 +27,34 @@ public class Selection {
         return pos1 != null && pos2 != null && pos1.getWorld().equals(pos2.getWorld());
     }
 
-    public net.exylia.commons.selection.model.Selection toSelection() {
-        return new net.exylia.commons.selection.model.Selection(pos1, pos2);
+    public static Selection of(Location pos1, Location pos2) {
+        Selection selection = new Selection(null, "region_" + System.currentTimeMillis());
+        selection.setPos1(pos1);
+        selection.setPos2(pos2);
+        return selection;
+    }
+
+    public Location getCenter() {
+        if (!isComplete()) return null;
+        Location min = getMinimumPoint();
+        Location max = getMaximumPoint();
+        return new Location(
+            pos1.getWorld(),
+            (min.getX() + max.getX()) / 2.0,
+            (min.getY() + max.getY()) / 2.0,
+            (min.getZ() + max.getZ()) / 2.0
+        );
+    }
+
+    public boolean contains(Location location) {
+        if (!isComplete() || location.getWorld() == null) return false;
+        if (!location.getWorld().equals(pos1.getWorld())) return false;
+        Location min = getMinimumPoint();
+        Location max = getMaximumPoint();
+        double x = location.getX(), y = location.getY(), z = location.getZ();
+        return x >= min.getBlockX() && x <= max.getBlockX() + 1
+            && y >= min.getBlockY() && y <= max.getBlockY() + 1
+            && z >= min.getBlockZ() && z <= max.getBlockZ() + 1;
     }
 
     public Location getMinimumPoint() {

@@ -58,7 +58,6 @@ public class ActionManager {
 
         initializeDefaultMiddlewares();
 
-        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager initialized for plugin: " + plugin.getName());
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -83,10 +82,8 @@ public class ActionManager {
     private PermissionProvider initializePermissionProvider() {
         VaultPermissionProvider vaultProvider = new VaultPermissionProvider();
         if (vaultProvider.isEnabled()) {
-            DebugAPI.logLibInfo(DebugCategory.ACTION, "Using Vault permission provider");
             return vaultProvider;
         }
-        DebugAPI.logLibInfo(DebugCategory.ACTION, "Using basic permission provider");
         return new BasicPermissionProvider();
     }
 

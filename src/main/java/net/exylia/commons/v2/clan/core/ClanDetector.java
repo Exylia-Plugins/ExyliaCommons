@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.clan.core;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.clan.provider.*;
 import org.bukkit.Bukkit;
 
@@ -12,7 +12,7 @@ public class ClanDetector {
 
     public ClanProvider detectBestProvider() {
         if (isPluginAvailable(ULTIMATE_CLANS)) {
-            DebugUtils.logInternalInfo("Detected UltimateClans");
+            DebugAPI.logLibInfo("Detected UltimateClans");
             UltimateClanProvider provider = new UltimateClanProvider();
             if (provider.isEnabled()) {
                 return provider;
@@ -20,7 +20,7 @@ public class ClanDetector {
         }
 
         if (isPluginAvailable(KINGDOMS_X)) {
-            DebugUtils.logInternalInfo("Detected KingdomsX");
+            DebugAPI.logLibInfo("Detected KingdomsX");
             KingdomsProvider provider = new KingdomsProvider();
             if (provider.isEnabled()) {
                 return provider;
@@ -28,14 +28,14 @@ public class ClanDetector {
         }
 
         if (isPluginAvailable(SIMPLE_CLANS)) {
-            DebugUtils.logInternalInfo("Detected SimpleClans");
+            DebugAPI.logLibInfo("Detected SimpleClans");
             SimpleClansProvider provider = new SimpleClansProvider();
             if (provider.isEnabled()) {
                 return provider;
             }
         }
 
-        DebugUtils.logInternalWarn("No clan plugin detected");
+        DebugAPI.logLibWarn("No clan plugin detected");
         return new NoClanProvider();
     }
 

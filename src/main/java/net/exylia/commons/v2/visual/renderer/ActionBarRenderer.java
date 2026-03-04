@@ -40,5 +40,8 @@ public class ActionBarRenderer implements VisualRenderer<ActionBarConfig> {
 
     @Override
     public void cleanup(Player player, String visualId) {
+        if (player.isOnline()) {
+            player.sendActionBar(Component.empty());
+        }
     }
 }

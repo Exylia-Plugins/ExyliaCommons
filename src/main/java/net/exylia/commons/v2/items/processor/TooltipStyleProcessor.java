@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.items.processor;
 
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.NamespacedKey;
@@ -37,7 +37,7 @@ public class TooltipStyleProcessor {
 
         try {
             if (!processedStyle.contains(":")) {
-                DebugUtils.logInternalWarn("TooltipStyleProcessor: Invalid format - must be 'namespace:key'");
+                DebugAPI.logLibWarn("TooltipStyleProcessor: Invalid format - must be 'namespace:key'");
                 return;
             }
 
@@ -51,7 +51,7 @@ public class TooltipStyleProcessor {
                 itemStack.setItemMeta(meta);
             }
         } catch (Exception e) {
-            DebugUtils.logInternalWarn("TooltipStyleProcessor: Failed to apply tooltip style: " + processedStyle);
+            DebugAPI.logLibWarn("TooltipStyleProcessor: Failed to apply tooltip style: " + processedStyle);
         }
     }
 

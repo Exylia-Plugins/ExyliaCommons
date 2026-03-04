@@ -2,7 +2,7 @@ package net.exylia.commons.v2.action.audit;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -35,7 +35,7 @@ public class AuditLogger {
             entries.poll();
         }
 
-        DebugUtils.logInternalInfo("Action audit: " + entry.getActionId() + " by " + entry.getPlayerId());
+        DebugAPI.logLibInfo("Action audit: " + entry.getActionId() + " by " + entry.getPlayerId());
     }
 
     public Queue<AuditEntry> getEntries() {

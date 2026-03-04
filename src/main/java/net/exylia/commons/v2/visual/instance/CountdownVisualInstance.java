@@ -4,7 +4,6 @@ import lombok.Getter;
 import lombok.Setter;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
-import net.exylia.commons.utils.TimeFormatter;
 import net.exylia.commons.v2.formatter.api.FormatterAPI;
 import net.exylia.commons.v2.visual.config.VisualConfig;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
@@ -18,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class CountdownVisualInstance<T extends VisualConfig> extends VisualInstance<T> {
     private final long durationTicks;
     private long ticksRemaining;
+    private long lastRenderedSeconds = -1;
     private ScheduledTask countdownTask;
 
     @Setter
@@ -42,6 +42,8 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
     public CompletableFuture<Void> start() {
         lifecycle.start();
 
+        PlaceholderContext countdownContext = context.copy();
+
         countdownTask = Tasks.timer(() -> {
             if (!player.isOnline()) {
                 cancel();
@@ -58,20 +60,21 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
             double progress = durationTicks > 0 ? (double) ticksRemaining / durationTicks : 0.0;
             double decimalSeconds = ticksRemaining / 20.0;
 
-            PlaceholderContext updateContext = context.copy()
-                    .put("time", secondsRemaining)
-                    .put("time_decimal", String.format("%.1f", decimalSeconds))
-                    .put("time_formatted", FormatterAPI.formatTime(millisRemaining))
-                    .put("ticks_remaining", ticksRemaining)
-                    .put("progress", progress)
-                    .put("countdown_active", true)
-                    .withCurrentTime();
+            countdownContext.put("time", secondsRemaining);
+            countdownContext.put("time_decimal", String.format("%.1f", decimalSeconds));
+            countdownContext.put("time_formatted", FormatterAPI.formatTime(millisRemaining));
+            countdownContext.put("ticks_remaining", ticksRemaining);
+            countdownContext.put("progress", progress);
+            countdownContext.put("countdown_active", true);
 
-            updateContext(updateContext);
+            updateContext(countdownContext);
 
-            try {
-                render();
-            } catch (Exception ignored) {
+            if (secondsRemaining != lastRenderedSeconds) {
+                lastRenderedSeconds = secondsRemaining;
+                try {
+                    render();
+                } catch (Exception ignored) {
+                }
             }
 
             ticksRemaining--;

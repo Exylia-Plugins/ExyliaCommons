@@ -111,7 +111,7 @@ public class HologramDisplayEntity {
 
     public void teleport(Location location) {
         if (entity != null && entity.isValid()) {
-            entity.teleport(location);
+            entity.teleportAsync(location);
         }
     }
 

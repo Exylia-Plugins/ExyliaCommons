@@ -1,7 +1,8 @@
 package net.exylia.commons.v2.formatter.cache;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.Getter;
-import net.exylia.commons.cache.CaffeineCache;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -15,37 +16,37 @@ import java.util.regex.Pattern;
 public class FormatterCache {
     private static volatile FormatterCache instance;
 
-    private final CaffeineCache<String, Pattern> patternCache;
-    private final CaffeineCache<String, DateTimeFormatter> dateTimeFormatterCache;
-    private final CaffeineCache<DecimalFormatKey, DecimalFormat> decimalFormatCache;
-    private final CaffeineCache<String, String> resultCache;
-    private final CaffeineCache<String, Object> configCache;
+    private final Cache<String, Pattern> patternCache;
+    private final Cache<String, DateTimeFormatter> dateTimeFormatterCache;
+    private final Cache<DecimalFormatKey, DecimalFormat> decimalFormatCache;
+    private final Cache<String, String> resultCache;
+    private final Cache<String, Object> configCache;
 
     private FormatterCache() {
-        this.patternCache = CaffeineCache.<String, Pattern>builder()
+        this.patternCache = Caffeine.newBuilder()
             .maximumSize(50)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .recordStats()
             .build();
 
-        this.dateTimeFormatterCache = CaffeineCache.<String, DateTimeFormatter>builder()
+        this.dateTimeFormatterCache = Caffeine.newBuilder()
             .maximumSize(30)
             .recordStats()
             .build();
 
-        this.decimalFormatCache = CaffeineCache.<DecimalFormatKey, DecimalFormat>builder()
+        this.decimalFormatCache = Caffeine.newBuilder()
             .maximumSize(20)
             .recordStats()
             .weakValues()
             .build();
 
-        this.resultCache = CaffeineCache.<String, String>builder()
+        this.resultCache = Caffeine.newBuilder()
             .maximumSize(2000)
             .expireAfterWrite(30, TimeUnit.SECONDS)
             .recordStats()
             .build();
 
-        this.configCache = CaffeineCache.<String, Object>builder()
+        this.configCache = Caffeine.newBuilder()
             .maximumSize(10)
             .recordStats()
             .build();
@@ -95,7 +96,7 @@ public class FormatterCache {
     }
 
     public String getResult(String key, Supplier<String> loader, long ttl, TimeUnit unit) {
-        String cached = resultCache.get(key);
+        String cached = resultCache.getIfPresent(key);
         if (cached != null) {
             return cached;
         }
@@ -127,11 +128,11 @@ public class FormatterCache {
 
     public FormatterCacheStats getStats() {
         return new FormatterCacheStats(
-            patternCache.getStats(),
-            dateTimeFormatterCache.getStats(),
-            decimalFormatCache.getStats(),
-            resultCache.getStats(),
-            configCache.getStats()
+            patternCache.stats(),
+            dateTimeFormatterCache.stats(),
+            decimalFormatCache.stats(),
+            resultCache.stats(),
+            configCache.stats()
         );
     }
 }

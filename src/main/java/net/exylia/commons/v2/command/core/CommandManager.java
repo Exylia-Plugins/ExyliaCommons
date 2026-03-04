@@ -51,7 +51,6 @@ public class CommandManager {
             throw new IllegalStateException("CommandManager already initialized");
         }
 
-        DebugAPI.logLibInfo(DebugCategory.COMMAND, "Initializing CommandManager for plugin: " + plugin.getName());
 
         this.plugin = plugin;
         this.proxyCommandSender = new ProxyCommandSender(plugin);
@@ -66,7 +65,6 @@ public class CommandManager {
         this.proxyCommandSender.initialize();
         this.initialized = true;
 
-        DebugAPI.logLibSuccess(DebugCategory.COMMAND, "CommandManager initialized (cache size: 1000, TTL: 5min, proxy: " + proxyCommandSender.isEnabled() + ")");
     }
 
     public CompletableFuture<CommandResult> executeAsync(

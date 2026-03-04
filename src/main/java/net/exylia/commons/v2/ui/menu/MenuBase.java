@@ -21,7 +21,7 @@ import net.exylia.commons.v2.ui.exception.MenuStateException;
 import net.exylia.commons.v2.ui.model.FillerData;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuState;
-import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
+import net.exylia.commons.v2.ui.packet.PacketEventsSupport;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.api.SoundAPI;
@@ -464,7 +464,7 @@ public abstract class MenuBase {
             return;
         }
         String processedTitle = processTitle(menuData.getTitle());
-        InventoryTitleUpdater.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
+        PacketEventsSupport.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
     }
 
     protected void slotOnlyRefresh() {

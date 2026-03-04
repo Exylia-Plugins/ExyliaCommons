@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.database.serialization.builtin;
 
-import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.database.serialization.SerializationRegistry;
 import net.exylia.commons.v2.hologram.model.HologramData;
 import net.exylia.commons.v2.region.model.Region;

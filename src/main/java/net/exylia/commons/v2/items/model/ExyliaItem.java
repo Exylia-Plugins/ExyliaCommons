@@ -6,7 +6,7 @@ import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.visual.api.ColorAPI;
-import net.exylia.commons.utils.effects.SoundUtils;
+import net.exylia.commons.v2.visual.api.SoundAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -135,15 +135,7 @@ public abstract class ExyliaItem {
         String result = text;
 
         if (player != null && itemData.getContext() != null) {
-            try {
-                net.exylia.commons.placeholders.ExyliaContext exyliaContext = itemData.getContext().toExyliaContext();
-                if (player != null) {
-                    exyliaContext.withPlayer(player);
-                }
-                result = exyliaContext.processPlaceholders(result, player);
-            } catch (Exception e) {
-                result = Placeholders.process(text, player, itemData.getContext());
-            }
+            result = Placeholders.process(text, player, itemData.getContext());
         } else if (player != null) {
             result = Placeholders.process(text, player, itemData.getContext());
         }
@@ -188,7 +180,7 @@ public abstract class ExyliaItem {
     private void playClickSounds(Player player) {
         if (player != null && !itemData.getClickSounds().isEmpty()) {
             for (String sound : itemData.getClickSounds()) {
-                SoundUtils.playSound(player, sound);
+                SoundAPI.play(player, sound);
             }
         }
     }

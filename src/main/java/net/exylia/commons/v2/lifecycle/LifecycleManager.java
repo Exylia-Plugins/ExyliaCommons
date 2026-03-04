@@ -4,7 +4,6 @@ import lombok.Getter;
 import net.exylia.commons.ExyliaPlugin;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 
-import static net.exylia.commons.utils.DebugUtils.*;
 
 @Getter
 public class LifecycleManager {
@@ -25,31 +24,31 @@ public class LifecycleManager {
         try {
             DebugAPI.logLibInfo("Initializing core systems...");
             bootstrapper.initializeCoreSystemsAsync(plugin);
-            logInternalDebug("Checking optional dependencies...");
+            DebugAPI.logLibDebug("Checking optional dependencies...");
             bootstrapper.checkOptionalDependencies();
 
-            logInternalDebug("Bootstrap completed successfully");
+            DebugAPI.logLibDebug("Bootstrap completed successfully");
         } catch (Exception e) {
-            logInternalError("Bootstrap failed: " + e.getMessage());
+            DebugAPI.logLibError("Bootstrap failed: " + e.getMessage());
             throw new RuntimeException("Failed to bootstrap plugin", e);
         }
     }
 
     public void executePluginEnable() {
         currentStage = LifecycleStage.PLUGIN_INIT;
-        logInternalDebug("Starting plugin initialization...");
+        DebugAPI.logLibDebug("Starting plugin initialization...");
 
         try {
-            logInternalDebug("Calling plugin-specific enable logic...");
+            DebugAPI.logLibDebug("Calling plugin-specific enable logic...");
             plugin.callOnExyliaEnable();
 
-            logInternalDebug("Plugin initialization completed, entering POST_INIT stage...");
+            DebugAPI.logLibDebug("Plugin initialization completed, entering POST_INIT stage...");
             currentStage = LifecycleStage.POST_INIT;
 
-            logInternalDebug("Entering RUNNING stage...");
+            DebugAPI.logLibDebug("Entering RUNNING stage...");
             currentStage = LifecycleStage.RUNNING;
         } catch (Exception e) {
-            logInternalError("Error enabling plugin: " + e.getMessage());
+            DebugAPI.logLibError("Error enabling plugin: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("Failed to enable plugin", e);
         }
@@ -61,12 +60,12 @@ public class LifecycleManager {
         try {
             plugin.callOnExyliaDisable();
         } catch (Exception e) {
-            logInternalError("Error in plugin disable hook: " + e.getMessage());
+            DebugAPI.logLibError("Error in plugin disable hook: " + e.getMessage());
         }
 
         currentStage = LifecycleStage.SHUTDOWN;
         shutdownCoordinator.executeOrderedShutdown(plugin);
 
-        logInternalInfo("Plugin disabled: " + plugin.getDescription().getName());
+        DebugAPI.logLibInfo("Plugin disabled: " + plugin.getDescription().getName());
     }
 }

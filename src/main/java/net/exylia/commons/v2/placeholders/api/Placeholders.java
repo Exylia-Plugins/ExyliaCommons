@@ -22,10 +22,8 @@ public final class Placeholders {
     }
 
     public static void initialize(JavaPlugin plugin) {
-        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Initializing Placeholder System");
         PlaceholderRegistry.initialize(plugin);
         PapiAdapter.initialize(plugin);
-        DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Placeholder System initialized successfully");
     }
 
     public static void registerPapiExpander(String identifier) {
@@ -90,6 +88,14 @@ public final class Placeholders {
 
     public static boolean containsPlaceholders(String text) {
         return PlaceholderProcessor.containsPlaceholders(text);
+    }
+
+    public static String processContextOnly(String text, Player player, PlaceholderContext context) {
+        return PlaceholderProcessor.processContextOnly(text, player, context);
+    }
+
+    public static String processPapiOnly(String text, Player player) {
+        return PlaceholderProcessor.processPapiOnly(text, player);
     }
 
     public static boolean hasResolver(String name) {

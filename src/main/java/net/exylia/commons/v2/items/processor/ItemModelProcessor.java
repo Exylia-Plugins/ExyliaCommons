@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.items.processor;
 
 import net.exylia.commons.v2.placeholders.api.Placeholders;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -32,12 +32,12 @@ public class ItemModelProcessor {
             } else if (processedModel.contains(":")) {
                 applyItemModel(meta, processedModel);
             } else {
-                DebugUtils.logInternalWarn("ItemModelProcessor: Invalid format - must be 'namespace:key' or a numeric value");
+                DebugAPI.logLibWarn("ItemModelProcessor: Invalid format - must be 'namespace:key' or a numeric value");
                 return;
             }
             itemStack.setItemMeta(meta);
         } catch (Exception e) {
-            DebugUtils.logInternalWarn("ItemModelProcessor: Failed to apply item model: " + processedModel);
+            DebugAPI.logLibWarn("ItemModelProcessor: Failed to apply item model: " + processedModel);
         }
     }
 
@@ -46,7 +46,7 @@ public class ItemModelProcessor {
             int modelData = Integer.parseInt(customModelData);
             meta.setCustomModelData(modelData);
         } catch (NumberFormatException e) {
-            DebugUtils.logInternalWarn("ItemModelProcessor: Invalid custom model data format: " + customModelData);
+            DebugAPI.logLibWarn("ItemModelProcessor: Invalid custom model data format: " + customModelData);
         }
     }
 
@@ -62,13 +62,13 @@ public class ItemModelProcessor {
                     var method = meta.getClass().getMethod("setItemModel", NamespacedKey.class);
                     method.invoke(meta, namespacedKey);
                 } catch (NoSuchMethodException e) {
-                    DebugUtils.logInternalWarn("ItemModelProcessor: setItemModel not available in this Bukkit version. Use custom model data instead.");
+                    DebugAPI.logLibWarn("ItemModelProcessor: setItemModel not available in this Bukkit version. Use custom model data instead.");
                 }
             } else {
-                DebugUtils.logInternalWarn("ItemModelProcessor: Invalid item model format - expected 'namespace:key'");
+                DebugAPI.logLibWarn("ItemModelProcessor: Invalid item model format - expected 'namespace:key'");
             }
         } catch (Exception e) {
-            DebugUtils.logInternalWarn("ItemModelProcessor: Failed to parse item model: " + itemModel);
+            DebugAPI.logLibWarn("ItemModelProcessor: Failed to parse item model: " + itemModel);
         }
     }
 

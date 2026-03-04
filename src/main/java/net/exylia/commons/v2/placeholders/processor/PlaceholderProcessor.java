@@ -36,7 +36,7 @@ public class PlaceholderProcessor {
             depth++;
         }
 
-        if (player != null) {
+        if (player != null && result.contains("%")) {
             try {
                 result = PapiAdapter.getInstance().setPlaceholders(player, result);
             } catch (Exception e) {
@@ -45,6 +45,35 @@ public class PlaceholderProcessor {
         }
 
         return result;
+    }
+
+    public static String processContextOnly(String text, Player player, PlaceholderContext context) {
+        if (text == null || text.isEmpty()) {
+            return text;
+        }
+
+        String result = text;
+        int depth = 0;
+
+        while (containsPlaceholders(result) && depth < MAX_NESTING_DEPTH) {
+            result = processSinglePass(result, player, context);
+            depth++;
+        }
+
+        return result;
+    }
+
+    public static String processPapiOnly(String text, Player player) {
+        if (text == null || text.isEmpty() || player == null || !text.contains("%")) {
+            return text;
+        }
+
+        try {
+            return PapiAdapter.getInstance().setPlaceholders(player, text);
+        } catch (Exception e) {
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error processing PAPI placeholders: " + e.getMessage());
+            return text;
+        }
     }
 
     private static String processSinglePass(String text, Player player, PlaceholderContext context) {

@@ -93,13 +93,13 @@ public class SnapshotData {
 
         player.setGameMode(gameMode);
 
-        if (armor != null) {
-            player.getInventory().setArmorContents(armor);
-        }
         if (inventory != null) {
             ItemStack[] contents = new ItemStack[36];
             System.arraycopy(inventory, 0, contents, 0, Math.min(inventory.length, 36));
             player.getInventory().setContents(contents);
+        }
+        if (armor != null) {
+            player.getInventory().setArmorContents(armor);
         }
         if (offHand != null) {
             player.getInventory().setItemInOffHand(offHand);
@@ -123,6 +123,8 @@ public class SnapshotData {
         player.setAllowFlight(allowFlight);
         player.setFlying(flying && allowFlight);
         player.setFlySpeed(flySpeed);
+
+        player.updateInventory();
     }
 
     @Getter

@@ -1,6 +1,6 @@
 package net.exylia.commons.v2.region.api;
 
-import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.region.model.*;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -28,7 +28,7 @@ public class RegionBuilder {
     }
 
     public RegionBuilder selection(Location pos1, Location pos2) {
-        this.selection = new Selection(pos1, pos2);
+        this.selection = Selection.of(pos1, pos2);
         return this;
     }
 

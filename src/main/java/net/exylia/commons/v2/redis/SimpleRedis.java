@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import lombok.Getter;
 import net.exylia.commons.v2.tasks.api.Tasks;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -35,7 +35,7 @@ public class SimpleRedis {
     private final ExecutorService asyncExecutor;
 
     private SimpleRedis(Plugin plugin, SimpleRedisConfig config) {
-        DebugUtils.logInternalDebug("SimpleRedis: Starting initialization");
+        DebugAPI.logLibDebug("SimpleRedis: Starting initialization");
         this.plugin = plugin;
         this.config = config;
         this.gson = new GsonBuilder().create();
@@ -44,8 +44,8 @@ public class SimpleRedis {
             t.setDaemon(true);
             return t;
         });
-        DebugUtils.logInternalDebug("SimpleRedis: Async executor created with 2 threads");
-        DebugUtils.logInternalDebug("SimpleRedis: Gson serializer created");
+        DebugAPI.logLibDebug("SimpleRedis: Async executor created with 2 threads");
+        DebugAPI.logLibDebug("SimpleRedis: Gson serializer created");
 
         JedisPoolConfig poolConfig = new JedisPoolConfig();
          
@@ -58,49 +58,49 @@ public class SimpleRedis {
         poolConfig.setTestWhileIdle(true);
         poolConfig.setMaxWaitMillis(2000);   
         poolConfig.setBlockWhenExhausted(true);
-        DebugUtils.logInternalDebug("SimpleRedis: Pool config created (size: " + totalPoolSize + " [" + config.getPoolSize() + " + 10 for PubSub], maxWait: 2000ms)");
+        DebugAPI.logLibDebug("SimpleRedis: Pool config created (size: " + totalPoolSize + " [" + config.getPoolSize() + " + 10 for PubSub], maxWait: 2000ms)");
 
         if (config.getPassword() != null && !config.getPassword().isEmpty()) {
-            DebugUtils.logInternalDebug("SimpleRedis: Creating pool with password authentication");
+            DebugAPI.logLibDebug("SimpleRedis: Creating pool with password authentication");
             this.pool = new JedisPool(poolConfig, config.getHost(), config.getPort(),
                     config.getTimeout(), config.getPassword(), config.getDatabase());
         } else {
-            DebugUtils.logInternalDebug("SimpleRedis: Creating pool without password");
+            DebugAPI.logLibDebug("SimpleRedis: Creating pool without password");
             this.pool = new JedisPool(poolConfig, config.getHost(), config.getPort(),
                     config.getTimeout(), null, config.getDatabase());
         }
-        DebugUtils.logInternalDebug("SimpleRedis: JedisPool created for " + config.getHost() + ":" + config.getPort());
+        DebugAPI.logLibDebug("SimpleRedis: JedisPool created for " + config.getHost() + ":" + config.getPort());
 
         this.pubSub = new SimpleRedisPubSub(this);
-        DebugUtils.logInternalDebug("SimpleRedis: PubSub system initialized");
+        DebugAPI.logLibDebug("SimpleRedis: PubSub system initialized");
 
         try (Jedis jedis = pool.getResource()) {
-            DebugUtils.logInternalDebug("SimpleRedis: Testing connection with PING");
+            DebugAPI.logLibDebug("SimpleRedis: Testing connection with PING");
             String response = jedis.ping();
-            DebugUtils.logInternalDebug("SimpleRedis: PING response: " + response);
-            DebugUtils.logInternalSuccess("Connected to Redis at " + config.getHost() + ":" + config.getPort());
+            DebugAPI.logLibDebug("SimpleRedis: PING response: " + response);
+            DebugAPI.logLibInfo("Connected to Redis at " + config.getHost() + ":" + config.getPort());
         }
-        DebugUtils.logInternalDebug("SimpleRedis: Initialization completed successfully");
+        DebugAPI.logLibDebug("SimpleRedis: Initialization completed successfully");
     }
 
     public static void init(Plugin plugin, SimpleRedisConfig config) {
-        DebugUtils.logInternalDebug("SimpleRedis.init: Called with custom config");
+        DebugAPI.logLibDebug("SimpleRedis.init: Called with custom config");
         if (instance != null) {
-            DebugUtils.logInternalDebug("SimpleRedis.init: Instance already exists, throwing exception");
+            DebugAPI.logLibDebug("SimpleRedis.init: Instance already exists, throwing exception");
             throw new IllegalStateException("SimpleRedis already initialized");
         }
-        DebugUtils.logInternalDebug("SimpleRedis.init: Creating new instance with config: " + config);
+        DebugAPI.logLibDebug("SimpleRedis.init: Creating new instance with config: " + config);
         instance = new SimpleRedis(plugin, config);
-        DebugUtils.logInternalDebug("SimpleRedis.init: Instance created successfully");
+        DebugAPI.logLibDebug("SimpleRedis.init: Instance created successfully");
     }
 
     public static void init(Plugin plugin) {
-        DebugUtils.logInternalDebug("SimpleRedis.init: Called with auto-config from redis.yml");
+        DebugAPI.logLibDebug("SimpleRedis.init: Called with auto-config from redis.yml");
         if (instance != null) {
-            DebugUtils.logInternalDebug("SimpleRedis.init: Instance already exists, throwing exception");
+            DebugAPI.logLibDebug("SimpleRedis.init: Instance already exists, throwing exception");
             throw new IllegalStateException("SimpleRedis already initialized");
         }
-        DebugUtils.logInternalDebug("SimpleRedis.init: Loading configuration from redis.yml");
+        DebugAPI.logLibDebug("SimpleRedis.init: Loading configuration from redis.yml");
 
         File configFile = new File(plugin.getDataFolder(), "redis.yml");
         if (!configFile.exists()) {
@@ -108,26 +108,26 @@ public class SimpleRedis {
         }
         FileConfiguration rawConfig = YamlConfiguration.loadConfiguration(configFile);
         if (!rawConfig.getBoolean("redis.enabled", true)) {
-            DebugUtils.logInternalInfo("Redis is disabled in redis.yml, skipping initialization");
+            DebugAPI.logLibInfo("Redis is disabled in redis.yml, skipping initialization");
             return;
         }
 
         SimpleRedisConfig config = loadConfigFromFile(rawConfig);
-        DebugUtils.logInternalDebug("SimpleRedis.init: Configuration loaded, creating instance");
+        DebugAPI.logLibDebug("SimpleRedis.init: Configuration loaded, creating instance");
         instance = new SimpleRedis(plugin, config);
-        DebugUtils.logInternalDebug("SimpleRedis.init: Instance created successfully");
+        DebugAPI.logLibDebug("SimpleRedis.init: Instance created successfully");
     }
 
     private static SimpleRedisConfig loadOrCreateConfig(Plugin plugin) {
-        DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: Starting config load");
+        DebugAPI.logLibDebug("SimpleRedis.loadOrCreateConfig: Starting config load");
         File configFile = new File(plugin.getDataFolder(), "redis.yml");
-        DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: Config file path: " + configFile.getAbsolutePath());
+        DebugAPI.logLibDebug("SimpleRedis.loadOrCreateConfig: Config file path: " + configFile.getAbsolutePath());
 
         if (!configFile.exists()) {
-            DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: Config file not found, creating default");
+            DebugAPI.logLibDebug("SimpleRedis.loadOrCreateConfig: Config file not found, creating default");
             createDefaultConfig(plugin, configFile);
         } else {
-            DebugUtils.logInternalDebug("SimpleRedis.loadOrCreateConfig: Config file exists, loading from disk");
+            DebugAPI.logLibDebug("SimpleRedis.loadOrCreateConfig: Config file exists, loading from disk");
         }
 
         FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
@@ -135,7 +135,7 @@ public class SimpleRedis {
     }
 
     private static SimpleRedisConfig loadConfigFromFile(FileConfiguration config) {
-        DebugUtils.logInternalDebug("SimpleRedis.loadConfigFromFile: YAML loaded successfully");
+        DebugAPI.logLibDebug("SimpleRedis.loadConfigFromFile: YAML loaded successfully");
 
         String host = config.getString("redis.host", "localhost");
         int port = config.getInt("redis.port", 6379);
@@ -145,7 +145,7 @@ public class SimpleRedis {
         int poolSize = config.getInt("redis.pool-size", 8);
         String keyPrefix = config.getString("redis.key-prefix", "");
 
-        DebugUtils.logInternalDebug("SimpleRedis.loadConfigFromFile: Loaded values - host=" + host +
+        DebugAPI.logLibDebug("SimpleRedis.loadConfigFromFile: Loaded values - host=" + host +
                 ", port=" + port + ", database=" + database + ", timeout=" + timeout +
                 ", poolSize=" + poolSize + ", keyPrefix='" + keyPrefix + "'");
 
@@ -161,16 +161,16 @@ public class SimpleRedis {
     }
 
     private static void createDefaultConfig(Plugin plugin, File configFile) {
-        DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Starting default config creation");
+        DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Starting default config creation");
         try {
-            DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Creating parent directories");
+            DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Creating parent directories");
             configFile.getParentFile().mkdirs();
 
-            DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Creating config file");
+            DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Creating config file");
             configFile.createNewFile();
 
             FileConfiguration config = YamlConfiguration.loadConfiguration(configFile);
-            DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Setting default values");
+            DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Setting default values");
 
             config.set("redis.enabled", true);
             config.set("redis.host", "localhost");
@@ -181,13 +181,13 @@ public class SimpleRedis {
             config.set("redis.pool-size", 8);
             config.set("redis.key-prefix", "");
 
-            DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Saving config to file");
+            DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Saving config to file");
             config.save(configFile);
-            DebugUtils.logInternalInfo("Default Redis configuration created at redis.yml");
-            DebugUtils.logInternalDebug("SimpleRedis.createDefaultConfig: Default config creation completed");
+            DebugAPI.logLibInfo("Default Redis configuration created at redis.yml");
+            DebugAPI.logLibDebug("SimpleRedis.createDefaultConfig: Default config creation completed");
 
         } catch (IOException e) {
-            DebugUtils.logInternalError("SimpleRedis.createDefaultConfig: Failed to create config - " + e.getMessage());
+            DebugAPI.logLibError("SimpleRedis.createDefaultConfig: Failed to create config - " + e.getMessage());
             throw new RuntimeException("Failed to create default Redis configuration", e);
         }
     }
@@ -204,95 +204,95 @@ public class SimpleRedis {
     }
 
     public static boolean reload(Plugin plugin) {
-        DebugUtils.logInternalDebug("SimpleRedis.reload: Reload requested");
+        DebugAPI.logLibDebug("SimpleRedis.reload: Reload requested");
         if (instance == null) {
-            DebugUtils.logInternalInfo("SimpleRedis.reload: Instance is null, attempting initialization");
+            DebugAPI.logLibInfo("SimpleRedis.reload: Instance is null, attempting initialization");
             try {
                 init(plugin);
-                DebugUtils.logInternalDebug("SimpleRedis.reload: Initialization successful");
+                DebugAPI.logLibDebug("SimpleRedis.reload: Initialization successful");
                 return true;
             } catch (Exception e) {
-                DebugUtils.logInternalError("SimpleRedis.reload: Failed to initialize - " + e.getMessage());
+                DebugAPI.logLibError("SimpleRedis.reload: Failed to initialize - " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }
         }
 
         try {
-            DebugUtils.logInternalInfo("SimpleRedis.reload: Starting reload process");
+            DebugAPI.logLibInfo("SimpleRedis.reload: Starting reload process");
             Plugin savedPlugin = instance.plugin;
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Saved plugin reference: " + savedPlugin.getName());
+            DebugAPI.logLibDebug("SimpleRedis.reload: Saved plugin reference: " + savedPlugin.getName());
 
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Shutting down current instance");
+            DebugAPI.logLibDebug("SimpleRedis.reload: Shutting down current instance");
             instance.shutdown();
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Current instance shutdown complete");
+            DebugAPI.logLibDebug("SimpleRedis.reload: Current instance shutdown complete");
 
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Loading new configuration");
+            DebugAPI.logLibDebug("SimpleRedis.reload: Loading new configuration");
             SimpleRedisConfig newConfig = loadOrCreateConfig(savedPlugin);
-            DebugUtils.logInternalDebug("SimpleRedis.reload: New configuration loaded");
+            DebugAPI.logLibDebug("SimpleRedis.reload: New configuration loaded");
 
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Creating new instance with reloaded config");
+            DebugAPI.logLibDebug("SimpleRedis.reload: Creating new instance with reloaded config");
             instance = new SimpleRedis(savedPlugin, newConfig);
 
-            DebugUtils.logInternalSuccess("SimpleRedis reloaded successfully");
-            DebugUtils.logInternalDebug("SimpleRedis.reload: Reload process completed");
+            DebugAPI.logLibInfo("SimpleRedis reloaded successfully");
+            DebugAPI.logLibDebug("SimpleRedis.reload: Reload process completed");
             return true;
 
         } catch (Exception e) {
-            DebugUtils.logInternalError("SimpleRedis.reload: Reload failed - " + e.getMessage());
+            DebugAPI.logLibError("SimpleRedis.reload: Reload failed - " + e.getMessage());
             e.printStackTrace();
             return false;
         }
     }
 
     public void shutdown() {
-        DebugUtils.logInternalDebug("SimpleRedis.shutdown: Starting shutdown");
+        DebugAPI.logLibDebug("SimpleRedis.shutdown: Starting shutdown");
 
         if (asyncExecutor != null && !asyncExecutor.isShutdown()) {
-            DebugUtils.logInternalDebug("SimpleRedis.shutdown: Shutting down async executor");
+            DebugAPI.logLibDebug("SimpleRedis.shutdown: Shutting down async executor");
             asyncExecutor.shutdown();
             try {
                 if (!asyncExecutor.awaitTermination(3, TimeUnit.SECONDS)) {
-                    DebugUtils.logInternalWarn("SimpleRedis.shutdown: Async executor did not terminate in time, forcing shutdown");
+                    DebugAPI.logLibWarn("SimpleRedis.shutdown: Async executor did not terminate in time, forcing shutdown");
                     asyncExecutor.shutdownNow();
                 } else {
-                    DebugUtils.logInternalDebug("SimpleRedis.shutdown: Async executor shutdown complete");
+                    DebugAPI.logLibDebug("SimpleRedis.shutdown: Async executor shutdown complete");
                 }
             } catch (InterruptedException e) {
-                DebugUtils.logInternalWarn("SimpleRedis.shutdown: Async executor shutdown interrupted");
+                DebugAPI.logLibWarn("SimpleRedis.shutdown: Async executor shutdown interrupted");
                 asyncExecutor.shutdownNow();
             }
         }
 
         if (pubSub != null) {
-            DebugUtils.logInternalDebug("SimpleRedis.shutdown: Shutting down PubSub system");
+            DebugAPI.logLibDebug("SimpleRedis.shutdown: Shutting down PubSub system");
             pubSub.shutdown();
-            DebugUtils.logInternalDebug("SimpleRedis.shutdown: PubSub shutdown complete");
+            DebugAPI.logLibDebug("SimpleRedis.shutdown: PubSub shutdown complete");
         }
         if (pool != null && !pool.isClosed()) {
-            DebugUtils.logInternalDebug("SimpleRedis.shutdown: Closing connection pool");
+            DebugAPI.logLibDebug("SimpleRedis.shutdown: Closing connection pool");
             pool.close();
-            DebugUtils.logInternalDebug("SimpleRedis.shutdown: Connection pool closed");
+            DebugAPI.logLibDebug("SimpleRedis.shutdown: Connection pool closed");
         }
         instance = null;
-        DebugUtils.logInternalDebug("SimpleRedis.shutdown: Shutdown completed");
+        DebugAPI.logLibDebug("SimpleRedis.shutdown: Shutdown completed");
     }
 
     public boolean isConnected() {
-        DebugUtils.logInternalDebug("SimpleRedis.isConnected: Checking connection status");
+        DebugAPI.logLibDebug("SimpleRedis.isConnected: Checking connection status");
         try {
             if (pool == null || pool.isClosed()) {
-                DebugUtils.logInternalDebug("SimpleRedis.isConnected: Pool is null or closed");
+                DebugAPI.logLibDebug("SimpleRedis.isConnected: Pool is null or closed");
                 return false;
             }
             try (Jedis jedis = pool.getResource()) {
                 String response = jedis.ping();
                 boolean connected = "PONG".equals(response);
-                DebugUtils.logInternalDebug("SimpleRedis.isConnected: PING response=" + response + ", connected=" + connected);
+                DebugAPI.logLibDebug("SimpleRedis.isConnected: PING response=" + response + ", connected=" + connected);
                 return connected;
             }
         } catch (Exception e) {
-            DebugUtils.logInternalDebug("SimpleRedis.isConnected: Connection check failed - " + e.getMessage());
+            DebugAPI.logLibDebug("SimpleRedis.isConnected: Connection check failed - " + e.getMessage());
             return false;
         }
     }
@@ -419,16 +419,16 @@ public class SimpleRedis {
 
     public void publish(String channel, String message) {
         try {
-            DebugUtils.logInternalDebug("SimpleRedis.publish: Getting Jedis connection from pool...");
+            DebugAPI.logLibDebug("SimpleRedis.publish: Getting Jedis connection from pool...");
             Long subscribers = execute(jedis -> {
-                DebugUtils.logInternalDebug("SimpleRedis.publish: Got Jedis connection, publishing to channel '" + channel + "'");
+                DebugAPI.logLibDebug("SimpleRedis.publish: Got Jedis connection, publishing to channel '" + channel + "'");
                 Long result = jedis.publish(channel, message);
-                DebugUtils.logInternalDebug("SimpleRedis.publish: Published successfully, " + result + " subscribers received the message");
+                DebugAPI.logLibDebug("SimpleRedis.publish: Published successfully, " + result + " subscribers received the message");
                 return result;
             });
-            DebugUtils.logInternalDebug("SimpleRedis.publish: Publish completed for channel '" + channel + "', reached " + subscribers + " subscribers");
+            DebugAPI.logLibDebug("SimpleRedis.publish: Publish completed for channel '" + channel + "', reached " + subscribers + " subscribers");
         } catch (Exception e) {
-            DebugUtils.logInternalError("SimpleRedis.publish: Failed to publish to channel '" + channel + "': " + e.getMessage());
+            DebugAPI.logLibError("SimpleRedis.publish: Failed to publish to channel '" + channel + "': " + e.getMessage());
             e.printStackTrace();
             throw e;
         }
@@ -439,17 +439,17 @@ public class SimpleRedis {
     }
 
     public CompletableFuture<Void> publishAsync(String channel, String message) {
-        DebugUtils.logInternalDebug("SimpleRedis.publishAsync: Publishing to channel '" + channel + "', message length: " + message.length());
+        DebugAPI.logLibDebug("SimpleRedis.publishAsync: Publishing to channel '" + channel + "', message length: " + message.length());
         return CompletableFuture.runAsync(() -> {
-            DebugUtils.logInternalDebug("SimpleRedis.publishAsync: Executing publish in async thread for channel '" + channel + "'");
+            DebugAPI.logLibDebug("SimpleRedis.publishAsync: Executing publish in async thread for channel '" + channel + "'");
             publish(channel, message);
-            DebugUtils.logInternalDebug("SimpleRedis.publishAsync: Publish completed for channel '" + channel + "'");
+            DebugAPI.logLibDebug("SimpleRedis.publishAsync: Publish completed for channel '" + channel + "'");
         }, asyncExecutor);
     }
 
     public <T> CompletableFuture<Void> publishObjectAsync(String channel, T object) {
         String json = gson.toJson(object);
-        DebugUtils.logInternalDebug("SimpleRedis.publishObjectAsync: Publishing object to channel '" + channel + "', JSON length: " + json.length());
+        DebugAPI.logLibDebug("SimpleRedis.publishObjectAsync: Publishing object to channel '" + channel + "', JSON length: " + json.length());
         return publishAsync(channel, json);
     }
 

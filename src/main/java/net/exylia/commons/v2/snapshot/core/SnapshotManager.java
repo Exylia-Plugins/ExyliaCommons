@@ -3,7 +3,8 @@ package net.exylia.commons.v2.snapshot.core;
 import lombok.Getter;
 import net.exylia.commons.v2.snapshot.cache.SnapshotCacheManager;
 import net.exylia.commons.v2.snapshot.model.SnapshotData;
-import org.bukkit.Bukkit;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.tasks.core.TaskManager;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -74,7 +75,7 @@ public class SnapshotManager {
 
     public CompletableFuture<Boolean> restoreAsync(Player player, SnapshotData snapshot) {
         return CompletableFuture.supplyAsync(() -> {
-            Bukkit.getScheduler().runTask(plugin, () -> snapshot.applyToPlayer(player));
+            TaskAPI.runSync(() -> snapshot.applyToPlayer(player));
             return true;
         });
     }
@@ -87,14 +88,14 @@ public class SnapshotManager {
         return CompletableFuture.supplyAsync(() -> {
             Optional<SnapshotData> cachedSnapshot = cacheManager.get(player.getUniqueId(), snapshotId);
             if (cachedSnapshot.isPresent()) {
-                Bukkit.getScheduler().runTask(plugin, () -> cachedSnapshot.get().applyToPlayer(player));
+                TaskAPI.runSync(() -> cachedSnapshot.get().applyToPlayer(player));
                 return true;
             }
 
             Optional<SnapshotData> registeredSnapshot = registry.get(player.getUniqueId(), snapshotId);
             if (registeredSnapshot.isPresent()) {
                 cacheManager.cache(player.getUniqueId(), snapshotId, registeredSnapshot.get());
-                Bukkit.getScheduler().runTask(plugin, () -> registeredSnapshot.get().applyToPlayer(player));
+                TaskAPI.runSync(() -> registeredSnapshot.get().applyToPlayer(player));
                 return true;
             }
 

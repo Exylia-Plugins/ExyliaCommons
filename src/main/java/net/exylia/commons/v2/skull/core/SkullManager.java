@@ -56,10 +56,8 @@ public class SkullManager {
             DebugAPI.logLibWarn(DebugCategory.SKULL, "SkullManager already initialized");
             return;
         }
-        DebugAPI.logLibInfo(DebugCategory.SKULL, "Initializing SkullManager");
         instance = new SkullManager(config);
         instance.start();
-        DebugAPI.logLibSuccess(DebugCategory.SKULL, "SkullManager initialized successfully");
     }
 
     public static SkullManager getInstance() {

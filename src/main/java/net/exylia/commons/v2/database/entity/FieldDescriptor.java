@@ -18,11 +18,13 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.logging.Logger;
 
 @Getter
 public class FieldDescriptor {
 
     private static final Gson GSON = new Gson();
+    private static final Logger LOGGER = Logger.getLogger(FieldDescriptor.class.getName());
 
     private final String fieldName;
     private final String columnName;
@@ -267,7 +269,13 @@ public class FieldDescriptor {
             int length = dataInput.readInt();
             ItemStack[] items = new ItemStack[length];
             for (int i = 0; i < length; i++) {
-                items[i] = (ItemStack) dataInput.readObject();
+                try {
+                    items[i] = (ItemStack) dataInput.readObject();
+                } catch (Exception e) {
+                    LOGGER.warning("[ExyliaCommons] Failed to deserialize ItemStack at index " + i
+                            + " in field '" + fieldName + "' — using STONE as fallback. Cause: " + e.getMessage());
+                    items[i] = new ItemStack(org.bukkit.Material.STONE);
+                }
             }
             dataInput.close();
             return items;

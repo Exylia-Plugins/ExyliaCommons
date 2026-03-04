@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.scoreboard.renderer;
 
 import lombok.Getter;
-import net.exylia.commons.scoreboard.fastBoard.FastBoard;
+import net.exylia.commons.v2.scoreboard.fastboard.FastBoard;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;

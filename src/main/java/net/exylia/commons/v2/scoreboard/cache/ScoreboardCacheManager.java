@@ -1,7 +1,8 @@
 package net.exylia.commons.v2.scoreboard.cache;
 
-import net.exylia.commons.cache.CacheStats;
-import net.exylia.commons.cache.CaffeineCache;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.util.Map;
 import java.util.UUID;
@@ -10,19 +11,19 @@ import java.util.concurrent.TimeUnit;
 public class ScoreboardCacheManager {
 
     private final RenderedLineCache lineCache;
-    private final CaffeineCache<String, String> placeholderCache;
-    private final CaffeineCache<UUID, Map<String, String>> playerCache;
+    private final Cache<String, String> placeholderCache;
+    private final Cache<UUID, Map<String, String>> playerCache;
 
     public ScoreboardCacheManager() {
         this.lineCache = new RenderedLineCache();
 
-        this.placeholderCache = CaffeineCache.<String, String>builder()
+        this.placeholderCache = Caffeine.newBuilder()
                 .expireAfterWrite(3, TimeUnit.SECONDS)
                 .maximumSize(1000)
                 .recordStats()
                 .build();
 
-        this.playerCache = CaffeineCache.<UUID, Map<String, String>>builder()
+        this.playerCache = Caffeine.newBuilder()
                 .expireAfterAccess(30, TimeUnit.SECONDS)
                 .maximumSize(500)
                 .recordStats()
@@ -42,7 +43,7 @@ public class ScoreboardCacheManager {
     }
 
     public String getPlaceholder(String key) {
-        return placeholderCache.get(key);
+        return placeholderCache.getIfPresent(key);
     }
 
     public void cachePlaceholder(String key, String value) {
@@ -50,7 +51,7 @@ public class ScoreboardCacheManager {
     }
 
     public Map<String, String> getPlayerCache(UUID playerId) {
-        return playerCache.get(playerId);
+        return playerCache.getIfPresent(playerId);
     }
 
     public void cachePlayer(UUID playerId, Map<String, String> data) {
@@ -68,13 +69,13 @@ public class ScoreboardCacheManager {
     }
 
     public CacheStats getStats() {
-        return placeholderCache.getStats();
+        return placeholderCache.stats();
     }
 
     public double getAverageHitRate() {
         double lineCacheHitRate = lineCache.hitRate();
-        double placeholderCacheHitRate = placeholderCache.getStats().hitRate();
-        double playerCacheHitRate = playerCache.getStats().hitRate();
+        double placeholderCacheHitRate = placeholderCache.stats().hitRate();
+        double playerCacheHitRate = playerCache.stats().hitRate();
 
         return (lineCacheHitRate + placeholderCacheHitRate + playerCacheHitRate) / 3.0;
     }

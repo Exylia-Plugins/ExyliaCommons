@@ -3,7 +3,7 @@ package net.exylia.commons.v2.hologram.core;
 import lombok.Getter;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.hologram.cache.HologramCacheManager;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.listener.ChunkListener;
@@ -54,7 +54,7 @@ public class HologramManager {
         registerListeners();
         startPeriodicTasks();
 
-        DebugUtils.logInternalInfo("HologramManager initialized");
+        DebugAPI.logLibInfo("HologramManager initialized");
     }
 
     private void initializePersistence() {
@@ -63,12 +63,12 @@ public class HologramManager {
                 Yaml.registerEntity(HologramEntity.class);
                 this.repository = Yaml.getRepository(HologramEntity.class);
                 loadPersistentHolograms();
-                DebugUtils.logInternalInfo("Hologram persistence enabled (YAML)");
+                DebugAPI.logLibInfo("Hologram persistence enabled (YAML)");
             } else {
-                DebugUtils.logInternalInfo("Hologram persistence disabled (YAML not available)");
+                DebugAPI.logLibInfo("Hologram persistence disabled (YAML not available)");
             }
         } catch (Exception e) {
-            DebugUtils.logInternalError("Failed to initialize persistence: " + e.getMessage());
+            DebugAPI.logLibError("Failed to initialize persistence: " + e.getMessage());
             this.repository = null;
         }
     }
@@ -89,7 +89,7 @@ public class HologramManager {
 
         repository.findAllAsync()
                 .thenAccept(entities -> {
-                    DebugUtils.logInternalInfo("Loading " + entities.size() + " persistent holograms...");
+                    DebugAPI.logLibInfo("Loading " + entities.size() + " persistent holograms...");
 
                     entities.forEach(entity -> {
                         try {
@@ -101,14 +101,14 @@ public class HologramManager {
 
                             Tasks.at(hologram.getLocation(), hologram::spawn);
                         } catch (Exception e) {
-                            DebugUtils.logInternalError("Failed to load hologram " + entity.getId() + ": " + e.getMessage());
+                            DebugAPI.logLibError("Failed to load hologram " + entity.getId() + ": " + e.getMessage());
                         }
                     });
 
-                    DebugUtils.logInternalSuccess("Loaded " + entities.size() + " persistent holograms");
+                    DebugAPI.logLibInfo("Loaded " + entities.size() + " persistent holograms");
                 })
                 .exceptionally(ex -> {
-                    DebugUtils.logInternalError("Failed to load persistent holograms: " + ex.getMessage());
+                    DebugAPI.logLibError("Failed to load persistent holograms: " + ex.getMessage());
                     return null;
                 });
     }
@@ -165,9 +165,9 @@ public class HologramManager {
                 .thenCompose(this::spawnHologramAsync)
                 .whenComplete((hologram, ex) -> {
                     if (ex != null) {
-                        DebugUtils.logInternalError("Failed to create hologram: " + ex.getMessage());
+                        DebugAPI.logLibError("Failed to create hologram: " + ex.getMessage());
                     } else {
-                        DebugUtils.logInternalInfo("Hologram created: " + id);
+                        DebugAPI.logLibInfo("Hologram created: " + id);
                     }
                 });
     }
@@ -200,7 +200,7 @@ public class HologramManager {
                 deleteHologramAsync(id).join();
             }
 
-            DebugUtils.logInternalInfo("Hologram removed: " + id);
+            DebugAPI.logLibInfo("Hologram removed: " + id);
             return true;
         }).thenApply(r -> r.getValue().orElse(false));
     }
@@ -262,7 +262,7 @@ public class HologramManager {
     }
 
     public void reload() {
-        DebugUtils.logInternalInfo("Reloading HologramManager...");
+        DebugAPI.logLibInfo("Reloading HologramManager...");
 
         registry.getAll().forEach(hologram ->
                 Tasks.at(hologram.getLocation(), () -> {
@@ -274,7 +274,7 @@ public class HologramManager {
         cacheManager.invalidateAll();
         registry.getAll().forEach(cacheManager::cache);
 
-        DebugUtils.logInternalSuccess("HologramManager reloaded");
+        DebugAPI.logLibInfo("HologramManager reloaded");
     }
 
     public void shutdown() {
@@ -282,7 +282,7 @@ public class HologramManager {
     }
 
     public void shutdown(boolean isServerShutdown) {
-        DebugUtils.logInternalInfo("Shutting down HologramManager...");
+        DebugAPI.logLibInfo("Shutting down HologramManager...");
 
         if (updateTask != null) {
             updateTask.cancel();
@@ -298,7 +298,7 @@ public class HologramManager {
                 try {
                     hologram.despawn();
                 } catch (Exception e) {
-                    DebugUtils.logInternalError("Error despawning hologram " + hologram.getId() + ": " + e.getMessage());
+                    DebugAPI.logLibError("Error despawning hologram " + hologram.getId() + ": " + e.getMessage());
                 }
             });
         }
@@ -314,7 +314,7 @@ public class HologramManager {
             instance = null;
         }
 
-        DebugUtils.logInternalInfo("HologramManager shutdown complete");
+        DebugAPI.logLibInfo("HologramManager shutdown complete");
     }
 
     private CompletableFuture<Void> saveHologramAsync(Hologram hologram) {
@@ -325,12 +325,12 @@ public class HologramManager {
         return Tasks.db(() -> {
                     HologramEntity entity = HologramEntity.fromHologram(hologram);
                     repository.save(entity);
-                    DebugUtils.logInternalInfo("Hologram saved: " + hologram.getId());
+                    DebugAPI.logLibInfo("Hologram saved: " + hologram.getId());
                     return null;
                 })
                 .thenApply(r -> (Void) null)
                 .exceptionally(ex -> {
-                    DebugUtils.logInternalError("Failed to save hologram " + hologram.getId() + ": " + ex.getMessage());
+                    DebugAPI.logLibError("Failed to save hologram " + hologram.getId() + ": " + ex.getMessage());
                     return null;
                 });
     }
@@ -347,9 +347,9 @@ public class HologramManager {
                     }
                     return CompletableFuture.completedFuture(null);
                 })
-                .thenRun(() -> DebugUtils.logInternalInfo("Hologram deleted from YAML: " + id))
+                .thenRun(() -> DebugAPI.logLibInfo("Hologram deleted from YAML: " + id))
                 .exceptionally(ex -> {
-                    DebugUtils.logInternalError("Failed to delete hologram " + id + ": " + ex.getMessage());
+                    DebugAPI.logLibError("Failed to delete hologram " + id + ": " + ex.getMessage());
                     return null;
                 });
     }

@@ -22,12 +22,20 @@ public class SoundRenderer implements VisualRenderer<SoundConfig> {
 
     @Override
     public void render(Player player, SoundConfig config, PlaceholderContext context) {
-        Location location = determineLocation(player, config);
         Collection<Player> targets = determineTargets(player, config);
 
-        for (Player target : targets) {
-            if (target.isOnline()) {
-                target.playSound(location, config.getSound(), config.getVolume(), config.getPitch());
+        if (config.getScope() == SoundConfig.SoundScope.PLAYER) {
+            for (Player target : targets) {
+                if (target.isOnline()) {
+                    target.playSound(target, config.getSound(), config.getVolume(), config.getPitch());
+                }
+            }
+        } else {
+            Location location = determineLocation(player, config);
+            for (Player target : targets) {
+                if (target.isOnline()) {
+                    target.playSound(location, config.getSound(), config.getVolume(), config.getPitch());
+                }
             }
         }
     }

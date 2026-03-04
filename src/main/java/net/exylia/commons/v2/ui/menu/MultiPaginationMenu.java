@@ -3,9 +3,11 @@ package net.exylia.commons.v2.ui.menu;
 import net.exylia.commons.v2.items.api.ProcessedItem;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.ui.animation.AnimationExecutor;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
+import net.exylia.commons.v2.ui.model.MenuState;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.model.SectionData;
 import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
@@ -250,6 +252,9 @@ public class MultiPaginationMenu extends MenuBase {
         SectionData section = getSection(sectionName);
         if (section != null) {
             section.setItems(items);
+            if (state.get() == MenuState.OPEN) {
+                Tasks.sync(this::refresh);
+            }
         }
     }
 

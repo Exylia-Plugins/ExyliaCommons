@@ -7,7 +7,7 @@ import net.exylia.commons.v2.database.config.AdapterConfig;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import net.exylia.commons.v2.database.annotation.Index;
 
@@ -44,7 +44,7 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     @Override
     public void connect() throws Exception {
         if (dataSource != null && !dataSource.isClosed()) {
-            DebugUtils.logInternalInfo("DataSource already connected for " + getAdapterName());
+            DebugAPI.logLibInfo("DataSource already connected for " + getAdapterName());
             return;
         }
 
@@ -67,9 +67,9 @@ public abstract class SQLAdapter implements DatabaseAdapter {
             hikariConfig.setPoolName("ExyliaDB-" + getAdapterName() + "-" + System.currentTimeMillis());
 
             this.dataSource = new HikariDataSource(hikariConfig);
-            DebugUtils.logInternalInfo("Connected to " + getAdapterName());
+            DebugAPI.logLibInfo("Connected to " + getAdapterName());
         } catch (Exception e) {
-            DebugUtils.logInternalError("Failed to connect to database: " + e.getMessage());
+            DebugAPI.logLibError("Failed to connect to database: " + e.getMessage());
             throw e;
         }
     }
@@ -78,7 +78,7 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     public void disconnect() throws Exception {
         if (dataSource != null && !dataSource.isClosed()) {
             dataSource.close();
-            DebugUtils.logInternalInfo("Disconnected from " + getAdapterName());
+            DebugAPI.logLibInfo("Disconnected from " + getAdapterName());
         }
     }
 
@@ -94,7 +94,7 @@ public abstract class SQLAdapter implements DatabaseAdapter {
             try (Connection conn = dataSource.getConnection();
                  Statement stmt = conn.createStatement()) {
                 stmt.execute(sql);
-                DebugUtils.logInternalInfo("Created table: " + metadata.getTableName());
+                DebugAPI.logLibInfo("Created table: " + metadata.getTableName());
             }
         }
         createIndexes(metadata);
@@ -112,7 +112,7 @@ public abstract class SQLAdapter implements DatabaseAdapter {
                 }
             }
         } catch (SQLException e) {
-            DebugUtils.logInternalError("Failed to create indexes for " + metadata.getTableName() + ": " + e.getMessage());
+            DebugAPI.logLibError("Failed to create indexes for " + metadata.getTableName() + ": " + e.getMessage());
         }
     }
 
@@ -128,7 +128,7 @@ public abstract class SQLAdapter implements DatabaseAdapter {
                         " ADD COLUMN " + field.getColumnName() + " " + getSQLType(field);
                     try (Statement stmt = conn.createStatement()) {
                         stmt.execute(alterSql);
-                        DebugUtils.logInternalInfo("Added column " + field.getColumnName() + " to " + metadata.getTableName());
+                        DebugAPI.logLibInfo("Added column " + field.getColumnName() + " to " + metadata.getTableName());
                     }
                 }
             }

@@ -67,7 +67,7 @@ public final class TitleAPI {
     }
 
     public static CompletableFuture<String> countdown(Player player, int durationSeconds) {
-        return countdown(player, durationSeconds, "Countdown", "{time}");
+        return countdown(player, durationSeconds, "Countdown", "%time%");
     }
 
     public static CompletableFuture<String> countdown(
@@ -125,7 +125,7 @@ public final class TitleAPI {
         private final Player player;
         private final int durationSeconds;
         private String title = "Countdown";
-        private String subtitle = "{time}";
+        private String subtitle = "%time%";
         private int fadeIn = 10;
         private int stay = 70;
         private int fadeOut = 20;

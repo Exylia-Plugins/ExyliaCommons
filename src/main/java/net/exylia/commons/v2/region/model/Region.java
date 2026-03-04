@@ -2,7 +2,7 @@ package net.exylia.commons.v2.region.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.selection.model.Selection;
+import net.exylia.commons.v2.region.selection.Selection;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -292,13 +292,25 @@ public class Region {
         return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName, type);
     }
 
+    public CompletableFuture<Boolean> regenerate(boolean teleportToAir) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, this.id, null, teleportToAir);
+    }
+
+    public CompletableFuture<Boolean> regenerate(String schematicName, boolean teleportToAir) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName, null, teleportToAir);
+    }
+
+    public CompletableFuture<Boolean> regenerate(String schematicName, net.exylia.commons.v2.region.schematic.SchematicManager.SchematicType type, boolean teleportToAir) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName, type, teleportToAir);
+    }
+
     public CompletableFuture<Region> cloneTo(Location targetCenter) {
         return CompletableFuture.supplyAsync(() -> {
             Location offset = getCenter().clone().subtract(targetCenter);
             Location newPos1 = getMinimumPoint().clone().subtract(offset);
             Location newPos2 = getMaximumPoint().clone().subtract(offset);
 
-            Selection newSelection = new Selection(newPos1, newPos2);
+            Selection newSelection = Selection.of(newPos1, newPos2);
             Region clonedRegion = new Region(id + "_clone_" + System.currentTimeMillis(), newSelection);
 
             clonedRegion.setDisplayName(displayName + " (Clone)");

@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.items.processor;
 
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
-import net.exylia.commons.utils.DebugUtils;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -25,7 +25,7 @@ public class LeatherArmorProcessor {
             leatherArmorConfig.applyColor(leatherMeta, player, context);
             itemStack.setItemMeta(meta);
         } catch (Exception e) {
-            DebugUtils.logInternalWarn("LeatherArmorProcessor: Failed to apply leather armor color - " + e.getMessage());
+            DebugAPI.logLibWarn("LeatherArmorProcessor: Failed to apply leather armor color - " + e.getMessage());
         }
     }
 
