@@ -41,37 +41,12 @@ public class ActionBarComponent implements VisualComponent<ActionBarConfig> {
         return send(player, section, context);
     }
 
-    public CompletableFuture<String> sendPermanent(Player player, ConfigurationSection section) {
-        return sendPermanent(player, section, PlaceholderContext.create());
-    }
-
-    public CompletableFuture<String> sendPermanent(Player player, ConfigurationSection section, PlaceholderContext context) {
-        if (!isEnabled(section)) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        ActionBarConfig config = buildConfig(section);
-        return ActionBarAPI.sendPermanent(player, config, context);
-    }
-
-    public CompletableFuture<String> sendPermanent(
-            Player player,
-            ConfigurationSection section,
-            Consumer<PlaceholderContext> contextBuilder
-    ) {
-        PlaceholderContext context = PlaceholderContext.create().withPlayer(player);
-        contextBuilder.accept(context);
-        return sendPermanent(player, section, context);
-    }
-
     private ActionBarConfig buildConfig(ConfigurationSection section) {
         String text = section.getString("text", "");
-        boolean permanent = section.getBoolean("permanent", false);
         long updateInterval = section.getLong("update-interval", 20L);
 
         return ActionBarBuilder.create()
                 .text(text)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
     }

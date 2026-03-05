@@ -1,5 +1,7 @@
 package net.exylia.commons;
 
+import java.util.HashSet;
+import java.util.Set;
 import lombok.Getter;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.lifecycle.LifecycleManager;
@@ -9,9 +11,6 @@ import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.kyori.adventure.platform.bukkit.BukkitAudiences;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.HashSet;
-import java.util.Set;
 
 public abstract class ExyliaPlugin extends JavaPlugin {
 
@@ -42,7 +41,6 @@ public abstract class ExyliaPlugin extends JavaPlugin {
             lifecycleManager.executeBootstrap();
             ReloadAPI.initialize(this);
             lifecycleManager.executePluginEnable();
-
         } catch (Exception e) {
             DebugAPI.logLibError("Critical error during plugin enable", e);
             getServer().getPluginManager().disablePlugin(this);
@@ -96,7 +94,9 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T extends ExyliaPlugin> T getExyliaPlugin(Class<T> pluginClass) {
+    public static <T extends ExyliaPlugin> T getExyliaPlugin(
+        Class<T> pluginClass
+    ) {
         for (ExyliaPlugin plugin : registeredPlugins) {
             if (pluginClass.isInstance(plugin)) {
                 return (T) plugin;
@@ -106,6 +106,8 @@ public abstract class ExyliaPlugin extends JavaPlugin {
     }
 
     public static boolean isPlaceholderAPIEnabled() {
-        return Bukkit.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI");
+        return Bukkit.getServer()
+            .getPluginManager()
+            .isPluginEnabled("PlaceholderAPI");
     }
 }

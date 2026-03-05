@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.channel.core;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,7 +29,9 @@ public class WriteModeTracker {
     }
 
     public void clearAllForChannel(String channelId) {
-        playerWriteModes.entrySet().removeIf(entry -> entry.getValue().equals(channelId));
+        playerWriteModes
+            .entrySet()
+            .removeIf(entry -> entry.getValue().equals(channelId));
     }
 
     public void cleanup(UUID playerId) {

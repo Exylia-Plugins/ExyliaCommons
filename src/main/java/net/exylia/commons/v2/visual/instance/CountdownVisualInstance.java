@@ -139,8 +139,4 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
         return this;
     }
 
-    @Override
-    public boolean isPermanent() {
-        return false;
-    }
 }

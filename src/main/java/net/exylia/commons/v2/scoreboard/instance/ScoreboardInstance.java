@@ -3,9 +3,8 @@ package net.exylia.commons.v2.scoreboard.instance;
 import lombok.Getter;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
-import net.exylia.commons.v2.scoreboard.renderer.ComponentScoreboardRenderer;
 import net.exylia.commons.v2.scoreboard.renderer.FastBoardComponentAdapter;
-import net.exylia.commons.v2.scoreboard.team.TeamManager;
+import net.exylia.commons.v2.scoreboard.renderer.ScoreboardRenderer;
 import org.bukkit.entity.Player;
 
 import java.util.concurrent.CompletableFuture;
@@ -17,9 +16,8 @@ public class ScoreboardInstance {
     private final Player player;
     private final Scoreboard scoreboard;
     private final FastBoardComponentAdapter fastBoardAdapter;
-    private final TeamManager teamManager;
     private final InstanceLifecycle lifecycle;
-    private final ComponentScoreboardRenderer renderer;
+    private final ScoreboardRenderer renderer;
     private final long createdAt;
 
     private PlaceholderContext context;
@@ -30,15 +28,13 @@ public class ScoreboardInstance {
             Player player,
             Scoreboard scoreboard,
             FastBoardComponentAdapter fastBoardAdapter,
-            TeamManager teamManager,
-            ComponentScoreboardRenderer renderer,
+            ScoreboardRenderer renderer,
             PlaceholderContext context
     ) {
         this.id = id;
         this.player = player;
         this.scoreboard = scoreboard;
         this.fastBoardAdapter = fastBoardAdapter;
-        this.teamManager = teamManager;
         this.renderer = renderer;
         this.context = context != null ? context : PlaceholderContext.create();
         this.lifecycle = new InstanceLifecycle();
@@ -57,17 +53,11 @@ public class ScoreboardInstance {
     public void hide() {
         lifecycle.cancel();
 
-        if (teamManager != null) {
-            teamManager.cleanup();
-        }
-
         if (fastBoardAdapter != null && !fastBoardAdapter.isDeleted()) {
             fastBoardAdapter.delete();
         }
 
-        if (renderer != null) {
-            renderer.cleanup(player);
-        }
+        renderer.cleanup(player);
     }
 
     public CompletableFuture<Void> update() {
@@ -85,18 +75,10 @@ public class ScoreboardInstance {
     }
 
     public boolean shouldUpdate() {
-        if (!lifecycle.canUpdate()) {
-            return false;
-        }
-
-        if (!player.isOnline()) {
-            return false;
-        }
+        if (!lifecycle.canUpdate() || !player.isOnline()) return false;
 
         long interval = scoreboard.getUpdateInterval() * 50L;
-        long timeSinceLastUpdate = System.currentTimeMillis() - lastUpdate;
-
-        return timeSinceLastUpdate >= interval;
+        return System.currentTimeMillis() - lastUpdate >= interval;
     }
 
     public void updateContext(PlaceholderContext newContext) {
@@ -105,6 +87,12 @@ public class ScoreboardInstance {
 
     public void forceUpdate() {
         this.lastUpdate = 0;
+    }
+
+    public void reinitialize() {
+        if (!lifecycle.isActive() || fastBoardAdapter.isDeleted()) return;
+        fastBoardAdapter.reinitialize();
+        update();
     }
 
     public boolean isActive() {

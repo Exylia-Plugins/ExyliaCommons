@@ -16,7 +16,6 @@ public class BossBarData {
     private String color;
     private String style;
     private double progress;
-    private boolean permanent;
     private long updateInterval;
 
     public static BossBarData fromConfig(net.exylia.commons.v2.visual.config.BossBarConfig config) {
@@ -25,7 +24,6 @@ public class BossBarData {
             config.getColor().name(),
             config.getStyle().name(),
             config.getProgress(),
-            config.isPermanent(),
             config.getUpdateInterval()
         );
     }

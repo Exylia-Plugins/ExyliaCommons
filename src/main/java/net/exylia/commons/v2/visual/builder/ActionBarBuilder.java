@@ -29,17 +29,12 @@ public class ActionBarBuilder extends VisualBuilder<ActionBarConfig, ActionBarBu
             errors.add("Text cannot be null or blank");
         }
 
-        if (permanent && updateInterval < 1) {
-            errors.add("Update interval must be >= 1 for permanent action bars");
-        }
-
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }
 
     @Override
     protected ActionBarConfig buildInternal() {
         return ActionBarConfig.builder(text)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
     }

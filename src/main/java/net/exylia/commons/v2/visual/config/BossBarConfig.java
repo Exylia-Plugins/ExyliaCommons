@@ -21,7 +21,6 @@ public class BossBarConfig extends VisualConfig {
         this.style = builder.style;
         this.progress = Math.max(0.0, Math.min(1.0, builder.progress));
         this.updateInterval = builder.updateInterval;
-        this.permanent = builder.permanent;
     }
 
     public static Builder builder(String text) {
@@ -34,7 +33,6 @@ public class BossBarConfig extends VisualConfig {
         private BossBar.Overlay style = BossBar.Overlay.PROGRESS;
         private double progress = 1.0;
         private long updateInterval = 20L;
-        private boolean permanent = false;
 
         private Builder(String text) {
             this.text = text;
@@ -44,7 +42,6 @@ public class BossBarConfig extends VisualConfig {
         public Builder style(BossBar.Overlay style) { this.style = style; return this; }
         public Builder progress(double progress) { this.progress = progress; return this; }
         public Builder updateInterval(long updateInterval) { this.updateInterval = updateInterval; return this; }
-        public Builder permanent(boolean permanent) { this.permanent = permanent; return this; }
 
         public BossBarConfig build() { return new BossBarConfig(this); }
     }
@@ -57,7 +54,6 @@ public class BossBarConfig extends VisualConfig {
         List<String> errors = new ArrayList<>();
         if (text == null || text.isBlank()) errors.add("Text cannot be null or blank");
         if (progress < 0.0 || progress > 1.0) errors.add("Progress must be between 0.0 and 1.0");
-        if (permanent && updateInterval < 1) errors.add("Update interval must be >= 1 for permanent boss bars");
 
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }

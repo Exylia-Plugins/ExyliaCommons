@@ -52,10 +52,6 @@ public class BossBarBuilder extends VisualBuilder<BossBarConfig, BossBarBuilder>
             errors.add("Progress must be between 0.0 and 1.0");
         }
 
-        if (permanent && updateInterval < 1) {
-            errors.add("Update interval must be >= 1 for permanent boss bars");
-        }
-
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }
 
@@ -65,7 +61,6 @@ public class BossBarBuilder extends VisualBuilder<BossBarConfig, BossBarBuilder>
                 .color(color)
                 .style(style)
                 .progress(progress)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
         config.setEnabled(enabled);

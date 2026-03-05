@@ -71,16 +71,6 @@ public class ScoreboardRegistry {
         return Optional.ofNullable(stack.peek());
     }
 
-    @Deprecated
-    public void register(UUID playerId, ScoreboardInstance instance) {
-        push(playerId, instance);
-    }
-
-    @Deprecated
-    public void unregister(UUID playerId) {
-        pop(playerId);
-    }
-
     public Optional<ScoreboardInstance> get(UUID playerId) {
         return peek(playerId);
     }

@@ -2,9 +2,8 @@ package net.exylia.commons.v2.scoreboard.core;
 
 import lombok.Getter;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
-import net.exylia.commons.v2.scoreboard.cache.ScoreboardCacheManager;
 import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
-import net.exylia.commons.v2.scoreboard.listener.PlayerCleanupListener;
+import net.exylia.commons.v2.scoreboard.listener.ScoreboardListener;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardStats;
 import org.bukkit.entity.Player;
@@ -23,14 +22,12 @@ public class ScoreboardManager {
     private final ScoreboardRegistry registry;
     private final ScoreboardFactory factory;
     private final ScoreboardScheduler scheduler;
-    private final ScoreboardCacheManager cacheManager;
     private boolean initialized;
 
     private ScoreboardManager(Plugin plugin) {
         this.plugin = plugin;
         this.registry = new ScoreboardRegistry();
-        this.cacheManager = new ScoreboardCacheManager();
-        this.factory = new ScoreboardFactory(plugin, cacheManager);
+        this.factory = new ScoreboardFactory(plugin);
         this.scheduler = new ScoreboardScheduler(plugin, registry);
         this.initialized = false;
     }
@@ -54,13 +51,8 @@ public class ScoreboardManager {
     }
 
     private void init() {
-        registerListeners();
+        plugin.getServer().getPluginManager().registerEvents(new ScoreboardListener(this), plugin);
         initialized = true;
-    }
-
-    private void registerListeners() {
-        PlayerCleanupListener listener = new PlayerCleanupListener(this);
-        plugin.getServer().getPluginManager().registerEvents(listener, plugin);
     }
 
     public CompletableFuture<String> showScoreboard(
@@ -72,70 +64,49 @@ public class ScoreboardManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        boolean isFirstScoreboard = !registry.has(player.getUniqueId());
-
-        if (isFirstScoreboard) {
-            org.bukkit.scoreboard.Scoreboard bukkitScoreboard = player.getScoreboard();
-            if (bukkitScoreboard != null &&
-                !bukkitScoreboard.equals(plugin.getServer().getScoreboardManager().getMainScoreboard())) {
-                registry.saveOriginalScoreboard(player.getUniqueId(), bukkitScoreboard);
-            }
+        if (!registry.has(player.getUniqueId())) {
+            registry.saveOriginalScoreboard(player.getUniqueId(), player.getScoreboard());
         }
 
-        Optional<ScoreboardInstance> currentOpt = registry.peek(player.getUniqueId());
-        if (currentOpt.isPresent()) {
-            ScoreboardInstance current = currentOpt.get();
+        registry.peek(player.getUniqueId()).ifPresent(current -> {
             current.hide();
             scheduler.unschedule(current);
-        }
+        });
 
-        ScoreboardInstance instance = factory.createInstance(player, scoreboard, context);
+        ScoreboardInstance newInstance = factory.createInstance(player, scoreboard, context);
+        registry.push(player.getUniqueId(), newInstance);
+        scheduler.schedule(newInstance);
 
-        registry.push(player.getUniqueId(), instance);
-        scheduler.schedule(instance);
-
-        return instance.show()
-                .thenApply(v -> instance.getId());
+        return newInstance.show().thenApply(v -> newInstance.getId());
     }
 
     public boolean hideScoreboard(Player player) {
-        if (player == null) {
-            return false;
-        }
+        if (player == null) return false;
 
         Optional<ScoreboardInstance> instanceOpt = registry.pop(player.getUniqueId());
+        if (instanceOpt.isEmpty()) return false;
 
-        if (instanceOpt.isPresent()) {
-            ScoreboardInstance instance = instanceOpt.get();
+        ScoreboardInstance instance = instanceOpt.get();
+        instance.hide();
+        scheduler.unschedule(instance);
 
-            instance.hide();
-            scheduler.unschedule(instance);
-            cacheManager.invalidatePlayer(player.getUniqueId());
-
-            Optional<ScoreboardInstance> previousOpt = registry.peek(player.getUniqueId());
-            if (previousOpt.isPresent()) {
-                ScoreboardInstance previous = previousOpt.get();
-                scheduler.schedule(previous);
-                previous.show();
-            } else {
-                Optional<org.bukkit.scoreboard.Scoreboard> originalOpt = registry.getOriginalScoreboard(player.getUniqueId());
-                if (originalOpt.isPresent() && player.isOnline()) {
-                    player.setScoreboard(originalOpt.get());
-                }
-                registry.removeOriginalScoreboard(player.getUniqueId());
+        Optional<ScoreboardInstance> previous = registry.peek(player.getUniqueId());
+        if (previous.isPresent()) {
+            scheduler.schedule(previous.get());
+            previous.get().show();
+        } else {
+            if (player.isOnline()) {
+                registry.getOriginalScoreboard(player.getUniqueId())
+                        .ifPresent(player::setScoreboard);
             }
-
-            return true;
+            registry.removeOriginalScoreboard(player.getUniqueId());
         }
 
-        return false;
+        return true;
     }
 
     public Optional<ScoreboardInstance> getScoreboard(Player player) {
-        if (player == null) {
-            return Optional.empty();
-        }
-
+        if (player == null) return Optional.empty();
         return registry.get(player.getUniqueId());
     }
 
@@ -152,27 +123,21 @@ public class ScoreboardManager {
     }
 
     public void clearPlayerScoreboards(Player player) {
-        if (player == null) {
-            return;
-        }
+        if (player == null) return;
 
         while (registry.has(player.getUniqueId())) {
-            Optional<ScoreboardInstance> instanceOpt = registry.pop(player.getUniqueId());
-            if (instanceOpt.isPresent()) {
-                ScoreboardInstance instance = instanceOpt.get();
+            registry.pop(player.getUniqueId()).ifPresent(instance -> {
                 instance.hide();
                 scheduler.unschedule(instance);
-            }
+            });
         }
 
         registry.removeOriginalScoreboard(player.getUniqueId());
-        cacheManager.invalidatePlayer(player.getUniqueId());
     }
 
     public void hideAll() {
         registry.clear();
         scheduler.shutdown();
-        cacheManager.clearAll();
     }
 
     public int getActiveCount() {
@@ -180,19 +145,15 @@ public class ScoreboardManager {
     }
 
     public ScoreboardStats getStats() {
-        int activeScoreboards = registry.getActiveCount();
-        double cacheHitRate = cacheManager.getAverageHitRate();
-
         return ScoreboardStats.builder()
-                .activeScoreboards(activeScoreboards)
-                .cacheHitRate(cacheHitRate)
+                .activeScoreboards(registry.getActiveCount())
+                .cacheHitRate(0.0)
                 .totalUpdates(0)
                 .averageRenderTimeMs(0.0)
                 .build();
     }
 
     public void clearCache() {
-        cacheManager.clearAll();
     }
 
     public void shutdown() {

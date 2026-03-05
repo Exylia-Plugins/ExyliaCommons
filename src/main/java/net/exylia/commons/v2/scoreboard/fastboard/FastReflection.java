@@ -9,7 +9,6 @@ import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-@Deprecated
 public final class FastReflection {
 
     private static final String NM_PACKAGE = "net.minecraft";

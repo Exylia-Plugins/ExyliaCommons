@@ -72,10 +72,6 @@ public class TitleBuilder extends VisualBuilder<TitleConfig, TitleBuilder> {
             errors.add("Fade out must be >= 0");
         }
 
-        if (permanent && updateInterval < 1) {
-            errors.add("Update interval must be >= 1 for permanent titles");
-        }
-
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }
 
@@ -87,7 +83,6 @@ public class TitleBuilder extends VisualBuilder<TitleConfig, TitleBuilder> {
                 .fadeIn(fadeIn)
                 .stay(stay)
                 .fadeOut(fadeOut)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
     }

@@ -1,8 +1,6 @@
 package net.exylia.commons.v2.config;
 
 import lombok.Getter;
-import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
-import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.formatter.date.DateFormatterConfig;
 import net.exylia.commons.v2.formatter.percent.PercentFormatterConfig;
 import net.exylia.commons.v2.formatter.price.PriceFormatterConfig;
@@ -10,6 +8,7 @@ import net.exylia.commons.v2.formatter.time.TimeFormatterConfig;
 
 @Getter
 public class FormattersConfig {
+
     private static volatile FormattersConfig instance;
 
     private final TimeFormatterConfig timeConfig;

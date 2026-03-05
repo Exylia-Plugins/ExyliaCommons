@@ -118,10 +118,7 @@ public class BossBarComponent implements VisualComponent<BossBarConfig> {
         }
 
         public CompletableFuture<String> start() {
-            return BossBarAPI.countdownBuilder(player, durationSeconds)
-                    .text(config.getText())
-                    .color(config.getColor())
-                    .style(config.getStyle())
+            return BossBarAPI.countdownBuilder(player, durationSeconds, config)
                     .context(context)
                     .onComplete(onComplete)
                     .onCancel(onCancel)
@@ -134,7 +131,6 @@ public class BossBarComponent implements VisualComponent<BossBarConfig> {
         String colorStr = section.getString("color", "BLUE").toUpperCase();
         String styleStr = section.getString("style", "PROGRESS").toUpperCase();
         double progress = section.getDouble("progress", 1.0);
-        boolean permanent = section.getBoolean("permanent", false);
         long updateInterval = section.getLong("update-interval", 20L);
 
         BossBar.Color color;
@@ -156,7 +152,6 @@ public class BossBarComponent implements VisualComponent<BossBarConfig> {
                 .color(color)
                 .style(style)
                 .progress(progress)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
     }

@@ -3,9 +3,7 @@ package net.exylia.commons.v2.scoreboard.config;
 import lombok.experimental.UtilityClass;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardLine;
-import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.scoreboard.Team;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,14 +36,12 @@ public class ScoreboardLoader {
                 .collect(Collectors.toList());
 
         UpdateConfig updateConfig = loadUpdateConfig(section);
-        TeamConfig teamConfig = loadTeamConfig(section);
         boolean enabled = section.getBoolean("enabled", true);
 
         return Scoreboard.builder()
                 .title(title)
                 .lines(lines)
                 .updateConfig(updateConfig)
-                .teamConfig(teamConfig)
                 .enabled(enabled)
                 .build();
     }
@@ -56,70 +52,10 @@ public class ScoreboardLoader {
             return UpdateConfig.defaults();
         }
 
-        long updateInterval = updateSection.getLong("interval", 20L);
-        boolean smartUpdate = updateSection.getBoolean("smart", true);
-        boolean cacheEnabled = updateSection.getBoolean("cache", true);
-
         return UpdateConfig.builder()
-                .updateInterval(updateInterval)
-                .smartUpdate(smartUpdate)
-                .cacheEnabled(cacheEnabled)
+                .updateInterval(updateSection.getLong("interval", 20L))
+                .smartUpdate(updateSection.getBoolean("smart", true))
+                .cacheEnabled(updateSection.getBoolean("cache", true))
                 .build();
-    }
-
-    private TeamConfig loadTeamConfig(ConfigurationSection section) {
-        ConfigurationSection teamSection = section.getConfigurationSection("team");
-        if (teamSection == null) {
-            return null;
-        }
-
-        String name = teamSection.getString("name", "main");
-        String prefix = teamSection.getString("prefix", "");
-        String suffix = teamSection.getString("suffix", "");
-
-        ChatColor color = ChatColor.WHITE;
-        String colorString = teamSection.getString("color");
-        if (colorString != null) {
-            try {
-                color = ChatColor.valueOf(colorString.toUpperCase());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        Team.OptionStatus collisionRule = parseOptionStatus(
-                teamSection.getString("collision-rule"),
-                Team.OptionStatus.ALWAYS
-        );
-
-        Team.OptionStatus nametagVisibility = parseOptionStatus(
-                teamSection.getString("nametag-visibility"),
-                Team.OptionStatus.ALWAYS
-        );
-
-        boolean friendlyFire = teamSection.getBoolean("friendly-fire", true);
-        boolean seeFriendlyInvisibles = teamSection.getBoolean("see-friendly-invisibles", true);
-
-        return TeamConfig.builder()
-                .name(name)
-                .prefix(prefix)
-                .suffix(suffix)
-                .color(color)
-                .collisionRule(collisionRule)
-                .nametagVisibility(nametagVisibility)
-                .friendlyFire(friendlyFire)
-                .seeFriendlyInvisibles(seeFriendlyInvisibles)
-                .build();
-    }
-
-    private Team.OptionStatus parseOptionStatus(String value, Team.OptionStatus defaultValue) {
-        if (value == null) {
-            return defaultValue;
-        }
-
-        try {
-            return Team.OptionStatus.valueOf(value.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return defaultValue;
-        }
     }
 }

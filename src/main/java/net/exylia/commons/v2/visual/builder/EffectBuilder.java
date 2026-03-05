@@ -158,7 +158,6 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
 
         config.setEnabled(enabled);
         config.setUpdateInterval(updateInterval);
-        config.setPermanent(permanent);
 
         return config;
     }

@@ -202,7 +202,6 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
 
         config.setEnabled(enabled);
         config.setUpdateInterval(updateInterval);
-        config.setPermanent(permanent);
 
         return config;
     }

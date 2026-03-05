@@ -41,29 +41,6 @@ public class TitleComponent implements VisualComponent<TitleConfig> {
         return send(player, section, context);
     }
 
-    public CompletableFuture<String> sendPermanent(Player player, ConfigurationSection section) {
-        return sendPermanent(player, section, PlaceholderContext.create());
-    }
-
-    public CompletableFuture<String> sendPermanent(Player player, ConfigurationSection section, PlaceholderContext context) {
-        if (!isEnabled(section)) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        TitleConfig config = buildConfig(section);
-        return TitleAPI.sendPermanent(player, config, context);
-    }
-
-    public CompletableFuture<String> sendPermanent(
-            Player player,
-            ConfigurationSection section,
-            Consumer<PlaceholderContext> contextBuilder
-    ) {
-        PlaceholderContext context = PlaceholderContext.create().withPlayer(player);
-        contextBuilder.accept(context);
-        return sendPermanent(player, section, context);
-    }
-
     public CompletableFuture<String> countdown(Player player, ConfigurationSection section, Number duration) {
         return countdown(player, section, duration, PlaceholderContext.create());
     }
@@ -140,10 +117,7 @@ public class TitleComponent implements VisualComponent<TitleConfig> {
         }
 
         public CompletableFuture<String> start() {
-            return TitleAPI.countdownBuilder(player, durationSeconds)
-                    .title(config.getTitle())
-                    .subtitle(config.getSubtitle())
-                    .times(config.getFadeIn(), config.getStay(), config.getFadeOut())
+            return TitleAPI.countdownBuilder(player, durationSeconds, config)
                     .context(context)
                     .onComplete(onComplete)
                     .onCancel(onCancel)
@@ -157,14 +131,12 @@ public class TitleComponent implements VisualComponent<TitleConfig> {
         int fadeIn = section.getInt("fadeIn", 10);
         int stay = section.getInt("stay", 70);
         int fadeOut = section.getInt("fadeOut", 20);
-        boolean permanent = section.getBoolean("permanent", false);
         long updateInterval = section.getLong("update-interval", 20L);
 
         return TitleBuilder.create()
                 .title(title)
                 .subtitle(subtitle)
                 .times(fadeIn, stay, fadeOut)
-                .permanent(permanent)
                 .updateInterval(updateInterval)
                 .build();
     }

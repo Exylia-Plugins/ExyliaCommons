@@ -2,7 +2,6 @@ package net.exylia.commons.v2.scoreboard.config.serializer;
 
 import net.exylia.commons.v2.config.schema.ConfigSerializer;
 import net.exylia.commons.v2.scoreboard.config.ScoreboardLoader;
-import net.exylia.commons.v2.scoreboard.config.TeamConfig;
 import net.exylia.commons.v2.scoreboard.config.UpdateConfig;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardLine;
@@ -28,20 +27,6 @@ public class ScoreboardSerializer implements ConfigSerializer<Scoreboard> {
         updateMap.put("smart", updateConfig.isSmartUpdate());
         updateMap.put("cache", updateConfig.isCacheEnabled());
         map.put("update", updateMap);
-
-        TeamConfig teamConfig = value.getTeamConfig();
-        if (teamConfig != null) {
-            Map<String, Object> teamMap = new LinkedHashMap<>();
-            teamMap.put("name", teamConfig.getName());
-            teamMap.put("prefix", teamConfig.getPrefix());
-            teamMap.put("suffix", teamConfig.getSuffix());
-            teamMap.put("color", teamConfig.getColor().name());
-            teamMap.put("collision-rule", teamConfig.getCollisionRule().name());
-            teamMap.put("nametag-visibility", teamConfig.getNametagVisibility().name());
-            teamMap.put("friendly-fire", teamConfig.isFriendlyFire());
-            teamMap.put("see-friendly-invisibles", teamConfig.isSeeFriendlyInvisibles());
-            map.put("team", teamMap);
-        }
 
         return map;
     }

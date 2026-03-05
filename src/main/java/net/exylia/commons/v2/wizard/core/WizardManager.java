@@ -241,16 +241,15 @@ public class WizardManager implements Listener {
         PlaceholderContext ctx = PlaceholderContext.create().withPlayer(player);
 
         if (config.isShowTitle()) {
-            TitleAPI.send(player, TitleBuilder.create()
+            TitleAPI.sendUpdatable(player, "wizard_title", TitleBuilder.create()
                     .title(config.getTitleText())
                     .subtitle(config.getSubtitleText())
                     .times(config.getFadeIn(), config.getStay(), config.getFadeOut())
-                    .permanent()
                     .build(), ctx);
         }
 
         if (config.isShowActionBar()) {
-            ActionBarAPI.sendPermanent(player, ActionBarBuilder.create()
+            ActionBarAPI.sendUpdatable(player, "wizard_actionbar", ActionBarBuilder.create()
                     .text(config.getActionBarText())
                     .build(), ctx);
         }
@@ -281,16 +280,15 @@ public class WizardManager implements Listener {
         clearDisplay(player);
 
         if (config.isShowTitle()) {
-            TitleAPI.send(player, TitleBuilder.create()
+            TitleAPI.sendUpdatable(player, "wizard_title", TitleBuilder.create()
                     .title(title)
                     .subtitle(subtitle)
                     .times(config.getFadeIn(), config.getStay(), config.getFadeOut())
-                    .permanent()
                     .build(), ctx);
         }
 
         if (config.isShowActionBar()) {
-            ActionBarAPI.sendPermanent(player, ActionBarBuilder.create()
+            ActionBarAPI.sendUpdatable(player, "wizard_actionbar", ActionBarBuilder.create()
                     .text(actionBar)
                     .build(), ctx);
         }
@@ -309,16 +307,15 @@ public class WizardManager implements Listener {
         clearDisplay(player);
 
         if (config.isShowTitle()) {
-            TitleAPI.send(player, TitleBuilder.create()
+            TitleAPI.sendUpdatable(player, "wizard_title", TitleBuilder.create()
                     .title("{warning}⚡ Select Area " + current + "/" + total)
                     .subtitle("{info}Use wand: Left click pos1, Right click pos2")
                     .times(config.getFadeIn(), config.getStay(), config.getFadeOut())
-                    .permanent()
                     .build(), ctx);
         }
 
         if (config.isShowActionBar()) {
-            ActionBarAPI.sendPermanent(player, ActionBarBuilder.create()
+            ActionBarAPI.sendUpdatable(player, "wizard_actionbar", ActionBarBuilder.create()
                     .text("{warning}Selecting area " + current + "/" + total)
                     .build(), ctx);
         }
@@ -339,16 +336,15 @@ public class WizardManager implements Listener {
         clearDisplay(player);
 
         if (config.isShowTitle()) {
-            TitleAPI.send(player, TitleBuilder.create()
+            TitleAPI.sendUpdatable(player, "wizard_title", TitleBuilder.create()
                     .title("{success}✔ Area " + current + " Ready")
                     .subtitle("{warning}SHIFT + LEFT CLICK to confirm")
                     .times(config.getFadeIn(), config.getStay(), config.getFadeOut())
-                    .permanent()
                     .build(), ctx);
         }
 
         if (config.isShowActionBar()) {
-            ActionBarAPI.sendPermanent(player, ActionBarBuilder.create()
+            ActionBarAPI.sendUpdatable(player, "wizard_actionbar", ActionBarBuilder.create()
                     .text("{success}Volume: " + volume + " blocks {warning}| SHIFT + LEFT CLICK to confirm")
                     .build(), ctx);
         }

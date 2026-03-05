@@ -40,7 +40,6 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
 
             PlaceholderContext updateContext = context.copy();
             updateContext.put("update_count", count);
-            updateContext.put("permanent_active", true);
             updateContext.withCurrentTime();
 
             try {
@@ -64,8 +63,4 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
         VisualRegistry.getInstance().remove(player.getUniqueId(), id);
     }
 
-    @Override
-    public boolean isPermanent() {
-        return true;
-    }
 }

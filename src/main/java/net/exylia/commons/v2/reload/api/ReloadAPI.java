@@ -1,24 +1,22 @@
 package net.exylia.commons.v2.reload.api;
-import net.exylia.commons.v2.debug.api.DebugAPI;
-
-import lombok.Getter;
-import net.exylia.commons.ExyliaPlugin;
-import net.exylia.commons.v2.reload.core.ReloadManagerV2;
-import net.exylia.commons.v2.tasks.api.Tasks;
-import net.exylia.commons.v2.reload.detector.SystemAvailability;
-import net.exylia.commons.v2.reload.stats.ReloadStats;
-import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
+import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.reload.core.ReloadManagerV2;
+import net.exylia.commons.v2.reload.detector.SystemAvailability;
+import net.exylia.commons.v2.reload.stats.ReloadStats;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 @Getter
 public class ReloadAPI {
+
     private static ReloadAPI instance;
     private final ReloadManagerV2 manager;
 
@@ -35,7 +33,9 @@ public class ReloadAPI {
 
     public static ReloadAPI getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("ReloadAPI not initialized. Call initialize() first.");
+            throw new IllegalStateException(
+                "ReloadAPI not initialized. Call initialize() first."
+            );
         }
         return instance;
     }
@@ -54,80 +54,126 @@ public class ReloadAPI {
 
     public CompletableFuture<ReloadStats> reloadAll(CommandSender sender) {
         Player player = sender instanceof Player ? (Player) sender : null;
-        return manager.executeReloadAll(player, Collections.emptySet())
-                .thenApply(stats -> {
-                    if (!(sender instanceof Player)) {
-                        Tasks.sync(() -> sendDetailedStats(sender, stats));
-                    }
-                    return stats;
-                });
+        return manager
+            .executeReloadAll(player, Collections.emptySet())
+            .thenApply(stats -> {
+                if (!(sender instanceof Player)) {
+                    Tasks.sync(() -> sendDetailedStats(sender, stats));
+                }
+                return stats;
+            });
     }
 
-    public CompletableFuture<ReloadStats> reloadAllExcept(String... excludedSystems) {
-        return manager.executeReloadAll(null, new HashSet<>(Arrays.asList(excludedSystems)));
+    public CompletableFuture<ReloadStats> reloadAllExcept(
+        String... excludedSystems
+    ) {
+        return manager.executeReloadAll(
+            null,
+            new HashSet<>(Arrays.asList(excludedSystems))
+        );
     }
 
-    public CompletableFuture<ReloadStats> reloadAllExcept(Player player, String... excludedSystems) {
-        return manager.executeReloadAll(player, new HashSet<>(Arrays.asList(excludedSystems)));
+    public CompletableFuture<ReloadStats> reloadAllExcept(
+        Player player,
+        String... excludedSystems
+    ) {
+        return manager.executeReloadAll(
+            player,
+            new HashSet<>(Arrays.asList(excludedSystems))
+        );
     }
 
-    public CompletableFuture<ReloadStats> reloadAllExcept(CommandSender sender, String... excludedSystems) {
+    public CompletableFuture<ReloadStats> reloadAllExcept(
+        CommandSender sender,
+        String... excludedSystems
+    ) {
         Player player = sender instanceof Player ? (Player) sender : null;
-        return manager.executeReloadAll(player, new HashSet<>(Arrays.asList(excludedSystems)))
-                .thenApply(stats -> {
-                    if (!(sender instanceof Player)) {
-                        Tasks.sync(() -> sendDetailedStats(sender, stats));
-                    }
-                    return stats;
-                });
+        return manager
+            .executeReloadAll(
+                player,
+                new HashSet<>(Arrays.asList(excludedSystems))
+            )
+            .thenApply(stats -> {
+                if (!(sender instanceof Player)) {
+                    Tasks.sync(() -> sendDetailedStats(sender, stats));
+                }
+                return stats;
+            });
     }
 
     public CompletableFuture<ReloadStats> reloadAll(long timeoutSeconds) {
         return reloadAll()
-                .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
-                .exceptionally(throwable -> {
-                    if (throwable instanceof TimeoutException) {
-                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
-                    } else {
-                        DebugAPI.logLibError("Error in reload with timeout: " + throwable.getMessage());
-                    }
-                    return null;
-                });
+            .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
+            .exceptionally(throwable -> {
+                if (throwable instanceof TimeoutException) {
+                    DebugAPI.logLibError(
+                        "Reload cancelled by timeout (" + timeoutSeconds + "s)"
+                    );
+                } else {
+                    DebugAPI.logLibError(
+                        "Error in reload with timeout: " +
+                            throwable.getMessage()
+                    );
+                }
+                return null;
+            });
     }
 
-    public CompletableFuture<ReloadStats> reloadAll(Player player, long timeoutSeconds) {
+    public CompletableFuture<ReloadStats> reloadAll(
+        Player player,
+        long timeoutSeconds
+    ) {
         return reloadAll(player)
-                .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
-                .exceptionally(throwable -> {
-                    if (throwable instanceof TimeoutException) {
-                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
-                    } else {
-                        DebugAPI.logLibError("Error in reload with timeout: " + throwable.getMessage());
-                    }
-                    return null;
-                });
+            .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
+            .exceptionally(throwable -> {
+                if (throwable instanceof TimeoutException) {
+                    DebugAPI.logLibError(
+                        "Reload cancelled by timeout (" + timeoutSeconds + "s)"
+                    );
+                } else {
+                    DebugAPI.logLibError(
+                        "Error in reload with timeout: " +
+                            throwable.getMessage()
+                    );
+                }
+                return null;
+            });
     }
 
-    public CompletableFuture<ReloadStats> reloadAll(CommandSender sender, long timeoutSeconds) {
+    public CompletableFuture<ReloadStats> reloadAll(
+        CommandSender sender,
+        long timeoutSeconds
+    ) {
         Player player = sender instanceof Player ? (Player) sender : null;
-        return manager.executeReloadAll(player)
-                .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
-                .thenApply(stats -> {
-                    if (!(sender instanceof Player)) {
-                        Tasks.sync(() -> sendDetailedStats(sender, stats));
-                    }
-                    return stats;
-                })
-                .exceptionally(throwable -> {
-                    if (throwable instanceof TimeoutException) {
-                        DebugAPI.logLibError("Reload cancelled by timeout (" + timeoutSeconds + "s)");
-                        sender.sendMessage("§c✖ Reload cancelled: Timeout after " + timeoutSeconds + " seconds");
-                    } else {
-                        DebugAPI.logLibError("Error in reload: " + throwable.getMessage());
-                        sender.sendMessage("§c✖ Reload error: " + throwable.getMessage());
-                    }
-                    return null;
-                });
+        return manager
+            .executeReloadAll(player)
+            .orTimeout(timeoutSeconds, TimeUnit.SECONDS)
+            .thenApply(stats -> {
+                if (!(sender instanceof Player)) {
+                    Tasks.sync(() -> sendDetailedStats(sender, stats));
+                }
+                return stats;
+            })
+            .exceptionally(throwable -> {
+                if (throwable instanceof TimeoutException) {
+                    DebugAPI.logLibError(
+                        "Reload cancelled by timeout (" + timeoutSeconds + "s)"
+                    );
+                    sender.sendMessage(
+                        "§c✖ Reload cancelled: Timeout after " +
+                            timeoutSeconds +
+                            " seconds"
+                    );
+                } else {
+                    DebugAPI.logLibError(
+                        "Error in reload: " + throwable.getMessage()
+                    );
+                    sender.sendMessage(
+                        "§c✖ Reload error: " + throwable.getMessage()
+                    );
+                }
+                return null;
+            });
     }
 
     public CompletableFuture<ReloadStats> reloadSystem(String systemName) {
@@ -164,17 +210,33 @@ public class ReloadAPI {
         String statusText = stats.isSuccess() ? "§aSuccess" : "§cFailed";
 
         sender.sendMessage("");
-        sender.sendMessage("§6⚡ §eReload System V2 §7- " + statusIcon + " " + statusText);
-        sender.sendMessage("§7Total Duration: §e" + stats.getFormattedDuration());
-        sender.sendMessage("§7Systems: §a" + stats.getSuccessCount() + " success §8| " +
-                "§c" + stats.getFailureCount() + " failed §8| " +
-                "§8" + stats.getSkippedCount() + " skipped");
+        sender.sendMessage(
+            "§6⚡ §eReload System V2 §7- " + statusIcon + " " + statusText
+        );
+        sender.sendMessage(
+            "§7Total Duration: §e" + stats.getFormattedDuration()
+        );
+        sender.sendMessage(
+            "§7Systems: §a" +
+                stats.getSuccessCount() +
+                " success §8| " +
+                "§c" +
+                stats.getFailureCount() +
+                " failed §8| " +
+                "§8" +
+                stats.getSkippedCount() +
+                " skipped"
+        );
 
         if (!stats.isSuccess() && !stats.getErrors().isEmpty()) {
             sender.sendMessage("§cErrors:");
-            stats.getErrors().forEach((name, error) ->
-                    sender.sendMessage("§c  - " + name + ": §7" + error.getMessage())
-            );
+            stats
+                .getErrors()
+                .forEach((name, error) ->
+                    sender.sendMessage(
+                        "§c  - " + name + ": §7" + error.getMessage()
+                    )
+                );
         }
 
         sender.sendMessage("");

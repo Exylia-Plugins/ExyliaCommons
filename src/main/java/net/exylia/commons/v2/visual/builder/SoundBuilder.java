@@ -130,7 +130,6 @@ public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
 
         config.setEnabled(enabled);
         config.setUpdateInterval(updateInterval);
-        config.setPermanent(permanent);
 
         return config;
     }

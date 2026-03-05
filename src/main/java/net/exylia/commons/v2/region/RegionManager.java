@@ -116,9 +116,9 @@ public class RegionManager implements Listener {
 
         RegionCreateEvent createEvent = new RegionCreateEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Bukkit.getPluginManager().callEvent(createEvent);
-        } else {
             Tasks.run(() -> Bukkit.getPluginManager().callEvent(createEvent));
+        } else {
+            Bukkit.getPluginManager().callEvent(createEvent);
         }
 
         spatialIndex.addRegion(region);
@@ -147,9 +147,9 @@ public class RegionManager implements Listener {
 
         RegionDeleteEvent deleteEvent = new RegionDeleteEvent(region);
         if (Bukkit.isPrimaryThread()) {
-            Bukkit.getPluginManager().callEvent(deleteEvent);
-        } else {
             Tasks.run(() -> Bukkit.getPluginManager().callEvent(deleteEvent));
+        } else {
+            Bukkit.getPluginManager().callEvent(deleteEvent);
         }
 
         spatialIndex.removeRegion(region);

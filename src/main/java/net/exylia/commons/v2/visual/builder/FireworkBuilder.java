@@ -216,7 +216,6 @@ public class FireworkBuilder extends VisualBuilder<FireworkConfig, FireworkBuild
 
         config.setEnabled(enabled);
         config.setUpdateInterval(updateInterval);
-        config.setPermanent(permanent);
 
         return config;
     }

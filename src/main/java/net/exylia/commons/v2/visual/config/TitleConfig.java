@@ -22,7 +22,6 @@ public class TitleConfig extends VisualConfig {
         this.stay = builder.stay;
         this.fadeOut = builder.fadeOut;
         this.updateInterval = builder.updateInterval;
-        this.permanent = builder.permanent;
     }
 
     public static Builder builder() {
@@ -36,7 +35,6 @@ public class TitleConfig extends VisualConfig {
         private int stay = 70;
         private int fadeOut = 20;
         private long updateInterval = 20L;
-        private boolean permanent = false;
 
         private Builder() {}
 
@@ -46,7 +44,6 @@ public class TitleConfig extends VisualConfig {
         public Builder stay(int stay) { this.stay = stay; return this; }
         public Builder fadeOut(int fadeOut) { this.fadeOut = fadeOut; return this; }
         public Builder updateInterval(long updateInterval) { this.updateInterval = updateInterval; return this; }
-        public Builder permanent(boolean permanent) { this.permanent = permanent; return this; }
 
         public TitleConfig build() { return new TitleConfig(this); }
     }
@@ -62,7 +59,6 @@ public class TitleConfig extends VisualConfig {
         if (fadeIn < 0) errors.add("Fade in must be >= 0");
         if (stay < 0) errors.add("Stay must be >= 0");
         if (fadeOut < 0) errors.add("Fade out must be >= 0");
-        if (permanent && updateInterval < 1) errors.add("Update interval must be >= 1 for permanent titles");
 
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }

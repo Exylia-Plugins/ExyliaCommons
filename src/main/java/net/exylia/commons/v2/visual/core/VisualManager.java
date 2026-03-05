@@ -136,7 +136,7 @@ public class VisualManager {
 
         String id = generateId(type);
         DebugAPI.logLibDebug(DebugCategory.VISUAL,
-            "Sending continuous " + type + " to " + player.getName() + " (ID: " + id + ", permanent: " + config.isPermanent() + ")");
+            "Sending continuous " + type + " to " + player.getName() + " (ID: " + id + ")");
 
         PlaceholderContext enrichedContext = enrichContext(context, player, id);
 

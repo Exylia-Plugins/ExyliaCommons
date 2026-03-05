@@ -12,7 +12,7 @@ public interface ScoreboardRenderer {
             Player player,
             Scoreboard scoreboard,
             PlaceholderContext context,
-            FastBoardAdapter adapter
+            FastBoardComponentAdapter adapter
     );
 
     void cleanup(Player player);

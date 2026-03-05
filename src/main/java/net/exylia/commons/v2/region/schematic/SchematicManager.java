@@ -36,7 +36,7 @@ public class SchematicManager {
         BLOCK
     }
 
-    private record QueuedRegeneration(String schematicName, Supplier<CompletableFuture<Boolean>> action, CompletableFuture<Boolean> result) {}
+    private record QueuedOperation(String schematicName, Supplier<CompletableFuture<Boolean>> action, CompletableFuture<Boolean> result) {}
 
     private static SchematicManager instance;
 
@@ -47,8 +47,8 @@ public class SchematicManager {
     private final CustomSchematicEngine customEngine;
     private volatile SchematicType defaultType;
 
-    private final Queue<QueuedRegeneration> regenerationQueue = new ConcurrentLinkedQueue<>();
-    private final AtomicBoolean regenerating = new AtomicBoolean(false);
+    private final Queue<QueuedOperation> operationQueue = new ConcurrentLinkedQueue<>();
+    private final AtomicBoolean processing = new AtomicBoolean(false);
 
     private SchematicManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -143,6 +143,17 @@ public class SchematicManager {
         Objects.requireNonNull(schematicName, "schematicName");
         Objects.requireNonNull(location, "location");
 
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        int pending = operationQueue.size() + (processing.get() ? 1 : 0);
+        if (pending > 0) {
+            DebugAPI.logLibInfo("[Schematic] queued '" + schematicName + "' — waiting for " + pending + " schematic(s)");
+        }
+        operationQueue.add(new QueuedOperation(schematicName, () -> doPaste(schematicName, location, type, onProgress), future));
+        drainQueue();
+        return future;
+    }
+
+    private CompletableFuture<Boolean> doPaste(String schematicName, Location location, SchematicType type, Consumer<Float> onProgress) {
         SchematicType resolvedType = resolvePasteType(schematicName, type);
         if (resolvedType == SchematicType.FAWE) {
             DebugAPI.logLibInfo("[Schematic] paste '" + schematicName + "' engine=FAWE");
@@ -181,28 +192,28 @@ public class SchematicManager {
         Objects.requireNonNull(schematicName, "schematicName");
 
         CompletableFuture<Boolean> future = new CompletableFuture<>();
-        int pending = regenerationQueue.size() + (regenerating.get() ? 1 : 0);
+        int pending = operationQueue.size() + (processing.get() ? 1 : 0);
         if (pending > 0) {
             DebugAPI.logLibInfo("[Schematic] queued '" + schematicName + "' — waiting for " + pending + " schematic(s)");
         }
-        regenerationQueue.add(new QueuedRegeneration(schematicName, () -> doRegenerate(region, schematicName, type, teleportToAir), future));
+        operationQueue.add(new QueuedOperation(schematicName, () -> doRegenerate(region, schematicName, type, teleportToAir), future));
         drainQueue();
         return future;
     }
 
     private void drainQueue() {
-        if (!regenerating.compareAndSet(false, true)) return;
+        if (!processing.compareAndSet(false, true)) return;
         pollAndRun();
     }
 
     private void pollAndRun() {
-        QueuedRegeneration next = regenerationQueue.poll();
+        QueuedOperation next = operationQueue.poll();
         if (next == null) {
-            regenerating.set(false);
-            DebugAPI.logLibInfo("[Schematic] queue empty — all regenerations complete");
+            processing.set(false);
+            DebugAPI.logLibInfo("[Schematic] queue empty — all operations complete");
             return;
         }
-        int remaining = regenerationQueue.size();
+        int remaining = operationQueue.size();
         String suffix = remaining > 0 ? " (" + remaining + " more in queue)" : "";
         DebugAPI.logLibInfo("[Schematic] starting '" + next.schematicName() + "'" + suffix);
         next.action().get().whenComplete((result, ex) -> {
@@ -432,8 +443,8 @@ public class SchematicManager {
     }
 
     public void shutdown() {
-        QueuedRegeneration pending;
-        while ((pending = regenerationQueue.poll()) != null) {
+        QueuedOperation pending;
+        while ((pending = operationQueue.poll()) != null) {
             pending.result().cancel(true);
         }
         unloadAllSchematics();
@@ -444,8 +455,8 @@ public class SchematicManager {
         }
     }
 
-    public int getRegenerationQueueSize() {
-        return regenerationQueue.size() + (regenerating.get() ? 1 : 0);
+    public int getQueueSize() {
+        return operationQueue.size() + (processing.get() ? 1 : 0);
     }
 
     public File getSchematicsFolder() {

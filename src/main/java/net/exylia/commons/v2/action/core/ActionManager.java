@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.action.core;
 
+import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import net.exylia.commons.v2.action.audit.AuditLogger;
 import net.exylia.commons.v2.action.cache.ActionCacheManager;
@@ -18,28 +19,35 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.concurrent.CompletableFuture;
-
 public class ActionManager {
+
     private static ActionManager instance;
     private static final Object LOCK = new Object();
 
     @Getter
     private final JavaPlugin plugin;
+
     @Getter
     private final ActionRegistry registry;
+
     @Getter
     private final ActionExecutor executor;
+
     @Getter
     private final ActionFactory factory;
+
     @Getter
     private final ActionCacheManager cacheManager;
+
     @Getter
     private final ActionPipeline pipeline;
+
     @Getter
     private final CooldownManager cooldownManager;
+
     @Getter
     private final AuditLogger auditLogger;
+
     private final RateLimiter rateLimiter;
     private final PermissionProvider permissionProvider;
 
@@ -47,17 +55,20 @@ public class ActionManager {
         this.plugin = plugin;
         this.registry = new ActionRegistry();
         this.cacheManager = new ActionCacheManager();
-        this.cooldownManager = new CooldownManager(cacheManager.getCooldownCache());
-        this.rateLimiter = new TokenBucketRateLimiter(cacheManager.getRateLimitCache());
+        this.cooldownManager = new CooldownManager(
+            cacheManager.getCooldownCache()
+        );
+        this.rateLimiter = new TokenBucketRateLimiter(
+            cacheManager.getRateLimitCache()
+        );
         this.auditLogger = new AuditLogger();
         this.factory = new ActionFactory();
         this.pipeline = new ActionPipeline();
-        this.executor = new ActionExecutor(registry, pipeline, cacheManager, cooldownManager, auditLogger);
+        this.executor = new ActionExecutor(registry, pipeline, cacheManager);
 
         this.permissionProvider = initializePermissionProvider();
 
         initializeDefaultMiddlewares();
-
     }
 
     public static void initialize(JavaPlugin plugin) {
@@ -70,7 +81,9 @@ public class ActionManager {
 
     public static ActionManager getInstance() {
         if (instance == null) {
-            throw new IllegalStateException("ActionManager not initialized. Call initialize() first.");
+            throw new IllegalStateException(
+                "ActionManager not initialized. Call initialize() first."
+            );
         }
         return instance;
     }
@@ -88,17 +101,41 @@ public class ActionManager {
     }
 
     private void initializeDefaultMiddlewares() {
-        pipeline.registerMiddleware(PipelineStage.PRE_VALIDATE, new NamespaceMiddleware());
-        pipeline.registerMiddleware(PipelineStage.PRE_VALIDATE, new ValidationMiddleware());
+        pipeline.registerMiddleware(
+            PipelineStage.PRE_VALIDATE,
+            new NamespaceMiddleware()
+        );
+        pipeline.registerMiddleware(
+            PipelineStage.PRE_VALIDATE,
+            new ValidationMiddleware()
+        );
 
-        pipeline.registerMiddleware(PipelineStage.PRE_EXECUTE, new PermissionMiddleware(permissionProvider));
-        pipeline.registerMiddleware(PipelineStage.PRE_EXECUTE, new CooldownMiddleware(cooldownManager));
-        pipeline.registerMiddleware(PipelineStage.PRE_EXECUTE, new RateLimitMiddleware(rateLimiter));
+        pipeline.registerMiddleware(
+            PipelineStage.PRE_EXECUTE,
+            new PermissionMiddleware(permissionProvider)
+        );
+        pipeline.registerMiddleware(
+            PipelineStage.PRE_EXECUTE,
+            new CooldownMiddleware(cooldownManager)
+        );
+        pipeline.registerMiddleware(
+            PipelineStage.PRE_EXECUTE,
+            new RateLimitMiddleware(rateLimiter)
+        );
 
-        pipeline.registerMiddleware(PipelineStage.POST_EXECUTE, new CooldownApplyMiddleware(cooldownManager));
-        pipeline.registerMiddleware(PipelineStage.POST_EXECUTE, new LoggingMiddleware(auditLogger));
+        pipeline.registerMiddleware(
+            PipelineStage.POST_EXECUTE,
+            new CooldownApplyMiddleware(cooldownManager)
+        );
+        pipeline.registerMiddleware(
+            PipelineStage.POST_EXECUTE,
+            new LoggingMiddleware(auditLogger)
+        );
 
-        DebugAPI.logLibDebug(DebugCategory.ACTION, "Default middlewares initialized");
+        DebugAPI.logLibDebug(
+            DebugCategory.ACTION,
+            "Default middlewares initialized"
+        );
     }
 
     public CompletableFuture<Void> registerActionAsync(Action action) {
@@ -111,11 +148,17 @@ public class ActionManager {
         registry.register(action);
     }
 
-    public CompletableFuture<ActionResult> executeActionAsync(String actionString, ActionContext context) {
+    public CompletableFuture<ActionResult> executeActionAsync(
+        String actionString,
+        ActionContext context
+    ) {
         return executor.executeAsync(actionString, context);
     }
 
-    public ActionResult executeAction(String actionString, ActionContext context) {
+    public ActionResult executeAction(
+        String actionString,
+        ActionContext context
+    ) {
         return executor.executeSync(actionString, context);
     }
 
@@ -137,7 +180,10 @@ public class ActionManager {
     public void clearCache() {
         cacheManager.invalidateAll();
         auditLogger.clear();
-        DebugAPI.logLibInfo(DebugCategory.ACTION, "ActionManager cache cleared");
+        DebugAPI.logLibInfo(
+            DebugCategory.ACTION,
+            "ActionManager cache cleared"
+        );
     }
 
     public void reload() {

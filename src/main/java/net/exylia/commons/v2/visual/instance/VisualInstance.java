@@ -52,10 +52,6 @@ public abstract class VisualInstance<T extends VisualConfig> {
         return lifecycle.getState() == InstanceLifecycle.LifecycleState.ACTIVE;
     }
 
-    public boolean isPermanent() {
-        return config.isPermanent();
-    }
-
     public long getAge() {
         return System.currentTimeMillis() - createdAt;
     }

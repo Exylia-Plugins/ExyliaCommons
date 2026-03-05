@@ -21,164 +21,43 @@ public final class ActionBarAPI {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    public static CompletableFuture<String> send(Player player, String text) {
-        return send(player, text, PlaceholderContext.create());
-    }
-
-    public static CompletableFuture<String> send(Player player, String text, PlaceholderContext context) {
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .build();
-
-        return VisualManager.getInstance()
-                .sendSimple(player, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR);
-    }
-
     public static CompletableFuture<String> send(Player player, ActionBarConfig config) {
         return send(player, config, PlaceholderContext.create());
     }
 
     public static CompletableFuture<String> send(Player player, ActionBarConfig config, PlaceholderContext context) {
-        if (config.isPermanent()) {
-            return sendPermanent(player, config, context);
-        }
         return VisualManager.getInstance()
                 .sendSimple(player, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR);
     }
 
-    public static CompletableFuture<String> sendPermanent(Player player, String text) {
-        return sendPermanent(player, text, PlaceholderContext.create());
+    public static void sendUpdatable(Player player, String key, ActionBarConfig config, PlaceholderContext context) {
+        VisualManager.getInstance().sendOrUpdateContinuous(
+                player, key, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR
+        );
     }
 
-    public static CompletableFuture<String> sendPermanent(Player player, String text, PlaceholderContext context) {
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .permanent()
-                .build();
-
-        return sendPermanent(player, config, context);
-    }
-
-    public static CompletableFuture<String> sendPermanent(Player player, ActionBarConfig config, PlaceholderContext context) {
-        return VisualManager.getInstance()
-                .sendContinuous(player, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR);
-    }
-
-    public static CompletableFuture<String> countdown(Player player, int durationSeconds) {
-        return countdown(player, durationSeconds, "%time_formatted%");
-    }
-
-    public static CompletableFuture<String> countdown(Player player, int durationSeconds, String text) {
-        return countdown(player, durationSeconds, text, PlaceholderContext.create());
-    }
-
-    public static CompletableFuture<String> countdown(
-            Player player,
-            int durationSeconds,
-            String text,
-            PlaceholderContext context
-    ) {
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .build();
-
-        return countdown(player, durationSeconds, config, context);
-    }
-
-    public static CompletableFuture<String> countdown(
-            Player player,
-            int durationSeconds,
-            ActionBarConfig config,
-            PlaceholderContext context
-    ) {
+    public static CompletableFuture<String> countdown(Player player, int durationSeconds, ActionBarConfig config, PlaceholderContext context) {
         long durationTicks = durationSeconds * 20L;
         return VisualManager.getInstance()
                 .sendCountdown(player, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR, durationTicks);
     }
 
-    public static CompletableFuture<String> countdownMillis(Player player, long durationMillis) {
-        return countdownMillis(player, durationMillis, "%time_formatted%");
-    }
-
-    public static CompletableFuture<String> countdownMillis(Player player, long durationMillis, String text) {
-        return countdownMillis(player, durationMillis, text, PlaceholderContext.create());
-    }
-
-    public static CompletableFuture<String> countdownMillis(
-            Player player,
-            long durationMillis,
-            String text,
-            PlaceholderContext context
-    ) {
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .build();
-
-        return countdownMillis(player, durationMillis, config, context);
-    }
-
-    public static CompletableFuture<String> countdownMillis(
-            Player player,
-            long durationMillis,
-            ActionBarConfig config,
-            PlaceholderContext context
-    ) {
+    public static CompletableFuture<String> countdownMillis(Player player, long durationMillis, ActionBarConfig config, PlaceholderContext context) {
         long durationTicks = durationMillis / 50L;
         return VisualManager.getInstance()
                 .sendCountdown(player, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR, durationTicks);
     }
 
-    public static CountdownActionBarBuilder countdownBuilder(Player player, int durationSeconds) {
-        return new CountdownActionBarBuilder(player, durationSeconds);
+    public static CountdownActionBarBuilder countdownBuilder(Player player, int durationSeconds, ActionBarConfig config) {
+        return new CountdownActionBarBuilder(player, durationSeconds, config);
     }
 
-    public static CountdownActionBarBuilder countdownMillisBuilder(Player player, long durationMillis) {
-        return new CountdownActionBarBuilder(player, (int) (durationMillis / 1000));
+    public static CountdownActionBarBuilder countdownMillisBuilder(Player player, long durationMillis, ActionBarConfig config) {
+        return new CountdownActionBarBuilder(player, (int) (durationMillis / 1000), config);
     }
 
     public static ActionBarBuilder builder() {
         return ActionBarBuilder.create();
-    }
-
-    public static void countdownMillis(
-            Player player,
-            String key,
-            long durationMillis,
-            ActionBarConfig config,
-            PlaceholderContext context,
-            Runnable onComplete
-    ) {
-        long durationTicks = durationMillis / 50L;
-        boolean isNew = VisualRegistry.getInstance().get(player.getUniqueId(), key).isEmpty();
-
-        VisualManager.getInstance().sendOrUpdateCountdown(
-                player, key, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR, durationTicks
-        );
-
-        if (isNew && onComplete != null) {
-            VisualRegistry.getInstance().get(player.getUniqueId(), key)
-                    .ifPresent(instance -> {
-                        if (instance instanceof CountdownVisualInstance<?> countdown) {
-                            countdown.setOnComplete(onComplete);
-                        }
-                    });
-        }
-    }
-
-    public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context) {
-        sendUpdatable(player, key, text, context, 20L);
-    }
-
-    public static void sendUpdatable(Player player, String key, String text, PlaceholderContext context, long updateIntervalTicks) {
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .permanent()
-                .updateInterval(updateIntervalTicks)
-                .build();
-
-        VisualManager.getInstance().sendOrUpdateContinuous(
-                player, key, config, context, ActionBarRenderer.getInstance(), VisualType.ACTIONBAR
-        );
     }
 
     public static boolean cancel(Player player, String actionBarId) {
@@ -192,25 +71,15 @@ public final class ActionBarAPI {
     public static class CountdownActionBarBuilder {
         private final Player player;
         private final int durationSeconds;
-        private String text = "%time_formatted%";
-        private long updateInterval = 10L;
+        private final ActionBarConfig config;
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
 
-        private CountdownActionBarBuilder(Player player, int durationSeconds) {
+        private CountdownActionBarBuilder(Player player, int durationSeconds, ActionBarConfig config) {
             this.player = player;
             this.durationSeconds = durationSeconds;
-        }
-
-        public CountdownActionBarBuilder text(String text) {
-            this.text = text;
-            return this;
-        }
-
-        public CountdownActionBarBuilder updateInterval(long updateInterval) {
-            this.updateInterval = updateInterval;
-            return this;
+            this.config = config;
         }
 
         public CountdownActionBarBuilder context(PlaceholderContext context) {
@@ -229,23 +98,14 @@ public final class ActionBarAPI {
         }
 
         public CompletableFuture<String> start() {
-            ActionBarConfig config = ActionBarBuilder.create()
-                    .text(text)
-                    .build();
-
             return countdown(player, durationSeconds, config, context)
                     .thenApply(id -> {
                         VisualRegistry.getInstance()
                                 .get(player.getUniqueId(), id)
                                 .ifPresent(instance -> {
-                                    if (instance instanceof CountdownVisualInstance) {
-                                        CountdownVisualInstance<?> countdown = (CountdownVisualInstance<?>) instance;
-                                        if (onComplete != null) {
-                                            countdown.setOnComplete(onComplete);
-                                        }
-                                        if (onCancel != null) {
-                                            countdown.setOnCancel(onCancel);
-                                        }
+                                    if (instance instanceof CountdownVisualInstance<?> countdown) {
+                                        if (onComplete != null) countdown.setOnComplete(onComplete);
+                                        if (onCancel != null) countdown.setOnCancel(onCancel);
                                     }
                                 });
                         return id;
@@ -253,8 +113,8 @@ public final class ActionBarAPI {
         }
     }
 
-    public static GlobalCountdownActionBarBuilder broadcastCountdown(String id, int durationSeconds) {
-        return new GlobalCountdownActionBarBuilder(id, durationSeconds);
+    public static GlobalCountdownActionBarBuilder broadcastCountdown(String id, int durationSeconds, ActionBarConfig config) {
+        return new GlobalCountdownActionBarBuilder(id, durationSeconds, config);
     }
 
     @SuppressWarnings("unchecked")
@@ -265,37 +125,25 @@ public final class ActionBarAPI {
 
     public static boolean cancelGlobalCountdown(String id) {
         return GlobalVisualRegistry.getInstance().get(id)
-                .map(instance -> {
-                    instance.cancel();
-                    return true;
-                })
+                .map(instance -> { instance.cancel(); return true; })
                 .orElse(false);
     }
 
     public static boolean restartGlobalCountdown(String id) {
         return GlobalVisualRegistry.getInstance().get(id)
-                .map(instance -> {
-                    instance.restart();
-                    return true;
-                })
+                .map(instance -> { instance.restart(); return true; })
                 .orElse(false);
     }
 
     public static boolean pauseGlobalCountdown(String id) {
         return GlobalVisualRegistry.getInstance().get(id)
-                .map(instance -> {
-                    instance.pause();
-                    return true;
-                })
+                .map(instance -> { instance.pause(); return true; })
                 .orElse(false);
     }
 
     public static boolean resumeGlobalCountdown(String id) {
         return GlobalVisualRegistry.getInstance().get(id)
-                .map(instance -> {
-                    instance.resume();
-                    return true;
-                })
+                .map(instance -> { instance.resume(); return true; })
                 .orElse(false);
     }
 }

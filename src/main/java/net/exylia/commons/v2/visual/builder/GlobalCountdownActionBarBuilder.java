@@ -13,23 +13,19 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class GlobalCountdownActionBarBuilder {
-    private String id;
+    private final String id;
     private final int durationSeconds;
-    private String text = "Tiempo: %time_formatted%";
+    private final ActionBarConfig config;
     private PlaceholderContext context = PlaceholderContext.create();
     private Predicate<Player> playerFilter;
     private Consumer<GlobalCountdownContext> onComplete;
     private Consumer<GlobalCountdownContext> onCancel;
     private Consumer<GlobalCountdownContext> onTick;
 
-    public GlobalCountdownActionBarBuilder(String id, int durationSeconds) {
+    public GlobalCountdownActionBarBuilder(String id, int durationSeconds, ActionBarConfig config) {
         this.id = id;
         this.durationSeconds = durationSeconds;
-    }
-
-    public GlobalCountdownActionBarBuilder text(String text) {
-        this.text = text;
-        return this;
+        this.config = config;
     }
 
     public GlobalCountdownActionBarBuilder context(PlaceholderContext context) {
@@ -58,14 +54,6 @@ public class GlobalCountdownActionBarBuilder {
     }
 
     public CompletableFuture<String> start() {
-        if (id == null || id.isEmpty()) {
-            id = "global_actionbar_" + System.currentTimeMillis();
-        }
-
-        ActionBarConfig config = ActionBarBuilder.create()
-                .text(text)
-                .build();
-
         return VisualManager.getInstance().sendGlobalCountdown(
                 id,
                 config,

@@ -9,7 +9,6 @@ import net.exylia.commons.v2.visual.validation.ValidationResult;
 public abstract class VisualConfig {
     protected boolean enabled = true;
     protected long updateInterval = 20L;
-    protected boolean permanent = false;
 
     public abstract ValidationResult validate();
 

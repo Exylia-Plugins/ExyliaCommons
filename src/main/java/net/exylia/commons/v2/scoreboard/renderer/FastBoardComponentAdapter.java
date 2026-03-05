@@ -10,7 +10,7 @@ import java.util.List;
 @Getter
 public class FastBoardComponentAdapter {
 
-    private final FastBoardComponent fastBoard;
+    private FastBoardComponent fastBoard;
     private final Player player;
     private Component lastTitle;
     private List<Component> lastLines;
@@ -20,6 +20,17 @@ public class FastBoardComponentAdapter {
         this.player = player;
         this.fastBoard = new FastBoardComponent(player);
         this.deleted = false;
+    }
+
+    public void reinitialize() {
+        if (deleted) return;
+        try {
+            fastBoard.delete();
+        } catch (Exception ignored) {
+        }
+        fastBoard = new FastBoardComponent(player);
+        lastTitle = null;
+        lastLines = null;
     }
 
     public void updateTitle(Component title) {
