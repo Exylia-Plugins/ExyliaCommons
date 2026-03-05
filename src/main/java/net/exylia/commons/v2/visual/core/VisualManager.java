@@ -168,9 +168,38 @@ public class VisualManager {
             VisualType type,
             long durationTicks
     ) {
+        return sendCountdown(player, null, config, context, renderer, type, durationTicks, null, null);
+    }
+
+    public <T extends VisualConfig> CompletableFuture<String> sendCountdown(
+            Player player,
+            String key,
+            T config,
+            PlaceholderContext context,
+            VisualRenderer<T> renderer,
+            VisualType type,
+            long durationTicks,
+            Runnable onComplete,
+            Runnable onCancel
+    ) {
         validateInitialized();
         if (!validateParameters(player, config)) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        if (key != null) {
+            Optional<VisualInstance<?>> existing = VisualRegistry.getInstance().get(player.getUniqueId(), key);
+            if (existing.isPresent()) {
+                VisualInstance<?> inst = existing.get();
+                if (inst instanceof CountdownVisualInstance<?> countdown) {
+                    PlaceholderContext enrichedContext = enrichContext(context, player, key);
+                    enrichedContext.put("countdown_duration", durationTicks);
+                    countdown.resetDuration(durationTicks);
+                    countdown.updateContext(enrichedContext);
+                    return CompletableFuture.completedFuture(key);
+                }
+                inst.cancel();
+            }
         }
 
         if (!VisualLimiter.canAdd(player, type)) {
@@ -181,10 +210,9 @@ public class VisualManager {
             );
         }
 
-        String id = generateId(type);
-        long seconds = durationTicks / 20;
+        String id = key != null ? key : generateId(type);
         DebugAPI.logLibDebug(DebugCategory.VISUAL,
-            "Sending countdown " + type + " to " + player.getName() + " (ID: " + id + ", duration: " + seconds + "s)");
+            "Sending countdown " + type + " to " + player.getName() + " (ID: " + id + ", duration: " + (durationTicks / 20) + "s)");
 
         PlaceholderContext enrichedContext = enrichContext(context, player, id);
         enrichedContext.put("countdown_duration", durationTicks);
@@ -192,6 +220,8 @@ public class VisualManager {
         CountdownVisualInstance<T> instance = new CountdownVisualInstance<>(
                 id, config, player, enrichedContext, renderer, durationTicks
         );
+        if (onComplete != null) instance.setOnComplete(onComplete);
+        if (onCancel != null) instance.setOnCancel(onCancel);
 
         VisualRegistry.getInstance().register(player.getUniqueId(), id, instance, type);
 
@@ -239,39 +269,6 @@ public class VisualManager {
         instance.start();
     }
 
-    public <T extends VisualConfig> void sendOrUpdateCountdown(
-            Player player,
-            String key,
-            T config,
-            PlaceholderContext context,
-            VisualRenderer<T> renderer,
-            VisualType type,
-            long durationTicks
-    ) {
-        validateInitialized();
-        if (!validateParameters(player, config)) return;
-
-        PlaceholderContext enrichedContext = enrichContext(context, player, key);
-        enrichedContext.put("countdown_duration", durationTicks);
-
-        Optional<VisualInstance<?>> existing = VisualRegistry.getInstance().get(player.getUniqueId(), key);
-        if (existing.isPresent()) {
-            VisualInstance<?> inst = existing.get();
-            if (inst instanceof CountdownVisualInstance<?> countdown) {
-                countdown.resetDuration(durationTicks);
-                countdown.updateContext(enrichedContext);
-                return;
-            }
-            inst.cancel();
-        }
-
-        CountdownVisualInstance<T> instance = new CountdownVisualInstance<>(
-                key, config, player, enrichedContext, renderer, durationTicks
-        );
-
-        VisualRegistry.getInstance().register(player.getUniqueId(), key, instance, type);
-        instance.start();
-    }
 
     public boolean cancel(UUID playerId, String visualId) {
         boolean result = VisualRegistry.getInstance().get(playerId, visualId)

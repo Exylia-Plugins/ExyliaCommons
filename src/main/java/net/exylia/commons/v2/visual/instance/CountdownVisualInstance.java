@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class CountdownVisualInstance<T extends VisualConfig> extends VisualInstance<T> {
     private final long durationTicks;
     private long ticksRemaining;
-    private long lastRenderedSeconds = -1;
+    private long ticksSinceRender = 0;
     private ScheduledTask countdownTask;
 
     @Setter
@@ -69,14 +69,14 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
             updateContext(countdownContext);
 
-            if (secondsRemaining != lastRenderedSeconds) {
-                lastRenderedSeconds = secondsRemaining;
+            if (ticksSinceRender <= 0) {
+                ticksSinceRender = config.getUpdateInterval();
                 try {
                     render();
                 } catch (Exception ignored) {
                 }
             }
-
+            ticksSinceRender--;
             ticksRemaining--;
 
         }, 0L, 1L);

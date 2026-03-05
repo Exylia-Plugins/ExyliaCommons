@@ -75,11 +75,17 @@ public final class TitleAPI {
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
+        private String key;
 
         private CountdownTitleBuilder(Player player, int durationSeconds, TitleConfig config) {
             this.player = player;
             this.durationSeconds = durationSeconds;
             this.config = config;
+        }
+
+        public CountdownTitleBuilder key(String key) {
+            this.key = key;
+            return this;
         }
 
         public CountdownTitleBuilder context(PlaceholderContext context) {
@@ -98,18 +104,10 @@ public final class TitleAPI {
         }
 
         public CompletableFuture<String> start() {
-            return countdown(player, durationSeconds, config, context)
-                    .thenApply(id -> {
-                        VisualRegistry.getInstance()
-                                .get(player.getUniqueId(), id)
-                                .ifPresent(instance -> {
-                                    if (instance instanceof CountdownVisualInstance<?> countdown) {
-                                        if (onComplete != null) countdown.setOnComplete(onComplete);
-                                        if (onCancel != null) countdown.setOnCancel(onCancel);
-                                    }
-                                });
-                        return id;
-                    });
+            return VisualManager.getInstance().sendCountdown(
+                    player, key, config, context, TitleRenderer.getInstance(), VisualType.TITLE,
+                    durationSeconds * 20L, onComplete, onCancel
+            );
         }
     }
 

@@ -80,11 +80,17 @@ public final class BossBarAPI {
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
+        private String key;
 
         private CountdownBossBarBuilder(Player player, int durationSeconds, BossBarConfig config) {
             this.player = player;
             this.durationSeconds = durationSeconds;
             this.config = config;
+        }
+
+        public CountdownBossBarBuilder key(String key) {
+            this.key = key;
+            return this;
         }
 
         public CountdownBossBarBuilder context(PlaceholderContext context) {
@@ -103,18 +109,10 @@ public final class BossBarAPI {
         }
 
         public CompletableFuture<String> start() {
-            return countdown(player, durationSeconds, config, context)
-                    .thenApply(id -> {
-                        VisualRegistry.getInstance()
-                                .get(player.getUniqueId(), id)
-                                .ifPresent(instance -> {
-                                    if (instance instanceof CountdownVisualInstance<?> countdown) {
-                                        if (onComplete != null) countdown.setOnComplete(onComplete);
-                                        if (onCancel != null) countdown.setOnCancel(onCancel);
-                                    }
-                                });
-                        return id;
-                    });
+            return VisualManager.getInstance().sendCountdown(
+                    player, key, config, context, BossBarRenderer.getInstance(), VisualType.BOSSBAR,
+                    durationSeconds * 20L, onComplete, onCancel
+            );
         }
     }
 

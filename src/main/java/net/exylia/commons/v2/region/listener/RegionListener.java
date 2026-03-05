@@ -81,7 +81,7 @@ public class RegionListener implements Listener {
                 event.setCancelled(false);
                 return;
             }
-            if (!player.hasPermission("exylia.region.bypass.break") && !region.isOwner(player.getUniqueId())) {
+            if (!hasBypass(player) && !region.isOwner(player.getUniqueId())) {
                 event.setCancelled(true);
                 return;
             }
@@ -89,14 +89,14 @@ public class RegionListener implements Listener {
 
         if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
             boolean isPlayerBlock = PlayerBlockTracker.getInstance().isPlayerPlacedBlock(region.getId(), location);
-            if (!isPlayerBlock) {
+            if (!isPlayerBlock && !hasBypass(player)) {
                 event.setCancelled(true);
                 return;
             }
         }
 
         if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
-            if (!region.isMember(player.getUniqueId()) && !player.hasPermission("exylia.region.bypass.members")) {
+            if (!region.isMember(player.getUniqueId()) && !hasBypass(player)) {
                 event.setCancelled(true);
                 return;
             }
@@ -118,7 +118,7 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
 
         if (!region.getFlagValue(RegionFlag.BUILD)) {
-            if (!player.hasPermission("exylia.region.bypass.build") && !region.isOwner(player.getUniqueId())) {
+            if (!hasBypass(player) && !region.isOwner(player.getUniqueId())) {
                 event.setCancelled(true);
                 return;
             }
@@ -126,24 +126,24 @@ public class RegionListener implements Listener {
 
         if (region.getFlagValue(RegionFlag.ALLOWED_BLOCKS_ONLY)) {
             Material material = event.getBlock().getType();
-            if (!region.isMaterialAllowed(material)) {
+            if (!region.isMaterialAllowed(material) && !hasBypass(player)) {
                 event.setCancelled(true);
                 return;
             }
         }
 
         if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
-            if (!region.isMember(player.getUniqueId()) && !player.hasPermission("exylia.region.bypass.members")) {
+            if (!region.isMember(player.getUniqueId()) && !hasBypass(player)) {
                 event.setCancelled(true);
                 return;
             }
         }
 
-        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY) && !hasBypass(player)) {
             PlayerBlockTracker.getInstance().trackBlock(region.getId(), player.getUniqueId(), location);
         }
 
-        if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS)) {
+        if (region.getFlagValue(RegionFlag.TEMPORARY_BLOCKS) && !hasBypass(player)) {
             int seconds = region.getTemporaryBlocksSeconds();
             boolean reGive = region.getFlagValue(RegionFlag.RE_GIVE_BLOCKS);
             TemporaryBlockManager.getInstance().addTemporaryBlock(location, player, seconds, reGive);
@@ -167,7 +167,7 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
 
         if (!region.getFlagValue(RegionFlag.INTERACT)) {
-            if (!player.hasPermission("exylia.region.bypass.interact") && !region.isMember(player.getUniqueId())) {
+            if (!hasBypass(player) && !region.isMember(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }
@@ -194,7 +194,7 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
 
         if (!region.getFlagValue(RegionFlag.PVP)) {
-            if (!attacker.hasPermission("exylia.region.bypass.pvp")) {
+            if (!hasBypass(attacker)) {
                 event.setCancelled(true);
             }
         }
@@ -213,7 +213,7 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
 
         if (!region.getFlagValue(RegionFlag.ITEM_DROP)) {
-            if (!player.hasPermission("exylia.region.bypass.item_drop") && !region.isMember(player.getUniqueId())) {
+            if (!hasBypass(player) && !region.isMember(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }
@@ -232,7 +232,7 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
 
         if (!region.getFlagValue(RegionFlag.ITEM_PICKUP)) {
-            if (!player.hasPermission("exylia.region.bypass.item_pickup") && !region.isMember(player.getUniqueId())) {
+            if (!hasBypass(player) && !region.isMember(player.getUniqueId())) {
                 event.setCancelled(true);
             }
         }
@@ -247,7 +247,7 @@ public class RegionListener implements Listener {
         if (regions.isEmpty()) return;
 
         Region region = regions.get(0);
-        if (!region.getFlagValue(RegionFlag.FALL_DAMAGE)) {
+        if (!region.getFlagValue(RegionFlag.FALL_DAMAGE) && !hasBypass(player)) {
             event.setCancelled(true);
         }
     }
@@ -258,5 +258,9 @@ public class RegionListener implements Listener {
         Location location = player.getLocation();
 
         manager.processPlayerMovement(player, location, location);
+    }
+
+    private boolean hasBypass(Player player) {
+        return player.hasPermission("exylia.region.bypass");
     }
 }

@@ -271,14 +271,13 @@ public class RegionManager implements Listener {
         }
 
         if (!region.getFlagValue(RegionFlag.ENTRY)) {
-            if (!player.hasPermission("exylia.region.bypass.entry") &&
-                    !region.isMember(player.getUniqueId())) {
+            if (!player.hasPermission("exylia.region.bypass") && !region.isMember(player.getUniqueId())) {
                 return false;
             }
         }
 
         if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
-            return region.isMember(player.getUniqueId()) || player.hasPermission("exylia.region.bypass.members");
+            return region.isMember(player.getUniqueId()) || player.hasPermission("exylia.region.bypass");
         }
 
         return true;
@@ -296,8 +295,7 @@ public class RegionManager implements Listener {
         }
 
         if (!region.getFlagValue(RegionFlag.EXIT)) {
-            if (!player.hasPermission("exylia.region.bypass.exit") &&
-                    !region.isOwner(player.getUniqueId())) {
+            if (!player.hasPermission("exylia.region.bypass") && !region.isOwner(player.getUniqueId())) {
                 return false;
             }
         }
