@@ -5,12 +5,10 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.visual.color.ColorProcessor;
 import net.kyori.adventure.text.Component;
 
-import java.util.concurrent.TimeUnit;
 
 public class ComponentCache {
     private static final Cache<String, Component> cache = Caffeine.newBuilder()
-            .maximumSize(800)
-            .expireAfterWrite(30, TimeUnit.SECONDS)
+            .maximumSize(2000)
             .recordStats()
             .build();
 

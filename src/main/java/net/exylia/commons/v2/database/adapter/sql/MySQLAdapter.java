@@ -5,9 +5,11 @@ import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class MySQLAdapter extends SQLAdapter {
 
@@ -98,6 +100,48 @@ public class MySQLAdapter extends SQLAdapter {
     @Override
     protected String getCountSQL(EntityMetadata metadata) {
         return "SELECT COUNT(*) FROM `" + metadata.getTableName() + "`";
+    }
+
+    @Override
+    public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        String sql = getUpsertSQL(metadata);
+        try (Connection conn = dataSource.getConnection()) {
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (T entity : entities) {
+                    bindInsertValues(stmt, entity, metadata);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+                conn.commit();
+            } catch (Exception e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
+    private String getUpsertSQL(EntityMetadata metadata) {
+        StringBuilder columns = new StringBuilder();
+        StringBuilder values = new StringBuilder();
+        StringBuilder updates = new StringBuilder();
+        for (FieldDescriptor field : metadata.getFields()) {
+            if (field.isAutoIncrement()) continue;
+            columns.append("`").append(field.getColumnName()).append("`,");
+            values.append("?,");
+            if (!field.isPrimaryKey()) {
+                updates.append("`").append(field.getColumnName()).append("`=VALUES(`").append(field.getColumnName()).append("`),");
+            }
+        }
+        columns.setLength(columns.length() - 1);
+        values.setLength(values.length() - 1);
+        updates.setLength(updates.length() - 1);
+        return "INSERT INTO `" + metadata.getTableName() + "`(" + columns + ") VALUES(" + values + ") ON DUPLICATE KEY UPDATE " + updates;
+    }
+
+    @Override
+    protected String getModifyColumnSql(String tableName, FieldDescriptor field) {
+        return "ALTER TABLE `" + tableName + "` MODIFY COLUMN `" + field.getColumnName() + "` " + getMySQLType(field);
     }
 
     @Override

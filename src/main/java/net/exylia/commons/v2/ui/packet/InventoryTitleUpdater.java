@@ -3,11 +3,12 @@ package net.exylia.commons.v2.ui.packet;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerOpenWindow;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.kyori.adventure.text.Component;
+import net.exylia.commons.v2.compat.InventoryViewCompat;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-
-import java.lang.reflect.Method;
 
 public final class InventoryTitleUpdater {
 
@@ -15,20 +16,21 @@ public final class InventoryTitleUpdater {
 
     public static void updateTitle(Player player, Inventory inventory, Component title) {
         try {
-            Object view = player.getOpenInventory();
-            Method getTopInventory = view.getClass().getMethod("getTopInventory");
-            Inventory topInventory = (Inventory) getTopInventory.invoke(view);
+            Inventory topInventory = InventoryViewCompat.getTopInventory(player);
             if (topInventory != inventory) {
+                DebugAPI.logLibDebug(DebugCategory.UI, "Title update skipped for " + player.getName() + ": inventory mismatch");
                 return;
             }
 
             int containerId = ContainerIdTracker.getContainerId(player.getUniqueId());
             if (containerId == -1) {
+                DebugAPI.logLibDebug(DebugCategory.UI, "Title update skipped for " + player.getName() + ": containerId=-1 (PacketEvents listener not registered?)");
                 return;
             }
 
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
             if (user == null) {
+                DebugAPI.logLibDebug(DebugCategory.UI, "Title update skipped for " + player.getName() + ": PacketEvents user is null");
                 return;
             }
 
@@ -41,7 +43,10 @@ public final class InventoryTitleUpdater {
             );
 
             user.sendPacket(packet);
-        } catch (Exception ignored) {
+            player.updateInventory();
+            DebugAPI.logLibDebug(DebugCategory.UI, "Title updated for " + player.getName() + " (containerId=" + containerId + ", type=" + inventoryType + ")");
+        } catch (Exception e) {
+            DebugAPI.logLibDebug(DebugCategory.UI, "Title update failed for " + player.getName() + ": " + e.getMessage());
         }
     }
 

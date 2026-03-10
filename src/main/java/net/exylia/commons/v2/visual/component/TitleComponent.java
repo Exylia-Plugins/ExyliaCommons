@@ -87,6 +87,7 @@ public class TitleComponent implements VisualComponent<TitleConfig> {
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
+        private Consumer<Long> onTick;
 
         private CountdownTitleComponentBuilder(Player player, int durationSeconds, TitleConfig config) {
             this.player = player;
@@ -116,11 +117,17 @@ public class TitleComponent implements VisualComponent<TitleConfig> {
             return this;
         }
 
+        public CountdownTitleComponentBuilder onTick(Consumer<Long> callback) {
+            this.onTick = callback;
+            return this;
+        }
+
         public CompletableFuture<String> start() {
             return TitleAPI.countdownBuilder(player, durationSeconds, config)
                     .context(context)
                     .onComplete(onComplete)
                     .onCancel(onCancel)
+                    .onTick(onTick)
                     .start();
         }
     }

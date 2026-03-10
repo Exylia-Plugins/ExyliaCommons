@@ -181,6 +181,24 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        List<Map<String, Object>> table = getTable(metadata.getTableName());
+        for (T entity : entities) {
+            Map<String, Object> newRecord = entityToMap(entity, metadata);
+            boolean found = false;
+            for (int i = 0; i < table.size(); i++) {
+                if (table.get(i).get("id").equals(entity.getId())) {
+                    table.set(i, newRecord);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) table.add(newRecord);
+        }
+        saveTable(metadata.getTableName());
+    }
+
+    @Override
     public <T extends Entity> void deleteBatch(List<T> entities, EntityMetadata metadata) throws Exception {
         List<Map<String, Object>> table = getTable(metadata.getTableName());
         for (T entity : entities) {

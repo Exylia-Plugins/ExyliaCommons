@@ -109,7 +109,17 @@ public class PlaceholderProcessor {
             return CompletableFuture.completedFuture(text);
         }
 
-        return processAsyncRecursive(text, player, context, 0);
+        return processAsyncRecursive(text, player, context, 0)
+                .thenApply(result -> {
+                    if (player != null && result != null && result.contains("%")) {
+                        try {
+                            return PapiAdapter.getInstance().setPlaceholders(player, result);
+                        } catch (Exception e) {
+                            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error processing PAPI placeholders: " + e.getMessage());
+                        }
+                    }
+                    return result;
+                });
     }
 
     private static CompletableFuture<String> processAsyncRecursive(String text, Player player, PlaceholderContext context, int depth) {
@@ -141,18 +151,20 @@ public class PlaceholderProcessor {
 
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
                 .thenCompose(v -> {
-                    String result = text;
-                    for (int i = placeholders.size() - 1; i >= 0; i--) {
+                    StringBuilder sb = new StringBuilder(text.length() + 32);
+                    int lastEnd = 0;
+                    for (int i = 0; i < placeholders.size(); i++) {
+                        sb.append(text, lastEnd, starts.get(i));
                         String replacement = futures.get(i).join();
-                        int start = starts.get(i);
-                        int end = ends.get(i);
-                        String originalPlaceholder = text.substring(start, end);
                         if (replacement == null || replacement.isEmpty()) {
-                            replacement = originalPlaceholder;
+                            sb.append(text, starts.get(i), ends.get(i));
+                        } else {
+                            sb.append(replacement);
                         }
-                        result = result.substring(0, start) + replacement + result.substring(end);
+                        lastEnd = ends.get(i);
                     }
-                    return processAsyncRecursive(result, player, context, depth + 1);
+                    sb.append(text, lastEnd, text.length());
+                    return processAsyncRecursive(sb.toString(), player, context, depth + 1);
                 })
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.PLACEHOLDER,

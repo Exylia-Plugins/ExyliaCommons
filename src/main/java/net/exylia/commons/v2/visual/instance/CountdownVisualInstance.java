@@ -12,6 +12,7 @@ import net.exylia.commons.v2.visual.renderer.VisualRenderer;
 import org.bukkit.entity.Player;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 @Getter
 public class CountdownVisualInstance<T extends VisualConfig> extends VisualInstance<T> {
@@ -24,6 +25,8 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
     private Runnable onComplete;
     @Setter
     private Runnable onCancel;
+    @Setter
+    private Consumer<Long> onTick;
 
     public CountdownVisualInstance(
             String id,
@@ -59,6 +62,13 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
             long millisRemaining = ticksRemaining * 50;
             double progress = durationTicks > 0 ? (double) ticksRemaining / durationTicks : 0.0;
             double decimalSeconds = ticksRemaining / 20.0;
+
+            if (ticksRemaining % 20 == 0 && onTick != null) {
+                try {
+                    onTick.accept(secondsRemaining);
+                } catch (Exception ignored) {
+                }
+            }
 
             countdownContext.put("time", secondsRemaining);
             countdownContext.put("time_decimal", String.format("%.1f", decimalSeconds));
@@ -136,6 +146,11 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
     public CountdownVisualInstance<T> onCancel(Runnable callback) {
         this.onCancel = callback;
+        return this;
+    }
+
+    public CountdownVisualInstance<T> onTick(Consumer<Long> callback) {
+        this.onTick = callback;
         return this;
     }
 

@@ -6,9 +6,11 @@ import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
 
 import java.io.File;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class H2Adapter extends SQLAdapter {
 
@@ -107,6 +109,37 @@ public class H2Adapter extends SQLAdapter {
     @Override
     protected String getCountSQL(EntityMetadata metadata) {
         return "SELECT COUNT(*) FROM " + metadata.getTableName();
+    }
+
+    @Override
+    public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        String sql = getMergeSQL(metadata);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (T entity : entities) {
+                bindInsertValues(stmt, entity, metadata);
+                stmt.addBatch();
+            }
+            stmt.executeBatch();
+        }
+    }
+
+    private String getMergeSQL(EntityMetadata metadata) {
+        StringBuilder columns = new StringBuilder();
+        StringBuilder values = new StringBuilder();
+        for (FieldDescriptor field : metadata.getFields()) {
+            if (field.isAutoIncrement()) continue;
+            columns.append(field.getColumnName()).append(",");
+            values.append("?,");
+        }
+        columns.setLength(columns.length() - 1);
+        values.setLength(values.length() - 1);
+        return "MERGE INTO " + metadata.getTableName() + " (" + columns + ") KEY(" + metadata.getPrimaryKeyField().getColumnName() + ") VALUES(" + values + ")";
+    }
+
+    @Override
+    protected String getModifyColumnSql(String tableName, FieldDescriptor field) {
+        return "ALTER TABLE " + tableName + " ALTER COLUMN " + field.getColumnName() + " " + getSQLType(field);
     }
 
     @Override

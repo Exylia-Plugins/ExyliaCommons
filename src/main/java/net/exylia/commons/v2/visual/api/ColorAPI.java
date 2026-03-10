@@ -27,7 +27,7 @@ public final class ColorAPI {
     }
 
     public static Component parse(String message) {
-        return ColorProcessor.parseToComponent(message);
+        return net.exylia.commons.v2.visual.cache.ComponentCache.getOrParse(message);
     }
 
     public static CompletableFuture<Component> parseAsync(String message) {

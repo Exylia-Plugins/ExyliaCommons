@@ -65,7 +65,17 @@ public class PaginationMenu extends MenuBase {
             return;
         }
 
+        if (menuData.getPaginationItemsSupplier() != null) {
+            menuData.setPaginationItems(menuData.getPaginationItemsSupplier().get());
+        }
+
+        int totalPages = getTotalPages();
         int currentPage = getCurrentPage();
+        if (currentPage > totalPages) {
+            setCurrentPage(Math.max(1, totalPages));
+            currentPage = getCurrentPage();
+        }
+
         List<ItemData> allItems = menuData.getPaginationItems();
 
         int itemsPerPage = slots.size();

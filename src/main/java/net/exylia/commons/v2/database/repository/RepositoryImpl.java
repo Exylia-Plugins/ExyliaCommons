@@ -55,11 +55,16 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public List<T> findAll() {
-        try {
-            return adapter.findAll(entityClass, metadata);
-        } catch (Exception e) {
-            throw new RepositoryException("Error finding all entities", e);
-        }
+        CacheKey key = CacheKey.of(entityClass, "ALL");
+        Object cached = cache.get(key, k -> {
+            try {
+                List<T> results = adapter.findAll(entityClass, metadata);
+                return results.isEmpty() ? null : results;
+            } catch (Exception e) {
+                throw new RepositoryException("Error finding all entities", e);
+            }
+        });
+        return cached != null ? (List<T>) cached : new ArrayList<>();
     }
 
     @Override
@@ -171,7 +176,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
             for (T entity : entities) {
                 entity.updateTimestamp();
             }
-            adapter.insertBatch(entities, metadata);
+            adapter.upsertBatch(entities, metadata);
             invalidateCache();
         } catch (Exception e) {
             throw new RepositoryException("Error saving batch of entities", e);

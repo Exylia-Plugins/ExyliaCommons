@@ -53,6 +53,7 @@ public abstract class MenuBase {
 
     protected Inventory inventory;
     protected ScheduledTask refreshTask;
+    private String lastRenderedTitle;
 
     protected MenuBase(Player player, MenuData menuData) {
         this.menuId = UUID.randomUUID();
@@ -244,7 +245,7 @@ public abstract class MenuBase {
         handleClickInternal(slot, clickType);
 
         if (menuData.getRefreshMode() != RefreshMode.DISABLED) {
-            if (menuData.getRefreshMode() == RefreshMode.ON_CLICK) {
+            if (menuData.getRefreshMode() == RefreshMode.ON_CLICK || menuData.getRefreshMode() == RefreshMode.SMART) {
                 scheduleClickedSlotRefresh(slot);
             } else {
                 schedulePostClickRefresh();
@@ -378,7 +379,9 @@ public abstract class MenuBase {
         boolean hasDynamicItems = itemsBySlot.values().stream()
                 .anyMatch(ProcessedItem::needsRefresh);
 
-        if (!hasDynamicItems) {
+        boolean hasPaginationSupplier = menuData.getPaginationItemsSupplier() != null;
+
+        if (!hasDynamicItems && !hasPaginationSupplier) {
             DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " has no dynamic items, skipping refresh schedule");
             return;
         }
@@ -421,8 +424,13 @@ public abstract class MenuBase {
 
     protected void fullRefresh() {
         Tasks.run(() -> {
-            populateItems();
+            try {
+                populateItemsWithoutDisplay();
+            } catch (Exception e) {
+                DebugAPI.logLibError(DebugCategory.UI, "Error populating menu " + menuId + " during fullRefresh", e);
+            }
             Tasks.sync(() -> {
+                if (state.get() != MenuState.OPEN || inventory == null) return;
                 updateInventoryDisplay();
                 refreshTitle();
             });
@@ -464,6 +472,10 @@ public abstract class MenuBase {
             return;
         }
         String processedTitle = processTitle(menuData.getTitle());
+        if (processedTitle.equals(lastRenderedTitle)) {
+            return;
+        }
+        lastRenderedTitle = processedTitle;
         PacketEventsSupport.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
     }
 
@@ -622,7 +634,7 @@ public abstract class MenuBase {
                         }
                     }
                 } catch (Exception e) {
-                    // Should never happen as we check isSingle/isMultiple before
+                    DebugAPI.logLibError(DebugCategory.UI, "Menu " + menuId + " failed to set item '" + entry.getKey() + "': " + e.getMessage(), e);
                 }
             }
         }

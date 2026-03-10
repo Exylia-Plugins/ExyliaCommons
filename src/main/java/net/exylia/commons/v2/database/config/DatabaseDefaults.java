@@ -32,6 +32,17 @@ public class DatabaseDefaults {
             public static int MAX_LIFETIME = 1800000;
         }
 
+        @ConfigSection("write-behind")
+        public static class WriteBehind {
+            @ConfigValue("enabled")
+            @Comment("Enable write-behind cache: saves are instant and flushed to DB periodically. Disable for direct synchronous saves.")
+            public static boolean ENABLED = true;
+
+            @ConfigValue("flush-interval")
+            @Comment("How often (in seconds) dirty data is flushed to the database.")
+            public static int FLUSH_INTERVAL = 30;
+        }
+
         @ConfigSection("cache")
         public static class Cache {
             @ConfigValue("enabled")

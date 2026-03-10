@@ -79,7 +79,7 @@ public class ScoreboardScheduler {
             }
 
             instances.removeIf(instance -> {
-                if (!instance.isActive()) {
+                if (instance.getLifecycle().isCancelled() || !instance.getPlayer().isOnline()) {
                     return true;
                 }
 

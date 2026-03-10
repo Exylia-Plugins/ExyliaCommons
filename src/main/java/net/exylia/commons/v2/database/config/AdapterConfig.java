@@ -111,7 +111,8 @@ public class AdapterConfig {
         return "jdbc:mysql://" + host + ":" + port + "/" + database +
                "?useUnicode=true&characterEncoding=UTF-8" +
                (ssl ? "&useSSL=true&requireSSL=true" : "&useSSL=false") +
-               "&serverTimezone=UTC&allowPublicKeyRetrieval=true";
+               "&serverTimezone=UTC&allowPublicKeyRetrieval=true" +
+               "&rewriteBatchedStatements=true";
     }
 
     public String getH2Url() {

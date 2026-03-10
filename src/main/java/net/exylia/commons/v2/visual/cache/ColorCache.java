@@ -4,12 +4,10 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.visual.color.ColorProcessor;
 
-import java.util.concurrent.TimeUnit;
 
 public class ColorCache {
     private static final Cache<String, String> cache = Caffeine.newBuilder()
-            .maximumSize(500)
-            .expireAfterWrite(30, TimeUnit.SECONDS)
+            .maximumSize(1000)
             .executor(Runnable::run)
             .build();
 

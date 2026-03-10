@@ -2,6 +2,9 @@ package net.exylia.commons.v2.database.adapter.mongo;
 
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOneModel;
+import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.WriteModel;
 import net.exylia.commons.v2.database.adapter.DatabaseAdapter;
 import net.exylia.commons.v2.database.config.AdapterConfig;
 import net.exylia.commons.v2.database.entity.Entity;
@@ -170,6 +173,18 @@ public class MongoDBAdapter implements DatabaseAdapter {
             Document doc = entityToDocument(entity, metadata);
             collection.replaceOne(Filters.eq("_id", entity.getId()), doc);
         }
+    }
+
+    @Override
+    public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
+        ReplaceOptions options = new ReplaceOptions().upsert(true);
+        List<WriteModel<Document>> operations = new ArrayList<>();
+        for (T entity : entities) {
+            Document doc = entityToDocument(entity, metadata);
+            operations.add(new ReplaceOneModel<>(Filters.eq("_id", entity.getId()), doc, options));
+        }
+        collection.bulkWrite(operations);
     }
 
     @Override

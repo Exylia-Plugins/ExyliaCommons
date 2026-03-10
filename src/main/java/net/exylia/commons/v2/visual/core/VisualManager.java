@@ -182,6 +182,21 @@ public class VisualManager {
             Runnable onComplete,
             Runnable onCancel
     ) {
+        return sendCountdown(player, key, config, context, renderer, type, durationTicks, onComplete, onCancel, null);
+    }
+
+    public <T extends VisualConfig> CompletableFuture<String> sendCountdown(
+            Player player,
+            String key,
+            T config,
+            PlaceholderContext context,
+            VisualRenderer<T> renderer,
+            VisualType type,
+            long durationTicks,
+            Runnable onComplete,
+            Runnable onCancel,
+            Consumer<Long> onTick
+    ) {
         validateInitialized();
         if (!validateParameters(player, config)) {
             return CompletableFuture.completedFuture(null);
@@ -222,6 +237,7 @@ public class VisualManager {
         );
         if (onComplete != null) instance.setOnComplete(onComplete);
         if (onCancel != null) instance.setOnCancel(onCancel);
+        if (onTick != null) instance.setOnTick(onTick);
 
         VisualRegistry.getInstance().register(player.getUniqueId(), id, instance, type);
 

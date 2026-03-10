@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public final class TitleAPI {
     private TitleAPI() {
@@ -75,6 +76,7 @@ public final class TitleAPI {
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
+        private Consumer<Long> onTick;
         private String key;
 
         private CountdownTitleBuilder(Player player, int durationSeconds, TitleConfig config) {
@@ -103,10 +105,15 @@ public final class TitleAPI {
             return this;
         }
 
+        public CountdownTitleBuilder onTick(Consumer<Long> callback) {
+            this.onTick = callback;
+            return this;
+        }
+
         public CompletableFuture<String> start() {
             return VisualManager.getInstance().sendCountdown(
                     player, key, config, context, TitleRenderer.getInstance(), VisualType.TITLE,
-                    durationSeconds * 20L, onComplete, onCancel
+                    durationSeconds * 20L, onComplete, onCancel, onTick
             );
         }
     }

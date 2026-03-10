@@ -44,6 +44,8 @@ public interface DatabaseAdapter {
 
     <T extends Entity> void updateBatch(List<T> entities, EntityMetadata metadata) throws Exception;
 
+    <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception;
+
     <T extends Entity> void deleteBatch(List<T> entities, EntityMetadata metadata) throws Exception;
 
     <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception;

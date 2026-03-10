@@ -34,10 +34,12 @@ public class DatabaseManager {
     private final CacheStrategy<CacheKey, Object> cacheStrategy;
     private final RepositoryRegistry repositoryRegistry;
     private final Map<Class<?>, EntityMetadata> entityMetadataCache;
+    private final org.bukkit.plugin.Plugin plugin;
 
-    private DatabaseManager(DatabaseConfig config, DatabaseAdapter adapter) {
+    private DatabaseManager(DatabaseConfig config, DatabaseAdapter adapter, org.bukkit.plugin.Plugin plugin) {
         this.config = config;
         this.adapter = adapter;
+        this.plugin = plugin;
         this.repositoryRegistry = RepositoryRegistry.getInstance();
         this.entityMetadataCache = new HashMap<>();
         this.cacheStrategy = createCacheStrategy();
@@ -62,7 +64,7 @@ public class DatabaseManager {
                 DatabaseConfig dbConfig = new DatabaseConfig(configFile, plugin);
                 DatabaseAdapter dbAdapter = createAdapter(dbConfig);
                 dbAdapter.connect();
-                instance = new DatabaseManager(dbConfig, dbAdapter);
+                instance = new DatabaseManager(dbConfig, dbAdapter, plugin);
             } catch (Exception e) {
                 DebugAPI.logLibError("Failed to initialize Database: " + e.getMessage());
                 throw new ConnectionException("Failed to initialize Database", e);

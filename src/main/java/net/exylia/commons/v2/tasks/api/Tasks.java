@@ -108,6 +108,10 @@ public final class Tasks {
         return TaskAPI.isMainThread();
     }
 
+    public static boolean isRegionThread(Location location) {
+        return TaskAPI.isRegionThread(location);
+    }
+
     public static boolean isFolia() {
         return TaskAPI.isFolia();
     }

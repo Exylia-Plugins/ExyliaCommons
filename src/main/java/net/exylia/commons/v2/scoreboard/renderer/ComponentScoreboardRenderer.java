@@ -11,10 +11,8 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 public class ComponentScoreboardRenderer implements ScoreboardRenderer {
 
@@ -65,24 +63,40 @@ public class ComponentScoreboardRenderer implements ScoreboardRenderer {
     public void cleanup(Player player) {
     }
 
+    @SuppressWarnings("unchecked")
     private CompletableFuture<List<Component>> processLinesAsync(
             List<ScoreboardLine> lines, Player player, PlaceholderContext context
     ) {
         if (lines == null || lines.isEmpty()) {
-            return CompletableFuture.completedFuture(new ArrayList<>());
+            return CompletableFuture.completedFuture(List.of());
         }
 
-        List<CompletableFuture<List<Component>>> lineFutures = lines.stream()
-                .map(line -> Placeholders.processAsync(line.getContent(), player, context)
-                        .thenApply(processed -> Arrays.stream(processed.split("\n", -1))
-                                .map(ColorAPI::parse)
-                                .collect(Collectors.toList())))
-                .toList();
+        int size = lines.size();
+        CompletableFuture<List<Component>>[] lineFutures = new CompletableFuture[size];
 
-        return CompletableFuture.allOf(lineFutures.toArray(new CompletableFuture[0]))
-                .thenApply(v -> lineFutures.stream()
-                        .flatMap(f -> f.join().stream())
-                        .collect(Collectors.toList()));
+        for (int i = 0; i < size; i++) {
+            lineFutures[i] = Placeholders.processAsync(lines.get(i).getContent(), player, context)
+                    .thenApply(processed -> {
+                        if (!processed.contains("\n")) {
+                            return List.of(ColorAPI.parse(processed));
+                        }
+                        String[] parts = processed.split("\n", -1);
+                        List<Component> components = new ArrayList<>(parts.length);
+                        for (String part : parts) {
+                            components.add(ColorAPI.parse(part));
+                        }
+                        return components;
+                    });
+        }
+
+        return CompletableFuture.allOf(lineFutures)
+                .thenApply(v -> {
+                    List<Component> result = new ArrayList<>();
+                    for (CompletableFuture<List<Component>> future : lineFutures) {
+                        result.addAll(future.join());
+                    }
+                    return result;
+                });
     }
 
     private CompletableFuture<Component> processComponentAsync(

@@ -65,8 +65,8 @@ public class Hologram {
     }
 
     public void spawn() {
-        if (!Tasks.isMain()) {
-            throw new IllegalStateException("Hologram must be spawned on main thread");
+        if (!Tasks.isRegionThread(location)) {
+            throw new IllegalStateException("Hologram must be spawned on the region thread for its location");
         }
 
         if (!enabled.get()) {

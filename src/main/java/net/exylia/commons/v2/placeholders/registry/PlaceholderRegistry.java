@@ -148,7 +148,7 @@ public class PlaceholderRegistry {
         long startTime = System.nanoTime();
 
         if (context != null && context.has(key)) {
-            Object value = context.get(key);
+            Object value = safeResolve(() -> context.get(key), key);
             logResolveSuccess(key, "context", System.nanoTime() - startTime);
             return value;
         }
@@ -203,8 +203,10 @@ public class PlaceholderRegistry {
         String key = name.toLowerCase();
 
         if (context != null && context.has(key)) {
-            Object value = context.get(key);
-            return CompletableFuture.completedFuture(value != null ? value.toString() : null);
+            return asyncExecutor.executeAsyncPlaceholder(() -> {
+                Object value = context.get(key);
+                return value != null ? value.toString() : null;
+            });
         }
 
         if (context != null) {

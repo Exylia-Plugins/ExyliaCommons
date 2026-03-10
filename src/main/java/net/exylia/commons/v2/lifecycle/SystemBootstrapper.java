@@ -7,6 +7,7 @@ import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
+import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.utils.PlayerUtils;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.exylia.commons.v2.visual.core.VisualManager;
@@ -45,6 +46,9 @@ public class SystemBootstrapper {
 
             DebugAPI.logLibDebug("Initializing PlayerUtils...");
             PlayerUtils.initialize(plugin);
+
+            DebugAPI.logLibDebug("Initializing Placeholders...");
+            Placeholders.initialize(plugin);
 
             DebugAPI.logLibInfo("Core systems initialized successfully");
         } catch (Exception e) {

@@ -4,7 +4,6 @@ import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -51,7 +50,7 @@ public class FastBoardComponentAdapter {
 
         if (!lines.equals(lastLines)) {
             fastBoard.updateLines(lines.toArray(new Component[0]));
-            lastLines = new ArrayList<>(lines);
+            lastLines = List.copyOf(lines);
         }
     }
 

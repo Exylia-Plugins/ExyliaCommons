@@ -64,10 +64,6 @@ public class ScoreboardManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        if (!registry.has(player.getUniqueId())) {
-            registry.saveOriginalScoreboard(player.getUniqueId(), player.getScoreboard());
-        }
-
         registry.peek(player.getUniqueId()).ifPresent(current -> {
             current.hide();
             scheduler.unschedule(current);
@@ -94,12 +90,6 @@ public class ScoreboardManager {
         if (previous.isPresent()) {
             scheduler.schedule(previous.get());
             previous.get().show();
-        } else {
-            if (player.isOnline()) {
-                registry.getOriginalScoreboard(player.getUniqueId())
-                        .ifPresent(player::setScoreboard);
-            }
-            registry.removeOriginalScoreboard(player.getUniqueId());
         }
 
         return true;
@@ -131,8 +121,6 @@ public class ScoreboardManager {
                 scheduler.unschedule(instance);
             });
         }
-
-        registry.removeOriginalScoreboard(player.getUniqueId());
     }
 
     public void hideAll() {

@@ -10,6 +10,7 @@ import net.exylia.commons.v2.ui.menu.MenuBase;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.navigation.NavigationManager;
 import net.exylia.commons.v2.ui.packet.ContainerIdTracker;
+import net.exylia.commons.v2.ui.packet.InventoryPacketListener;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -24,6 +25,7 @@ import java.util.function.Consumer;
 public class MenuManager {
 
     private static MenuManager instance;
+    @Getter
     private static boolean initialized = false;
 
     private JavaPlugin plugin;
@@ -65,10 +67,6 @@ public class MenuManager {
         return instance;
     }
 
-    public static boolean isInitialized() {
-        return initialized;
-    }
-
     private void registerListeners() {
         this.clickHandler = new MenuClickHandler();
         this.closeHandler = new MenuCloseHandler();
@@ -82,15 +80,39 @@ public class MenuManager {
     private void registerPacketListener() {
         try {
             Class<?> packetEventsClass = Class.forName("com.github.retrooper.packetevents.PacketEvents");
-            Class<?> listenerClass = Class.forName("net.exylia.commons.v2.ui.packet.InventoryPacketListener");
 
             Object packetEventsApi = packetEventsClass.getMethod("getAPI").invoke(null);
             Object eventManager = packetEventsApi.getClass().getMethod("getEventManager").invoke(packetEventsApi);
 
-            Object listener = listenerClass.getDeclaredConstructor().newInstance();
-            eventManager.getClass().getMethod("registerListener", Class.forName("com.github.retrooper.packetevents.event.PacketListenerCommon"))
-                    .invoke(eventManager, listener);
-        } catch (Exception ignored) {
+            InventoryPacketListener listener = new InventoryPacketListener();
+
+            java.lang.reflect.Method registerMethod = null;
+            for (java.lang.reflect.Method m : eventManager.getClass().getMethods()) {
+                if ("registerListener".equals(m.getName()) && m.getParameterCount() == 1) {
+                    if (m.getParameterTypes()[0].isAssignableFrom(listener.getClass())) {
+                        registerMethod = m;
+                        break;
+                    }
+                }
+            }
+
+            if (registerMethod != null) {
+                registerMethod.invoke(eventManager, listener);
+                net.exylia.commons.v2.debug.api.DebugAPI.logLibDebug(
+                        net.exylia.commons.v2.debug.core.DebugCategory.UI,
+                        "PacketEvents InventoryPacketListener registered successfully"
+                );
+            } else {
+                net.exylia.commons.v2.debug.api.DebugAPI.logLibWarn(
+                        net.exylia.commons.v2.debug.core.DebugCategory.UI,
+                        "Could not find registerListener method on PacketEvents EventManager — title updates will not work"
+                );
+            }
+        } catch (Exception e) {
+            net.exylia.commons.v2.debug.api.DebugAPI.logLibWarn(
+                    net.exylia.commons.v2.debug.core.DebugCategory.UI,
+                    "Failed to register PacketEvents listener: " + e.getMessage()
+            );
         }
     }
 

@@ -11,6 +11,7 @@ import net.exylia.commons.v2.ui.refresh.RefreshMode;
 
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 @Data
 @Builder(toBuilder = true)
@@ -54,6 +55,8 @@ public class MenuData {
     private ItemData paginationItemTemplate;
 
     private NavigationData paginationNavigation;
+
+    private transient Supplier<List<ItemData>> paginationItemsSupplier;
 
     @Builder.Default
     private List<SectionData> sections = new ArrayList<>();
@@ -122,7 +125,7 @@ public class MenuData {
     }
 
     public boolean hasPagination() {
-        return !paginationSlots.isEmpty() && !paginationItems.isEmpty();
+        return !paginationSlots.isEmpty() && (!paginationItems.isEmpty() || paginationItemsSupplier != null);
     }
 
     public boolean hasPaginationItemTemplate() {
@@ -144,6 +147,26 @@ public class MenuData {
         }
 
         this.paginationItems = generatedItems;
+        return this;
+    }
+
+    public <T> MenuData withPaginationSupplier(Supplier<List<T>> dataSupplier, Function<T, PlaceholderContext> contextMapper) {
+        if (paginationItemTemplate == null) {
+            return this;
+        }
+
+        ItemData template = paginationItemTemplate;
+        this.paginationItemsSupplier = () -> {
+            List<T> data = dataSupplier.get();
+            List<ItemData> items = new ArrayList<>(data.size());
+            for (T element : data) {
+                PlaceholderContext ctx = contextMapper.apply(element);
+                items.add(template.copy().toBuilder().context(ctx).build());
+            }
+            return items;
+        };
+
+        this.paginationItems = this.paginationItemsSupplier.get();
         return this;
     }
 
@@ -189,6 +212,7 @@ public class MenuData {
                 .paginationItems(copiedPaginationItems)
                 .paginationItemTemplate(paginationItemTemplate != null ? paginationItemTemplate.copy() : null)
                 .paginationNavigation(paginationNavigation != null ? paginationNavigation.copy() : null)
+                .paginationItemsSupplier(paginationItemsSupplier)
                 .sections(copiedSections)
                 .snapshotEnabled(snapshotEnabled)
                 .snapshotId(snapshotId)

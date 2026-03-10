@@ -52,28 +52,25 @@ public class CommandExecutor {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 long startTime = System.currentTimeMillis();
+                Player player = context.getPlayer();
 
-                Tasks.sync(() -> {
-                    Player player = context.getPlayer();
+                switch (command.getType()) {
+                    case PLAYER:
+                        if (player != null && player.isOnline()) {
+                            Tasks.runOnEntity(player, () -> player.performCommand(command.getProcessedCommand()));
+                        }
+                        break;
 
-                    switch (command.getType()) {
-                        case PLAYER:
-                            if (player != null && player.isOnline()) {
-                                player.performCommand(command.getProcessedCommand());
-                            }
-                            break;
+                    case CONSOLE:
+                        Tasks.sync(() -> Bukkit.getServer().dispatchCommand(
+                                Bukkit.getConsoleSender(),
+                                command.getProcessedCommand()
+                        ));
+                        break;
 
-                        case CONSOLE:
-                            Bukkit.getServer().dispatchCommand(
-                                    Bukkit.getConsoleSender(),
-                                    command.getProcessedCommand()
-                            );
-                            break;
-
-                        default:
-                            throw new IllegalStateException("Invalid command type for local execution: " + command.getType());
-                    }
-                });
+                    default:
+                        throw new IllegalStateException("Invalid command type for local execution: " + command.getType());
+                }
 
                 long executionTime = System.currentTimeMillis() - startTime;
 

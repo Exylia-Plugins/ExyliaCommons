@@ -119,33 +119,48 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     @Override
     public void updateTable(EntityMetadata metadata) throws Exception {
         try (Connection conn = dataSource.getConnection()) {
-            Set<String> existingColumns = getExistingColumns(conn, metadata.getTableName());
+            Map<String, Integer> existingColumns = getExistingColumnSizes(conn, metadata.getTableName());
 
             for (FieldDescriptor field : metadata.getFields()) {
                 String columnName = field.getColumnName().toLowerCase();
-                if (!existingColumns.contains(columnName)) {
+                if (!existingColumns.containsKey(columnName)) {
                     String alterSql = "ALTER TABLE " + metadata.getTableName() +
                         " ADD COLUMN " + field.getColumnName() + " " + getSQLType(field);
                     try (Statement stmt = conn.createStatement()) {
                         stmt.execute(alterSql);
                         DebugAPI.logLibInfo("Added column " + field.getColumnName() + " to " + metadata.getTableName());
                     }
+                } else if (field.isString() && field.getLength() > 0) {
+                    int currentSize = existingColumns.get(columnName);
+                    if (currentSize < field.getLength()) {
+                        String modifySql = getModifyColumnSql(metadata.getTableName(), field);
+                        if (modifySql != null) {
+                            try (Statement stmt = conn.createStatement()) {
+                                stmt.execute(modifySql);
+                                DebugAPI.logLibInfo("Resized column " + field.getColumnName() + " in " + metadata.getTableName() + " from " + currentSize + " to " + field.getLength());
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 
-    private Set<String> getExistingColumns(Connection conn, String tableName) throws SQLException {
-        Set<String> columns = new HashSet<>();
+    protected String getModifyColumnSql(String tableName, FieldDescriptor field) {
+        return null;
+    }
+
+    private Map<String, Integer> getExistingColumnSizes(Connection conn, String tableName) throws SQLException {
+        Map<String, Integer> columns = new HashMap<>();
         try (ResultSet rs = conn.getMetaData().getColumns(null, null, tableName, null)) {
             while (rs.next()) {
-                columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                columns.put(rs.getString("COLUMN_NAME").toLowerCase(), rs.getInt("COLUMN_SIZE"));
             }
         }
         if (columns.isEmpty()) {
             try (ResultSet rs = conn.getMetaData().getColumns(null, null, tableName.toUpperCase(), null)) {
                 while (rs.next()) {
-                    columns.add(rs.getString("COLUMN_NAME").toLowerCase());
+                    columns.put(rs.getString("COLUMN_NAME").toLowerCase(), rs.getInt("COLUMN_SIZE"));
                 }
             }
         }
@@ -357,6 +372,17 @@ public abstract class SQLAdapter implements DatabaseAdapter {
                 stmt.addBatch();
             }
             stmt.executeBatch();
+        }
+    }
+
+    @Override
+    public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        for (T entity : entities) {
+            if (entity.getId() != null && findById(entity.getId(), entity.getClass(), metadata).isPresent()) {
+                update(entity, metadata);
+            } else {
+                insert(entity, metadata);
+            }
         }
     }
 
