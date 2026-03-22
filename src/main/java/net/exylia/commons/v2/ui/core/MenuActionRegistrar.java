@@ -15,10 +15,14 @@ public class MenuActionRegistrar {
     private static final long PAGE_NAVIGATION_COOLDOWN_MILLIS = 150L;
 
     public static void registerMenuActions(JavaPlugin plugin) {
-        ActionAPI.register(createCloseAction(plugin));
-        ActionAPI.register(createBackAction(plugin));
-        ActionAPI.register(createNextPageAction(plugin));
-        ActionAPI.register(createPreviousPageAction(plugin));
+        String namespace = plugin.getName().toLowerCase();
+        if (ActionAPI.get(namespace + ":close").isPresent()) {
+            return;
+        }
+        createCloseAction(plugin);
+        createBackAction(plugin);
+        createNextPageAction(plugin);
+        createPreviousPageAction(plugin);
     }
 
     private static Action createCloseAction(JavaPlugin plugin) {

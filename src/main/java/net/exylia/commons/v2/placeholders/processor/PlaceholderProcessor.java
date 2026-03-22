@@ -164,7 +164,11 @@ public class PlaceholderProcessor {
                         lastEnd = ends.get(i);
                     }
                     sb.append(text, lastEnd, text.length());
-                    return processAsyncRecursive(sb.toString(), player, context, depth + 1);
+                    String next = sb.toString();
+                    if (depth + 1 >= MAX_NESTING_DEPTH || !containsPlaceholders(next)) {
+                        return CompletableFuture.completedFuture(next);
+                    }
+                    return processAsyncRecursive(next, player, context, depth + 1);
                 })
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.PLACEHOLDER,

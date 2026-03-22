@@ -23,6 +23,8 @@ public interface ServerScheduler {
 
     ScheduledTask runAt(Plugin plugin, Entity entity, Runnable task);
     ScheduledTask runAtLater(Plugin plugin, Entity entity, Runnable task, long delay, TimeUnit unit);
+    ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, long delay, long period, TimeUnit unit);
+    ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit);
 
     void cancelAll(Plugin plugin);
 

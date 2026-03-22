@@ -38,6 +38,7 @@ public final class DatabaseImporter {
         int tablesProcessed = 0;
         String version = "?";
         String sourceAdapter = "unknown";
+        Map<String, Integer> tableCounts = new HashMap<>();
 
         try (JsonReader jr = new JsonReader(new FileReader(filePath.toFile()))) {
             jr.beginObject();
@@ -46,6 +47,13 @@ public final class DatabaseImporter {
                 switch (key) {
                     case "version" -> version = jr.nextString();
                     case "sourceAdapter" -> sourceAdapter = jr.nextString();
+                    case "tableCounts" -> {
+                        jr.beginObject();
+                        while (jr.hasNext()) {
+                            tableCounts.put(jr.nextName(), jr.nextInt());
+                        }
+                        jr.endObject();
+                    }
                     case "tables" -> {
                         log(player, "File v" + version + " from " + sourceAdapter, NamedTextColor.GRAY);
                         jr.beginObject();
@@ -57,7 +65,8 @@ public final class DatabaseImporter {
                                 jr.skipValue();
                                 continue;
                             }
-                            int saved = importTableStream(jr, tableName, metadata, manager, player);
+                            int tableTotal = tableCounts.getOrDefault(tableName, -1);
+                            int saved = importTableStream(jr, tableName, metadata, manager, player, tableTotal);
                             totalRows += saved;
                             tablesProcessed++;
                         }
@@ -85,7 +94,7 @@ public final class DatabaseImporter {
 
     @SuppressWarnings("unchecked")
     private static int importTableStream(JsonReader jr, String tableName, EntityMetadata metadata,
-                                          DatabaseManager manager, Player player) throws IOException {
+                                          DatabaseManager manager, Player player, int totalExpected) throws IOException {
         Class<Entity> entityClass = (Class<Entity>) metadata.getEntityClass();
         Repository<Entity> repo = (Repository<Entity>) manager.getRepository(entityClass);
 
@@ -93,7 +102,11 @@ public final class DatabaseImporter {
         int totalSaved = 0;
         int totalRead = 0;
 
-        log(player, "Importing '" + tableName + "'...", NamedTextColor.GRAY);
+        if (totalExpected > 0) {
+            log(player, "Importing '" + tableName + "' (" + totalExpected + " rows)...", NamedTextColor.GRAY);
+        } else {
+            log(player, "Importing '" + tableName + "'...", NamedTextColor.GRAY);
+        }
 
         jr.beginArray();
         while (jr.hasNext()) {
@@ -109,7 +122,7 @@ public final class DatabaseImporter {
                 try {
                     repo.saveAll(batch);
                     totalSaved += batch.size();
-                    log(player, "  " + tableName + ": " + totalSaved + " rows...", NamedTextColor.DARK_GRAY);
+                    log(player, "  " + tableName + ": " + formatProgress(totalSaved, totalExpected), NamedTextColor.DARK_GRAY);
                 } catch (Exception e) {
                     logError(player, "Batch failed in '" + tableName + "': " + e.getMessage(), e);
                 } finally {
@@ -132,6 +145,15 @@ public final class DatabaseImporter {
 
         log(player, "Table '" + tableName + "': " + totalSaved + "/" + totalRead + " rows done", NamedTextColor.GRAY);
         return totalSaved;
+    }
+
+    private static String formatProgress(int current, int total) {
+        if (total <= 0) {
+            return current + " rows...";
+        }
+        int remaining = total - current;
+        int pct = (int) (current * 100L / total);
+        return current + "/" + total + " (" + remaining + " left) " + pct + "%";
     }
 
     private static Entity reconstructEntity(Class<Entity> entityClass, EntityMetadata metadata, Map<String, Object> row) {

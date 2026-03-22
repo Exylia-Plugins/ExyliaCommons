@@ -76,13 +76,31 @@ public class FoliaServerScheduler implements ServerScheduler {
 
     @Override
     public ScheduledTask runAt(Plugin plugin, Entity entity, Runnable task) {
-        return wrap(entity.getScheduler().run(plugin, t -> task.run(), null), plugin);
+        io.papermc.paper.threadedregions.scheduler.ScheduledTask scheduled =
+                entity.getScheduler().run(plugin, t -> task.run(), null);
+        return scheduled != null ? wrap(scheduled, plugin) : NoopScheduledTask.INSTANCE;
     }
 
     @Override
     public ScheduledTask runAtLater(Plugin plugin, Entity entity, Runnable task, long delay, TimeUnit unit) {
         long ticks = Math.max(1, unit.toMillis(delay) / 50);
-        return wrap(entity.getScheduler().runDelayed(plugin, t -> task.run(), null, ticks), plugin);
+        io.papermc.paper.threadedregions.scheduler.ScheduledTask scheduled =
+                entity.getScheduler().runDelayed(plugin, t -> task.run(), null, ticks);
+        return scheduled != null ? wrap(scheduled, plugin) : NoopScheduledTask.INSTANCE;
+    }
+
+    @Override
+    public ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, long delay, long period, TimeUnit unit) {
+        return runAtTimer(plugin, entity, task, null, delay, period, unit);
+    }
+
+    @Override
+    public ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit) {
+        long delayTicks = Math.max(1, unit.toMillis(delay) / 50);
+        long periodTicks = Math.max(1, unit.toMillis(period) / 50);
+        io.papermc.paper.threadedregions.scheduler.ScheduledTask scheduled =
+                entity.getScheduler().runAtFixedRate(plugin, t -> task.run(), onStop, delayTicks, periodTicks);
+        return scheduled != null ? wrap(scheduled, plugin) : NoopScheduledTask.INSTANCE;
     }
 
     @Override
@@ -123,6 +141,16 @@ public class FoliaServerScheduler implements ServerScheduler {
 
     private ScheduledTask wrap(io.papermc.paper.threadedregions.scheduler.ScheduledTask task, Plugin plugin) {
         return new FoliaScheduledTask(task, plugin);
+    }
+
+    private static final class NoopScheduledTask implements ScheduledTask {
+        static final NoopScheduledTask INSTANCE = new NoopScheduledTask();
+
+        @Override public void cancel() {}
+        @Override public boolean isCancelled() { return true; }
+        @Override public Plugin getOwningPlugin() { return null; }
+        @Override public boolean isRunning() { return false; }
+        @Override public boolean isRepeating() { return false; }
     }
 
     private static class FoliaScheduledTask implements ScheduledTask {

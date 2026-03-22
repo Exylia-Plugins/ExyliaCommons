@@ -42,7 +42,7 @@ public class PlaceholderContext {
         return this;
     }
 
-    public PlaceholderContext putDynamic(String key, Supplier<?> supplier) {
+    public PlaceholderContext put(String key, Supplier<?> supplier) {
         if (key != null && supplier != null) {
             keyedData.put(key, supplier);
         }

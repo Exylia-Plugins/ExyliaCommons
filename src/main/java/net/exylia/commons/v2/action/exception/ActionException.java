@@ -1,12 +1,25 @@
 package net.exylia.commons.v2.action.exception;
 
 public class ActionException extends RuntimeException {
+    private final boolean expected;
+
     public ActionException(String message) {
         super(message);
+        this.expected = false;
+    }
+
+    public ActionException(String message, boolean expected) {
+        super(message);
+        this.expected = expected;
     }
 
     public ActionException(String message, Throwable cause) {
         super(message, cause);
+        this.expected = false;
+    }
+
+    public boolean isExpected() {
+        return expected;
     }
 
     public static class ActionNotFoundException extends ActionException {
@@ -35,7 +48,7 @@ public class ActionException extends RuntimeException {
         private final long remainingMillis;
 
         public ActionCooldownException(String actionId, long remainingMillis) {
-            super("Action '" + actionId + "' is on cooldown for " + remainingMillis + "ms");
+            super("Action '" + actionId + "' is on cooldown for " + remainingMillis + "ms", true);
             this.remainingMillis = remainingMillis;
         }
 
@@ -46,11 +59,11 @@ public class ActionException extends RuntimeException {
 
     public static class ActionRateLimitException extends ActionException {
         public ActionRateLimitException(String actionId) {
-            super("Rate limit exceeded for action: " + actionId);
+            super("Rate limit exceeded for action: " + actionId, true);
         }
 
         public ActionRateLimitException(String actionId, long retryAfterMillis) {
-            super("Rate limit exceeded for action: " + actionId + ". Retry after " + retryAfterMillis + "ms");
+            super("Rate limit exceeded for action: " + actionId + ". Retry after " + retryAfterMillis + "ms", true);
         }
     }
 
@@ -58,7 +71,7 @@ public class ActionException extends RuntimeException {
         private final String permission;
 
         public ActionPermissionException(String permission) {
-            super("Missing permission: " + permission);
+            super("Missing permission: " + permission, true);
             this.permission = permission;
         }
 

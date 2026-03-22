@@ -49,11 +49,11 @@ public final class BossBarAPI {
     }
 
     public static CountdownBossBarBuilder countdownBuilder(Player player, int durationSeconds, BossBarConfig config) {
-        return new CountdownBossBarBuilder(player, durationSeconds, config);
+        return new CountdownBossBarBuilder(player, (long) durationSeconds * 20L, config);
     }
 
     public static CountdownBossBarBuilder countdownMillisBuilder(Player player, long durationMillis, BossBarConfig config) {
-        return new CountdownBossBarBuilder(player, (int) (durationMillis / 1000), config);
+        return new CountdownBossBarBuilder(player, durationMillis / 50L, config);
     }
 
     public static BossBarBuilder builder() {
@@ -75,16 +75,16 @@ public final class BossBarAPI {
 
     public static class CountdownBossBarBuilder {
         private final Player player;
-        private final int durationSeconds;
+        private final long durationTicks;
         private final BossBarConfig config;
         private PlaceholderContext context = PlaceholderContext.create();
         private Runnable onComplete;
         private Runnable onCancel;
         private String key;
 
-        private CountdownBossBarBuilder(Player player, int durationSeconds, BossBarConfig config) {
+        private CountdownBossBarBuilder(Player player, long durationTicks, BossBarConfig config) {
             this.player = player;
-            this.durationSeconds = durationSeconds;
+            this.durationTicks = durationTicks;
             this.config = config;
         }
 
@@ -111,7 +111,7 @@ public final class BossBarAPI {
         public CompletableFuture<String> start() {
             return VisualManager.getInstance().sendCountdown(
                     player, key, config, context, BossBarRenderer.getInstance(), VisualType.BOSSBAR,
-                    durationSeconds * 20L, onComplete, onCancel
+                    durationTicks, onComplete, onCancel
             );
         }
     }

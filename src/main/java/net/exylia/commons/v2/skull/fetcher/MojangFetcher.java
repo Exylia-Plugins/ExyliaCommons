@@ -25,6 +25,7 @@ public class MojangFetcher {
         this.config = config;
         this.cache = cache;
         this.httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(config.getHttpTimeout()))
                 .build();
     }
@@ -49,6 +50,8 @@ public class MojangFetcher {
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
+            } else {
+                cache.setNetworkErrorBackoff(config.getNetworkErrorBackoff());
             }
             DebugAPI.logLibError(DebugCategory.SKULL, "Failed to fetch UUID for " + playerName, e);
             return Optional.empty();
@@ -62,11 +65,11 @@ public class MojangFetcher {
                 yield parseUUID(response.body());
             }
             case 404 -> {
-                DebugAPI.logLibWarn(DebugCategory.SKULL, "Player not found: " + playerName);
+                DebugAPI.logLibDebug(DebugCategory.SKULL, "Player not found: " + playerName);
                 yield Optional.of("NOT_FOUND");
             }
             case 429 -> {
-                DebugAPI.logLibWarn(DebugCategory.SKULL, "Rate limited by Mojang API, backoff: " + config.getRateLimitBackoff() + "ms");
+                DebugAPI.logLibDebug(DebugCategory.SKULL, "Rate limited by Mojang API, backoff: " + config.getRateLimitBackoff() + "ms");
                 cache.setRateLimitBackoff(config.getRateLimitBackoff());
                 yield Optional.empty();
             }
@@ -106,6 +109,8 @@ public class MojangFetcher {
         } catch (IOException | InterruptedException e) {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
+            } else {
+                cache.setNetworkErrorBackoff(config.getNetworkErrorBackoff());
             }
             DebugAPI.logLibError(DebugCategory.SKULL, "Failed to fetch texture for UUID " + uuid, e);
             return Optional.empty();

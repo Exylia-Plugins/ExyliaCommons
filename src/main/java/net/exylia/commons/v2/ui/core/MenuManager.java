@@ -50,7 +50,7 @@ public class MenuManager {
                 CommandAPI.initialize(plugin);
             }
             if (!SkullAPI.isInitialized()) {
-                SkullAPI.initialize();
+                SkullAPI.initialize(plugin);
             }
             instance = new MenuManager();
             instance.plugin = plugin;

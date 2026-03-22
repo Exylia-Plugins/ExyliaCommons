@@ -27,14 +27,8 @@ public class AsyncPlaceholderExecutor {
     }
 
     public CompletableFuture<String> executeAsyncPlaceholder(Supplier<Object> resolver) {
-        long startTime = System.nanoTime();
         return executeAsync(resolver)
-                .thenApply(result -> {
-                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-                    DebugAPI.logLibDebug(DebugCategory.ASYNC,
-                        String.format("Async placeholder executed in %.3fms", millis));
-                    return result != null ? result.toString() : "";
-                })
+                .thenApply(result -> result != null ? result.toString() : "")
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.ASYNC,
                         "Error executing async placeholder: " + throwable.getMessage(), throwable);
@@ -43,14 +37,8 @@ public class AsyncPlaceholderExecutor {
     }
 
     public CompletableFuture<String> executeAsyncDbPlaceholder(Supplier<Object> resolver) {
-        long startTime = System.nanoTime();
         return executeAsyncDb(resolver)
-                .thenApply(result -> {
-                    double millis = (System.nanoTime() - startTime) / 1_000_000.0;
-                    DebugAPI.logLibDebug(DebugCategory.ASYNC,
-                        String.format("Async DB placeholder executed in %.3fms", millis));
-                    return result != null ? result.toString() : "";
-                })
+                .thenApply(result -> result != null ? result.toString() : "")
                 .exceptionally(throwable -> {
                     DebugAPI.logLibError(DebugCategory.ASYNC,
                         "Error executing async DB placeholder: " + throwable.getMessage(), throwable);

@@ -39,17 +39,11 @@ final class CustomSchematicCodec {
                 out.writeUTF(value);
             }
 
-            out.writeInt(schematic.data().length);
-            boolean useShort = schematic.palette().size() <= 0xFFFF;
-            out.writeBoolean(useShort);
-            if (useShort) {
-                for (int value : schematic.data()) {
-                    out.writeShort(value);
-                }
-            } else {
-                for (int value : schematic.data()) {
-                    out.writeInt(value);
-                }
+            short[] data = schematic.data();
+            out.writeInt(data.length);
+            out.writeBoolean(true);
+            for (short value : data) {
+                out.writeShort(value);
             }
         }
     }
@@ -82,15 +76,15 @@ final class CustomSchematicCodec {
             }
 
             int dataSize = in.readInt();
-            int[] data = new int[dataSize];
+            short[] data = new short[dataSize];
             boolean useShort = in.readBoolean();
             if (useShort) {
                 for (int i = 0; i < dataSize; i++) {
-                    data[i] = in.readUnsignedShort();
+                    data[i] = (short) in.readUnsignedShort();
                 }
             } else {
                 for (int i = 0; i < dataSize; i++) {
-                    data[i] = in.readInt();
+                    data[i] = (short) in.readInt();
                 }
             }
 

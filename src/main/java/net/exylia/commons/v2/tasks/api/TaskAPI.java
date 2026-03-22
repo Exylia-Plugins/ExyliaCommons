@@ -141,6 +141,22 @@ public final class TaskAPI {
         return TaskManager.getInstance().atLater(entity, task, delay, unit);
     }
 
+    public static ScheduledTask atTimer(Entity entity, Runnable task, long delay, long period, TimeUnit unit) {
+        return TaskManager.getInstance().atTimer(entity, task, delay, period, unit);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, long delayTicks, long periodTicks) {
+        return TaskManager.getInstance().atTimer(entity, task, delayTicks, periodTicks);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit) {
+        return TaskManager.getInstance().atTimer(entity, task, onStop, delay, period, unit);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delayTicks, long periodTicks) {
+        return TaskManager.getInstance().atTimer(entity, task, onStop, delayTicks, periodTicks);
+    }
+
     public static void runSync(Runnable task) {
         TaskManager.getInstance().runSync(task);
     }

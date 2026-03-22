@@ -202,35 +202,41 @@ public class Hologram {
     }
 
     private void updateGlobal() {
-        Tasks.sync(() -> {
-            if (globalDisplay != null && globalDisplay.isValid()) {
-                globalDisplay.text(buildComponent(null));
+        TextDisplay display = globalDisplay;
+        if (display == null || !display.isValid()) return;
+        Tasks.at(display, () -> {
+            if (display.isValid()) {
+                display.text(buildComponent(null));
             }
         });
     }
 
     private void updatePerPlayer() {
-        Tasks.sync(() -> {
-            List<UUID> toRemove = new ArrayList<>();
+        List<UUID> toRemove = new ArrayList<>();
 
-            playerDisplays.forEach((playerId, display) -> {
-                Player player = Bukkit.getPlayer(playerId);
+        playerDisplays.forEach((playerId, display) -> {
+            Player player = Bukkit.getPlayer(playerId);
 
-                if (player == null || !player.isOnline()) {
-                    toRemove.add(playerId);
-                    removeEntity(display);
-                    return;
-                }
-
+            if (player == null || !player.isOnline()) {
+                toRemove.add(playerId);
                 if (display != null && display.isValid()) {
-                    display.text(buildComponent(player));
-                } else if (display != null && !display.isValid()) {
-                    toRemove.add(playerId);
+                    Tasks.at(display, () -> removeEntity(display));
                 }
-            });
+                return;
+            }
 
-            toRemove.forEach(playerDisplays::remove);
+            if (display != null && display.isValid()) {
+                Tasks.at(display, () -> {
+                    if (display.isValid()) {
+                        display.text(buildComponent(player));
+                    }
+                });
+            } else if (display != null) {
+                toRemove.add(playerId);
+            }
         });
+
+        toRemove.forEach(playerDisplays::remove);
     }
 
     public void despawn() {
@@ -256,10 +262,8 @@ public class Hologram {
     }
 
     public void teleport(Location newLocation) {
-        boolean wasSpawned = spawned.get();
-        if (wasSpawned) {
-            despawn();
-        }
+        boolean worldChanged = location.getWorld() != null
+                && !location.getWorld().equals(newLocation.getWorld());
 
         this.location.setWorld(newLocation.getWorld());
         this.location.setX(newLocation.getX());
@@ -268,8 +272,22 @@ public class Hologram {
         this.location.setYaw(newLocation.getYaw());
         this.location.setPitch(newLocation.getPitch());
 
-        if (wasSpawned) {
+        if (!spawned.get()) return;
+
+        if (worldChanged) {
+            despawn();
             spawn();
+            return;
+        }
+
+        if (perPlayer) {
+            playerDisplays.values().forEach(display -> {
+                if (display != null && display.isValid()) {
+                    display.teleportAsync(newLocation);
+                }
+            });
+        } else if (globalDisplay != null && globalDisplay.isValid()) {
+            globalDisplay.teleportAsync(newLocation);
         }
     }
 
@@ -333,15 +351,15 @@ public class Hologram {
         }
 
         TextDisplay display = playerDisplays.remove(player.getUniqueId());
-        if (display != null) {
-            Tasks.sync(() -> removeEntity(display));
+        if (display != null && display.isValid()) {
+            Tasks.at(display, () -> removeEntity(display));
         }
     }
 
     public void cleanupPlayer(UUID playerId) {
         TextDisplay display = playerDisplays.remove(playerId);
-        if (display != null) {
-            removeEntity(display);
+        if (display != null && display.isValid()) {
+            Tasks.at(display, () -> removeEntity(display));
         }
     }
 

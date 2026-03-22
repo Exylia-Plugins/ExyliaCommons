@@ -17,7 +17,7 @@ public final class InventoryTitleUpdater {
     public static void updateTitle(Player player, Inventory inventory, Component title) {
         try {
             Inventory topInventory = InventoryViewCompat.getTopInventory(player);
-            if (topInventory != inventory) {
+            if (topInventory != null && topInventory != inventory) {
                 DebugAPI.logLibDebug(DebugCategory.UI, "Title update skipped for " + player.getName() + ": inventory mismatch");
                 return;
             }

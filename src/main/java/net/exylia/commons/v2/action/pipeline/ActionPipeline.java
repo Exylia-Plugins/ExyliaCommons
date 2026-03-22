@@ -55,6 +55,15 @@ public class ActionPipeline {
 
             return result;
 
+        } catch (ActionException ex) {
+            if (ex.isExpected()) {
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: " + ex.getMessage());
+            } else {
+                DebugAPI.logLibError(DebugCategory.ACTION, "Pipeline: Exception during execution of " + action.getMetadata().getFullId(), ex);
+            }
+            context.getData().put(RESULT_KEY, ActionResult.failure(ex));
+            executeStage(PipelineStage.ERROR, action, context);
+            return ActionResult.failure(ex);
         } catch (Exception ex) {
             DebugAPI.logLibError(DebugCategory.ACTION, "Pipeline: Exception during execution of " + action.getMetadata().getFullId(), ex);
             context.getData().put(RESULT_KEY, ActionResult.failure(ex));

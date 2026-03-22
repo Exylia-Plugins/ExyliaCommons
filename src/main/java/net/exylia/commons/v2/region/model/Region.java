@@ -2,6 +2,8 @@ package net.exylia.commons.v2.region.model;
 
 import lombok.Getter;
 import lombok.Setter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.region.selection.Selection;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -84,6 +86,7 @@ public class Region {
     }
 
     public void setFlag(RegionFlag flag, RegionFlagState state) {
+        DebugAPI.logLibDebug(DebugCategory.REGION, "Flag " + flag.name() + " changed to: " +state.name());
         if (state == RegionFlagState.DEFAULT) {
             flags.remove(flag);
         } else {

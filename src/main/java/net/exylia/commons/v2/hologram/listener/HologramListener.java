@@ -3,6 +3,7 @@ package net.exylia.commons.v2.hologram.listener;
 import lombok.RequiredArgsConstructor;
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.hologram.model.Hologram;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -39,7 +40,7 @@ public class HologramListener implements Listener {
                 .forEach(hologram -> {
                     org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
                     if (!hologram.canSee(player) && display != null) {
-                        player.hideEntity(manager.getPlugin(), display);
+                        TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
                     }
                 });
     }
@@ -120,11 +121,11 @@ public class HologramListener implements Listener {
                     if (display == null) return;
                     if (canSee) {
                         if (!player.canSee(display)) {
-                            player.showEntity(manager.getPlugin(), display);
+                            TaskAPI.at(display, () -> player.showEntity(manager.getPlugin(), display));
                         }
                     } else {
                         if (player.canSee(display)) {
-                            player.hideEntity(manager.getPlugin(), display);
+                            TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
                         }
                     }
                 });

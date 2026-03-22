@@ -1,6 +1,8 @@
 package net.exylia.commons.v2.region.blocks;
 
 import lombok.Getter;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.Location;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -42,15 +44,22 @@ public class PlayerBlockTracker {
 
         regionBlocks.computeIfAbsent(regionId, k -> ConcurrentHashMap.newKeySet()).add(position);
         playerBlocks.computeIfAbsent(playerId, k -> ConcurrentHashMap.newKeySet()).add(position);
+
+        DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] TRACK | region=" + regionId + " player=" + playerId + " pos=" + position);
     }
 
     public boolean isPlayerPlacedBlock(String regionId, Location location) {
         Set<BlockPosition> blocks = regionBlocks.get(regionId);
+        BlockPosition position = new BlockPosition(location);
+
         if (blocks == null) {
+            DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] CHECK | region=" + regionId + " pos=" + position + " → no region data (false)");
             return false;
         }
 
-        return blocks.contains(new BlockPosition(location));
+        boolean result = blocks.contains(position);
+        DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] CHECK | region=" + regionId + " pos=" + position + " → " + result + " (tracked=" + blocks.size() + ")");
+        return result;
     }
 
     public boolean removeBlock(String regionId, Location location) {
@@ -64,6 +73,8 @@ public class PlayerBlockTracker {
                 regionBlocks.remove(regionId);
             }
         }
+
+        DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] REMOVE | region=" + regionId + " pos=" + position + " → removed=" + removed);
 
         if (removed) {
             playerBlocks.values().forEach(set -> set.remove(position));

@@ -163,6 +163,22 @@ public class TaskManager {
         return scheduler.runAtLater(plugin, entity, task, delay, unit);
     }
 
+    public ScheduledTask atTimer(Entity entity, Runnable task, long delay, long period, TimeUnit unit) {
+        return scheduler.runAtTimer(plugin, entity, task, delay, period, unit);
+    }
+
+    public ScheduledTask atTimer(Entity entity, Runnable task, long delayTicks, long periodTicks) {
+        return atTimer(entity, task, delayTicks * 50, periodTicks * 50, TimeUnit.MILLISECONDS);
+    }
+
+    public ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit) {
+        return scheduler.runAtTimer(plugin, entity, task, onStop, delay, period, unit);
+    }
+
+    public ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delayTicks, long periodTicks) {
+        return atTimer(entity, task, onStop, delayTicks * 50, periodTicks * 50, TimeUnit.MILLISECONDS);
+    }
+
     public void runSync(Runnable task) {
         if (isMainThread()) {
             task.run();

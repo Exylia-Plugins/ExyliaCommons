@@ -2,6 +2,7 @@ package net.exylia.commons.v2.region;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import lombok.Getter;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import net.exylia.commons.v2.region.blocks.PlayerBlockTracker;
@@ -124,7 +125,7 @@ public class RegionManager implements Listener {
         spatialIndex.addRegion(region);
         cacheManager.invalidateRegion(region);
 
-        DebugAPI.logLibDebug("Region registered: " + region.getInfo());
+        DebugAPI.logLibDebug(DebugCategory.REGION, "Region registered: " + region.getInfo());
         return true;
     }
 
@@ -161,7 +162,7 @@ public class RegionManager implements Listener {
             handlePlayerExit(player, region);
         }
 
-        DebugAPI.logLibDebug("Region unregistered: " + region.getId());
+        DebugAPI.logLibDebug(DebugCategory.REGION, "Region unregistered: " + region.getId());
         return true;
     }
 
@@ -236,14 +237,14 @@ public class RegionManager implements Listener {
 
         for (Region region : exitRegions) {
             if (!canPlayerExitRegion(player, region, from, to)) {
-                DebugAPI.logLibDebug(String.format("Exit blocked for player %s from region %s", player.getName(), region.getId()));
+                DebugAPI.logLibDebug(DebugCategory.REGION, String.format("Exit blocked for player %s from region %s", player.getName(), region.getId()));
                 return false;
             }
         }
 
         for (Region region : enterRegions) {
             if (!canPlayerEnterRegion(player, region, from, to)) {
-                DebugAPI.logLibDebug(String.format("Entry blocked for player %s to region %s", player.getName(), region.getId()));
+                DebugAPI.logLibDebug(DebugCategory.REGION, String.format("Entry blocked for player %s to region %s", player.getName(), region.getId()));
                 return false;
             }
         }
@@ -271,13 +272,13 @@ public class RegionManager implements Listener {
         }
 
         if (!region.getFlagValue(RegionFlag.ENTRY)) {
-            if (!player.hasPermission("exylia.region.bypass") && !region.isMember(player.getUniqueId())) {
+            if (player.getGameMode() != org.bukkit.GameMode.CREATIVE && !region.isMember(player.getUniqueId())) {
                 return false;
             }
         }
 
         if (region.getFlagValue(RegionFlag.REGION_MEMBERS_ONLY)) {
-            return region.isMember(player.getUniqueId()) || player.hasPermission("exylia.region.bypass");
+            return region.isMember(player.getUniqueId()) || player.getGameMode() == org.bukkit.GameMode.CREATIVE;
         }
 
         return true;
@@ -295,7 +296,7 @@ public class RegionManager implements Listener {
         }
 
         if (!region.getFlagValue(RegionFlag.EXIT)) {
-            if (!player.hasPermission("exylia.region.bypass") && !region.isOwner(player.getUniqueId())) {
+            if (player.getGameMode() != org.bukkit.GameMode.CREATIVE && !region.isOwner(player.getUniqueId())) {
                 return false;
             }
         }
@@ -304,7 +305,7 @@ public class RegionManager implements Listener {
     }
 
     private void handlePlayerEnter(Player player, Region region) {
-        DebugAPI.logLibDebug(String.format("Player %s entering region %s", player.getName(), region.getId()));
+        DebugAPI.logLibDebug(DebugCategory.REGION, String.format("Player %s entering region %s", player.getName(), region.getId()));
 
         region.addPlayer(player);
         playerRegions.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(region);
@@ -316,13 +317,13 @@ public class RegionManager implements Listener {
             try {
                 region.getOnEnter().execute(player, region);
             } catch (Exception e) {
-                DebugAPI.logLibDebug("Error executing onEnter callback: " + e.getMessage());
+                DebugAPI.logLibDebug(DebugCategory.REGION, "Error executing onEnter callback: " + e.getMessage());
             }
         }
     }
 
     private void handlePlayerExit(Player player, Region region) {
-        DebugAPI.logLibDebug(String.format("Player %s exiting region %s", player.getName(), region.getId()));
+        DebugAPI.logLibDebug(DebugCategory.REGION, String.format("Player %s exiting region %s", player.getName(), region.getId()));
 
         region.removePlayer(player);
         Set<Region> regions = playerRegions.get(player.getUniqueId());
@@ -340,7 +341,7 @@ public class RegionManager implements Listener {
             try {
                 region.getOnExit().execute(player, region);
             } catch (Exception e) {
-                DebugAPI.logLibDebug("Error executing onExit callback: " + e.getMessage());
+                DebugAPI.logLibDebug(DebugCategory.REGION, "Error executing onExit callback: " + e.getMessage());
             }
         }
     }

@@ -34,6 +34,6 @@ public final class DatabaseTransferAPI {
     }
 
     private static Path resolveExportsDir() {
-        return DatabaseManager.getInstance().getPlugin().getDataFolder().toPath().resolve("exports");
+        return DatabaseManager.getInstance().getPlugin().getDataFolder().toPath().resolve("database/exports");
     }
 }

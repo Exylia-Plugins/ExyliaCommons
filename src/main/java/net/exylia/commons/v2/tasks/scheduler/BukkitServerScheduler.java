@@ -70,6 +70,26 @@ public class BukkitServerScheduler implements ServerScheduler {
     }
 
     @Override
+    public ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, long delay, long period, TimeUnit unit) {
+        return runAtTimer(plugin, entity, task, null, delay, period, unit);
+    }
+
+    @Override
+    public ScheduledTask runAtTimer(Plugin plugin, Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit) {
+        ScheduledTask[] ref = {null};
+        ScheduledTask scheduled = runSyncTimer(plugin, () -> {
+            if (!entity.isValid()) {
+                if (onStop != null) onStop.run();
+                if (ref[0] != null) ref[0].cancel();
+                return;
+            }
+            task.run();
+        }, delay, period, unit);
+        ref[0] = scheduled;
+        return scheduled;
+    }
+
+    @Override
     public void cancelAll(Plugin plugin) {
         Bukkit.getScheduler().cancelTasks(plugin);
     }

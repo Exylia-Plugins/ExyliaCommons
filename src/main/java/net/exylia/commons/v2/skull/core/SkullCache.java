@@ -78,6 +78,14 @@ public class SkullCache {
         DebugAPI.logLibWarn(DebugCategory.SKULL, "Rate limit backoff set for " + millis + "ms");
     }
 
+    public void setNetworkErrorBackoff(long millis) {
+        long until = System.currentTimeMillis() + millis;
+        if (until > this.rateLimitBackoff) {
+            this.rateLimitBackoff = until;
+            DebugAPI.logLibWarn(DebugCategory.SKULL, "Network error backoff set for " + millis + "ms");
+        }
+    }
+
     public boolean isRateLimited() {
         return System.currentTimeMillis() < rateLimitBackoff;
     }
@@ -85,6 +93,11 @@ public class SkullCache {
     public void clearTextures() {
         DebugAPI.logLibDebug(DebugCategory.SKULL, "Clearing texture cache");
         textureCache.invalidateAll();
+    }
+
+    public void clearPlayer(String key) {
+        DebugAPI.logLibDebug(DebugCategory.SKULL, "Clearing player cache entry: " + key);
+        playerCache.invalidate(key.toLowerCase());
     }
 
     public void clearPlayers() {

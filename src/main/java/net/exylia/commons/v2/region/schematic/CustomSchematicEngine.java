@@ -1,7 +1,11 @@
 package net.exylia.commons.v2.region.schematic;
-import net.exylia.commons.v2.debug.api.DebugAPI;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.region.model.Region;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.ChunkSnapshot;
@@ -19,6 +23,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -26,11 +31,14 @@ import java.util.function.Consumer;
 final class CustomSchematicEngine {
 
     private final File folder;
-    private final Map<String, CustomSchematic> loadedSchematics;
+    private final Cache<String, CustomSchematic> loadedSchematics;
 
     CustomSchematicEngine(File folder) {
         this.folder = folder;
-        this.loadedSchematics = new ConcurrentHashMap<>();
+        this.loadedSchematics = Caffeine.newBuilder()
+                .maximumSize(50)
+                .expireAfterAccess(10, TimeUnit.MINUTES)
+                .build();
     }
 
     CompletableFuture<Boolean> save(Region region, String schematicName, SchematicManager.SchematicType type, Consumer<Float> onProgress) {
@@ -89,7 +97,7 @@ final class CustomSchematicEngine {
                 }
 
                 if (done >= totalChunks) {
-                    int[] data = new int[volume];
+                    short[] data = new short[volume];
                     List<String> palette = new ArrayList<>();
                     Map<String, Integer> paletteLookup = new HashMap<>();
                     processSnapshotsAsync(snapshots, data, palette, paletteLookup,
@@ -100,7 +108,7 @@ final class CustomSchematicEngine {
         }
     }
 
-    private void processSnapshotsAsync(ChunkSnapshot[] snapshots, int[] data, List<String> palette,
+    private void processSnapshotsAsync(ChunkSnapshot[] snapshots, short[] data, List<String> palette,
                                         Map<String, Integer> paletteLookup, int chunksX, int totalChunks,
                                         SchematicBounds bounds, int width, int length, int height,
                                         String worldName, int volume, String schematicName,
@@ -111,6 +119,7 @@ final class CustomSchematicEngine {
                 int lastMilestone = -1;
                 for (int ci = 0; ci < totalChunks; ci++) {
                     ChunkSnapshot snapshot = snapshots[ci];
+                    snapshots[ci] = null;
                     int cx = ci % chunksX;
                     int cz = ci / chunksX;
                     int baseX = cx * 16;
@@ -126,7 +135,7 @@ final class CustomSchematicEngine {
                                     palette.add(k);
                                     return idx;
                                 });
-                                data[SchematicMath.toIndex(baseX + bx, ly, baseZ + bz, width, length)] = pi;
+                                data[SchematicMath.toIndex(baseX + bx, ly, baseZ + bz, width, length)] = (short) pi;
                             }
                         }
                     }
@@ -135,7 +144,7 @@ final class CustomSchematicEngine {
                     int milestone = (int) (progress * 4);
                     if (milestone > lastMilestone) {
                         lastMilestone = milestone;
-                        DebugAPI.logLibInfo("Saving schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
+                        DebugAPI.logLibDebug("Saving schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
                     }
                     if (onProgress != null) onProgress.accept(progress);
                 }
@@ -147,10 +156,10 @@ final class CustomSchematicEngine {
                 );
                 loadedSchematics.put(schematicName, schematic);
                 CustomSchematicCodec.write(schematicFile(schematicName), schematic);
-                DebugAPI.logLibInfo("Custom schematic saved: " + schematicName + " (" + volume + " blocks, type=" + type + ")");
+                DebugAPI.logLibDebug("Custom schematic saved: " + schematicName + " (" + volume + " blocks, type=" + type + ")");
                 future.complete(true);
             } catch (Exception e) {
-                DebugAPI.logLibDebug("Error saving custom schematic " + schematicName + ": " + e.getMessage());
+                DebugAPI.logLibError(DebugCategory.REGION, "Error saving custom schematic " + schematicName + ": " + e.getMessage());
                 future.complete(false);
             }
         });
@@ -191,7 +200,7 @@ final class CustomSchematicEngine {
             try {
                 List<String> palette = new ArrayList<>();
                 Map<String, Integer> paletteLookup = new HashMap<>();
-                int[] data = new int[volume];
+                short[] data = new short[volume];
 
                 long maxCursor = SchematicMath.calculateMaxCursor(type, width, height, length);
                 long processed = 0;
@@ -217,17 +226,19 @@ final class CustomSchematicEngine {
                     });
 
                     int index = SchematicMath.toIndex(coordinate.x(), coordinate.y(), coordinate.z(), width, length);
-                    data[index] = pi;
+                    data[index] = (short) pi;
                     processed++;
 
                     float progress = (float) processed / volume;
                     int milestone = (int) (progress * 4);
                     if (milestone > lastMilestone) {
                         lastMilestone = milestone;
-                        DebugAPI.logLibInfo("Saving schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
+                        DebugAPI.logLibDebug("Saving schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
                     }
                     if (onProgress != null) onProgress.accept(progress);
                 }
+
+                snapshots.clear();
 
                 if (processed < volume) {
                     future.complete(false);
@@ -241,17 +252,17 @@ final class CustomSchematicEngine {
                 );
                 loadedSchematics.put(schematicName, schematic);
                 CustomSchematicCodec.write(schematicFile(schematicName), schematic);
-                DebugAPI.logLibInfo("Custom schematic saved: " + schematicName + " (" + volume + " blocks, type=" + type + ")");
+                DebugAPI.logLibDebug("Custom schematic saved: " + schematicName + " (" + volume + " blocks, type=" + type + ")");
                 future.complete(true);
             } catch (Exception e) {
-                DebugAPI.logLibDebug("Error saving custom schematic " + schematicName + ": " + e.getMessage());
+                DebugAPI.logLibDebug(DebugCategory.REGION, "Error saving custom schematic " + schematicName + ": " + e.getMessage());
                 future.complete(false);
             }
         });
     }
 
     CompletableFuture<CustomSchematic> load(String schematicName) {
-        CustomSchematic cached = loadedSchematics.get(schematicName);
+        CustomSchematic cached = loadedSchematics.getIfPresent(schematicName);
         if (cached != null) {
             return CompletableFuture.completedFuture(cached);
         }
@@ -268,12 +279,14 @@ final class CustomSchematicEngine {
                 loadedSchematics.put(schematicName, schematic);
                 future.complete(schematic);
             } catch (Exception e) {
-                DebugAPI.logLibDebug("Error loading custom schematic " + schematicName + ": " + e.getMessage());
+                DebugAPI.logLibDebug(DebugCategory.REGION, "Error loading custom schematic " + schematicName + ": " + e.getMessage());
                 future.complete(null);
             }
         });
         return future;
     }
+
+    private static final long PASTE_BUDGET_NS = 4_500_000L;
 
     CompletableFuture<Boolean> paste(String schematicName, CustomSchematic schematic, Location location,
                                       SchematicManager.SchematicType type, Consumer<Float> onProgress,
@@ -299,9 +312,17 @@ final class CustomSchematicEngine {
         int baseY = location.getBlockY() - schematic.anchorY();
         int baseZ = location.getBlockZ() - schematic.anchorZ();
 
-        BlockData[] paletteData = new BlockData[schematic.palette().size()];
-        for (int i = 0; i < schematic.palette().size(); i++) {
-            paletteData[i] = Bukkit.createBlockData(schematic.palette().get(i));
+        BlockData[] paletteData = schematic.getOrComputePaletteData();
+
+        Object nmsLevel = null;
+        Object[] nmsStates = null;
+        if (NmsBlockHelper.AVAILABLE) {
+            try {
+                nmsLevel = NmsBlockHelper.getServerLevel(world);
+                nmsStates = schematic.getOrComputeNmsStates();
+            } catch (Throwable t) {
+                DebugAPI.logLibDebug(DebugCategory.REGION, "NMS pre-computation failed, using fallback: " + t.getMessage());
+            }
         }
 
         int minCX = baseX >> 4;
@@ -317,87 +338,150 @@ final class CustomSchematicEngine {
         }
 
         AtomicInteger placed = new AtomicInteger(0);
-        int[] lastMilestone = {-1};
+        AtomicInteger lastMilestone = new AtomicInteger(-1);
 
-        pasteNextChunk(chunkCoords, 0, world, schematic, paletteData,
-            baseX, baseY, baseZ, width, height, length, volume,
-            schematicName, placed, lastMilestone, future, onProgress, onChunkEnter);
+        List<CompletableFuture<org.bukkit.Chunk>> chunkFutures = new ArrayList<>(chunkCoords.size());
+        for (int[] coord : chunkCoords) {
+            chunkFutures.add(world.getChunkAtAsync(coord[0], coord[1]));
+        }
+
+        final Object finalNmsLevel = nmsLevel;
+        final Object[] finalNmsStates = nmsStates;
+        CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture[0])).thenRun(() ->
+            pasteChunkBatch(chunkCoords, 0, world, schematic, paletteData, finalNmsLevel, finalNmsStates,
+                baseX, baseY, baseZ, width, height, length, volume,
+                schematicName, placed, lastMilestone, future, onProgress, onChunkEnter)
+        );
+
         return future;
     }
 
-    private void pasteNextChunk(List<int[]> chunkCoords, int chunkIndex, World world,
-                                CustomSchematic schematic, BlockData[] paletteData,
-                                int baseX, int baseY, int baseZ,
-                                int width, int height, int length, int volume,
-                                String schematicName, AtomicInteger placed, int[] lastMilestone,
-                                CompletableFuture<Boolean> future, Consumer<Float> onProgress,
-                                java.util.function.BiConsumer<Integer, Integer> onChunkEnter) {
-        if (chunkIndex >= chunkCoords.size()) {
-            DebugAPI.logLibDebug("Custom schematic pasted: " + schematicName);
+    private void pasteChunkBatch(List<int[]> chunkCoords, int startIndex, World world,
+                                  CustomSchematic schematic, BlockData[] paletteData,
+                                  Object nmsLevel, Object[] nmsStates,
+                                  int baseX, int baseY, int baseZ,
+                                  int width, int height, int length, int volume,
+                                  String schematicName, AtomicInteger placed, AtomicInteger lastMilestone,
+                                  CompletableFuture<Boolean> future, Consumer<Float> onProgress,
+                                  java.util.function.BiConsumer<Integer, Integer> onChunkEnter) {
+        if (startIndex >= chunkCoords.size()) {
+            DebugAPI.logLibDebug(DebugCategory.REGION, "Custom schematic pasted: " + schematicName);
             future.complete(true);
             return;
         }
 
-        int cx = chunkCoords.get(chunkIndex)[0];
-        int cz = chunkCoords.get(chunkIndex)[1];
+        int[] first = chunkCoords.get(startIndex);
+        Location loc = new Location(world, (first[0] << 4) + 8, baseY, (first[1] << 4) + 8);
 
-        world.getChunkAtAsync(cx, cz).thenAccept(chunk -> {
-            Location regionLoc = new Location(world, (cx << 4) + 8, baseY, (cz << 4) + 8);
-            Tasks.runOnLocation(regionLoc, () -> {
+        Tasks.atLater(loc, () -> {
+            long deadline = System.nanoTime() + PASTE_BUDGET_NS;
+            int idx = startIndex;
+
+            while (idx < chunkCoords.size()) {
+                int cx = chunkCoords.get(idx)[0];
+                int cz = chunkCoords.get(idx)[1];
+
+                if (!TaskAPI.isRegionThread(world, cx, cz)) break;
+
                 if (onChunkEnter != null) onChunkEnter.accept(cx, cz);
+                processChunk(cx, cz, world, schematic, paletteData, nmsLevel, nmsStates,
+                    baseX, baseY, baseZ, width, height, length, volume,
+                    schematicName, placed, lastMilestone, onProgress);
 
-                int chunkMinX = cx << 4;
-                int chunkMinZ = cz << 4;
-                int startX = Math.max(0, chunkMinX - baseX);
-                int endX = Math.min(width, chunkMinX + 16 - baseX);
-                int startZ = Math.max(0, chunkMinZ - baseZ);
-                int endZ = Math.min(length, chunkMinZ + 16 - baseZ);
+                idx++;
+                if (System.nanoTime() >= deadline) break;
+            }
 
-                int count = 0;
+            pasteChunkBatch(chunkCoords, idx, world, schematic, paletteData, nmsLevel, nmsStates,
+                baseX, baseY, baseZ, width, height, length, volume,
+                schematicName, placed, lastMilestone, future, onProgress, onChunkEnter);
+        }, 1);
+    }
+
+    private void processChunk(int cx, int cz, World world,
+                               CustomSchematic schematic, BlockData[] paletteData,
+                               Object nmsLevel, Object[] nmsStates,
+                               int baseX, int baseY, int baseZ,
+                               int width, int height, int length, int volume,
+                               String schematicName, AtomicInteger placed,
+                               AtomicInteger lastMilestone, Consumer<Float> onProgress) {
+        int chunkMinX = cx << 4;
+        int chunkMinZ = cz << 4;
+        int startX = Math.max(0, chunkMinX - baseX);
+        int endX = Math.min(width, chunkMinX + 16 - baseX);
+        int startZ = Math.max(0, chunkMinZ - baseZ);
+        int endZ = Math.min(length, chunkMinZ + 16 - baseZ);
+        int count = (endX - startX) * (endZ - startZ) * height;
+
+        if (NmsBlockHelper.AVAILABLE && nmsLevel != null && nmsStates != null) {
+            try {
+                Object mutablePos = NmsBlockHelper.createMutableBlockPos();
                 for (int lx = startX; lx < endX; lx++) {
                     for (int lz = startZ; lz < endZ; lz++) {
                         for (int ly = 0; ly < height; ly++) {
-                            int idx = SchematicMath.toIndex(lx, ly, lz, width, length);
-                            int pi = schematic.data()[idx];
-                            if (pi >= 0 && pi < paletteData.length) {
-                                world.getBlockAt(baseX + lx, baseY + ly, baseZ + lz)
-                                    .setBlockData(paletteData[pi], false);
+                            int pi = schematic.data()[SchematicMath.toIndex(lx, ly, lz, width, length)] & 0xFFFF;
+                            if (pi < nmsStates.length) {
+                                NmsBlockHelper.setBlock(nmsLevel, mutablePos,
+                                    baseX + lx, baseY + ly, baseZ + lz, nmsStates[pi]);
                             }
-                            count++;
                         }
                     }
                 }
+            } catch (Throwable t) {
+                DebugAPI.logLibDebug(DebugCategory.REGION, "NMS block set error in chunk " + cx + "," + cz + ": " + t.getMessage());
+                fallbackProcessChunk(cx, cz, world, schematic, paletteData, baseX, baseY, baseZ, width, height, length);
+            }
+        } else {
+            fallbackProcessChunk(cx, cz, world, schematic, paletteData, baseX, baseY, baseZ, width, height, length);
+        }
 
-                int done = placed.addAndGet(count);
-                float progress = (float) done / volume;
-                int milestone = (int) (progress * 4);
-                if (milestone > lastMilestone[0]) {
-                    lastMilestone[0] = milestone;
-                    DebugAPI.logLibInfo("Pasting schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
+        int done = placed.addAndGet(count);
+        float progress = (float) done / volume;
+        int milestone = (int) (progress * 4);
+        int prev = lastMilestone.get();
+        if (milestone > prev && lastMilestone.compareAndSet(prev, milestone)) {
+            DebugAPI.logLibDebug("Pasting schematic '" + schematicName + "': " + (int) (progress * 100) + "%");
+        }
+        if (onProgress != null) onProgress.accept(progress);
+    }
+
+    private void fallbackProcessChunk(int cx, int cz, World world,
+                                       CustomSchematic schematic, BlockData[] paletteData,
+                                       int baseX, int baseY, int baseZ,
+                                       int width, int height, int length) {
+        int chunkMinX = cx << 4;
+        int chunkMinZ = cz << 4;
+        int startX = Math.max(0, chunkMinX - baseX);
+        int endX = Math.min(width, chunkMinX + 16 - baseX);
+        int startZ = Math.max(0, chunkMinZ - baseZ);
+        int endZ = Math.min(length, chunkMinZ + 16 - baseZ);
+        for (int lx = startX; lx < endX; lx++) {
+            for (int lz = startZ; lz < endZ; lz++) {
+                for (int ly = 0; ly < height; ly++) {
+                    int pi = schematic.data()[SchematicMath.toIndex(lx, ly, lz, width, length)] & 0xFFFF;
+                    if (pi < paletteData.length) {
+                        world.getBlockAt(baseX + lx, baseY + ly, baseZ + lz)
+                            .setBlockData(paletteData[pi], false);
+                    }
                 }
-                if (onProgress != null) onProgress.accept(progress);
-
-                pasteNextChunk(chunkCoords, chunkIndex + 1, world, schematic, paletteData,
-                    baseX, baseY, baseZ, width, height, length, volume,
-                    schematicName, placed, lastMilestone, future, onProgress, onChunkEnter);
-            });
-        });
+            }
+        }
     }
 
     boolean delete(String schematicName) {
         File file = schematicFile(schematicName);
         if (!file.exists()) {
-            loadedSchematics.remove(schematicName);
+            loadedSchematics.invalidate(schematicName);
             return false;
         }
 
         try {
             Files.delete(file.toPath());
-            loadedSchematics.remove(schematicName);
-            DebugAPI.logLibInfo("Schematic deleted: " + schematicName);
+            loadedSchematics.invalidate(schematicName);
+            DebugAPI.logLibDebug("Schematic deleted: " + schematicName);
             return true;
         } catch (IOException e) {
-            DebugAPI.logLibDebug("Error deleting custom schematic " + schematicName + ": " + e.getMessage());
+            DebugAPI.logLibDebug(DebugCategory.REGION, "Error deleting custom schematic " + schematicName + ": " + e.getMessage());
             return false;
         }
     }
@@ -407,15 +491,15 @@ final class CustomSchematicEngine {
     }
 
     void unload(String schematicName) {
-        loadedSchematics.remove(schematicName);
+        loadedSchematics.invalidate(schematicName);
     }
 
     void unloadAll() {
-        loadedSchematics.clear();
+        loadedSchematics.invalidateAll();
     }
 
     int loadedCount() {
-        return loadedSchematics.size();
+        return (int) loadedSchematics.estimatedSize();
     }
 
     private File schematicFile(String name) {

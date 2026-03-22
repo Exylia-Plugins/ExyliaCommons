@@ -287,21 +287,14 @@ public class VisualManager {
 
 
     public boolean cancel(UUID playerId, String visualId) {
-        boolean result = VisualRegistry.getInstance().get(playerId, visualId)
-                .map(instance -> {
+        return VisualRegistry.getInstance().get(playerId, visualId)
+                .map(instance1 -> {
                     DebugAPI.logLibDebug(DebugCategory.VISUAL,
                         "Cancelling visual: " + visualId + " for player: " + playerId);
-                    instance.cancel();
+                    instance1.cancel();
                     return true;
                 })
                 .orElse(false);
-
-        if (!result) {
-            DebugAPI.logLibDebug(DebugCategory.VISUAL,
-                "Visual not found for cancellation: " + visualId + " (player: " + playerId + ")");
-        }
-
-        return result;
     }
 
     public void cancelAll(UUID playerId) {

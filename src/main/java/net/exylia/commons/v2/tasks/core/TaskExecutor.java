@@ -96,7 +96,7 @@ public class TaskExecutor {
             }, executor);
         } catch (RejectedExecutionException ex) {
             metrics.recordRejected(category);
-            DebugAPI.logLibWarn(DebugCategory.ASYNC, "Task rejected for category " + category + ": " + ex.getMessage());
+            DebugAPI.logLibWarn(DebugCategory.ASYNC, "Task rejected for category " + category + ": queue full");
             return CompletableFuture.completedFuture(TaskResult.failure(taskId, ex, startTime, category));
         }
     }

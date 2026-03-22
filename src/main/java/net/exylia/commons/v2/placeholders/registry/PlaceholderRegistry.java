@@ -180,7 +180,7 @@ public class PlaceholderRegistry {
 
         for (PlaceholderResolver resolver : argumentResolvers.values()) {
             if (resolver.matches(key)) {
-                String argument = resolver.extractArgument(key);
+                String argument = resolver.extractArgument(name);
                 Object result = safeResolve(() -> resolver.resolve(player, context, argument), key);
                 logResolveSuccess(key, "argument-resolver(" + resolver.getName() + ")", System.nanoTime() - startTime);
                 return result;
@@ -203,10 +203,8 @@ public class PlaceholderRegistry {
         String key = name.toLowerCase();
 
         if (context != null && context.has(key)) {
-            return asyncExecutor.executeAsyncPlaceholder(() -> {
-                Object value = context.get(key);
-                return value != null ? value.toString() : null;
-            });
+            Object value = context.get(key);
+            return CompletableFuture.completedFuture(value != null ? value.toString() : null);
         }
 
         if (context != null) {
@@ -230,7 +228,7 @@ public class PlaceholderRegistry {
 
         for (PlaceholderResolver resolver : argumentResolvers.values()) {
             if (resolver.matches(key)) {
-                String argument = resolver.extractArgument(key);
+                String argument = resolver.extractArgument(name);
                 return asyncExecutor.executeAsyncPlaceholder(() -> resolver.resolve(player, context, argument));
             }
         }
@@ -249,9 +247,9 @@ public class PlaceholderRegistry {
     }
 
     private void logResolveSuccess(String name, String resolverType, long nanos) {
-        double millis = nanos / 1_000_000.0;
-        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
-            String.format("Resolved '%s' via %s in %.3fms", name, resolverType, millis));
+//        double millis = nanos / 1_000_000.0;d
+//        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER,
+//            String.format("Resolved '%s' via %s in %.3fms", name, resolverType, millis));
     }
 
     public boolean hasResolver(String name) {

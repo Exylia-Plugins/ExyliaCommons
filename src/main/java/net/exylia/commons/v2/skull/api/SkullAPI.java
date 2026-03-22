@@ -5,6 +5,7 @@ import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.core.SkullManager;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -12,12 +13,21 @@ import java.util.function.Consumer;
 
 public class SkullAPI {
 
-    public static void initialize() {
-        SkullManager.initialize();
+    public static void initialize(Plugin plugin) {
+        SkullConfig config = new SkullConfig();
+        config.setDataFolder(plugin.getDataFolder());
+        SkullManager.initialize(config);
     }
 
-    public static void initialize(SkullConfig config) {
+    public static void initialize(Plugin plugin, SkullConfig config) {
+        config.setDataFolder(plugin.getDataFolder());
         SkullManager.initialize(config);
+    }
+
+    public static void shutdown() {
+        if (SkullManager.isInitialized()) {
+            SkullManager.getInstance().shutdown();
+        }
     }
 
     public static boolean isInitialized() {
@@ -99,6 +109,13 @@ public class SkullAPI {
         return getManager().getCache().isRateLimited();
     }
 
+    public static void invalidatePlayer(String playerName) {
+        getManager().getCache().clearPlayer(playerName);
+        if (getManager().getPersistence() != null) {
+            getManager().getPersistence().invalidate(playerName);
+        }
+    }
+
     public static void clearTextureCache() {
         getManager().getCache().clearTextures();
     }
@@ -109,6 +126,16 @@ public class SkullAPI {
 
     public static void clearAllCache() {
         getManager().getCache().clearAll();
+        if (getManager().getPersistence() != null) {
+            getManager().getPersistence().clear();
+        }
+    }
+
+    public static int getPersistentCacheSize() {
+        if (getManager().getPersistence() == null) {
+            return 0;
+        }
+        return getManager().getPersistence().size();
     }
 
     public static String getStats() {

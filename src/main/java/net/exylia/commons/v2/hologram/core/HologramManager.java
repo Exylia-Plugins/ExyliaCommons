@@ -167,7 +167,7 @@ public class HologramManager {
                     if (ex != null) {
                         DebugAPI.logLibError("Failed to create hologram: " + ex.getMessage());
                     } else {
-                        DebugAPI.logLibInfo("Hologram created: " + id);
+                        DebugAPI.logLibDebug("Hologram created: " + id);
                     }
                 });
     }
@@ -200,7 +200,7 @@ public class HologramManager {
                 deleteHologramAsync(id).join();
             }
 
-            DebugAPI.logLibInfo("Hologram removed: " + id);
+            DebugAPI.logLibDebug("Hologram removed: " + id);
             return true;
         }).thenApply(r -> r.getValue().orElse(false));
     }

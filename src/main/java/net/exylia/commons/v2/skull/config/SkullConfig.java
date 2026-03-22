@@ -3,6 +3,8 @@ package net.exylia.commons.v2.skull.config;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.io.File;
+
 @Getter
 @Setter
 public class SkullConfig {
@@ -11,6 +13,7 @@ public class SkullConfig {
     private int maxCacheSize = 100000;
     private long cacheExpiration = 86400000L;
     private long rateLimitBackoff = 60000L;
+    private long networkErrorBackoff = 5000L;
     private int httpTimeout = 10;
     private int cleanupInterval = 28800;
     private boolean enableMetrics = true;
@@ -21,4 +24,7 @@ public class SkullConfig {
 
     private int batchDelay = 150;
     private int preloadDelay = 50;
+
+    private File dataFolder = null;
+    private long persistentCacheTtl = 604800000L; // 7 days
 }

@@ -9,8 +9,10 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.animation.AnimationExecutor;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
+import net.exylia.commons.v2.ui.model.MenuState;
 import net.exylia.commons.v2.ui.model.NavigationData;
-import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.ui.packet.PacketEventsSupport;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
 import net.exylia.commons.v2.ui.pagination.PaginationTracker;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -210,8 +212,6 @@ public class PaginationMenu extends MenuBase {
             return;
         }
 
-        InventoryTitleUpdater.updateTitle(player, inventory, processPaginationTitle(menuData.getTitle()));
-
         AnimationSettings animSettings = menuData.getAnimationSettings();
         if (animSettings != null && animSettings.hasPageAnimation()) {
             AnimationExecutor.executeWithTransition(
@@ -231,6 +231,20 @@ public class PaginationMenu extends MenuBase {
             });
         }
         player.updateInventory();
+
+        Tasks.later(() -> {
+            if (state.get() == MenuState.OPEN && inventory != null) {
+                refreshTitle();
+            }
+        }, 1L);
+    }
+
+    @Override
+    protected void refreshTitle() {
+        if (inventory == null) {
+            return;
+        }
+        PacketEventsSupport.updateTitle(player, inventory, processPaginationTitle(menuData.getTitle()));
     }
 
     private net.kyori.adventure.text.Component processPaginationTitle(String title) {

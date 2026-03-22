@@ -54,7 +54,7 @@ public class TemporaryBlockManager {
         temporaryBlocks.put(key, tempBlock);
 
         final ScheduledTask[] taskRef = new ScheduledTask[1];
-        taskRef[0] = Tasks.later(() -> {
+        taskRef[0] = Tasks.atLater(location, () -> {
             try {
                 removeTemporaryBlock(key, tempBlock.playerId, tempBlock.material, tempBlock.reGiveBlock);
             } finally {

@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public class SnapshotStore {
@@ -17,6 +18,7 @@ public class SnapshotStore {
     private static volatile SnapshotStore instance;
 
     private final Repository<PlayerStateRecord> repo;
+    private final ConcurrentHashMap<UUID, Long> restoreGeneration = new ConcurrentHashMap<>();
 
     private SnapshotStore() {
         Database.registerEntity(PlayerStateRecord.class);
@@ -35,6 +37,7 @@ public class SnapshotStore {
     }
 
     public CompletableFuture<Void> save(Player player, String contextId) {
+        restoreGeneration.merge(player.getUniqueId(), 1L, Long::sum);
         SnapshotData snapshot = SnapshotData.fromPlayer(player);
         Location loc = player.getLocation();
         PlayerStateRecord record = new PlayerStateRecord(player.getUniqueId(), snapshot, contextId, loc);
@@ -42,6 +45,8 @@ public class SnapshotStore {
     }
 
     public CompletableFuture<Void> saveAndClear(Player player, String contextId) {
+        restoreGeneration.merge(player.getUniqueId(), 1L, Long::sum);
+
         SnapshotData snapshot = SnapshotData.fromPlayer(player);
         Location loc = player.getLocation();
         PlayerStateRecord record = new PlayerStateRecord(player.getUniqueId(), snapshot, contextId, loc);
@@ -55,19 +60,22 @@ public class SnapshotStore {
 
     public CompletableFuture<Void> restore(Player player, Consumer<Location> teleportCallback) {
         UUID uuid = player.getUniqueId();
+        long gen = restoreGeneration.getOrDefault(uuid, 0L);
+
         return Tasks.dbValue(() -> repo.findById(uuid.toString()))
-                .thenAccept(opt -> {
-                    if (opt.isPresent()) {
-                        PlayerStateRecord record = opt.get();
-                        Tasks.runOnEntity(player, () -> {
-                            if (player.isOnline()) {
-                                record.getSnapshot().applyToPlayer(player);
-                                if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
-                                Tasks.dbRun(() -> repo.delete(record));
-                            }
-                        });
-                    }
+            .thenAccept(opt -> {
+                if (opt == null || opt.isEmpty()) return;
+                if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
+                PlayerStateRecord record = opt.get();
+                Tasks.runOnEntity(player, () -> {
+                    if (!player.isOnline()) return;
+                    if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
+                    Tasks.dbRun(() -> repo.delete(record));
+                    restoreGeneration.remove(uuid);
+                    record.getSnapshot().applyToPlayer(player);
+                    if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
                 });
+            });
     }
 
     public void restoreSync(Player player, Consumer<Location> teleportCallback) {
@@ -75,28 +83,32 @@ public class SnapshotStore {
         Optional<PlayerStateRecord> opt = repo.findById(uuid.toString());
         if (opt.isPresent()) {
             PlayerStateRecord record = opt.get();
+            repo.delete(record);
+            restoreGeneration.remove(uuid);
             if (player.isOnline()) {
                 record.getSnapshot().applyToPlayer(player);
                 if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
             }
-            repo.delete(record);
         }
     }
 
     public void checkAndRestore(Player player, Consumer<Location> teleportCallback) {
         UUID uuid = player.getUniqueId();
+        long gen = restoreGeneration.getOrDefault(uuid, 0L);
+
         Tasks.dbValue(() -> repo.findById(uuid.toString()))
-                .thenAccept(opt -> {
-                    if (opt.isPresent()) {
-                        PlayerStateRecord record = opt.get();
-                        Tasks.runOnEntity(player, () -> {
-                            if (player.isOnline()) {
-                                record.getSnapshot().applyToPlayer(player);
-                                if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
-                                Tasks.dbRun(() -> repo.delete(record));
-                            }
-                        });
-                    }
+            .thenAccept(opt -> {
+                if (opt == null || opt.isEmpty()) return;
+                if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
+                PlayerStateRecord record = opt.get();
+                Tasks.runOnEntity(player, () -> {
+                    if (!player.isOnline()) return;
+                    if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
+                    Tasks.dbRun(() -> repo.delete(record));
+                    restoreGeneration.remove(uuid);
+                    record.getSnapshot().applyToPlayer(player);
+                    if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
                 });
+            });
     }
 }

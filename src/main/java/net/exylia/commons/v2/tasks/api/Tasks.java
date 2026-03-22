@@ -104,6 +104,22 @@ public final class Tasks {
         return TaskAPI.atLater(entity, task, ticks * 50, TimeUnit.MILLISECONDS);
     }
 
+    public static ScheduledTask atTimer(Entity entity, Runnable task, long delayTicks, long periodTicks) {
+        return TaskAPI.atTimer(entity, task, delayTicks, periodTicks);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, long delay, long period, TimeUnit unit) {
+        return TaskAPI.atTimer(entity, task, delay, period, unit);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delayTicks, long periodTicks) {
+        return TaskAPI.atTimer(entity, task, onStop, delayTicks, periodTicks);
+    }
+
+    public static ScheduledTask atTimer(Entity entity, Runnable task, Runnable onStop, long delay, long period, TimeUnit unit) {
+        return TaskAPI.atTimer(entity, task, onStop, delay, period, unit);
+    }
+
     public static boolean isMain() {
         return TaskAPI.isMainThread();
     }

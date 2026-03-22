@@ -7,6 +7,7 @@ import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.skull.config.SkullConfig;
 import net.exylia.commons.v2.skull.fetcher.MojangFetcher;
 import net.exylia.commons.v2.skull.fetcher.TextureFetcher;
+import net.exylia.commons.v2.skull.persistence.SkullPersistence;
 import net.exylia.commons.v2.skull.renderer.SkullFactory;
 import net.exylia.commons.v2.skull.renderer.SkullRenderer;
 import org.bukkit.inventory.ItemStack;
@@ -31,6 +32,9 @@ public class SkullManager {
     @Getter
     private final SkullRenderer renderer;
 
+    @Getter
+    private final SkullPersistence persistence;
+
     private final SkullFactory factory;
     private final MojangFetcher mojangFetcher;
     private final TextureFetcher textureFetcher;
@@ -43,7 +47,10 @@ public class SkullManager {
         this.executor = new SkullExecutor(config);
         this.factory = new SkullFactory();
         this.mojangFetcher = new MojangFetcher(config, cache);
-        this.textureFetcher = new TextureFetcher(mojangFetcher, executor, cache, config);
+        this.persistence = config.getDataFolder() != null
+                ? new SkullPersistence(config.getDataFolder(), config.getPersistentCacheTtl())
+                : null;
+        this.textureFetcher = new TextureFetcher(mojangFetcher, executor, cache, config, persistence);
         this.renderer = new SkullRenderer(factory, textureFetcher, cache, executor, config);
     }
 
@@ -76,6 +83,10 @@ public class SkullManager {
             return;
         }
 
+        if (persistence != null) {
+            persistence.load();
+        }
+
         executor.scheduleCleanup(() -> cache.clearAll());
         initialized = true;
     }
@@ -96,6 +107,11 @@ public class SkullManager {
         }
 
         DebugAPI.logLibInfo(DebugCategory.SKULL, "Shutting down SkullManager");
+
+        if (persistence != null) {
+            persistence.save();
+        }
+
         executor.shutdown();
         cache.clearAll();
         initialized = false;
@@ -172,6 +188,9 @@ public class SkullManager {
         stats.append("Skull System Stats:\n");
         stats.append("Cache: ").append(cache.getStats()).append("\n");
         stats.append("Executor: ").append(executor.getStats()).append("\n");
+        if (persistence != null) {
+            stats.append("Persistent Cache: ").append(persistence.size()).append(" players\n");
+        }
         stats.append("Initialized: ").append(initialized);
         return stats.toString();
     }

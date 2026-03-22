@@ -261,6 +261,6 @@ public class RegionListener implements Listener {
     }
 
     private boolean hasBypass(Player player) {
-        return player.hasPermission("exylia.region.bypass");
+        return player.getGameMode() == org.bukkit.GameMode.CREATIVE;
     }
 }

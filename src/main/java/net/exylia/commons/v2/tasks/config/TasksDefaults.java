@@ -65,7 +65,7 @@ public class TasksDefaults {
                 public static int MAX_SIZE = 4;
 
                 @ConfigValue("queue-size")
-                public static int QUEUE_SIZE = 200;
+                public static int QUEUE_SIZE = 500;
             }
         }
 

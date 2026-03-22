@@ -85,13 +85,17 @@ public class ActionExecutor {
                 return result;
             } catch (ActionException ex) {
                 long duration = System.currentTimeMillis() - startTime;
-                DebugAPI.logLibError(
-                    DebugCategory.ACTION,
-                    "Action execution failed after " +
-                        duration +
-                        "ms: " +
-                        ex.getMessage()
-                );
+                if (ex.isExpected()) {
+                    DebugAPI.logLibDebug(
+                        DebugCategory.ACTION,
+                        "Action blocked after " + duration + "ms: " + ex.getMessage()
+                    );
+                } else {
+                    DebugAPI.logLibError(
+                        DebugCategory.ACTION,
+                        "Action execution failed after " + duration + "ms: " + ex.getMessage()
+                    );
+                }
                 return ActionResult.failure(ex);
             } catch (Exception ex) {
                 long duration = System.currentTimeMillis() - startTime;

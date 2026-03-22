@@ -10,7 +10,7 @@ import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuState;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.model.SectionData;
-import net.exylia.commons.v2.ui.packet.InventoryTitleUpdater;
+import net.exylia.commons.v2.ui.packet.PacketEventsSupport;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
 import net.exylia.commons.v2.ui.pagination.PaginationTracker;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -267,9 +267,6 @@ public class MultiPaginationMenu extends MenuBase {
             return;
         }
 
-        String processedTitle = processTitle(menuData.getTitle());
-        InventoryTitleUpdater.updateTitle(player, inventory, ColorAPI.parse(processedTitle));
-
         AnimationSettings animSettings = menuData.getAnimationSettings();
         if (animSettings != null && animSettings.hasPageAnimation()) {
             AnimationExecutor.executeWithTransition(
@@ -289,6 +286,12 @@ public class MultiPaginationMenu extends MenuBase {
             });
         }
         player.updateInventory();
+
+        Tasks.later(() -> {
+            if (state.get() == MenuState.OPEN && inventory != null) {
+                refreshTitle();
+            }
+        }, 1L);
     }
 
     private int getSectionPage(String sectionName) {

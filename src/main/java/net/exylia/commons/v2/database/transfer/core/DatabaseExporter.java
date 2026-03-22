@@ -40,6 +40,7 @@ public final class DatabaseExporter {
         manifest.put("sourceAdapter", manager.getAdapter().getAdapterName());
 
         Map<String, List<Map<String, Object>>> tables = new LinkedHashMap<>();
+        Map<String, Integer> rowCounts = new LinkedHashMap<>();
         int totalRows = 0;
         int tablesCount = 0;
 
@@ -57,6 +58,7 @@ public final class DatabaseExporter {
                 }
 
                 tables.put(tableName, rows);
+                rowCounts.put(tableName, rows.size());
                 totalRows += rows.size();
                 tablesCount++;
 
@@ -66,6 +68,7 @@ public final class DatabaseExporter {
             }
         }
 
+        manifest.put("tableCounts", rowCounts);
         manifest.put("tables", tables);
 
         try {

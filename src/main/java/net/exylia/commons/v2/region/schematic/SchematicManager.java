@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.region.schematic;
 import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.region.blocks.PlayerBlockTracker;
 
 import com.sk89q.worldedit.extent.clipboard.Clipboard;
@@ -17,13 +18,9 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 
 public class SchematicManager {
@@ -36,8 +33,6 @@ public class SchematicManager {
         BLOCK
     }
 
-    private record QueuedOperation(String schematicName, Supplier<CompletableFuture<Boolean>> action, CompletableFuture<Boolean> result) {}
-
     private static SchematicManager instance;
 
     @Getter
@@ -46,9 +41,6 @@ public class SchematicManager {
     private final FaweSchematicEngine faweEngine;
     private final CustomSchematicEngine customEngine;
     private volatile SchematicType defaultType;
-
-    private final Queue<QueuedOperation> operationQueue = new ConcurrentLinkedQueue<>();
-    private final AtomicBoolean processing = new AtomicBoolean(false);
 
     private SchematicManager(JavaPlugin plugin) {
         this.plugin = plugin;
@@ -115,7 +107,7 @@ public class SchematicManager {
         Objects.requireNonNull(schematicName, "schematicName");
 
         SchematicType resolvedType = resolveSaveType(type, region);
-        DebugAPI.logLibInfo("[Schematic] save '" + schematicName + "' engine=" + resolvedType + " volume=" + region.getVolume());
+        DebugAPI.logLibDebug("[Schematic] save '" + schematicName + "' engine=" + resolvedType + " volume=" + region.getVolume());
         if (resolvedType == SchematicType.FAWE) {
             return faweEngine.save(region, schematicName, onProgress);
         }
@@ -142,36 +134,79 @@ public class SchematicManager {
     public CompletableFuture<Boolean> pasteSchematic(String schematicName, Location location, SchematicType type, Consumer<Float> onProgress) {
         Objects.requireNonNull(schematicName, "schematicName");
         Objects.requireNonNull(location, "location");
-
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        int pending = operationQueue.size() + (processing.get() ? 1 : 0);
-        if (pending > 0) {
-            DebugAPI.logLibInfo("[Schematic] queued '" + schematicName + "' — waiting for " + pending + " schematic(s)");
-        }
-        operationQueue.add(new QueuedOperation(schematicName, () -> doPaste(schematicName, location, type, onProgress), future));
-        drainQueue();
-        return future;
+        DebugAPI.logLibDebug("[Schematic] starting '" + schematicName + "'");
+        return doPaste(schematicName, location, type, onProgress)
+            .whenComplete((result, ex) -> DebugAPI.logLibDebug("[Schematic] finished '" + schematicName + "'"));
     }
 
     private CompletableFuture<Boolean> doPaste(String schematicName, Location location, SchematicType type, Consumer<Float> onProgress) {
         SchematicType resolvedType = resolvePasteType(schematicName, type);
+        DebugAPI.logLibDebug("[Schematic] doPaste '" + schematicName + "' requested=" + type + " resolved=" + resolvedType
+            + " faweAvailable=" + isFaweAvailable()
+            + " faweExists=" + (faweEngine != null && faweEngine.exists(schematicName))
+            + " customExists=" + customEngine.exists(schematicName));
+
         if (resolvedType == SchematicType.FAWE) {
-            DebugAPI.logLibInfo("[Schematic] paste '" + schematicName + "' engine=FAWE");
-            return faweEngine.paste(schematicName, location, onProgress);
+            return tryMigrateToFawe(schematicName).thenCompose(v -> {
+                boolean hasFawe = faweEngine != null && faweEngine.exists(schematicName);
+                DebugAPI.logLibDebug("[Schematic] post-migration '" + schematicName + "' faweExists=" + hasFawe);
+                if (hasFawe) {
+                    DebugAPI.logLibDebug("[Schematic] paste '" + schematicName + "' engine=FAWE");
+                    return faweEngine.paste(schematicName, location, onProgress);
+                }
+                return pasteWithCustomEngine(schematicName, location, resolvedType, onProgress, null);
+            });
         }
 
+        return pasteWithCustomEngine(schematicName, location, resolvedType, onProgress, null);
+    }
+
+    private CompletableFuture<Boolean> pasteWithCustomEngine(String schematicName, Location location,
+                                                              SchematicType type, Consumer<Float> onProgress,
+                                                              BiConsumer<Integer, Integer> onChunkEnter) {
         return customEngine.load(schematicName).thenCompose(schematic -> {
             if (schematic == null) {
                 return CompletableFuture.completedFuture(false);
             }
 
-            SchematicType applyType = resolvedType == SchematicType.AUTO ? schematic.storedType() : resolvedType;
+            SchematicType applyType = (type == SchematicType.AUTO || type == SchematicType.FAWE)
+                ? schematic.storedType() : type;
             if (applyType == SchematicType.AUTO || applyType == SchematicType.FAWE) {
                 applyType = SchematicType.SECTIONS;
             }
 
-            DebugAPI.logLibInfo("[Schematic] paste '" + schematicName + "' engine=" + applyType);
-            return customEngine.paste(schematicName, schematic, location, applyType, onProgress, null);
+            DebugAPI.logLibDebug("[Schematic] paste '" + schematicName + "' engine=" + applyType);
+            return customEngine.paste(schematicName, schematic, location, applyType, onProgress, onChunkEnter);
+        });
+    }
+
+    private CompletableFuture<Void> tryMigrateToFawe(String schematicName) {
+        if (faweEngine == null) {
+            DebugAPI.logLibDebug("[Schematic] tryMigrate '" + schematicName + "': faweEngine is null, skipping");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (faweEngine.exists(schematicName)) {
+            DebugAPI.logLibDebug("[Schematic] tryMigrate '" + schematicName + "': .schem already exists, skipping");
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!customEngine.exists(schematicName)) {
+            DebugAPI.logLibDebug("[Schematic] tryMigrate '" + schematicName + "': no .xschem found either, nothing to migrate");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        DebugAPI.logLibDebug("[Schematic] Auto-migrating '" + schematicName + "': .xschem → .schem");
+        return customEngine.load(schematicName).thenCompose(schematic -> {
+            if (schematic == null) {
+                DebugAPI.logLibDebug("[Schematic] Migration aborted '" + schematicName + "': failed to load .xschem");
+                return CompletableFuture.completedFuture(null);
+            }
+            DebugAPI.logLibDebug("[Schematic] Loaded .xschem '" + schematicName + "': "
+                + schematic.width() + "x" + schematic.height() + "x" + schematic.length()
+                + " palette=" + schematic.palette().size());
+            return faweEngine.saveFromCustom(schematic, schematicName)
+                .thenAccept(ok -> {
+                    if (!ok) DebugAPI.logLibDebug("[Schematic] Migration failed for '" + schematicName + "', will use custom engine");
+                });
         });
     }
 
@@ -191,41 +226,15 @@ public class SchematicManager {
         Objects.requireNonNull(region, "region");
         Objects.requireNonNull(schematicName, "schematicName");
 
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
-        int pending = operationQueue.size() + (processing.get() ? 1 : 0);
-        if (pending > 0) {
-            DebugAPI.logLibInfo("[Schematic] queued '" + schematicName + "' — waiting for " + pending + " schematic(s)");
-        }
-        operationQueue.add(new QueuedOperation(schematicName, () -> doRegenerate(region, schematicName, type, teleportToAir), future));
-        drainQueue();
-        return future;
-    }
-
-    private void drainQueue() {
-        if (!processing.compareAndSet(false, true)) return;
-        pollAndRun();
-    }
-
-    private void pollAndRun() {
-        QueuedOperation next = operationQueue.poll();
-        if (next == null) {
-            processing.set(false);
-            DebugAPI.logLibInfo("[Schematic] queue empty — all operations complete");
-            return;
-        }
-        int remaining = operationQueue.size();
-        String suffix = remaining > 0 ? " (" + remaining + " more in queue)" : "";
-        DebugAPI.logLibInfo("[Schematic] starting '" + next.schematicName() + "'" + suffix);
-        next.action().get().whenComplete((result, ex) -> {
-            if (ex != null) {
-                next.result().completeExceptionally(ex);
-                DebugAPI.logLibInfo("[Schematic] failed '" + next.schematicName() + "'");
-            } else {
-                next.result().complete(result);
-                DebugAPI.logLibInfo("[Schematic] finished '" + next.schematicName() + "'");
-            }
-            pollAndRun();
-        });
+        DebugAPI.logLibDebug("[Schematic] regenerateRegion '" + schematicName + "' requested=" + type
+            + " faweAvailable=" + isFaweAvailable()
+            + " faweExists=" + (faweEngine != null && faweEngine.exists(schematicName))
+            + " customExists=" + customEngine.exists(schematicName));
+        return doRegenerate(region, schematicName, type, teleportToAir)
+            .whenComplete((result, ex) -> {
+                if (ex != null) DebugAPI.logLibError(DebugCategory.REGION, "[Schematic] regenerateRegion '" + schematicName + "' threw: " + ex.getMessage());
+                else DebugAPI.logLibDebug("[Schematic] regenerateRegion '" + schematicName + "' completed result=" + result);
+            });
     }
 
     private CompletableFuture<Boolean> doRegenerate(Region region, String schematicName, SchematicType type, boolean teleportToAir) {
@@ -244,46 +253,58 @@ public class SchematicManager {
 
         return cleanup.thenCompose(v -> {
             if (resolvedType == SchematicType.FAWE) {
-                CompletableFuture<Void> teleport = (teleportToAir && world != null)
-                    ? preTeleportPlayersInRegion(region, world)
-                    : CompletableFuture.completedFuture(null);
-                return teleport.thenCompose(v2 -> {
-                    DebugAPI.logLibInfo("[Schematic] regenerate '" + schematicName + "' engine=FAWE");
-                    return faweEngine.paste(schematicName, minPoint, null);
+                return tryMigrateToFawe(schematicName).thenCompose(v2 -> {
+                    if (faweEngine.exists(schematicName)) {
+                        DebugAPI.logLibDebug("[Schematic] regenerate '" + schematicName + "' engine=FAWE");
+                        return faweEngine.paste(schematicName, minPoint, null).thenCompose(result -> {
+                            if (teleportToAir && world != null) {
+                                return postTeleportPlayersInRegion(region, world).thenApply(v3 -> result);
+                            }
+                            return CompletableFuture.completedFuture(result);
+                        });
+                    }
+                    return regenWithCustomEngine(schematicName, minPoint, resolvedType, teleportToAir, region, world);
                 });
             }
 
-            return customEngine.load(schematicName).thenCompose(schematic -> {
-                if (schematic == null) {
-                    return CompletableFuture.completedFuture(false);
-                }
+            return regenWithCustomEngine(schematicName, minPoint, resolvedType, teleportToAir, region, world);
+        });
+    }
 
-                SchematicType applyType = resolvedType == SchematicType.AUTO ? schematic.storedType() : resolvedType;
-                if (applyType == SchematicType.AUTO || applyType == SchematicType.FAWE) {
-                    applyType = SchematicType.SECTIONS;
-                }
+    private CompletableFuture<Boolean> regenWithCustomEngine(String schematicName, Location minPoint,
+                                                              SchematicType type, boolean teleportToAir,
+                                                              Region region, World world) {
+        return customEngine.load(schematicName).thenCompose(schematic -> {
+            if (schematic == null) {
+                return CompletableFuture.completedFuture(false);
+            }
 
-                int baseX = minPoint.getBlockX() - schematic.anchorX();
-                int baseY = minPoint.getBlockY() - schematic.anchorY();
-                int baseZ = minPoint.getBlockZ() - schematic.anchorZ();
+            SchematicType applyType = (type == SchematicType.AUTO || type == SchematicType.FAWE)
+                ? schematic.storedType() : type;
+            if (applyType == SchematicType.AUTO || applyType == SchematicType.FAWE) {
+                applyType = SchematicType.SECTIONS;
+            }
 
-                int topY = baseY + schematic.height() - 1;
-                final CustomSchematic finalSchematic = schematic;
-                BiConsumer<Integer, Integer> safetyConsumer = (teleportToAir && world != null) ? (chunkX, chunkZ) -> {
-                    for (Player player : world.getPlayers()) {
-                        if (!player.isOnline() || !player.getWorld().equals(world)) continue;
-                        Location loc = player.getLocation();
-                        int py = loc.getBlockY();
-                        if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ
-                                && py >= baseY && py <= topY && isSuffocating(player)) {
-                            teleportToSafeAir(player, finalSchematic, baseX, baseY, baseZ);
-                        }
+            int baseX = minPoint.getBlockX() - schematic.anchorX();
+            int baseY = minPoint.getBlockY() - schematic.anchorY();
+            int baseZ = minPoint.getBlockZ() - schematic.anchorZ();
+            int topY = baseY + schematic.height() - 1;
+            final CustomSchematic finalSchematic = schematic;
+
+            BiConsumer<Integer, Integer> safetyConsumer = (teleportToAir && world != null) ? (chunkX, chunkZ) -> {
+                for (Player player : world.getPlayers()) {
+                    if (!player.isOnline() || !player.getWorld().equals(world)) continue;
+                    Location loc = player.getLocation();
+                    int py = loc.getBlockY();
+                    if ((loc.getBlockX() >> 4) == chunkX && (loc.getBlockZ() >> 4) == chunkZ
+                            && py >= baseY && py <= topY && isSuffocating(player)) {
+                        teleportToSafeAir(player, finalSchematic, baseX, baseY, baseZ);
                     }
-                } : null;
+                }
+            } : null;
 
-                DebugAPI.logLibInfo("[Schematic] regenerate '" + schematicName + "' engine=" + applyType);
-                return customEngine.paste(schematicName, schematic, minPoint, applyType, null, safetyConsumer);
-            });
+            DebugAPI.logLibDebug("[Schematic] regenerate '" + schematicName + "' engine=" + applyType);
+            return customEngine.paste(schematicName, schematic, minPoint, applyType, null, safetyConsumer);
         });
     }
 
@@ -322,7 +343,7 @@ public class SchematicManager {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
-    private CompletableFuture<Void> preTeleportPlayersInRegion(Region region, World world) {
+    private CompletableFuture<Void> postTeleportPlayersInRegion(Region region, World world) {
         Location min = region.getMinimumPoint();
         Location max = region.getMaximumPoint();
         int minCX = min.getBlockX() >> 4;
@@ -340,11 +361,11 @@ public class SchematicManager {
             int cz = loc.getBlockZ() >> 4;
             int py = loc.getBlockY();
             if (cx >= minCX && cx <= maxCX && cz >= minCZ && cz <= maxCZ
-                    && py >= regionMinY && py <= regionMaxY && isSuffocating(player)) {
+                    && py >= regionMinY && py <= regionMaxY) {
                 CompletableFuture<Void> f = new CompletableFuture<>();
                 Tasks.at(player, () -> {
-                    if (isStillInRegion(player, world, minCX, maxCX, minCZ, maxCZ, regionMinY, regionMaxY)) {
-                        teleportAboveRegion(player, regionMaxY);
+                    if (player.isOnline() && isSuffocating(player)) {
+                        teleportToNearestSafeAirAbove(player, regionMaxY);
                     }
                     f.complete(null);
                 });
@@ -354,6 +375,23 @@ public class SchematicManager {
 
         if (futures.isEmpty()) return CompletableFuture.completedFuture(null);
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    private static void teleportToNearestSafeAirAbove(Player player, int regionMaxY) {
+        World world = player.getWorld();
+        Location loc = player.getLocation();
+        int x = loc.getBlockX();
+        int z = loc.getBlockZ();
+        int maxY = world.getMaxHeight() - 2;
+
+        for (int y = loc.getBlockY(); y <= maxY; y++) {
+            if (world.getBlockAt(x, y, z).getType().isAir() &&
+                world.getBlockAt(x, y + 1, z).getType().isAir()) {
+                player.teleportAsync(new Location(world, loc.getX(), y, loc.getZ(), loc.getYaw(), loc.getPitch()));
+                return;
+            }
+        }
+        teleportAboveRegion(player, regionMaxY);
     }
 
     private static void teleportToSafeAir(Player player, CustomSchematic schematic, int baseX, int baseY, int baseZ) {
@@ -380,20 +418,8 @@ public class SchematicManager {
 
     private static boolean isSchematicAir(CustomSchematic schematic, int lx, int ly, int lz) {
         int idx = SchematicMath.toIndex(lx, ly, lz, schematic.width(), schematic.length());
-        String block = schematic.palette().get(schematic.data()[idx]);
+        String block = schematic.palette().get(schematic.data()[idx] & 0xFFFF);
         return block.equals("minecraft:air") || block.equals("minecraft:cave_air") || block.equals("minecraft:void_air");
-    }
-
-    private static boolean isStillInRegion(Player player, World expectedWorld,
-                                              int minCX, int maxCX, int minCZ, int maxCZ,
-                                              int regionMinY, int regionMaxY) {
-        if (!player.isOnline() || !player.getWorld().equals(expectedWorld)) return false;
-        Location loc = player.getLocation();
-        int cx = loc.getBlockX() >> 4;
-        int cz = loc.getBlockZ() >> 4;
-        int py = loc.getBlockY();
-        return cx >= minCX && cx <= maxCX && cz >= minCZ && cz <= maxCZ
-                && py >= regionMinY && py <= regionMaxY;
     }
 
     private static boolean isSuffocating(Player player) {
@@ -443,20 +469,12 @@ public class SchematicManager {
     }
 
     public void shutdown() {
-        QueuedOperation pending;
-        while ((pending = operationQueue.poll()) != null) {
-            pending.result().cancel(true);
-        }
         unloadAllSchematics();
         synchronized (SchematicManager.class) {
             if (instance == this) {
                 instance = null;
             }
         }
-    }
-
-    public int getQueueSize() {
-        return operationQueue.size() + (processing.get() ? 1 : 0);
     }
 
     public File getSchematicsFolder() {
@@ -471,10 +489,14 @@ public class SchematicManager {
         SchematicType base = requested == null ? defaultType : requested;
         if (base != SchematicType.AUTO) {
             if (base == SchematicType.FAWE && !isFaweAvailable()) {
-                DebugAPI.logLibInfo("[Schematic] FAWE requested but unavailable, falling back to SECTIONS");
+                DebugAPI.logLibDebug("[Schematic] FAWE requested but unavailable, falling back to SECTIONS");
                 return SchematicType.SECTIONS;
             }
             return base;
+        }
+
+        if (isFaweAvailable()) {
+            return SchematicType.FAWE;
         }
 
         long volume = region.getVolume();
@@ -489,10 +511,16 @@ public class SchematicManager {
 
     private SchematicType resolvePasteType(String schematicName, SchematicType requested) {
         SchematicType base = requested == null ? defaultType : requested;
+        if (base == SchematicType.AUTO && isFaweAvailable()) {
+            DebugAPI.logLibDebug("[Schematic] resolvePasteType '" + schematicName + "': AUTO → FAWE (FAWE available)");
+            return SchematicType.FAWE;
+        }
         if (base == SchematicType.FAWE && !isFaweAvailable()) {
-            DebugAPI.logLibInfo("[Schematic] FAWE requested but unavailable, falling back to SECTIONS");
+            DebugAPI.logLibDebug("[Schematic] resolvePasteType '" + schematicName + "': FAWE requested but unavailable (faweEngine="
+                + (faweEngine != null ? "present" : "null") + "), falling back to SECTIONS");
             return SchematicType.SECTIONS;
         }
+        DebugAPI.logLibDebug("[Schematic] resolvePasteType '" + schematicName + "': " + requested + " → " + base);
         return base;
     }
 }
