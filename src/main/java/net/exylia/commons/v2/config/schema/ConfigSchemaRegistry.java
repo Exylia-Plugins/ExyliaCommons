@@ -6,6 +6,7 @@ import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardSerializer;
 import net.exylia.commons.v2.visual.config.serializer.ActionBarConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.BossBarConfigSerializer;
+import net.exylia.commons.v2.visual.config.serializer.FireworkConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.HologramTemplateSerializer;
 import net.exylia.commons.v2.visual.config.serializer.ScoreboardConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.TitleConfigSerializer;
@@ -14,6 +15,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 
 public class ConfigSchemaRegistry {
@@ -28,6 +31,7 @@ public class ConfigSchemaRegistry {
         registerSerializer(new ScoreboardConfigSerializer());
         registerSerializer(new ScoreboardSerializer());
         registerSerializer(new HologramTemplateSerializer());
+        registerSerializer(new FireworkConfigSerializer());
     }
 
     public static <T> void registerSerializer(ConfigSerializer<T> serializer) {
@@ -122,6 +126,31 @@ public class ConfigSchemaRegistry {
                 if (value != null) {
                     field.set(null, value);
                 }
+            } else if (List.class.isAssignableFrom(field.getType())) {
+                ConfigSerializer itemSerializer = getListItemSerializer(field);
+                if (itemSerializer != null) {
+                    List<?> rawList = config.raw().getList(path);
+                    if (rawList != null && !rawList.isEmpty()) {
+                        List<Object> result = new ArrayList<>(rawList.size());
+                        for (Object item : rawList) {
+                            ConfigurationSection section = toSection(item);
+                            if (section != null) {
+                                result.add(itemSerializer.deserialize(section));
+                            }
+                        }
+                        if (!result.isEmpty()) {
+                            field.set(null, result);
+                        }
+                    }
+                    DebugAPI.logLibDebug("[ConfigSchema] Loading (list-serialized) " + path + " | size=" + (rawList != null ? rawList.size() : 0));
+                } else {
+                    Object rawValue = config.raw().get(path);
+                    Object value = rawValue != null ? rawValue : defaultValue;
+                    DebugAPI.logLibDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
+                    if (value != null) {
+                        field.set(null, value);
+                    }
+                }
             } else {
                 Object rawValue = config.raw().get(path);
                 Object value = rawValue != null ? rawValue : defaultValue;
@@ -181,6 +210,15 @@ public class ConfigSchemaRegistry {
                     config.set(path, serialized);
                 } else {
                     mergeSerializedDefaults(config, path, serialized);
+                }
+            } else if (List.class.isAssignableFrom(field.getType())) {
+                ConfigSerializer itemSerializer = getListItemSerializer(field);
+                if (itemSerializer != null) {
+                    if (!config.exists(path)) {
+                        config.set(path, serializeList((List<?>) value, itemSerializer));
+                    }
+                } else if (!config.exists(path)) {
+                    config.set(path, value);
                 }
             } else if (!config.exists(path)) {
                 config.set(path, value);
@@ -282,6 +320,35 @@ public class ConfigSchemaRegistry {
         if (yaml != null && comments != null && comments.length > 0) {
             yaml.setComments(path, Arrays.asList(comments));
         }
+    }
+
+    private static ConfigSerializer<?> getListItemSerializer(Field field) {
+        Type genericType = field.getGenericType();
+        if (!(genericType instanceof ParameterizedType pt)) return null;
+        Type[] typeArgs = pt.getActualTypeArguments();
+        if (typeArgs.length != 1 || !(typeArgs[0] instanceof Class<?> itemClass)) return null;
+        return serializers.get(itemClass);
+    }
+
+    private static ConfigurationSection toSection(Object item) {
+        if (item instanceof ConfigurationSection section) {
+            return section;
+        }
+        if (item instanceof Map<?, ?> map) {
+            YamlConfiguration temp = new YamlConfiguration();
+            temp.set("item", normalizeMap(map));
+            return temp.getConfigurationSection("item");
+        }
+        return null;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static List<Object> serializeList(List<?> list, ConfigSerializer serializer) {
+        List<Object> result = new ArrayList<>(list.size());
+        for (Object item : list) {
+            result.add(serializer.serialize(item));
+        }
+        return result;
     }
 
     public static void reloadSchema(String fileName) {

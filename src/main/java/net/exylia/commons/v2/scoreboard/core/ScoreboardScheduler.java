@@ -78,12 +78,14 @@ public class ScoreboardScheduler {
                 return;
             }
 
+            long now = System.currentTimeMillis();
+
             instances.removeIf(instance -> {
                 if (instance.getLifecycle().isCancelled() || !instance.getPlayer().isOnline()) {
                     return true;
                 }
 
-                if (instance.shouldUpdate()) {
+                if (instance.shouldUpdate(now)) {
                     instance.update();
                 }
 

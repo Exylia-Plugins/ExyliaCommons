@@ -23,14 +23,29 @@ public final class DatabaseTransferAPI {
         return Tasks.dbValue(() -> DatabaseExporter.export(player, outputPath));
     }
 
+    public static CompletableFuture<TransferResult> export(String filename) {
+        Path outputPath = resolveExportsDir().resolve(filename.endsWith(".json") ? filename : filename + ".json");
+        return Tasks.dbValue(() -> DatabaseExporter.export(null, outputPath));
+    }
+
     public static CompletableFuture<TransferResult> export(Player player) {
         String filename = "export_" + LocalDateTime.now().format(FILE_DATE_FORMAT) + ".json";
         return export(player, filename);
     }
 
+    public static CompletableFuture<TransferResult> export() {
+        String filename = "export_" + LocalDateTime.now().format(FILE_DATE_FORMAT) + ".json";
+        return export(filename);
+    }
+
     public static CompletableFuture<TransferResult> importData(Player player, String filename) {
         Path filePath = resolveExportsDir().resolve(filename.endsWith(".json") ? filename : filename + ".json");
         return Tasks.dbValue(() -> DatabaseImporter.importData(player, filePath));
+    }
+
+    public static CompletableFuture<TransferResult> importData(String filename) {
+        Path filePath = resolveExportsDir().resolve(filename.endsWith(".json") ? filename : filename + ".json");
+        return Tasks.dbValue(() -> DatabaseImporter.importData(null, filePath));
     }
 
     private static Path resolveExportsDir() {

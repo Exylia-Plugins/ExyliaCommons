@@ -44,10 +44,6 @@ public class FireworkConfig extends VisualConfig {
             errors.add("Power must be between 0 and 3");
         }
 
-        if (location == null) {
-            errors.add("Location must be specified for fireworks");
-        }
-
         ValidationResult baseResult = validateBase();
         if (!baseResult.isValid()) {
             errors.addAll(baseResult.getErrors());

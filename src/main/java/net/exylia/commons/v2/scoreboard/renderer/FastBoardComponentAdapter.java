@@ -50,7 +50,7 @@ public class FastBoardComponentAdapter {
 
         if (!lines.equals(lastLines)) {
             fastBoard.updateLines(lines.toArray(new Component[0]));
-            lastLines = List.copyOf(lines);
+            lastLines = lines;
         }
     }
 

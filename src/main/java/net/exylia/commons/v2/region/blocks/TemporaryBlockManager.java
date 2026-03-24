@@ -72,8 +72,9 @@ public class TemporaryBlockManager {
         }
 
         Location location = removed.location;
-        Block block = location.getBlock();
-        block.setType(Material.AIR);
+        if (location.getWorld() != null && location.getChunk().isLoaded()) {
+            location.getBlock().setType(Material.AIR);
+        }
 
         if (reGiveBlock) {
             Player player = Bukkit.getPlayer(playerId);
@@ -110,8 +111,9 @@ public class TemporaryBlockManager {
 
         for (TemporaryBlock tempBlock : temporaryBlocks.values()) {
             Location location = tempBlock.location;
-            Block block = location.getBlock();
-            block.setType(Material.AIR);
+            if (location.getWorld() != null && location.getChunk().isLoaded()) {
+                location.getBlock().setType(Material.AIR);
+            }
         }
 
         temporaryBlocks.clear();

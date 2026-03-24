@@ -77,6 +77,10 @@ public class DebugManager {
         sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
     }
 
+    public boolean isLibDebugEnabled() {
+        return DebugConfig.isEnabled(DebugLevel.LIBRARY_ONLY);
+    }
+
     public void logLibrary(DebugType type, DebugCategory category, String message, Throwable throwable) {
         if (type == DebugType.DEBUG) {
             if (!DebugConfig.isEnabled(DebugLevel.LIBRARY_ONLY)) {

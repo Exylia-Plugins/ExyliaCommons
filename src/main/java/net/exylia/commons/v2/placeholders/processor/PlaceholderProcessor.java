@@ -79,7 +79,7 @@ public class PlaceholderProcessor {
     private static String processSinglePass(String text, Player player, PlaceholderContext context) {
         PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
         Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder(text.length() + 32);
 
         while (matcher.find()) {
             String placeholderName = matcher.group(1);

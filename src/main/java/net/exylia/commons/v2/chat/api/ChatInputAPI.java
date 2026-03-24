@@ -26,21 +26,32 @@ public final class ChatInputAPI {
     }
 
     public static void askInt(Player player, String prompt, Consumer<Integer> callback) {
-        askInt(player, prompt, Integer.MIN_VALUE, Integer.MAX_VALUE, callback);
+        askInt(player, ChatInputConfig.builder().prompt(prompt).build(), Integer.MIN_VALUE, Integer.MAX_VALUE, false, callback);
     }
 
     public static void askInt(Player player, String prompt, int min, int max, Consumer<Integer> callback) {
-        askInt(player, prompt, min, max, false, callback);
+        askInt(player, ChatInputConfig.builder().prompt(prompt).build(), min, max, false, callback);
     }
 
     public static void askInt(Player player, String prompt, int min, int max, boolean allowUnlimited, Consumer<Integer> callback) {
+        askInt(player, ChatInputConfig.builder().prompt(prompt).build(), min, max, allowUnlimited, callback);
+    }
+
+    public static void askInt(Player player, ChatInputConfig config, Consumer<Integer> callback) {
+        askInt(player, config, Integer.MIN_VALUE, Integer.MAX_VALUE, false, callback);
+    }
+
+    public static void askInt(Player player, ChatInputConfig config, int min, int max, Consumer<Integer> callback) {
+        askInt(player, config, min, max, false, callback);
+    }
+
+    public static void askInt(Player player, ChatInputConfig config, int min, int max, boolean allowUnlimited, Consumer<Integer> callback) {
         String rangeMsg = (min != Integer.MIN_VALUE || max != Integer.MAX_VALUE)
                 ? " between " + min + " and " + max
                 : "";
         String unlimitedHint = allowUnlimited ? " (-1 = unlimited)" : "";
 
-        ChatInputConfig config = ChatInputConfig.builder()
-                .prompt(prompt)
+        ChatInputConfig built = config.toBuilder()
                 .validator(input -> {
                     try {
                         int value = Integer.parseInt(input);
@@ -53,20 +64,27 @@ public final class ChatInputAPI {
                 .invalidMessage("&cMust be a number" + rangeMsg + unlimitedHint)
                 .build();
 
-        ask(player, config, input -> callback.accept(Integer.parseInt(input)));
+        ask(player, built, input -> callback.accept(Integer.parseInt(input)));
     }
 
     public static void askDouble(Player player, String prompt, Consumer<Double> callback) {
-        askDouble(player, prompt, -Double.MAX_VALUE, Double.MAX_VALUE, callback);
+        askDouble(player, ChatInputConfig.builder().prompt(prompt).build(), -Double.MAX_VALUE, Double.MAX_VALUE, callback);
     }
 
     public static void askDouble(Player player, String prompt, double min, double max, Consumer<Double> callback) {
+        askDouble(player, ChatInputConfig.builder().prompt(prompt).build(), min, max, callback);
+    }
+
+    public static void askDouble(Player player, ChatInputConfig config, Consumer<Double> callback) {
+        askDouble(player, config, -Double.MAX_VALUE, Double.MAX_VALUE, callback);
+    }
+
+    public static void askDouble(Player player, ChatInputConfig config, double min, double max, Consumer<Double> callback) {
         String rangeMsg = (min != -Double.MAX_VALUE || max != Double.MAX_VALUE)
                 ? " between " + min + " and " + max
                 : "";
 
-        ChatInputConfig config = ChatInputConfig.builder()
-                .prompt(prompt)
+        ChatInputConfig built = config.toBuilder()
                 .validator(input -> {
                     try {
                         double value = Double.parseDouble(input);
@@ -78,7 +96,7 @@ public final class ChatInputAPI {
                 .invalidMessage("&cMust be a number" + rangeMsg)
                 .build();
 
-        ask(player, config, input -> callback.accept(Double.parseDouble(input)));
+        ask(player, built, input -> callback.accept(Double.parseDouble(input)));
     }
 
     public static void cancel(Player player) {

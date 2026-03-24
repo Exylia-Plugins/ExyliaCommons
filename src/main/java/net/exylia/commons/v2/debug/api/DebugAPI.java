@@ -71,6 +71,10 @@ public class DebugAPI {
         DebugManager.getInstance().logLibrary(DebugType.DEBUG, category, message, null);
     }
 
+    public static boolean isLibDebugEnabled() {
+        return DebugManager.getInstance().isLibDebugEnabled();
+    }
+
     public static void logLibError(String message) {
         DebugManager.getInstance().logLibrary(DebugType.ERROR, null, message, null);
     }

@@ -22,7 +22,7 @@ public class ScoreboardFactory {
                 player,
                 scoreboard,
                 new FastBoardComponentAdapter(player),
-                new ComponentScoreboardRenderer(),
+                new ComponentScoreboardRenderer(scoreboard),
                 context
         );
     }

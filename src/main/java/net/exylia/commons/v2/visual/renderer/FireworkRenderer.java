@@ -21,7 +21,10 @@ public class FireworkRenderer implements VisualRenderer<FireworkConfig> {
     @Override
     public void render(Player player, FireworkConfig config, PlaceholderContext context) {
         Location location = config.getLocation() != null ? config.getLocation() : player.getLocation();
+        render(location, config);
+    }
 
+    public void render(Location location, FireworkConfig config) {
         if (location.getWorld() == null) {
             return;
         }

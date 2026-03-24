@@ -87,21 +87,23 @@ public class PaginationMenu extends MenuBase {
 
         DebugAPI.logLibDebug(DebugCategory.UI, "Applying pagination items for menu " + menuId + ": page " + currentPage + ", displaying " + pageItems.size() + " items");
 
+        PlaceholderContext basePageContext = context.copy()
+                .put("current_page", currentPage)
+                .put("total_pages", totalPages);
+
+        int startIndex = PageCalculator.getStartIndex(currentPage, itemsPerPage);
+
         for (int i = 0; i < pageItems.size() && i < slots.size(); i++) {
             int slot = slots.get(i);
             ItemData itemData = pageItems.get(i);
 
-            int globalIndex = PageCalculator.getStartIndex(currentPage, itemsPerPage) + i;
-
-            PlaceholderContext paginationContext = context.copy()
-                    .put("index", globalIndex)
-                    .put("page_index", i)
-                    .put("current_page", currentPage)
-                    .put("total_pages", getTotalPages());
+            PlaceholderContext itemContext = basePageContext.copy()
+                    .put("index", startIndex + i)
+                    .put("page_index", i);
 
             PlaceholderContext mergedContext = itemData.getContext() != null
-                    ? paginationContext.copyAndMerge(itemData.getContext())
-                    : paginationContext;
+                    ? itemContext.copyAndMerge(itemData.getContext())
+                    : itemContext;
 
             ItemData enhancedItemData = itemData.toBuilder()
                     .context(mergedContext)
@@ -127,40 +129,20 @@ public class PaginationMenu extends MenuBase {
         int currentPage = getCurrentPage();
         int totalPages = getTotalPages();
 
+        PlaceholderContext navContext = context.copy()
+                .put("current_page", currentPage)
+                .put("total_pages", totalPages);
+
         if (currentPage > 1 && nav.hasPreviousButton()) {
-            PlaceholderContext navContext = context.copy()
-                    .put("current_page", currentPage)
-                    .put("total_pages", totalPages);
-
-            ItemData prevButtonData = nav.getPreviousButton().toBuilder()
-                    .context(navContext)
-                    .build();
-
-            setItem(nav.getPreviousButtonSlot(), prevButtonData);
+            setItem(nav.getPreviousButtonSlot(), nav.getPreviousButton().toBuilder().context(navContext).build());
         }
 
         if (currentPage < totalPages && nav.hasNextButton()) {
-            PlaceholderContext navContext = context.copy()
-                    .put("current_page", currentPage)
-                    .put("total_pages", totalPages);
-
-            ItemData nextButtonData = nav.getNextButton().toBuilder()
-                    .context(navContext)
-                    .build();
-
-            setItem(nav.getNextButtonSlot(), nextButtonData);
+            setItem(nav.getNextButtonSlot(), nav.getNextButton().toBuilder().context(navContext).build());
         }
 
         if (nav.hasInfoItem()) {
-            PlaceholderContext infoContext = context.copy()
-                    .put("current_page", currentPage)
-                    .put("total_pages", totalPages);
-
-            ItemData infoItemData = nav.getInfoItem().toBuilder()
-                    .context(infoContext)
-                    .build();
-
-            setItem(nav.getInfoItemSlot(), infoItemData);
+            setItem(nav.getInfoItemSlot(), nav.getInfoItem().toBuilder().context(navContext).build());
         }
     }
 
@@ -204,7 +186,10 @@ public class PaginationMenu extends MenuBase {
     }
 
     private void refresh() {
-        Map<Integer, ProcessedItem> oldItems = new HashMap<>(itemsBySlot);
+        AnimationSettings animSettings = menuData.getAnimationSettings();
+        boolean hasPageAnimation = animSettings != null && animSettings.hasPageAnimation();
+
+        Map<Integer, ProcessedItem> oldItems = hasPageAnimation ? new HashMap<>(itemsBySlot) : null;
         itemsBySlot.clear();
         populateItems();
 
@@ -212,8 +197,7 @@ public class PaginationMenu extends MenuBase {
             return;
         }
 
-        AnimationSettings animSettings = menuData.getAnimationSettings();
-        if (animSettings != null && animSettings.hasPageAnimation()) {
+        if (hasPageAnimation) {
             AnimationExecutor.executeWithTransition(
                     inventory,
                     oldItems,
@@ -259,9 +243,7 @@ public class PaginationMenu extends MenuBase {
 
         String processed = processedTitle
                 .replace("%current_page%", String.valueOf(currentPage))
-                .replace("%total_pages%", String.valueOf(totalPages))
-                .replace("{current_page}", String.valueOf(currentPage))
-                .replace("{total_pages}", String.valueOf(totalPages));
+                .replace("%total_pages%", String.valueOf(totalPages));
 
         return ColorAPI.parse(processed);
     }

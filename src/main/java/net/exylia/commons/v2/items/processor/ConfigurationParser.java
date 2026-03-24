@@ -3,6 +3,7 @@ package net.exylia.commons.v2.items.processor;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.core.DebugCategory;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
+import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.config.SlotConfig;
@@ -39,6 +40,7 @@ public class ConfigurationParser {
         parsePotionConfig(config, builder);
         parseArmorTrimConfig(config, builder);
         parseLeatherArmorConfig(config, builder);
+        parseBannerConfig(config, builder);
         parseClickSounds(config, builder);
         parseItemModel(config, builder);
         parseTooltipStyle(config, builder);
@@ -208,6 +210,32 @@ public class ConfigurationParser {
                     LeatherArmorConfig leatherConfig = new LeatherArmorConfig();
                     leatherConfig.setColor(colorString);
                     builder.leatherArmorConfig(leatherConfig);
+                }
+            }
+        }
+    }
+
+    private static void parseBannerConfig(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        if (config.contains("banner_design")) {
+            String base64 = config.getString("banner_design");
+            if (base64 != null && !base64.isEmpty()) {
+                if (PlaceholderDetector.contains(base64)) {
+                    builder.rawBannerDesign(base64);
+                    return;
+                }
+                BannerConfig bannerConfig = BannerConfig.fromBase64(base64);
+                if (bannerConfig != null) {
+                    builder.bannerConfig(bannerConfig);
+                    return;
+                }
+                DebugAPI.logLibWarn("Invalid banner_design base64 string in config");
+            }
+        } else if (config.contains("banner_patterns")) {
+            ConfigurationSection bannerSection = config.getConfigurationSection("banner_patterns");
+            if (bannerSection != null) {
+                BannerConfig bannerConfig = BannerConfig.fromConfig(bannerSection);
+                if (bannerConfig != null) {
+                    builder.bannerConfig(bannerConfig);
                 }
             }
         }

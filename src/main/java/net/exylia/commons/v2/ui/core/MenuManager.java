@@ -17,6 +17,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -180,6 +181,26 @@ public class MenuManager {
             openingPlayers.remove(playerId);
         });
         return menu;
+    }
+
+    public void openCustomMenu(Player player, MenuBase menu) {
+        UUID playerId = player.getUniqueId();
+        if (!openingPlayers.add(playerId)) {
+            return;
+        }
+
+        Optional<MenuBase> currentMenu = registry.get(player.getUniqueId());
+        currentMenu.ifPresent(MenuBase::prepareTransition);
+
+        registry.unregister(player.getUniqueId());
+        registry.register(player.getUniqueId(), menu);
+
+        menu.openAsync().whenComplete((unused, throwable) -> {
+            if (throwable != null || !menu.isOpen()) {
+                registry.unregister(player.getUniqueId());
+            }
+            openingPlayers.remove(playerId);
+        });
     }
 
     public void closeMenu(Player player) {

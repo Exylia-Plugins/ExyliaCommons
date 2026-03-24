@@ -19,6 +19,7 @@ public class ScoreboardInstance {
     private final InstanceLifecycle lifecycle;
     private final ScoreboardRenderer renderer;
     private final long createdAt;
+    private final long intervalMs;
 
     private PlaceholderContext context;
     private long lastUpdate;
@@ -40,6 +41,7 @@ public class ScoreboardInstance {
         this.lifecycle = new InstanceLifecycle();
         this.createdAt = System.currentTimeMillis();
         this.lastUpdate = 0;
+        this.intervalMs = scoreboard.getUpdateInterval() * 50L;
     }
 
     public CompletableFuture<Void> show() {
@@ -61,12 +63,7 @@ public class ScoreboardInstance {
     }
 
     public CompletableFuture<Void> update() {
-        if (!lifecycle.canUpdate()) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        if (!player.isOnline()) {
-            lifecycle.cancel();
+        if (!lifecycle.canUpdate() || !player.isOnline()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -75,10 +72,12 @@ public class ScoreboardInstance {
     }
 
     public boolean shouldUpdate() {
-        if (!lifecycle.canUpdate() || !player.isOnline()) return false;
+        return shouldUpdate(System.currentTimeMillis());
+    }
 
-        long interval = scoreboard.getUpdateInterval() * 50L;
-        return System.currentTimeMillis() - lastUpdate >= interval;
+    public boolean shouldUpdate(long now) {
+        if (!lifecycle.canUpdate() || !player.isOnline()) return false;
+        return now - lastUpdate >= intervalMs;
     }
 
     public void updateContext(PlaceholderContext newContext) {

@@ -3,6 +3,7 @@ package net.exylia.commons.v2.items.processor;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.api.ProcessedItem;
+import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.exception.ItemValidationException;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.items.skull.SkullParser;
@@ -150,6 +151,7 @@ public class ItemProcessor {
         processPotionConfig(itemStack, itemData, player);
         processArmorTrim(itemStack, itemData, player);
         processLeatherArmorColor(itemStack, itemData, player);
+        processBannerConfig(itemStack, itemData, player);
         processItemModel(itemStack, itemData, player);
         processTooltipStyle(itemStack, itemData, player);
         processAttributes(itemStack, itemData);
@@ -247,6 +249,17 @@ public class ItemProcessor {
 
     private static void processLeatherArmorColor(ItemStack itemStack, ItemData itemData, Player player) {
         LeatherArmorProcessor.apply(itemStack, itemData.getLeatherArmorConfig(), player, itemData.getContext());
+    }
+
+    private static void processBannerConfig(ItemStack itemStack, ItemData itemData, Player player) {
+        BannerConfig bannerConfig = itemData.getBannerConfig();
+
+        if (bannerConfig == null && itemData.getRawBannerDesign() != null) {
+            String resolved = Placeholders.process(itemData.getRawBannerDesign(), player, itemData.getContext());
+            bannerConfig = BannerConfig.fromBase64(resolved);
+        }
+
+        BannerProcessor.apply(itemStack, bannerConfig, player, itemData.getContext());
     }
 
     private static void processItemModel(ItemStack itemStack, ItemData itemData, Player player) {

@@ -121,11 +121,23 @@ public class FireworkBuilder extends VisualBuilder<FireworkConfig, FireworkBuild
             case "PURPLE" -> Color.PURPLE;
             case "WHITE" -> Color.WHITE;
             case "BLACK" -> Color.BLACK;
+            case "GOLD" -> Color.fromRGB(255, 215, 0);
             case "PINK" -> Color.fromRGB(255, 192, 203);
             case "LIME" -> Color.LIME;
             case "CYAN" -> Color.fromRGB(0, 255, 255);
             case "MAGENTA" -> Color.fromRGB(255, 0, 255);
             default -> {
+                if (colorStr.startsWith("#") && (colorStr.length() == 7)) {
+                    try {
+                        yield Color.fromRGB(
+                                Integer.parseInt(colorStr.substring(1, 3), 16),
+                                Integer.parseInt(colorStr.substring(3, 5), 16),
+                                Integer.parseInt(colorStr.substring(5, 7), 16)
+                        );
+                    } catch (NumberFormatException e) {
+                        yield Color.WHITE;
+                    }
+                }
                 String[] rgb = colorStr.split(",");
                 if (rgb.length == 3) {
                     try {
@@ -140,6 +152,21 @@ public class FireworkBuilder extends VisualBuilder<FireworkConfig, FireworkBuild
                 yield Color.WHITE;
             }
         };
+    }
+
+    public static FireworkConfig fromSection(org.bukkit.configuration.ConfigurationSection section) {
+        FireworkBuilder builder = create();
+        builder.type(section.getString("type", "BALL"));
+        for (String colorStr : section.getStringList("colors")) {
+            builder.color(parseColor(colorStr));
+        }
+        for (String colorStr : section.getStringList("fade-colors")) {
+            builder.fadeColor(parseColor(colorStr));
+        }
+        builder.flicker(section.getBoolean("flicker", false));
+        builder.trail(section.getBoolean("trail", false));
+        builder.power(section.getInt("power", 1));
+        return builder.build();
     }
 
     public static FireworkConfig fromString(String fireworkString) {
@@ -193,10 +220,6 @@ public class FireworkBuilder extends VisualBuilder<FireworkConfig, FireworkBuild
 
         if (power < 0 || power > 3) {
             errors.add("Power must be between 0 and 3");
-        }
-
-        if (location == null) {
-            errors.add("Location must be specified for fireworks");
         }
 
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);

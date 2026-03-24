@@ -8,7 +8,6 @@ import net.exylia.commons.v2.placeholders.async.AsyncPlaceholderExecutor;
 import net.exylia.commons.v2.placeholders.cache.PlaceholderCache;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.placeholders.exception.PlaceholderRegistrationException;
-import net.exylia.commons.v2.placeholders.papi.PapiAdapter;
 import net.exylia.commons.v2.placeholders.resolver.ContextPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlaceholderResolver;
@@ -145,55 +144,35 @@ public class PlaceholderRegistry {
 
     public Object resolve(String name, Player player, PlaceholderContext context) {
         String key = name.toLowerCase();
-        long startTime = System.nanoTime();
 
         if (context != null && context.has(key)) {
-            Object value = safeResolve(() -> context.get(key), key);
-            logResolveSuccess(key, "context", System.nanoTime() - startTime);
-            return value;
+            return safeResolve(() -> context.get(key), key);
         }
 
         if (context != null) {
             ContextPlaceholderResolver contextResolver = contextResolvers.get(key);
             if (contextResolver != null) {
-                Object result = safeResolve(() -> contextResolver.resolve(context, player), key);
-                logResolveSuccess(key, "context-resolver", System.nanoTime() - startTime);
-                return result;
+                return safeResolve(() -> contextResolver.resolve(context, player), key);
             }
         }
 
         if (player != null) {
             PlayerPlaceholderResolver playerResolver = playerResolvers.get(key);
             if (playerResolver != null) {
-                Object result = safeResolve(() -> playerResolver.resolve(player), key);
-                logResolveSuccess(key, "player-resolver", System.nanoTime() - startTime);
-                return result;
+                return safeResolve(() -> playerResolver.resolve(player), key);
             }
         }
 
         GlobalPlaceholderResolver globalResolver = globalResolvers.get(key);
         if (globalResolver != null) {
-            Object result = safeResolve(globalResolver::resolve, key);
-            logResolveSuccess(key, "global-resolver", System.nanoTime() - startTime);
-            return result;
+            return safeResolve(globalResolver::resolve, key);
         }
 
         for (PlaceholderResolver resolver : argumentResolvers.values()) {
             if (resolver.matches(key)) {
                 String argument = resolver.extractArgument(name);
-                Object result = safeResolve(() -> resolver.resolve(player, context, argument), key);
-                logResolveSuccess(key, "argument-resolver(" + resolver.getName() + ")", System.nanoTime() - startTime);
-                return result;
+                return safeResolve(() -> resolver.resolve(player, context, argument), key);
             }
-        }
-
-        try {
-            PapiAdapter papiAdapter = PapiAdapter.getInstance();
-            if (papiAdapter != null && !papiAdapter.canResolvePlaceholder(key)) {
-                DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
-            }
-        } catch (Exception e) {
-            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "No resolver found for placeholder: " + key);
         }
 
         return null;

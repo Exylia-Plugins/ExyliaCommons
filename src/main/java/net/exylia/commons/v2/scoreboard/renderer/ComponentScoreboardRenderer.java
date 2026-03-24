@@ -16,6 +16,38 @@ import java.util.concurrent.CompletableFuture;
 
 public class ComponentScoreboardRenderer implements ScoreboardRenderer {
 
+    private final int lineCount;
+    private final String[] lineContents;
+    private final boolean[] lineDynamic;
+    private final Component[] staticLineCache;
+    private final String titleContent;
+    private final boolean titleDynamic;
+    private final Component staticTitle;
+
+    public ComponentScoreboardRenderer(Scoreboard scoreboard) {
+        List<ScoreboardLine> lines = scoreboard.getLines();
+        this.lineCount = lines != null ? lines.size() : 0;
+        this.lineContents = new String[lineCount];
+        this.lineDynamic = new boolean[lineCount];
+        this.staticLineCache = new Component[lineCount];
+
+        for (int i = 0; i < lineCount; i++) {
+            ScoreboardLine line = lines.get(i);
+            String content = line.getContent() != null ? line.getContent() : "";
+            lineContents[i] = content;
+            if (line.isDynamic()) {
+                lineDynamic[i] = true;
+            } else {
+                staticLineCache[i] = ColorAPI.parse(content);
+            }
+        }
+
+        String title = scoreboard.getTitle();
+        this.titleContent = title != null ? title : "";
+        this.titleDynamic = titleContent.contains("%");
+        this.staticTitle = titleDynamic ? null : ColorAPI.parse(titleContent);
+    }
+
     @Override
     public CompletableFuture<Void> renderAsync(
             Player player,
@@ -27,30 +59,19 @@ public class ComponentScoreboardRenderer implements ScoreboardRenderer {
             return CompletableFuture.completedFuture(null);
         }
 
-        PlaceholderContext finalContext = context != null ? context : PlaceholderContext.create();
+        PlaceholderContext ctx = context != null ? context : PlaceholderContext.create();
 
-        CompletableFuture<Component> titleFuture = processComponentAsync(
-                scoreboard.getTitle(), player, finalContext
-        );
-
-        CompletableFuture<List<Component>> linesFuture = processLinesAsync(
-                scoreboard.getLines(), player, finalContext
-        );
-
-        return CompletableFuture.allOf(titleFuture, linesFuture)
-                .thenCompose(v -> {
-                    Component processedTitle = titleFuture.join();
-                    List<Component> processedLines = linesFuture.join();
-
-                    CompletableFuture<Void> syncFuture = new CompletableFuture<>();
+        return Tasks.computeValue(() -> buildRenderResult(player, ctx))
+                .thenCompose(result -> {
+                    CompletableFuture<Void> sync = new CompletableFuture<>();
                     Tasks.sync(() -> {
                         if (!adapter.isDeleted()) {
-                            adapter.updateTitle(processedTitle);
-                            adapter.updateLines(processedLines);
+                            adapter.updateTitle(result.title());
+                            adapter.updateLines(result.lines());
                         }
-                        syncFuture.complete(null);
+                        sync.complete(null);
                     });
-                    return syncFuture;
+                    return sync;
                 })
                 .exceptionally(ex -> {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
@@ -59,54 +80,33 @@ public class ComponentScoreboardRenderer implements ScoreboardRenderer {
                 });
     }
 
+    private RenderResult buildRenderResult(Player player, PlaceholderContext ctx) {
+        Component title = titleDynamic
+                ? ColorAPI.parse(Placeholders.process(titleContent, player, ctx))
+                : staticTitle;
+
+        List<Component> lines = new ArrayList<>(lineCount);
+        for (int i = 0; i < lineCount; i++) {
+            if (lineDynamic[i]) {
+                String processed = Placeholders.process(lineContents[i], player, ctx);
+                if (processed.contains("\n")) {
+                    for (String part : processed.split("\n", -1)) {
+                        lines.add(ColorAPI.parse(part));
+                    }
+                } else {
+                    lines.add(ColorAPI.parse(processed));
+                }
+            } else {
+                lines.add(staticLineCache[i]);
+            }
+        }
+
+        return new RenderResult(title, lines);
+    }
+
+    private record RenderResult(Component title, List<Component> lines) {}
+
     @Override
     public void cleanup(Player player) {
-    }
-
-    @SuppressWarnings("unchecked")
-    private CompletableFuture<List<Component>> processLinesAsync(
-            List<ScoreboardLine> lines, Player player, PlaceholderContext context
-    ) {
-        if (lines == null || lines.isEmpty()) {
-            return CompletableFuture.completedFuture(List.of());
-        }
-
-        int size = lines.size();
-        CompletableFuture<List<Component>>[] lineFutures = new CompletableFuture[size];
-
-        for (int i = 0; i < size; i++) {
-            lineFutures[i] = Placeholders.processAsync(lines.get(i).getContent(), player, context)
-                    .thenApply(processed -> {
-                        if (!processed.contains("\n")) {
-                            return List.of(ColorAPI.parse(processed));
-                        }
-                        String[] parts = processed.split("\n", -1);
-                        List<Component> components = new ArrayList<>(parts.length);
-                        for (String part : parts) {
-                            components.add(ColorAPI.parse(part));
-                        }
-                        return components;
-                    });
-        }
-
-        return CompletableFuture.allOf(lineFutures)
-                .thenApply(v -> {
-                    List<Component> result = new ArrayList<>();
-                    for (CompletableFuture<List<Component>> future : lineFutures) {
-                        result.addAll(future.join());
-                    }
-                    return result;
-                });
-    }
-
-    private CompletableFuture<Component> processComponentAsync(
-            String text, Player player, PlaceholderContext context
-    ) {
-        if (text == null || text.isEmpty()) {
-            return CompletableFuture.completedFuture(Component.empty());
-        }
-
-        return Placeholders.processAsync(text, player, context)
-                .thenApply(ColorAPI::parse);
     }
 }

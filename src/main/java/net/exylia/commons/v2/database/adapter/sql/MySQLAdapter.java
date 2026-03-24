@@ -104,6 +104,10 @@ public class MySQLAdapter extends SQLAdapter {
 
     @Override
     public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        if (metadata.getPrimaryKeyField() != null && metadata.getPrimaryKeyField().isAutoIncrement()) {
+            super.upsertBatch(entities, metadata);
+            return;
+        }
         String sql = getUpsertSQL(metadata);
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);

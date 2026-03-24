@@ -61,12 +61,24 @@ public final class Database {
         return DatabaseTransferAPI.export(player);
     }
 
+    public static CompletableFuture<TransferResult> export() {
+        return DatabaseTransferAPI.export();
+    }
+
     public static CompletableFuture<TransferResult> export(Player player, String filename) {
         return DatabaseTransferAPI.export(player, filename);
     }
 
+    public static CompletableFuture<TransferResult> export(String filename) {
+        return DatabaseTransferAPI.export(filename);
+    }
+
     public static CompletableFuture<TransferResult> importData(Player player, String filename) {
         return DatabaseTransferAPI.importData(player, filename);
+    }
+
+    public static CompletableFuture<TransferResult> importData(String filename) {
+        return DatabaseTransferAPI.importData(filename);
     }
 
     public static DatabaseManager getManager() {

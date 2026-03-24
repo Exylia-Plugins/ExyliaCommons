@@ -12,6 +12,7 @@ public class ItemStackUtils {
 
     public static ItemStack createFromString(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
+            DebugAPI.logLibWarn("ItemStackUtils: Material string is null or empty, falling back to STONE");
             return new ItemStack(Material.STONE);
         }
 
@@ -48,6 +49,7 @@ public class ItemStackUtils {
             Material material = Material.valueOf(materialString.toUpperCase());
             return new ItemStack(material);
         } catch (IllegalArgumentException e) {
+            DebugAPI.logLibWarn("ItemStackUtils: Unknown material '" + materialString + "', falling back to STONE");
             return new ItemStack(Material.STONE);
         }
     }

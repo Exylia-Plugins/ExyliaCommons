@@ -6,7 +6,7 @@ import lombok.Getter;
 import java.util.function.Predicate;
 
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class ChatInputConfig {
 
     @Builder.Default

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.items.config.ArmorTrimConfig;
+import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.config.SlotConfig;
@@ -58,6 +59,12 @@ public class ItemData {
 
     @Builder.Default
     private LeatherArmorConfig leatherArmorConfig = null;
+
+    @Builder.Default
+    private BannerConfig bannerConfig = null;
+
+    @Builder.Default
+    private String rawBannerDesign = null;
 
     @Builder.Default
     private boolean glowing = false;
@@ -127,6 +134,8 @@ public class ItemData {
                 .potionConfig(this.potionConfig)
                 .armorTrimConfig(this.armorTrimConfig)
                 .leatherArmorConfig(this.leatherArmorConfig)
+                .bannerConfig(this.bannerConfig)
+                .rawBannerDesign(this.rawBannerDesign)
                 .glowing(this.glowing)
                 .hideAttributes(this.hideAttributes)
                 .hideTooltip(this.hideTooltip)

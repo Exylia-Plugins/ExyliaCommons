@@ -113,6 +113,10 @@ public class H2Adapter extends SQLAdapter {
 
     @Override
     public <T extends Entity> void upsertBatch(List<T> entities, EntityMetadata metadata) throws Exception {
+        if (metadata.getPrimaryKeyField() != null && metadata.getPrimaryKeyField().isAutoIncrement()) {
+            super.upsertBatch(entities, metadata);
+            return;
+        }
         String sql = getMergeSQL(metadata);
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
