@@ -60,6 +60,11 @@ public class ConfigSchemaRegistry {
 
         processClass(schemaClass, "", config);
 
+        if (schema.strict()) {
+            Set<String> schemaPaths = collectSchemaPaths(schemaClass, "");
+            removeOrphanedKeys(config, schemaPaths);
+        }
+
         config.save();
 
         loadClass(schemaClass, "", config);
@@ -145,6 +150,9 @@ public class ConfigSchemaRegistry {
                     DebugAPI.logLibDebug("[ConfigSchema] Loading (list-serialized) " + path + " | size=" + (rawList != null ? rawList.size() : 0));
                 } else {
                     Object rawValue = config.raw().get(path);
+                    if (rawValue instanceof String stringValue) {
+                        rawValue = List.of(stringValue);
+                    }
                     Object value = rawValue != null ? rawValue : defaultValue;
                     DebugAPI.logLibDebug("[ConfigSchema] Loading " + path + " | raw=" + rawValue + " | default=" + defaultValue + " | final=" + value);
                     if (value != null) {
@@ -367,5 +375,52 @@ public class ConfigSchemaRegistry {
 
     public static Map<String, Class<?>> getRegisteredSchemas() {
         return Collections.unmodifiableMap(registeredSchemas);
+    }
+
+    private static Set<String> collectSchemaPaths(Class<?> clazz, String prefix) {
+        Set<String> paths = new HashSet<>();
+
+        for (Field field : clazz.getDeclaredFields()) {
+            if (!Modifier.isStatic(field.getModifiers())) continue;
+            if (!field.isAnnotationPresent(ConfigValue.class)) continue;
+
+            ConfigValue cv = field.getAnnotation(ConfigValue.class);
+            String path = prefix.isEmpty() ? cv.value() : prefix + "." + cv.value();
+            paths.add(path);
+        }
+
+        for (Class<?> innerClass : clazz.getDeclaredClasses()) {
+            if (!innerClass.isAnnotationPresent(ConfigSection.class)) continue;
+            ConfigSection section = innerClass.getAnnotation(ConfigSection.class);
+            String sectionPath = prefix.isEmpty() ? section.value() : prefix + "." + section.value();
+            paths.addAll(collectSchemaPaths(innerClass, sectionPath));
+        }
+
+        return paths;
+    }
+
+    private static void removeOrphanedKeys(Config config, Set<String> schemaPaths) {
+        removeOrphanedKeysInSection(config.raw(), "", schemaPaths);
+    }
+
+    private static void removeOrphanedKeysInSection(ConfigurationSection section, String currentPrefix, Set<String> schemaPaths) {
+        for (String key : new HashSet<>(section.getKeys(false))) {
+            String fullPath = currentPrefix.isEmpty() ? key : currentPrefix + "." + key;
+
+            boolean isOwned = false;
+            for (String schemaPath : schemaPaths) {
+                if (schemaPath.equals(fullPath) || schemaPath.startsWith(fullPath + ".") || fullPath.startsWith(schemaPath + ".")) {
+                    isOwned = true;
+                    break;
+                }
+            }
+
+            if (!isOwned) {
+                section.set(key, null);
+                DebugAPI.logLibDebug("[ConfigSchema] [STRICT] Removed orphaned key: " + fullPath);
+            } else if (section.isConfigurationSection(key)) {
+                removeOrphanedKeysInSection(section.getConfigurationSection(key), fullPath, schemaPaths);
+            }
+        }
     }
 }

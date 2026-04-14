@@ -46,15 +46,9 @@ public class PlaceholderRegistry {
 
     public static void initialize(JavaPlugin plugin) {
         synchronized (PlaceholderRegistry.class) {
-            if (instance != null && instance.plugin == plugin) {
-                return;
+            if (instance == null) {
+                instance = new PlaceholderRegistry(plugin);
             }
-
-            if (instance != null) {
-                instance.shutdown();
-            }
-
-            instance = new PlaceholderRegistry(plugin);
         }
     }
 
@@ -175,6 +169,7 @@ public class PlaceholderRegistry {
             }
         }
 
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "[Registry.resolve] NO resolver found for key='" + key + "'");
         return null;
     }
 
@@ -252,7 +247,7 @@ public class PlaceholderRegistry {
     }
 
     public void shutdown() {
-        DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "Shutting down PlaceholderRegistry");
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Shutting down PlaceholderRegistry");
         cache.invalidateAll();
         resolvers.clear();
         globalResolvers.clear();

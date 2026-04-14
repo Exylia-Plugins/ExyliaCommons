@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.formatter.time;
 
-import lombok.Getter;
 import net.exylia.commons.v2.formatter.core.AbstractFormatter;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 
@@ -10,7 +9,6 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-@Getter
 public class TimeFormatter extends AbstractFormatter<Object, String> {
     private final TimeFormatterConfig config;
 
@@ -25,17 +23,13 @@ public class TimeFormatter extends AbstractFormatter<Object, String> {
 
     @Override
     public String format(Object input) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return config.getZeroText();
         }
 
-        String result = formatDuration(millis);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatDuration(millis);
     }
 
     @Override
@@ -48,74 +42,54 @@ public class TimeFormatter extends AbstractFormatter<Object, String> {
     }
 
     public String formatClock(Object input, ClockFormat format) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return format.getDefaultZero();
         }
 
         ClockFormat actualFormat = format == ClockFormat.AUTO ? ClockFormat.detect(millis) : format;
-        String result = formatAsClockTime(millis, actualFormat);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatAsClockTime(millis, actualFormat);
     }
 
     public String formatCompact(Object input) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return config.getZeroText();
         }
 
-        String result = formatDurationCompact(millis);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatDurationCompact(millis);
     }
 
     public String formatVerbal(Object input) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return config.getLanguage().equals("es") ? "sin tiempo" : "no time";
         }
 
-        String result = formatVerbalDuration(millis);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatVerbalDuration(millis);
     }
 
     public String formatLargestUnit(Object input) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return config.getZeroText();
         }
 
-        String result = formatLargestSignificantUnit(millis);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatLargestSignificantUnit(millis);
     }
 
     public String formatApproximate(Object input) {
-        long startTime = System.nanoTime();
         long millis = parseInputIntelligent(input);
 
         if (millis <= 0) {
-            stats.recordFormat(System.nanoTime() - startTime, false);
             return config.getZeroText();
         }
 
-        String result = formatApproximateDuration(millis);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatApproximateDuration(millis);
     }
 
     public String formatWithPrecision(Object input, int decimalPlaces) {
@@ -202,6 +176,15 @@ public class TimeFormatter extends AbstractFormatter<Object, String> {
     }
 
     private String formatDuration(long millis) {
+        boolean couldShowDecimals = config.isShowMilliseconds()
+                && config.isShowDecimalsWhenUnderThreshold()
+                && config.getDecimalThresholdMillis() > 0
+                && millis < config.getDecimalThresholdMillis();
+
+        if (!couldShowDecimals) {
+            millis = ((millis + 500) / 1000) * 1000;
+        }
+
         List<String> parts = new ArrayList<>();
         long remaining = millis;
         long remainingBeforeMinutes = remaining;

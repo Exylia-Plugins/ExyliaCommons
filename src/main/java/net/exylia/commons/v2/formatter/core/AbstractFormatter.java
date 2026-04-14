@@ -1,22 +1,17 @@
 package net.exylia.commons.v2.formatter.core;
 
-import lombok.Getter;
 import net.exylia.commons.v2.tasks.api.Tasks;
-import net.exylia.commons.v2.formatter.api.FormatterStats;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-@Getter
 public abstract class AbstractFormatter<I, O> implements Formatter<I, O> {
     protected final FormatterCache cache;
-    protected final FormatterStats stats;
 
     protected AbstractFormatter(FormatterCache cache) {
         this.cache = cache;
-        this.stats = new FormatterStats();
     }
 
     @Override
@@ -39,11 +34,6 @@ public abstract class AbstractFormatter<I, O> implements Formatter<I, O> {
     @Override
     public void invalidateCache() {
         cache.invalidateResults();
-    }
-
-    @Override
-    public FormatterStats getStats() {
-        return stats;
     }
 
     protected abstract String getCacheKey(I input, String pattern);

@@ -3,6 +3,7 @@ package net.exylia.commons.v2.clan.provider;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -53,12 +54,20 @@ public class KingdomsProvider implements ClanProvider {
         try {
             KingdomPlayer kp = KingdomPlayer.getKingdomPlayer(playerId);
             if (kp == null || !kp.hasKingdom()) {
+                if (DebugAPI.isLibDebugEnabled()) {
+                    DebugAPI.logLibDebug("[ClanAPI/KX] Player " + playerId + " has no kingdom");
+                }
                 return Optional.empty();
             }
 
             Kingdom kingdom = kp.getKingdom();
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI/KX] Player " + playerId + " -> kingdom: " + kingdom.getName());
+            }
+
             return Optional.of(convertToClan(kingdom));
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/KX] Exception resolving kingdom for player " + playerId, e);
             return Optional.empty();
         }
     }
@@ -75,12 +84,20 @@ public class KingdomsProvider implements ClanProvider {
         try {
             KingdomPlayer kp = KingdomPlayer.getKingdomPlayer(player);
             if (kp == null || !kp.hasKingdom()) {
+                if (DebugAPI.isLibDebugEnabled()) {
+                    DebugAPI.logLibDebug("[ClanAPI/KX] Player " + player.getUniqueId() + " has no kingdom");
+                }
                 return Optional.empty();
             }
 
             Kingdom kingdom = kp.getKingdom();
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI/KX] Player " + player.getUniqueId() + " -> kingdom: " + kingdom.getName());
+            }
+
             return Optional.of(convertToClan(kingdom));
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/KX] Exception resolving kingdom for player " + player.getUniqueId(), e);
             return Optional.empty();
         }
     }
@@ -196,6 +213,7 @@ public class KingdomsProvider implements ClanProvider {
                 }
             }
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/KX] Exception reading members for kingdom '" + kingdom.getName() + "'", e);
         }
 
         return Clan.builder()

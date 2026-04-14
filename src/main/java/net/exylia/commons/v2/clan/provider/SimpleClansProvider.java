@@ -3,6 +3,7 @@ package net.exylia.commons.v2.clan.provider;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.sacredlabyrinth.phaed.simpleclans.ClanPlayer;
 import net.sacredlabyrinth.phaed.simpleclans.SimpleClans;
@@ -56,16 +57,25 @@ public class SimpleClansProvider implements ClanProvider {
         try {
             ClanPlayer cp = plugin.getClanManager().getClanPlayer(playerId);
             if (cp == null) {
+                if (DebugAPI.isLibDebugEnabled()) {
+                    DebugAPI.logLibDebug("[ClanAPI/SC] ClanPlayer not found for: " + playerId);
+                }
                 return Optional.empty();
             }
 
             net.sacredlabyrinth.phaed.simpleclans.Clan scClan = cp.getClan();
             if (scClan == null) {
+                DebugAPI.logLibWarn("[ClanAPI/SC] Player " + playerId + " has ClanPlayer but clan is null — possible data inconsistency");
                 return Optional.empty();
+            }
+
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI/SC] Player " + playerId + " -> clan: " + scClan.getTag());
             }
 
             return Optional.of(convertToClan(scClan));
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/SC] Exception resolving clan for player " + playerId, e);
             return Optional.empty();
         }
     }

@@ -12,6 +12,11 @@ public interface DatabaseAdapter {
 
     void disconnect() throws Exception;
 
+    default void reconnect() throws Exception {
+        disconnect();
+        connect();
+    }
+
     boolean isConnected();
 
     void createTable(EntityMetadata metadata) throws Exception;

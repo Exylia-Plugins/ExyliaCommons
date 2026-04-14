@@ -14,6 +14,10 @@ public class DatabaseDefaults {
         @Comment("Database type: h2, mysql, mongodb")
         public static String TYPE = "h2";
 
+        @ConfigValue("server-id")
+        @Comment("Unique identifier for this server in a multi-server network. Used for cross-server teleports and messaging.")
+        public static String SERVER_ID = "server-1";
+
         @ConfigSection("settings")
         public static class Settings {
             @ConfigValue("pool-size")
@@ -114,6 +118,36 @@ public class DatabaseDefaults {
 
             @ConfigValue("connection-string")
             public static String CONNECTION_STRING = "";
+        }
+
+        @ConfigSection("redis")
+        public static class Redis {
+            @ConfigValue("enabled")
+            @Comment("Enable Redis for shared L2 cache and cross-server cache invalidation. Required for multi-server setups.")
+            public static boolean ENABLED = false;
+
+            @ConfigValue("host")
+            public static String HOST = "localhost";
+
+            @ConfigValue("port")
+            public static int PORT = 6379;
+
+            @ConfigValue("password")
+            public static String PASSWORD = "";
+
+            @ConfigValue("database")
+            public static int DATABASE = 0;
+
+            @ConfigValue("pool-size")
+            public static int POOL_SIZE = 8;
+
+            @ConfigValue("ttl-seconds")
+            @Comment("How long cached entities are stored in Redis before expiring (seconds).")
+            public static int TTL_SECONDS = 1800;
+
+            @ConfigValue("key-prefix")
+            @Comment("Prefix for all Redis keys. Use a unique value per network to isolate environments.")
+            public static String KEY_PREFIX = "exylia";
         }
     }
 }

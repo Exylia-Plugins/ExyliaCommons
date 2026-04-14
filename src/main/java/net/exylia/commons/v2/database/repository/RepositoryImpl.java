@@ -149,6 +149,12 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     }
 
     @Override
+    public void putToCache(T entity) {
+        if (entity == null || entity.getId() == null) return;
+        cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+    }
+
+    @Override
     public void save(T entity) {
         try {
             entity.updateTimestamp();
@@ -159,7 +165,8 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
                 adapter.insert(entity, metadata);
             }
 
-            invalidateCache();
+            cache.invalidateAll();
+            cache.put(CacheKey.of(entityClass, entity.getId()), entity);
         } catch (Exception e) {
             throw new RepositoryException("Error saving entity", e);
         }
@@ -177,7 +184,10 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
                 entity.updateTimestamp();
             }
             adapter.upsertBatch(entities, metadata);
-            invalidateCache();
+            cache.invalidateAll();
+            for (T entity : entities) {
+                cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+            }
         } catch (Exception e) {
             throw new RepositoryException("Error saving batch of entities", e);
         }

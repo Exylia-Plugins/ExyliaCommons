@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.api;
 
+import net.exylia.commons.v2.compat.PotionEffectTypeCompat;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.builder.EffectBuilder;
 import net.exylia.commons.v2.visual.config.EffectConfig;
@@ -62,7 +63,7 @@ public final class EffectAPI {
     public static void removeAll(Player player, List<String> effectStrings) {
         for (String effectString : effectStrings) {
             String effectName = effectString.split("\\|")[0].trim();
-            PotionEffectType effectType = PotionEffectType.getByName(effectName.toUpperCase());
+            PotionEffectType effectType = PotionEffectTypeCompat.resolve(effectName);
             if (effectType != null) {
                 player.removePotionEffect(effectType);
             }

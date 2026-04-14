@@ -91,12 +91,57 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         }
     }
 
+    public CompletableFuture<Void> flushEntity(Object id) {
+        T entity = dirtyEntities.remove(id);
+        T toDelete = pendingDeletes.remove(id);
+        if (entity == null && toDelete == null) return CompletableFuture.completedFuture(null);
+        final T toSave = entity;
+        final T toDel = toDelete;
+        return Tasks.dbRun(() -> {
+            if (toSave != null) delegate.save(toSave);
+            if (toDel != null) delegate.delete(toDel);
+        });
+    }
+
+    @Override
+    public CompletableFuture<Void> flushEntitiesBy(String fieldName, Object value) {
+        List<T> toSave = new ArrayList<>();
+        List<T> toDelete = new ArrayList<>();
+
+        for (Map.Entry<Object, T> entry : dirtyEntities.entrySet()) {
+            if (matchesField(entry.getValue(), fieldName, value)) {
+                T removed = dirtyEntities.remove(entry.getKey());
+                if (removed != null) toSave.add(removed);
+            }
+        }
+        for (Map.Entry<Object, T> entry : pendingDeletes.entrySet()) {
+            if (matchesField(entry.getValue(), fieldName, value)) {
+                T removed = pendingDeletes.remove(entry.getKey());
+                if (removed != null) toDelete.add(removed);
+            }
+        }
+
+        if (toSave.isEmpty() && toDelete.isEmpty()) return CompletableFuture.completedFuture(null);
+
+        final List<T> finalToSave = toSave;
+        final List<T> finalToDelete = toDelete;
+        return Tasks.dbRun(() -> {
+            if (!finalToSave.isEmpty()) delegate.saveAll(finalToSave);
+            if (!finalToDelete.isEmpty()) delegate.deleteAll(finalToDelete);
+        });
+    }
+
     public static void shutdownAll() {
         DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Shutting down " + INSTANCES.size() + " repositories");
         new ArrayList<>(INSTANCES).forEach(WriteBehindRepository::shutdownFlush);
     }
 
     // --- Writes (buffered) ---
+
+    @Override
+    public void putToCache(T entity) {
+        delegate.putToCache(entity);
+    }
 
     @Override
     public void save(T entity) {
@@ -108,6 +153,7 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         Object id = entity.getId();
         pendingDeletes.remove(id);
         dirtyEntities.put(id, entity);
+        delegate.putToCache(entity);
         DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Queued save for " + entityName + " [" + id + "] — dirty=" + dirtyEntities.size());
     }
 
@@ -138,6 +184,7 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         Object id = entity.getId();
         boolean wasDirty = dirtyEntities.remove(id) != null;
         pendingDeletes.put(id, entity);
+        delegate.invalidateCache(id);
         DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Queued delete for " + entityName + " [" + id + "]" + (wasDirty ? " (removed from dirty)" : "") + " — pending=" + pendingDeletes.size());
     }
 

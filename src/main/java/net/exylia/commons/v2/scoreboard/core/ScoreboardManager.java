@@ -2,18 +2,26 @@ package net.exylia.commons.v2.scoreboard.core;
 
 import lombok.Getter;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.scoreboard.integration.TabIntegration;
 import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
 import net.exylia.commons.v2.scoreboard.listener.ScoreboardListener;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardStats;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Getter
 public class ScoreboardManager {
+
+    private static final long REINIT_DELAY_TICKS = 20L;
 
     private static volatile ScoreboardManager instance;
     private static final Object LOCK = new Object();
@@ -22,6 +30,7 @@ public class ScoreboardManager {
     private final ScoreboardRegistry registry;
     private final ScoreboardFactory factory;
     private final ScoreboardScheduler scheduler;
+    private final Map<UUID, ScheduledTask> pendingReinitTasks;
     private boolean initialized;
 
     private ScoreboardManager(Plugin plugin) {
@@ -29,6 +38,7 @@ public class ScoreboardManager {
         this.registry = new ScoreboardRegistry();
         this.factory = new ScoreboardFactory(plugin);
         this.scheduler = new ScoreboardScheduler(plugin, registry);
+        this.pendingReinitTasks = new HashMap<>();
         this.initialized = false;
     }
 
@@ -52,6 +62,7 @@ public class ScoreboardManager {
 
     private void init() {
         plugin.getServer().getPluginManager().registerEvents(new ScoreboardListener(this), plugin);
+        TabIntegration.register(this);
         initialized = true;
     }
 
@@ -64,13 +75,14 @@ public class ScoreboardManager {
             return CompletableFuture.completedFuture(null);
         }
 
-        registry.peek(player.getUniqueId()).ifPresent(current -> {
+        UUID uuid = player.getUniqueId();
+        registry.remove(uuid).ifPresent(current -> {
             current.hide();
             scheduler.unschedule(current);
         });
 
         ScoreboardInstance newInstance = factory.createInstance(player, scoreboard, context);
-        registry.push(player.getUniqueId(), newInstance);
+        registry.set(uuid, newInstance);
         scheduler.schedule(newInstance);
 
         return newInstance.show().thenApply(v -> newInstance.getId());
@@ -79,20 +91,35 @@ public class ScoreboardManager {
     public boolean hideScoreboard(Player player) {
         if (player == null) return false;
 
-        Optional<ScoreboardInstance> instanceOpt = registry.pop(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        cancelPendingReinit(uuid);
+
+        Optional<ScoreboardInstance> instanceOpt = registry.remove(uuid);
         if (instanceOpt.isEmpty()) return false;
 
         ScoreboardInstance instance = instanceOpt.get();
         instance.hide();
         scheduler.unschedule(instance);
-
-        Optional<ScoreboardInstance> previous = registry.peek(player.getUniqueId());
-        if (previous.isPresent()) {
-            scheduler.schedule(previous.get());
-            previous.get().show();
-        }
+        TabIntegration.resetScoreboard(player);
 
         return true;
+    }
+
+    public void scheduleReinit(Player player, ScoreboardInstance instance) {
+        UUID uuid = player.getUniqueId();
+        cancelPendingReinit(uuid);
+        ScheduledTask task = Tasks.later(() -> {
+            pendingReinitTasks.remove(uuid);
+            if (player.isOnline()) instance.reinitialize();
+        }, REINIT_DELAY_TICKS);
+        pendingReinitTasks.put(uuid, task);
+    }
+
+    private void cancelPendingReinit(UUID uuid) {
+        ScheduledTask task = pendingReinitTasks.remove(uuid);
+        if (task != null && !task.isCancelled()) {
+            task.cancel();
+        }
     }
 
     public Optional<ScoreboardInstance> getScoreboard(Player player) {
@@ -115,15 +142,24 @@ public class ScoreboardManager {
     public void clearPlayerScoreboards(Player player) {
         if (player == null) return;
 
-        while (registry.has(player.getUniqueId())) {
-            registry.pop(player.getUniqueId()).ifPresent(instance -> {
-                instance.hide();
-                scheduler.unschedule(instance);
-            });
+        UUID uuid = player.getUniqueId();
+        cancelPendingReinit(uuid);
+
+        registry.remove(uuid).ifPresent(instance -> {
+            instance.hide();
+            scheduler.unschedule(instance);
+        });
+
+        if (player.isOnline()) {
+            TabIntegration.resetScoreboard(player);
         }
     }
 
     public void hideAll() {
+        pendingReinitTasks.values().forEach(task -> {
+            if (!task.isCancelled()) task.cancel();
+        });
+        pendingReinitTasks.clear();
         registry.clear();
         scheduler.shutdown();
     }

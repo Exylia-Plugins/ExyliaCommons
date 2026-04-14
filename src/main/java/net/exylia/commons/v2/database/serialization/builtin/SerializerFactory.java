@@ -6,6 +6,7 @@ import net.exylia.commons.v2.hologram.model.HologramData;
 import net.exylia.commons.v2.region.model.Region;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardData;
 import net.exylia.commons.v2.snapshot.model.SnapshotData;
+import net.exylia.commons.v2.teleport.model.ExyliaLocation;
 import net.exylia.commons.v2.visual.model.ActionBarData;
 import net.exylia.commons.v2.visual.model.BossBarData;
 import net.kyori.adventure.text.Component;
@@ -19,6 +20,9 @@ public class SerializerFactory {
 
         registry.registerSerializer(Location.class, LocationSerializer.INSTANCE);
         registry.registerDeserializer(Location.class, new LocationDeserializer());
+
+        registry.registerSerializer(ExyliaLocation.class, ExyliaLocationSerializer.INSTANCE);
+        registry.registerDeserializer(ExyliaLocation.class, ExyliaLocationDeserializer.INSTANCE);
 
         registry.registerSerializer(ItemStack.class, ItemStackSerializer.INSTANCE);
         registry.registerDeserializer(ItemStack.class, new ItemStackDeserializer());

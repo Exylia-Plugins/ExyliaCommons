@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.database.api;
 
 import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.database.annotation.PlayerSession;
 import net.exylia.commons.v2.database.config.DatabaseDefaults;
 import net.exylia.commons.v2.database.core.DatabaseManager;
 import net.exylia.commons.v2.database.entity.Entity;
@@ -13,6 +14,10 @@ import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,6 +54,35 @@ public final class Database {
                         DatabaseDefaults.Database.WriteBehind.FLUSH_INTERVAL
                 )
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    public static CompletableFuture<Void> flushPlayerSession(UUID playerUuid) {
+        DatabaseManager manager = DatabaseManager.getInstance();
+        Set<Class<? extends Entity>> sessionEntities = manager.getSessionEntities();
+        if (sessionEntities.isEmpty()) return CompletableFuture.completedFuture(null);
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (Class<? extends Entity> entityClass : sessionEntities) {
+            Repository<Entity> repo = DatabaseDefaults.Database.WriteBehind.ENABLED
+                    ? (Repository<Entity>) writeBehindCache.get(entityClass)
+                    : (Repository<Entity>) manager.getRepository(entityClass);
+            if (repo == null) continue;
+
+            PlayerSession annotation = entityClass.getAnnotation(PlayerSession.class);
+            String playerField = annotation.playerField();
+
+            if (playerField.isEmpty()) {
+                Object id = manager.resolvePlayerSessionId(entityClass, playerUuid);
+                futures.add(repo.flushEntity(id));
+            } else {
+                Object fieldValue = manager.resolvePlayerFieldValue(entityClass, playerField, playerUuid);
+                futures.add(repo.flushEntitiesBy(playerField, fieldValue));
+            }
+        }
+        return futures.isEmpty()
+                ? CompletableFuture.completedFuture(null)
+                : CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     public static void shutdown() {

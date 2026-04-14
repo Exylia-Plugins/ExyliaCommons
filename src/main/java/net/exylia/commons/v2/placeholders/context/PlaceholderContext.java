@@ -159,4 +159,16 @@ public class PlaceholderContext {
         return typedData.isEmpty() && keyedData.isEmpty();
     }
 
+    public String resolve(String template) {
+        if (template == null || template.isEmpty()) return template;
+        String result = template;
+        for (Map.Entry<String, Object> entry : keyedData.entrySet()) {
+            Object raw = entry.getValue() instanceof Supplier<?> s ? s.get() : entry.getValue();
+            if (raw != null) {
+                result = result.replace("%" + entry.getKey() + "%", String.valueOf(raw));
+            }
+        }
+        return result;
+    }
+
 }

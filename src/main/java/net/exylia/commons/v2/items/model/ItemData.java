@@ -70,7 +70,7 @@ public class ItemData {
     private boolean glowing = false;
 
     @Builder.Default
-    private boolean hideAttributes = false;
+    private boolean hideAttributes = true;
 
     @Builder.Default
     private boolean hideTooltip = false;

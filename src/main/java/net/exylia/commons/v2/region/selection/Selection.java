@@ -40,9 +40,9 @@ public class Selection {
         Location max = getMaximumPoint();
         return new Location(
             pos1.getWorld(),
-            (min.getX() + max.getX()) / 2.0,
-            (min.getY() + max.getY()) / 2.0,
-            (min.getZ() + max.getZ()) / 2.0
+            (min.getX() + max.getX() + 1) / 2.0,
+            (min.getY() + max.getY() + 1) / 2.0,
+            (min.getZ() + max.getZ() + 1) / 2.0
         );
     }
 

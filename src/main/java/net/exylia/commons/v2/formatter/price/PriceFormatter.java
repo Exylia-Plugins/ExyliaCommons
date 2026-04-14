@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.formatter.price;
 
-import lombok.Getter;
 import net.exylia.commons.v2.formatter.core.AbstractFormatter;
 import net.exylia.commons.v2.formatter.core.FormatterException;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
@@ -11,7 +10,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-@Getter
 public class PriceFormatter extends AbstractFormatter<Object, String> {
     private final PriceFormatterConfig config;
     private final ThreadLocal<DecimalFormat> formatters;
@@ -28,16 +26,12 @@ public class PriceFormatter extends AbstractFormatter<Object, String> {
 
     @Override
     public String format(Object input) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         String formatted = formatters.get().format(amount);
-        String result = config.isSymbolBefore()
+        return config.isSymbolBefore()
             ? config.getCurrencySymbol() + formatted
             : formatted + config.getCurrencySymbol();
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
     }
 
     @Override
@@ -46,7 +40,6 @@ public class PriceFormatter extends AbstractFormatter<Object, String> {
     }
 
     public String formatCompact(Object input) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         CompactSuffix suffix = CompactSuffix.fromValue(amount.doubleValue());
@@ -56,34 +49,22 @@ public class PriceFormatter extends AbstractFormatter<Object, String> {
             config.getDecimalSeparator(), config.getThousandSeparator());
         String formatted = df.format(value) + suffix.getSuffix();
 
-        String result = config.isSymbolBefore()
+        return config.isSymbolBefore()
             ? config.getCurrencySymbol() + formatted
             : formatted + config.getCurrencySymbol();
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
     }
 
     public String formatNoSymbol(Object input) {
-        long startTime = System.nanoTime();
-        BigDecimal amount = parseInput(input);
-
-        String result = formatters.get().format(amount);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatters.get().format(parseInput(input));
     }
 
     public String formatWithSymbol(Object input, String symbol) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         String formatted = formatters.get().format(amount);
-        String result = config.isSymbolBefore()
+        return config.isSymbolBefore()
             ? symbol + formatted
             : formatted + symbol;
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
     }
 
     @Override

@@ -8,10 +8,12 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 public class PapiAdapter {
     private static PapiAdapter instance;
     private final JavaPlugin plugin;
-    private PapiExpander expander;
+    private final ConcurrentHashMap<String, PapiExpander> expanders = new ConcurrentHashMap<>();
     @Getter
     private boolean papiAvailable;
 
@@ -22,21 +24,19 @@ public class PapiAdapter {
 
     public static void initialize(JavaPlugin plugin) {
         synchronized (PapiAdapter.class) {
-            if (instance != null && instance.plugin == plugin) {
-                return;
-            }
-
-            if (instance != null) {
-                instance.unregister();
-            }
-
-            instance = new PapiAdapter(plugin);
-            if (instance.papiAvailable) {
-                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI detected");
-            } else {
-                DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI not found");
+            if (instance == null) {
+                instance = new PapiAdapter(plugin);
+                if (instance.papiAvailable) {
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI detected");
+                } else {
+                    DebugAPI.logLibInfo(DebugCategory.PLACEHOLDER, "PapiAdapter initialized - PlaceholderAPI not found");
+                }
             }
         }
+    }
+
+    public static boolean isInitialized() {
+        return instance != null;
     }
 
     public static PapiAdapter getInstance() {
@@ -54,8 +54,9 @@ public class PapiAdapter {
 
         try {
             DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering PAPI expander with identifier: " + identifier);
-            expander = new PapiExpander(identifier);
+            PapiExpander expander = new PapiExpander(identifier);
             if (expander.register()) {
+                expanders.put(identifier, expander);
                 DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander registered: " + identifier);
             } else {
                 DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Failed to register PAPI expander: " + identifier);
@@ -65,17 +66,29 @@ public class PapiAdapter {
         }
     }
 
-    public void unregister() {
+    public void unregisterExpander(String identifier) {
+        PapiExpander expander = expanders.remove(identifier);
         if (expander != null && papiAvailable) {
             try {
-                DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Unregistering PAPI expander");
                 expander.unregister();
-                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered");
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered: " + identifier);
             } catch (Exception e) {
                 DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander: " + e.getMessage(), e);
             }
         }
-        expander = null;
+    }
+
+    public void unregister() {
+        if (papiAvailable) {
+            expanders.forEach((id, expander) -> {
+                try {
+                    expander.unregister();
+                } catch (Exception e) {
+                    DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander '" + id + "': " + e.getMessage(), e);
+                }
+            });
+        }
+        expanders.clear();
     }
 
     public static void shutdown() {

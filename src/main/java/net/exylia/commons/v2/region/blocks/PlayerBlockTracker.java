@@ -48,6 +48,12 @@ public class PlayerBlockTracker {
         DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] TRACK | region=" + regionId + " player=" + playerId + " pos=" + position);
     }
 
+    public void trackBlock(String regionId, Location location) {
+        BlockPosition position = new BlockPosition(location);
+        regionBlocks.computeIfAbsent(regionId, k -> ConcurrentHashMap.newKeySet()).add(position);
+        DebugAPI.logLibDebug(DebugCategory.REGION, "[BlockTracker] TRACK (natural) | region=" + regionId + " pos=" + position);
+    }
+
     public boolean isPlayerPlacedBlock(String regionId, Location location) {
         Set<BlockPosition> blocks = regionBlocks.get(regionId);
         BlockPosition position = new BlockPosition(location);

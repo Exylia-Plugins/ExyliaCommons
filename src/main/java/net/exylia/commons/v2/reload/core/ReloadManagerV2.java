@@ -121,7 +121,11 @@ public class ReloadManagerV2 {
                         context.markReloaded(system.getName());
                         DebugAPI.logLibInfo(system.getName() + " reloaded in " + metrics.getFormattedDuration());
                     } else {
-                        DebugAPI.logLibError(system.getName() + " reload failed: " + metrics.getPhase());
+                        String errorDetail = metrics.getError()
+                                .map(e -> e.getClass().getSimpleName() + ": " + e.getMessage())
+                                .orElse("unknown error");
+                        DebugAPI.logLibError(system.getName() + " reload failed: " + errorDetail);
+                        metrics.getError().ifPresent(e -> DebugAPI.logLibError(system.getName() + " cause: " + getCauseChain(e)));
                     }
 
                     statsBuilder.add(system.getName(), metrics);
@@ -240,5 +244,16 @@ public class ReloadManagerV2 {
         return systems.values().stream()
                 .sorted(Comparator.comparingInt(s -> s.getPriority().getOrder()))
                 .collect(Collectors.toList());
+    }
+
+    private String getCauseChain(Throwable t) {
+        StringBuilder sb = new StringBuilder();
+        Throwable cause = t.getCause();
+        while (cause != null) {
+            sb.append(cause.getClass().getSimpleName()).append(": ").append(cause.getMessage());
+            cause = cause.getCause();
+            if (cause != null) sb.append(" → ");
+        }
+        return sb.isEmpty() ? "no cause" : sb.toString();
     }
 }

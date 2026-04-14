@@ -1,46 +1,42 @@
 package net.exylia.commons.v2.clan.provider;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import me.ulrich.clans.Clans;
 import me.ulrich.clans.api.ClanAPIManager;
 import me.ulrich.clans.data.ClanData;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class UltimateClanProvider implements ClanProvider {
 
+    private final Clans plugin;
     private final ClanAPIManager api;
     private final boolean enabled;
-    private final Cache<UUID, String> playerClanIdCache;
 
     public UltimateClanProvider() {
+        Clans tempPlugin = null;
         ClanAPIManager tempApi = null;
         boolean tempEnabled = false;
 
         try {
-            Clans plugin = (Clans) Bukkit.getPluginManager().getPlugin("UltimateClans");
-            if (plugin != null) {
-                tempApi = plugin.getClanAPI();
+            tempPlugin = (Clans) Bukkit.getPluginManager().getPlugin("UltimateClans");
+            if (tempPlugin != null) {
+                tempApi = tempPlugin.getClanAPI();
                 tempEnabled = tempApi != null;
             }
         } catch (Exception e) {
             tempEnabled = false;
         }
 
+        this.plugin = tempPlugin;
         this.api = tempApi;
         this.enabled = tempEnabled;
-        this.playerClanIdCache = Caffeine.newBuilder()
-                .expireAfterWrite(Duration.ofMinutes(5))
-                .maximumSize(5000)
-                .build();
     }
 
     @Override
@@ -58,23 +54,24 @@ public class UltimateClanProvider implements ClanProvider {
         if (!enabled) return Optional.empty();
 
         try {
-            String clanTag = playerClanIdCache.get(playerId, k -> {
-                for (ClanData clanData : api.getAllClansData()) {
-                    if (clanData.getMembers().contains(playerId) ||
-                            clanData.getMods().contains(playerId) ||
-                            clanData.getLeader().equals(playerId)) {
-                        return clanData.getTag();
-                    }
-                }
-                return null;
-            });
+            Optional<ClanData> playerClanOpt = plugin.getPlayerAPI().getPlayerClan(playerId);
 
-            if (clanTag == null) {
+            if (playerClanOpt.isEmpty()) {
+                if (DebugAPI.isLibDebugEnabled()) {
+                    DebugAPI.logLibDebug("[ClanAPI/UC] Player " + playerId + " has no clan in UltimateClans");
+                }
                 return Optional.empty();
             }
 
-            return getClanByTag(clanTag);
+            ClanData clanData = playerClanOpt.get();
+
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI/UC] Player " + playerId + " -> clan: " + clanData.getTag());
+            }
+
+            return Optional.of(convertToClan(clanData));
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/UC] Exception resolving clan for player " + playerId, e);
             return Optional.empty();
         }
     }
@@ -100,8 +97,17 @@ public class UltimateClanProvider implements ClanProvider {
 
         try {
             Optional<ClanData> optData = api.getClanDataByTag(tag);
+
+            if (optData.isEmpty()) {
+                if (DebugAPI.isLibDebugEnabled()) {
+                    DebugAPI.logLibDebug("[ClanAPI/UC] No ClanData found for tag: " + tag);
+                }
+                return Optional.empty();
+            }
+
             return optData.map(this::convertToClan);
         } catch (Exception e) {
+            DebugAPI.logLibError("[ClanAPI/UC] Exception resolving clan by tag '" + tag + "'", e);
             return Optional.empty();
         }
     }
@@ -151,7 +157,6 @@ public class UltimateClanProvider implements ClanProvider {
 
     @Override
     public void invalidateCache() {
-        playerClanIdCache.invalidateAll();
     }
 
     private Clan convertToClan(ClanData clanData) {
@@ -160,9 +165,9 @@ public class UltimateClanProvider implements ClanProvider {
         allMembers.add(clanData.getLeader());
 
         return Clan.builder()
-                .id(clanData.getTag())
-                .name(clanData.getTag())
-                .tag(clanData.getTag())
+                .id(clanData.getTagNoColor())
+                .name(clanData.getTagNoColor())
+                .tag(clanData.getTagNoColor())
                 .displayName(clanData.getTag())
                 .leader(clanData.getLeader())
                 .moderators(new HashSet<>(clanData.getMods()))

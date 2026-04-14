@@ -16,13 +16,6 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven {
-        url = uri('https://maven.pkg.github.com/KasperiP/lukittu-loader')
-        credentials {
-            username = providers.gradleProperty('gpr.user').orNull ?: System.getenv('GITHUB_ACTOR') ?: ''
-            password = providers.gradleProperty('gpr.key').orNull ?: System.getenv('GITHUB_TOKEN') ?: ''
-        }
-    }
-    maven {
         name = "papermc-repo"
         url = "https://repo.papermc.io/repository/maven-public/"
     }

@@ -8,11 +8,9 @@ import org.jetbrains.annotations.NotNull;
 
 public class PapiExpander extends PlaceholderExpansion {
     private final String identifier;
-    private final PlaceholderRegistry registry;
 
     public PapiExpander(String identifier) {
         this.identifier = identifier;
-        this.registry = PlaceholderRegistry.getInstance();
     }
 
     @Override
@@ -40,7 +38,15 @@ public class PapiExpander extends PlaceholderExpansion {
 
     @Override
     public String onPlaceholderRequest(Player player, @NotNull String params) {
+        net.exylia.commons.v2.debug.api.DebugAPI.logLibDebug(net.exylia.commons.v2.debug.core.DebugCategory.PLACEHOLDER,
+            "[PapiExpander:" + identifier + "] called params='" + params + "' player=" + (player != null ? player.getName() : "null") + " registryOk=" + PlaceholderRegistry.isInitialized());
+        if (!PlaceholderRegistry.isInitialized()) return "";
+        PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
+        net.exylia.commons.v2.debug.api.DebugAPI.logLibDebug(net.exylia.commons.v2.debug.core.DebugCategory.PLACEHOLDER,
+            "[PapiExpander:" + identifier + "] stats=" + registry.getStats());
         Object result = registry.resolve(params, player, new PlaceholderContext().withPlayer(player));
+        net.exylia.commons.v2.debug.api.DebugAPI.logLibDebug(net.exylia.commons.v2.debug.core.DebugCategory.PLACEHOLDER,
+            "[PapiExpander:" + identifier + "] result=" + result);
         return result != null ? result.toString() : "";
     }
 }

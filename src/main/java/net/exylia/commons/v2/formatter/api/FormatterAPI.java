@@ -1,14 +1,9 @@
 package net.exylia.commons.v2.formatter.api;
 
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
-import net.exylia.commons.v2.formatter.cache.FormatterCacheStats;
 import net.exylia.commons.v2.formatter.core.FormatterRegistry;
-import net.exylia.commons.v2.formatter.date.DateFormatter;
-import net.exylia.commons.v2.formatter.percent.PercentFormatter;
-import net.exylia.commons.v2.formatter.price.PriceFormatter;
 import net.exylia.commons.v2.formatter.time.ClockFormat;
 import net.exylia.commons.v2.formatter.time.TimeComponents;
-import net.exylia.commons.v2.formatter.time.TimeFormatter;
 
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -174,85 +169,5 @@ public final class FormatterAPI {
 
     public static void invalidateAllCaches() {
         FormatterCache.getInstance().invalidateAll();
-    }
-
-    public static FormatterCacheStats getCacheStats() {
-        return FormatterCache.getInstance().getStats();
-    }
-
-    public static GlobalFormatterStats getGlobalStats() {
-        TimeFormatter timeFormatter = FormatterRegistry.getTimeFormatter();
-        DateFormatter dateFormatter = FormatterRegistry.getDateFormatter();
-        PriceFormatter priceFormatter = FormatterRegistry.getPriceFormatter();
-        PercentFormatter percentFormatter = FormatterRegistry.getPercentFormatter();
-
-        return new GlobalFormatterStats(
-            FormatterCache.getInstance().getStats(),
-            timeFormatter.getStats(),
-            dateFormatter.getStats(),
-            priceFormatter.getStats(),
-            percentFormatter.getStats()
-        );
-    }
-
-    public static class GlobalFormatterStats {
-        private final FormatterCacheStats cacheStats;
-        private final FormatterStats timeStats;
-        private final FormatterStats dateStats;
-        private final FormatterStats priceStats;
-        private final FormatterStats percentStats;
-
-        public GlobalFormatterStats(FormatterCacheStats cacheStats, FormatterStats timeStats,
-                                   FormatterStats dateStats, FormatterStats priceStats,
-                                   FormatterStats percentStats) {
-            this.cacheStats = cacheStats;
-            this.timeStats = timeStats;
-            this.dateStats = dateStats;
-            this.priceStats = priceStats;
-            this.percentStats = percentStats;
-        }
-
-        public FormatterCacheStats getCacheStats() {
-            return cacheStats;
-        }
-
-        public FormatterStats getTimeStats() {
-            return timeStats;
-        }
-
-        public FormatterStats getDateStats() {
-            return dateStats;
-        }
-
-        public FormatterStats getPriceStats() {
-            return priceStats;
-        }
-
-        public FormatterStats getPercentStats() {
-            return percentStats;
-        }
-
-        public double getOverallCacheHitRate() {
-            return cacheStats.getOverallHitRate();
-        }
-
-        public long getTotalFormatCount() {
-            return timeStats.getFormatCount().get() +
-                   dateStats.getFormatCount().get() +
-                   priceStats.getFormatCount().get() +
-                   percentStats.getFormatCount().get();
-        }
-
-        public double getAverageTimeMillis() {
-            long totalCount = getTotalFormatCount();
-            if (totalCount == 0) return 0.0;
-
-            long totalNanos = timeStats.getTotalTimeNanos().get() +
-                            dateStats.getTotalTimeNanos().get() +
-                            priceStats.getTotalTimeNanos().get() +
-                            percentStats.getTotalTimeNanos().get();
-
-            return (double) totalNanos / totalCount / 1_000_000;
-        }
     }
 }

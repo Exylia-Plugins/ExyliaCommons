@@ -49,8 +49,25 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public void reconnect() throws Exception {
+        DebugAPI.logLibInfo("Reconnecting to MongoDB...");
+        if (mongoClient != null) {
+            try { mongoClient.close(); } catch (Exception ignored) {}
+            mongoClient = null;
+            database = null;
+        }
+        connect();
+    }
+
+    @Override
     public boolean isConnected() {
-        return mongoClient != null && database != null;
+        if (mongoClient == null || database == null) return false;
+        try {
+            database.runCommand(new Document("ping", 1));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

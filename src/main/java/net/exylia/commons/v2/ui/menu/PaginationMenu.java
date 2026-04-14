@@ -9,9 +9,7 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.animation.AnimationExecutor;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.model.MenuData;
-import net.exylia.commons.v2.ui.model.MenuState;
 import net.exylia.commons.v2.ui.model.NavigationData;
-import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.ui.packet.PacketEventsSupport;
 import net.exylia.commons.v2.ui.pagination.PageCalculator;
 import net.exylia.commons.v2.ui.pagination.PaginationTracker;
@@ -20,10 +18,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class PaginationMenu extends MenuBase {
 
@@ -36,7 +36,7 @@ public class PaginationMenu extends MenuBase {
 
     @Override
     protected Inventory createInventory() {
-        return Bukkit.createInventory(null, menuData.getSize(), processPaginationTitle(menuData.getTitle()));
+        return Bukkit.createInventory(null, menuData.getSize(), processPaginationTitle());
     }
 
     @Override
@@ -189,9 +189,9 @@ public class PaginationMenu extends MenuBase {
         AnimationSettings animSettings = menuData.getAnimationSettings();
         boolean hasPageAnimation = animSettings != null && animSettings.hasPageAnimation();
 
-        Map<Integer, ProcessedItem> oldItems = hasPageAnimation ? new HashMap<>(itemsBySlot) : null;
+        Map<Integer, ProcessedItem> oldItems = new HashMap<>(itemsBySlot);
         itemsBySlot.clear();
-        populateItems();
+        populateItemsWithoutDisplay();
 
         if (inventory == null) {
             return;
@@ -207,20 +207,29 @@ public class PaginationMenu extends MenuBase {
                     animationCancelFlag
             );
         } else {
-            inventory.clear();
+            for (Integer slot : oldItems.keySet()) {
+                if (!itemsBySlot.containsKey(slot) && slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, null);
+                }
+            }
             itemsBySlot.forEach((slot, item) -> {
                 if (slot >= 0 && slot < inventory.getSize()) {
-                    inventory.setItem(slot, item.getItemStack());
+                    ProcessedItem old = oldItems.get(slot);
+                    ItemStack newStack = item.getItemStack();
+                    ItemStack oldStack = old != null ? old.getItemStack() : null;
+                    if (!Objects.equals(oldStack, newStack)) {
+                        inventory.setItem(slot, newStack);
+                    }
                 }
             });
         }
-        player.updateInventory();
 
-        Tasks.later(() -> {
-            if (state.get() == MenuState.OPEN && inventory != null) {
-                refreshTitle();
-            }
-        }, 1L);
+        refreshTitle();
+    }
+
+    @Override
+    protected String computeCurrentTitle() {
+        return processRawPaginationTitle();
     }
 
     @Override
@@ -228,10 +237,15 @@ public class PaginationMenu extends MenuBase {
         if (inventory == null) {
             return;
         }
-        PacketEventsSupport.updateTitle(player, inventory, processPaginationTitle(menuData.getTitle()));
+        String raw = processRawPaginationTitle();
+        if (raw.equals(lastRenderedTitle)) {
+            return;
+        }
+        lastRenderedTitle = raw;
+        PacketEventsSupport.updateTitle(player, inventory, ColorAPI.parse(raw));
     }
 
-    private net.kyori.adventure.text.Component processPaginationTitle(String title) {
+    private String processRawPaginationTitle() {
         int currentPage = getCurrentPage();
         int totalPages = getTotalPages();
 
@@ -239,13 +253,13 @@ public class PaginationMenu extends MenuBase {
                 .put("current_page", currentPage)
                 .put("total_pages", totalPages);
 
-        String processedTitle = Placeholders.process(title, player, titleContext);
-
-        String processed = processedTitle
+        return Placeholders.process(menuData.getTitle(), player, titleContext)
                 .replace("%current_page%", String.valueOf(currentPage))
                 .replace("%total_pages%", String.valueOf(totalPages));
+    }
 
-        return ColorAPI.parse(processed);
+    private net.kyori.adventure.text.Component processPaginationTitle() {
+        return ColorAPI.parse(processRawPaginationTitle());
     }
 
     private int getCurrentPage() {

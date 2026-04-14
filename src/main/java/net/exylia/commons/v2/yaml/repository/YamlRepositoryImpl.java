@@ -312,6 +312,12 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
     }
 
     @Override
+    public void putToCache(T entity) {
+        if (entity == null || entity.getId() == null) return;
+        cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+    }
+
+    @Override
     public void invalidateCache() {
         cache.invalidateAll();
     }

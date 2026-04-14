@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.formatter.percent;
 
-import lombok.Getter;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
 import net.exylia.commons.v2.formatter.core.AbstractFormatter;
 import net.exylia.commons.v2.formatter.core.FormatterException;
@@ -11,7 +10,6 @@ import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.Locale;
 
-@Getter
 public class PercentFormatter extends AbstractFormatter<Object, String> {
     private final PercentFormatterConfig config;
     private final ThreadLocal<DecimalFormat> formatters;
@@ -28,14 +26,10 @@ public class PercentFormatter extends AbstractFormatter<Object, String> {
 
     @Override
     public String format(Object input) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         String formatted = formatters.get().format(amount);
-        String result = buildResult(formatted, amount.doubleValue());
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return buildResult(formatted, amount.doubleValue());
     }
 
     @Override
@@ -44,37 +38,24 @@ public class PercentFormatter extends AbstractFormatter<Object, String> {
     }
 
     public String formatWithDecimals(Object input, int decimals) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         DecimalFormat df = createDecimalFormat(decimals);
         String formatted = df.format(amount);
-        String result = buildResult(formatted, amount.doubleValue());
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return buildResult(formatted, amount.doubleValue());
     }
 
     public String formatNoSuffix(Object input) {
-        long startTime = System.nanoTime();
-        BigDecimal amount = parseInput(input);
-
-        String result = formatters.get().format(amount);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return formatters.get().format(parseInput(input));
     }
 
     public String formatWithSuffix(Object input, String suffix) {
-        long startTime = System.nanoTime();
         BigDecimal amount = parseInput(input);
 
         String formatted = formatters.get().format(amount);
-        String result = config.isShowPlusSign() && amount.doubleValue() > 0
+        return config.isShowPlusSign() && amount.doubleValue() > 0
             ? "+" + formatted + suffix
             : formatted + suffix;
-
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
     }
 
     public String formatRatio(Object numerator, Object denominator) {

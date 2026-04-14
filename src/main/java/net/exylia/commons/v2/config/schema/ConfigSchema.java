@@ -10,4 +10,5 @@ import java.lang.annotation.Target;
 public @interface ConfigSchema {
     String file();
     String version() default "1.0";
+    boolean strict() default false;
 }

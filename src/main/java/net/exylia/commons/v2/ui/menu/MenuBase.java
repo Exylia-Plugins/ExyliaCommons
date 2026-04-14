@@ -28,6 +28,7 @@ import net.exylia.commons.v2.visual.api.SoundAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -53,7 +54,7 @@ public abstract class MenuBase {
 
     protected Inventory inventory;
     protected ScheduledTask refreshTask;
-    private String lastRenderedTitle;
+    protected String lastRenderedTitle;
 
     protected MenuBase(Player player, MenuData menuData) {
         this.menuId = UUID.randomUUID();
@@ -116,6 +117,7 @@ public abstract class MenuBase {
                         try {
                             player.openInventory(inventory);
                             state.set(MenuState.OPEN);
+                            lastRenderedTitle = computeCurrentTitle();
                             playOpenSounds();
 
                             AnimationSettings animSettings = menuData.getAnimationSettings();
@@ -179,6 +181,7 @@ public abstract class MenuBase {
                     try {
                         player.openInventory(inventory);
                         state.set(MenuState.OPEN);
+                        lastRenderedTitle = computeCurrentTitle();
                         playOpenSounds();
 
                         AnimationSettings animSettings = menuData.getAnimationSettings();
@@ -385,15 +388,18 @@ public abstract class MenuBase {
         DebugAPI.logLibDebug(DebugCategory.UI, "Refreshing slot " + slot + " in menu " + menuId);
 
         Tasks.run(() -> {
-            ItemData itemData = oldItem.getRawItemData();
-            ProcessedItem newItem = ItemsAPI.process(itemData, player, false);
+            ProcessedItem newItem = ItemsAPI.process(oldItem.getRawItemData(), player, false);
+            ItemStack oldStack = oldItem.getItemStack();
+            ItemStack newStack = newItem.getItemStack();
             itemsBySlot.put(slot, newItem);
 
-            Tasks.sync(() -> {
-                if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
-                    inventory.setItem(slot, newItem.getItemStack());
-                }
-            });
+            if (!Objects.equals(oldStack, newStack)) {
+                Tasks.sync(() -> {
+                    if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
+                        inventory.setItem(slot, newStack);
+                    }
+                });
+            }
         });
     }
 
@@ -488,16 +494,30 @@ public abstract class MenuBase {
         }
 
         Tasks.run(() -> {
+            Map<Integer, ItemStack> updates = new HashMap<>();
+
             for (Map.Entry<Integer, ProcessedItem> entry : itemsBySlot.entrySet()) {
                 ProcessedItem oldItem = entry.getValue();
-                if (oldItem != null && oldItem.needsRefresh()) {
-                    ProcessedItem newItem = ItemsAPI.process(oldItem.getRawItemData(), player, false);
-                    itemsBySlot.put(entry.getKey(), newItem);
+                if (oldItem == null || !oldItem.needsRefresh()) continue;
+
+                ProcessedItem newItem = ItemsAPI.process(oldItem.getRawItemData(), player, false);
+                ItemStack oldStack = oldItem.getItemStack();
+                ItemStack newStack = newItem.getItemStack();
+
+                itemsBySlot.put(entry.getKey(), newItem);
+
+                if (!Objects.equals(oldStack, newStack)) {
+                    updates.put(entry.getKey(), newStack);
                 }
             }
 
             Tasks.sync(() -> {
-                updateInventoryDisplay();
+                if (state.get() != MenuState.OPEN || inventory == null) return;
+                updates.forEach((slot, stack) -> {
+                    if (slot >= 0 && slot < inventory.getSize()) {
+                        inventory.setItem(slot, stack);
+                    }
+                });
                 refreshTitle();
             });
         });
@@ -526,7 +546,11 @@ public abstract class MenuBase {
 
         itemsBySlot.forEach((slot, item) -> {
             if (slot >= 0 && slot < inventory.getSize()) {
-                inventory.setItem(slot, item.getItemStack());
+                ItemStack newStack = item.getItemStack();
+                ItemStack current = inventory.getItem(slot);
+                if (!Objects.equals(current, newStack)) {
+                    inventory.setItem(slot, newStack);
+                }
             }
         });
     }
@@ -649,6 +673,10 @@ public abstract class MenuBase {
 
     protected String processTitle(String title) {
         return Placeholders.process(title, player, context);
+    }
+
+    protected String computeCurrentTitle() {
+        return processTitle(menuData.getTitle());
     }
 
     protected void applyStaticItems() {

@@ -83,21 +83,40 @@ public class ClanManager {
             return cached.get();
         }
 
-        Optional<Clan> clan = activeProvider.getPlayerClan(playerId);
-        cacheManager.getPlayerClanCache().put(playerId, clan);
-        return clan;
+        Optional<Clan> result = activeProvider.getPlayerClan(playerId);
+        cacheManager.getPlayerClanCache().put(playerId, result);
+
+        if (DebugAPI.isLibDebugEnabled()) {
+            if (result.isEmpty()) {
+                DebugAPI.logLibDebug("[ClanAPI] No clan found for player: " + playerId);
+            } else {
+                DebugAPI.logLibDebug("[ClanAPI] Resolved clan '" + result.get().getName() + "' for player: " + playerId);
+            }
+        }
+
+        return result;
     }
 
     public CompletableFuture<Optional<Clan>> getPlayerClanAsync(UUID playerId) {
         Optional<Optional<Clan>> cached = cacheManager.getPlayerClanCache().get(playerId);
         if (cached.isPresent()) {
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI] Cache hit (async) for player: " + playerId);
+            }
             return CompletableFuture.completedFuture(cached.get());
         }
 
         return activeProvider.getPlayerClanAsync(playerId)
-                .thenApply(clan -> {
-                    cacheManager.getPlayerClanCache().put(playerId, clan);
-                    return clan;
+                .thenApply(result -> {
+                    cacheManager.getPlayerClanCache().put(playerId, result);
+                    if (DebugAPI.isLibDebugEnabled()) {
+                        if (result.isEmpty()) {
+                            DebugAPI.logLibDebug("[ClanAPI] No clan found (async) for player: " + playerId);
+                        } else {
+                            DebugAPI.logLibDebug("[ClanAPI] Resolved clan '" + result.get().getName() + "' (async) for player: " + playerId);
+                        }
+                    }
+                    return result;
                 });
     }
 
@@ -112,17 +131,32 @@ public class ClanManager {
     public Optional<Clan> getClanByTag(String tag) {
         Optional<Optional<Clan>> cached = cacheManager.getClanDataCache().get(tag);
         if (cached.isPresent()) {
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI] Cache hit for clan tag: " + tag);
+            }
             return cached.get();
         }
 
         Optional<Clan> clan = activeProvider.getClanByTag(tag);
         cacheManager.getClanDataCache().put(tag, clan);
+
+        if (DebugAPI.isLibDebugEnabled()) {
+            if (clan.isEmpty()) {
+                DebugAPI.logLibDebug("[ClanAPI] No clan found for tag: " + tag);
+            } else {
+                DebugAPI.logLibDebug("[ClanAPI] Resolved clan by tag '" + tag + "': " + clan.get().getName());
+            }
+        }
+
         return clan;
     }
 
     public CompletableFuture<Optional<Clan>> getClanByTagAsync(String tag) {
         Optional<Optional<Clan>> cached = cacheManager.getClanDataCache().get(tag);
         if (cached.isPresent()) {
+            if (DebugAPI.isLibDebugEnabled()) {
+                DebugAPI.logLibDebug("[ClanAPI] Cache hit (async) for clan tag: " + tag);
+            }
             return CompletableFuture.completedFuture(cached.get());
         }
 
@@ -171,6 +205,15 @@ public class ClanManager {
 
     public boolean hasPlayerClan(Player player) {
         return hasPlayerClan(player.getUniqueId());
+    }
+
+    public void reevaluateProvider() {
+        ClanProvider newProvider = detectProvider();
+        if (!newProvider.getProviderName().equals(activeProvider.getProviderName())) {
+            DebugAPI.logLibInfo("Switching clan provider: " + activeProvider.getProviderName() + " → " + newProvider.getProviderName());
+            cacheManager.invalidateAll();
+            activeProvider = newProvider;
+        }
     }
 
     public void reload() {

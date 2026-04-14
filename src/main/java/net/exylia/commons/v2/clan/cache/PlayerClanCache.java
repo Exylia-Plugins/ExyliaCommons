@@ -10,7 +10,7 @@ import java.util.UUID;
 
 public class PlayerClanCache {
 
-    private static final Duration TTL = Duration.ofMinutes(5);
+    private static final Duration TTL = Duration.ofSeconds(15);
     private static final int MAX_SIZE = 5000;
 
     private final Cache<UUID, Optional<Clan>> cache;

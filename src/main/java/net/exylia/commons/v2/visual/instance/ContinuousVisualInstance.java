@@ -43,7 +43,7 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
             updateContext.withCurrentTime();
 
             try {
-                render();
+                renderer.render(player, config, updateContext);
             } catch (Exception ignored) {
             }
 

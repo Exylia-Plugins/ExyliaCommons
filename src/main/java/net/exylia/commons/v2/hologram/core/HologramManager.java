@@ -180,29 +180,31 @@ public class HologramManager {
     }
 
     public CompletableFuture<Boolean> removeHologramAsync(String id) {
+        final boolean[] persistent = {false};
+
         return Tasks.run(() -> {
             Optional<Hologram> opt = registry.get(id);
-            if (opt.isEmpty()) {
-                return false;
-            }
+            if (opt.isEmpty()) return false;
 
             Hologram hologram = opt.get();
+            persistent[0] = hologram.isPersistent();
 
             cacheManager.invalidate(id);
             visibilityManager.getSpatialChunkManager().removeHologram(hologram);
             updateScheduler.unscheduleUpdate(id);
-
             Tasks.at(hologram.getLocation(), hologram::despawn);
-
             registry.unregister(id);
-
-            if (hologram.isPersistent()) {
-                deleteHologramAsync(id).join();
-            }
 
             DebugAPI.logLibDebug("Hologram removed: " + id);
             return true;
-        }).thenApply(r -> r.getValue().orElse(false));
+        }).thenCompose(r -> {
+            boolean removed = r.getValue().orElse(false);
+            if (!removed) return CompletableFuture.completedFuture(false);
+            if (persistent[0]) {
+                return deleteHologramAsync(id).thenApply(v -> true);
+            }
+            return CompletableFuture.completedFuture(true);
+        });
     }
 
     public Optional<Hologram> getHologram(String id) {

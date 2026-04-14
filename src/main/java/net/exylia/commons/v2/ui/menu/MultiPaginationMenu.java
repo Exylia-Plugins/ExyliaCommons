@@ -22,6 +22,7 @@ import org.bukkit.inventory.Inventory;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class MultiPaginationMenu extends MenuBase {
 
@@ -261,7 +262,7 @@ public class MultiPaginationMenu extends MenuBase {
     public void refresh() {
         Map<Integer, ProcessedItem> oldItems = new HashMap<>(itemsBySlot);
         itemsBySlot.clear();
-        populateItems();
+        populateItemsWithoutDisplay();
 
         if (inventory == null) {
             return;
@@ -278,20 +279,24 @@ public class MultiPaginationMenu extends MenuBase {
                     animationCancelFlag
             );
         } else {
-            inventory.clear();
+            for (Integer slot : oldItems.keySet()) {
+                if (!itemsBySlot.containsKey(slot) && slot >= 0 && slot < inventory.getSize()) {
+                    inventory.setItem(slot, null);
+                }
+            }
             itemsBySlot.forEach((slot, item) -> {
                 if (slot >= 0 && slot < inventory.getSize()) {
-                    inventory.setItem(slot, item.getItemStack());
+                    ProcessedItem old = oldItems.get(slot);
+                    org.bukkit.inventory.ItemStack newStack = item.getItemStack();
+                    org.bukkit.inventory.ItemStack oldStack = old != null ? old.getItemStack() : null;
+                    if (!Objects.equals(oldStack, newStack)) {
+                        inventory.setItem(slot, newStack);
+                    }
                 }
             });
         }
-        player.updateInventory();
 
-        Tasks.later(() -> {
-            if (state.get() == MenuState.OPEN && inventory != null) {
-                refreshTitle();
-            }
-        }, 1L);
+        refreshTitle();
     }
 
     private int getSectionPage(String sectionName) {

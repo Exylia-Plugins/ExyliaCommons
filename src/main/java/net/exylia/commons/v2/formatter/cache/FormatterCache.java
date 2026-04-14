@@ -2,7 +2,6 @@ package net.exylia.commons.v2.formatter.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import lombok.Getter;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -12,7 +11,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-@Getter
 public class FormatterCache {
     private static volatile FormatterCache instance;
 
@@ -26,29 +24,24 @@ public class FormatterCache {
         this.patternCache = Caffeine.newBuilder()
             .maximumSize(50)
             .expireAfterWrite(10, TimeUnit.MINUTES)
-            .recordStats()
             .build();
 
         this.dateTimeFormatterCache = Caffeine.newBuilder()
             .maximumSize(30)
-            .recordStats()
             .build();
 
         this.decimalFormatCache = Caffeine.newBuilder()
             .maximumSize(20)
-            .recordStats()
             .weakValues()
             .build();
 
         this.resultCache = Caffeine.newBuilder()
             .maximumSize(2000)
             .expireAfterWrite(30, TimeUnit.SECONDS)
-            .recordStats()
             .build();
 
         this.configCache = Caffeine.newBuilder()
             .maximumSize(10)
-            .recordStats()
             .build();
     }
 
@@ -61,6 +54,10 @@ public class FormatterCache {
             }
         }
         return instance;
+    }
+
+    public Cache<String, String> getResultCache() {
+        return resultCache;
     }
 
     public Pattern getPattern(String regex) {
@@ -126,13 +123,4 @@ public class FormatterCache {
         configCache.invalidateAll();
     }
 
-    public FormatterCacheStats getStats() {
-        return new FormatterCacheStats(
-            patternCache.stats(),
-            dateTimeFormatterCache.stats(),
-            decimalFormatCache.stats(),
-            resultCache.stats(),
-            configCache.stats()
-        );
-    }
 }

@@ -9,14 +9,8 @@ group = 'net.exylia'
 version = '1.0.0'
 
 repositories {
+    mavenLocal()
     mavenCentral()
-    maven {
-        url = uri('https://maven.pkg.github.com/KasperiP/lukittu-loader')
-        credentials {
-            username = providers.gradleProperty('gpr.user').orNull ?: System.getenv('GITHUB_ACTOR') ?: ''
-            password = providers.gradleProperty('gpr.key').orNull ?: System.getenv('GITHUB_TOKEN') ?: ''
-        }
-    }
     maven { url 'https://repo.papermc.io/repository/maven-public/' }
     maven { url 'https://jitpack.io' }
     maven { url 'https://oss.sonatype.org/content/groups/public/' }
@@ -35,9 +29,30 @@ repositories {
         name = "roinujnosde-repo"
         url = uri("https://repo.roinujnosde.me/releases/")
     }
+    maven {
+        name = 'feather-repo'
+        url = 'https://repo.feathermc.net/artifactory/maven-releases'
+    }
+    maven {
+        name = 'lunarclient'
+        url = 'https://repo.lunarclient.dev'
+    }
+    maven { url 'https://repo.william278.net/releases' }
+    exclusiveContent {
+        forRepository {
+            maven { url 'https://dependency.download/releases' }
+        }
+
+        filter {
+            includeGroup("dev.kitteh")
+        }
+    }
+    maven { url 'https://repo.runith.net/' }
 }
 
 dependencies {
+    implementation project(':clans-api')
+
     compileOnly 'com.zaxxer:HikariCP:5.1.0'
     compileOnly 'org.xerial:sqlite-jdbc:3.45.2.0'
     compileOnly 'mysql:mysql-connector-java:8.0.33'
@@ -67,22 +82,28 @@ dependencies {
     implementation 'com.github.lalyos:jfiglet:0.0.9'
 
     compileOnly 'de.exlll:configlib-yaml:4.8.0'
-    compileOnly 'com.lukittu.loader:lukittu-common:v1.0.7'
-    compileOnly 'com.lukittu.loader:lukittu-spigot:v1.0.7'
+    compileOnly 'com.lukittu.loader:lukittu-common:v1.0.10-local'
+    compileOnly 'com.lukittu.loader:lukittu-spigot:v1.0.10-local'
 
     compileOnly 'com.github.UlrichBR:UClans-API:8.15.6'
     compileOnly "net.sacredlabyrinth.phaed.simpleclans:SimpleClans:2.19.2"
     compileOnly('com.github.cryptomorin:kingdoms:1.17.18.1-BETA') {
         transitive = false
     }
-
+    compileOnly 'dev.kitteh:factions:4.4.0'
+    compileOnly 'net.william278.husktowns:husktowns-bukkit:3.1.4'
+    compileOnly "net.runith:clans-api:1.2.4"
+    compileOnly files('libs/ZelTeams-3.3.3.jar')
+    compileOnly files('libs/ZentriTeams-API.jar')
 
     compileOnly 'com.github.timderspieler:DeluxeCombat-API:1.5.1'
     compileOnly 'me.chancesd.pvpmanager:pvpmanager:4.0.4'
-
-
-
     compileOnly 'org.black_ixx:playerpoints:3.2.7'
+    compileOnly 'com.github.NEZNAMY:TAB-API:5.5.0'
+
+    compileOnly 'com.lunarclient:apollo-api:1.2.4'
+    compileOnly 'com.lunarclient:apollo-extra-adventure4:1.2.4'
+    compileOnly 'net.digitalingot.feather-server-api:api:0.0.5'
 }
 
 java {

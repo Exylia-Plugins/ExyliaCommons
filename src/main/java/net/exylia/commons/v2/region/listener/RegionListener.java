@@ -13,9 +13,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.block.BlockState;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockFormEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -249,6 +253,41 @@ public class RegionListener implements Listener {
         Region region = regions.get(0);
         if (!region.getFlagValue(RegionFlag.FALL_DAMAGE) && !hasBypass(player)) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent event) {
+        Location location = event.getBlock().getLocation();
+        List<Region> regions = manager.getRegionsAt(location);
+        if (regions.isEmpty()) return;
+        Region region = regions.getFirst();
+        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+            PlayerBlockTracker.getInstance().trackBlock(region.getId(), location);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockSpread(BlockSpreadEvent event) {
+        Location location = event.getBlock().getLocation();
+        List<Region> regions = manager.getRegionsAt(location);
+        if (regions.isEmpty()) return;
+        Region region = regions.getFirst();
+        if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+            PlayerBlockTracker.getInstance().trackBlock(region.getId(), location);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onStructureGrow(StructureGrowEvent event) {
+        for (BlockState blockState : event.getBlocks()) {
+            Location location = blockState.getLocation();
+            List<Region> regions = manager.getRegionsAt(location);
+            if (regions.isEmpty()) continue;
+            Region region = regions.getFirst();
+            if (region.getFlagValue(RegionFlag.PLAYER_BUILD_ONLY)) {
+                PlayerBlockTracker.getInstance().trackBlock(region.getId(), location);
+            }
         }
     }
 

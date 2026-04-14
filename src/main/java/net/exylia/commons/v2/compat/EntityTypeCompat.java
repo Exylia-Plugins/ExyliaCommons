@@ -36,6 +36,12 @@ public final class EntityTypeCompat {
         WIND_CHARGE("WIND_CHARGE"),
         EVOKER_FANGS("EVOKER_FANGS"),
         MINECART("MINECART"),
+        TNT_MINECART("TNT_MINECART"),
+        CHEST_MINECART("CHEST_MINECART"),
+        HOPPER_MINECART("HOPPER_MINECART"),
+        FURNACE_MINECART("FURNACE_MINECART"),
+        COMMAND_BLOCK_MINECART("COMMAND_BLOCK_MINECART"),
+        SPAWNER_MINECART("SPAWNER_MINECART"),
         BOAT("BOAT"),
         FIREWORK_ROCKET("FIREWORK_ROCKET", "FIREWORK"),
         ARMOR_STAND("ARMOR_STAND"),
@@ -96,7 +102,28 @@ public final class EntityTypeCompat {
     public static EntityType getLlamaSpit()        { return get(Type.LLAMA_SPIT); }
     public static EntityType getWindCharge()       { return get(Type.WIND_CHARGE); }
     public static EntityType getEvokerFangs()      { return get(Type.EVOKER_FANGS); }
-    public static EntityType getMinecart()         { return get(Type.MINECART); }
+    public static EntityType getMinecart()             { return get(Type.MINECART); }
+    public static EntityType getTntMinecart()          { return getMinecartOrFallback(Type.TNT_MINECART); }
+    public static EntityType getChestMinecart()        { return getMinecartOrFallback(Type.CHEST_MINECART); }
+    public static EntityType getHopperMinecart()       { return getMinecartOrFallback(Type.HOPPER_MINECART); }
+    public static EntityType getFurnaceMinecart()      { return getMinecartOrFallback(Type.FURNACE_MINECART); }
+    public static EntityType getCommandBlockMinecart() { return getMinecartOrFallback(Type.COMMAND_BLOCK_MINECART); }
+    public static EntityType getSpawnerMinecart()      { return getMinecartOrFallback(Type.SPAWNER_MINECART); }
+
+    public static EntityType resolveMinecartType(String configName) {
+        if (configName == null) return get(Type.MINECART);
+        EntityType resolved = resolve(configName.toUpperCase());
+        if (resolved != null && org.bukkit.entity.Minecart.class.isAssignableFrom(resolved.getEntityClass() != null ? resolved.getEntityClass() : Object.class)) {
+            return resolved;
+        }
+        return get(Type.MINECART);
+    }
+
+    private static EntityType getMinecartOrFallback(Type type) {
+        EntityType resolved = get(type);
+        return resolved != null ? resolved : get(Type.MINECART);
+    }
+
     public static EntityType getBoat()             { return get(Type.BOAT); }
     public static EntityType getFireworkRocket()   { return get(Type.FIREWORK_ROCKET); }
     public static EntityType getArmorStand()       { return get(Type.ARMOR_STAND); }

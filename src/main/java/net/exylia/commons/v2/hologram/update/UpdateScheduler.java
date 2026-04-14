@@ -8,7 +8,6 @@ import net.exylia.commons.v2.hologram.model.Hologram;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 
 @RequiredArgsConstructor
 public class UpdateScheduler {
@@ -20,18 +19,16 @@ public class UpdateScheduler {
     public void updateAll() {
         currentTick++;
 
-        intervalGroups.entrySet().stream()
-                .filter(entry -> currentTick % entry.getKey() == 0)
-                .flatMap(entry -> entry.getValue().stream())
-                .forEach(hologramId -> {
-                    registry.get(hologramId).ifPresent(hologram -> {
-                        if (hologram.isSpawned() && hologram.getConfig().shouldUpdate()) {
-                            hologram.updateAsync().exceptionally(ex -> {
-                                return null;
-                            });
-                        }
-                    });
+        for (Map.Entry<Long, Set<String>> entry : intervalGroups.entrySet()) {
+            if (currentTick % entry.getKey() != 0) continue;
+            for (String hologramId : entry.getValue()) {
+                registry.get(hologramId).ifPresent(hologram -> {
+                    if (hologram.isSpawned() && hologram.getConfig().shouldUpdate()) {
+                        hologram.updateAsync().exceptionally(ex -> null);
+                    }
                 });
+            }
+        }
     }
 
     private boolean shouldUpdate(Hologram hologram) {
@@ -54,7 +51,7 @@ public class UpdateScheduler {
     public void scheduleUpdate(Hologram hologram) {
         long interval = hologram.getConfig().getUpdateInterval();
         if (interval > 0) {
-            intervalGroups.computeIfAbsent(interval, k -> new CopyOnWriteArraySet<>())
+            intervalGroups.computeIfAbsent(interval, k -> ConcurrentHashMap.newKeySet())
                     .add(hologram.getId());
         }
     }

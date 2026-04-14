@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.visual.builder;
 
+import net.exylia.commons.v2.compat.PotionEffectTypeCompat;
 import net.exylia.commons.v2.visual.config.EffectConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.potion.PotionEffectType;
@@ -28,7 +29,7 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
     }
 
     public EffectBuilder effect(String effectName) {
-        this.effectType = PotionEffectType.getByName(effectName.toUpperCase());
+        this.effectType = PotionEffectTypeCompat.resolve(effectName);
         if (this.effectType == null) {
             throw new IllegalArgumentException("Invalid effect type: " + effectName);
         }
@@ -99,7 +100,7 @@ public class EffectBuilder extends VisualBuilder<EffectConfig, EffectBuilder> {
         }
         if (parts.length >= 2) {
             try {
-                builder.amplifier(Integer.parseInt(parts[1].trim()));
+                builder.level(Integer.parseInt(parts[1].trim()));
             } catch (NumberFormatException ignored) {
             }
         }

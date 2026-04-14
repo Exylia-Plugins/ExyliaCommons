@@ -30,6 +30,12 @@ public final class Placeholders {
         PapiAdapter.getInstance().registerExpander(identifier);
     }
 
+    public static void unregisterPapiExpander(String identifier) {
+        if (PapiAdapter.isInitialized()) {
+            PapiAdapter.getInstance().unregisterExpander(identifier);
+        }
+    }
+
     public static void registerAnnotatedClass(Object instance) {
         PlaceholderRegistry.getInstance().registerAnnotatedClass(instance);
     }

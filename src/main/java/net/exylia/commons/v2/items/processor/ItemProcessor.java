@@ -7,6 +7,7 @@ import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.exception.ItemValidationException;
 import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.items.skull.SkullParser;
+import net.exylia.commons.v2.items.snapshot.ItemSnapshot;
 import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.v2.items.validation.ItemValidator;
@@ -55,8 +56,9 @@ public class ItemProcessor {
                 return processDirectItemStack(itemStack, itemData, player);
             }
 
-            return processMaterialAsync(itemData, player)
-                .thenCompose(itemStack -> processAllFieldsAsync(itemStack, itemData, player))
+            final ItemData resolvedData = applySnapshotIfNeeded(itemData, player);
+            return processMaterialAsync(resolvedData, player)
+                .thenCompose(itemStack -> processAllFieldsAsync(itemStack, resolvedData, player))
                 .join();
         });
     }
@@ -84,8 +86,31 @@ public class ItemProcessor {
             return processDirectItemStack(itemStack, itemData, player);
         }
 
-        ItemStack itemStack = processMaterial(itemData, player);
-        return processAllFields(itemStack, itemData, player);
+        ItemData resolvedData = applySnapshotIfNeeded(itemData, player);
+        ItemStack itemStack = processMaterial(resolvedData, player);
+        return processAllFields(itemStack, resolvedData, player);
+    }
+
+    private static ItemData applySnapshotIfNeeded(ItemData itemData, Player player) {
+        String processedMaterial = Placeholders.process(itemData.getRawMaterial(), player, itemData.getContext());
+        if (!processedMaterial.startsWith("item:")) return itemData;
+
+        ItemData snapshotData = ItemSnapshot.from(processedMaterial).toItemData();
+        ItemData.ItemDataBuilder builder = itemData.toBuilder();
+        builder.rawMaterial(snapshotData.getRawMaterial());
+
+        if (itemData.getPotionConfig() == null && snapshotData.getPotionConfig() != null)
+            builder.potionConfig(snapshotData.getPotionConfig());
+        if (itemData.getLeatherArmorConfig() == null && snapshotData.getLeatherArmorConfig() != null)
+            builder.leatherArmorConfig(snapshotData.getLeatherArmorConfig());
+        if (itemData.getArmorTrimConfig() == null && snapshotData.getArmorTrimConfig() != null)
+            builder.armorTrimConfig(snapshotData.getArmorTrimConfig());
+        if (itemData.getBannerConfig() == null && snapshotData.getBannerConfig() != null)
+            builder.bannerConfig(snapshotData.getBannerConfig());
+        if (!itemData.isGlowing() && snapshotData.isGlowing())
+            builder.glowing(true);
+
+        return builder.build();
     }
 
     private static CompletableFuture<ItemStack> processMaterialAsync(ItemData itemData, Player player) {

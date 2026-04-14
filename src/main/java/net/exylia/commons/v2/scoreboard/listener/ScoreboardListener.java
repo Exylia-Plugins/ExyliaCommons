@@ -2,7 +2,6 @@ package net.exylia.commons.v2.scoreboard.listener;
 
 import lombok.RequiredArgsConstructor;
 import net.exylia.commons.v2.scoreboard.core.ScoreboardManager;
-import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -25,9 +24,7 @@ public class ScoreboardListener implements Listener {
     public void onWorldChange(PlayerChangedWorldEvent event) {
         Player player = event.getPlayer();
         manager.getScoreboard(player).ifPresent(instance ->
-                Tasks.later(() -> {
-                    if (player.isOnline()) instance.reinitialize();
-                }, 1L)
+                manager.scheduleReinit(player, instance)
         );
     }
 
@@ -35,9 +32,7 @@ public class ScoreboardListener implements Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         manager.getScoreboard(player).ifPresent(instance ->
-                Tasks.later(() -> {
-                    if (player.isOnline()) instance.reinitialize();
-                }, 1L)
+                manager.scheduleReinit(player, instance)
         );
     }
 }

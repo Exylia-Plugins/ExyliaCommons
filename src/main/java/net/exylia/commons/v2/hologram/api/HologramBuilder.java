@@ -7,6 +7,7 @@ import net.exylia.commons.v2.hologram.model.HologramProperties;
 import net.exylia.commons.v2.hologram.model.HologramTemplate;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.entity.Display;
@@ -244,6 +245,11 @@ public class HologramBuilder {
     }
 
     public Hologram build() {
+        if (Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException(
+                "HologramBuilder.build() cannot be called from the main thread as it would cause a deadlock. Use buildAsync() instead."
+            );
+        }
         return buildAsync().join();
     }
 }

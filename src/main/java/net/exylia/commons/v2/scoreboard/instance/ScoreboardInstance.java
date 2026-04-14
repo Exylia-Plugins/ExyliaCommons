@@ -22,7 +22,7 @@ public class ScoreboardInstance {
     private final long intervalMs;
 
     private PlaceholderContext context;
-    private long lastUpdate;
+    private volatile long lastUpdate;
 
     public ScoreboardInstance(
             String id,
@@ -67,8 +67,8 @@ public class ScoreboardInstance {
             return CompletableFuture.completedFuture(null);
         }
 
-        return renderer.renderAsync(player, scoreboard, context, fastBoardAdapter)
-                .thenRun(() -> lastUpdate = System.currentTimeMillis());
+        lastUpdate = System.currentTimeMillis();
+        return renderer.renderAsync(player, scoreboard, context, fastBoardAdapter);
     }
 
     public boolean shouldUpdate() {

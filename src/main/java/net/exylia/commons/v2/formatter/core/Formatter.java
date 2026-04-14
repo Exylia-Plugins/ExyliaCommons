@@ -1,7 +1,5 @@
 package net.exylia.commons.v2.formatter.core;
 
-import net.exylia.commons.v2.formatter.api.FormatterStats;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -18,6 +16,4 @@ public interface Formatter<I, O> {
     CompletableFuture<List<O>> formatBatchAsync(List<I> inputs);
 
     void invalidateCache();
-
-    FormatterStats getStats();
 }

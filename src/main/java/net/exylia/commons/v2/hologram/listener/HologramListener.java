@@ -13,7 +13,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @RequiredArgsConstructor
@@ -30,31 +33,30 @@ public class HologramListener implements Listener {
 
         manager.getVisibilityManager().trackPlayer(player);
 
-        manager.getAllHolograms().stream()
-                .filter(Hologram::isPerPlayer)
-                .filter(h -> h.canSee(player))
-                .forEach(hologram -> hologram.showTo(player));
-
-        manager.getAllHolograms().stream()
-                .filter(h -> !h.isPerPlayer())
-                .forEach(hologram -> {
-                    org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
-                    if (!hologram.canSee(player) && display != null) {
-                        TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
-                    }
-                });
+        Collection<Hologram> all = manager.getAllHolograms();
+        for (Hologram hologram : all) {
+            if (hologram.isPerPlayer()) {
+                if (hologram.canSee(player)) hologram.showTo(player);
+            } else {
+                org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
+                if (!hologram.canSee(player) && display != null) {
+                    TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        UUID playerId = player.getUniqueId();
 
-        manager.getAllHolograms().stream()
-                .filter(Hologram::isPerPlayer)
-                .forEach(hologram -> hologram.cleanupPlayer(player.getUniqueId()));
+        for (Hologram hologram : manager.getAllHolograms()) {
+            if (hologram.isPerPlayer()) hologram.cleanupPlayer(playerId);
+        }
 
         manager.getVisibilityManager().untrackPlayer(player);
-        lastUpdateLocation.remove(player.getUniqueId());
+        lastUpdateLocation.remove(playerId);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -84,50 +86,32 @@ public class HologramListener implements Listener {
 
         manager.getVisibilityManager().updatePlayerLocation(player);
 
-        double maxViewDistance = 64.0;
         Set<String> nearbyIds = manager.getVisibilityManager()
                 .getSpatialChunkManager()
-                .getNearbyHologramIds(to, maxViewDistance);
+                .getNearbyHologramIds(to, 64.0);
 
-        nearbyIds.stream()
-                .map(id -> manager.getHologram(id))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .filter(Hologram::isPerPlayer)
-                .forEach(hologram -> {
-                    boolean canSeeNow = hologram.canSee(player);
-                    boolean isSeeing = hologram.getPlayerDisplays().containsKey(player.getUniqueId());
+        for (String id : nearbyIds) {
+            Hologram hologram = manager.getHologram(id).orElse(null);
+            if (hologram == null) continue;
 
-                    if (canSeeNow && !isSeeing) {
-                        hologram.showTo(player);
-                    } else if (!canSeeNow && isSeeing) {
-                        hologram.hideFrom(player);
-                    }
-                });
-
-        Set<String> nearbyGlobalIds = manager.getVisibilityManager()
-                .getSpatialChunkManager()
-                .getNearbyHologramIds(to, maxViewDistance);
-
-        nearbyGlobalIds.stream()
-                .map(id -> manager.getHologram(id))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .filter(h -> !h.isPerPlayer())
-                .forEach(hologram -> {
-                    boolean canSee = hologram.canSee(player);
-
-                    org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
-                    if (display == null) return;
-                    if (canSee) {
-                        if (!player.canSee(display)) {
-                            TaskAPI.at(display, () -> player.showEntity(manager.getPlugin(), display));
-                        }
-                    } else {
-                        if (player.canSee(display)) {
-                            TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
-                        }
-                    }
-                });
+            if (hologram.isPerPlayer()) {
+                boolean canSeeNow = hologram.canSee(player);
+                boolean isSeeing = hologram.getPlayerDisplays().containsKey(playerId);
+                if (canSeeNow && !isSeeing) {
+                    hologram.showTo(player);
+                } else if (!canSeeNow && isSeeing) {
+                    hologram.hideFrom(player);
+                }
+            } else {
+                org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
+                if (display == null) continue;
+                boolean canSee = hologram.canSee(player);
+                if (canSee && !player.canSee(display)) {
+                    TaskAPI.at(display, () -> player.showEntity(manager.getPlugin(), display));
+                } else if (!canSee && player.canSee(display)) {
+                    TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
+                }
+            }
+        }
     }
 }

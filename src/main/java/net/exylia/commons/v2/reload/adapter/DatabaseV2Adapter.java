@@ -13,7 +13,7 @@ public class DatabaseV2Adapter extends ReloadableSystemAdapter {
     protected void performCacheClear() throws Exception {
         DatabaseManager instance = DatabaseManager.getInstance();
         if (instance != null) {
-            instance.getCacheStrategy().clear();
+            instance.getLocalCacheStrategy().clear();
         }
     }
 

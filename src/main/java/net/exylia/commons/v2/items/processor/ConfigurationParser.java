@@ -105,8 +105,8 @@ public class ConfigurationParser {
     }
 
     private static void parseHideAttributes(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
-        boolean hideAttributes = config.getBoolean("hide-attributes", false) ||
-                                 config.getBoolean("hide_attributes", false);
+        boolean hideAttributes = config.getBoolean("hide-attributes", true) ||
+                                 config.getBoolean("hide_attributes", true);
         builder.hideAttributes(hideAttributes);
     }
 

@@ -2,7 +2,10 @@ package net.exylia.commons.v2.clan.api;
 
 import net.exylia.commons.v2.clan.core.ClanManager;
 import net.exylia.commons.v2.clan.model.Clan;
+import net.exylia.commons.v2.clan.provider.ClanBridgeAdapter;
 import net.exylia.commons.v2.clan.provider.ClanProvider;
+import net.exylia.commons.v2.clan.provider.ClanProviderBridge;
+import net.exylia.commons.v2.clan.provider.ClanProviderRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -19,6 +22,35 @@ public final class ClanAPI {
 
     public static void initialize(JavaPlugin plugin) {
         ClanManager.initialize(plugin);
+    }
+
+    public static void registerProvider(ClanProvider provider) {
+        ClanProviderRegistry.getInstance().register(provider);
+        if (isInitialized()) {
+            ClanManager.getInstance().reevaluateProvider();
+        }
+    }
+
+    public static void registerProvider(ClanProvider provider, int priority) {
+        ClanProviderRegistry.getInstance().register(provider, priority);
+        if (isInitialized()) {
+            ClanManager.getInstance().reevaluateProvider();
+        }
+    }
+
+    public static void registerBridge(ClanProviderBridge bridge) {
+        registerProvider(new ClanBridgeAdapter(bridge));
+    }
+
+    public static void registerBridge(ClanProviderBridge bridge, int priority) {
+        registerProvider(new ClanBridgeAdapter(bridge), priority);
+    }
+
+    public static void unregisterProvider(String providerName) {
+        ClanProviderRegistry.getInstance().unregister(providerName);
+        if (isInitialized()) {
+            ClanManager.getInstance().reevaluateProvider();
+        }
     }
 
     public static boolean isInitialized() {

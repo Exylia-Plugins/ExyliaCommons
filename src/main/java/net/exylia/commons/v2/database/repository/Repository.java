@@ -69,6 +69,16 @@ public interface Repository<T extends Entity> {
 
     List<T> findAllPagedOrderedBy(String fieldName, boolean ascending, int page, int pageSize);
 
+    void putToCache(T entity);
+
+    default CompletableFuture<Void> flushEntity(Object id) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    default CompletableFuture<Void> flushEntitiesBy(String fieldName, Object value) {
+        return CompletableFuture.completedFuture(null);
+    }
+
     void invalidateCache();
 
     void invalidateCache(Object id);

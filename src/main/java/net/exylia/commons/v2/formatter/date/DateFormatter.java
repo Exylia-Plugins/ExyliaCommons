@@ -1,6 +1,5 @@
 package net.exylia.commons.v2.formatter.date;
 
-import lombok.Getter;
 import net.exylia.commons.v2.formatter.core.AbstractFormatter;
 import net.exylia.commons.v2.formatter.core.FormatterException;
 import net.exylia.commons.v2.formatter.cache.FormatterCache;
@@ -12,7 +11,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
-@Getter
 public class DateFormatter extends AbstractFormatter<Object, String> {
     private final DateFormatterConfig config;
     private final TimeFormatter timeFormatter;
@@ -29,7 +27,6 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
 
     @Override
     public String format(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime dateTime = parseInput(input);
 
         String pattern = config.isUseIsoDefault() ? DatePattern.ISO.getPattern() : config.getDefaultPattern();
@@ -37,91 +34,77 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
-            stats.recordFormat(System.nanoTime() - startTime, true);
             return cachedResult;
         }
 
         DateTimeFormatter formatter = cache.getDateTimeFormatter(pattern);
         String result = dateTime.format(formatter);
         cache.getResultCache().put(cacheKey, result);
-        stats.recordFormat(System.nanoTime() - startTime, false);
         return result;
     }
 
     @Override
     public String format(Object input, String customPattern) {
-        long startTime = System.nanoTime();
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, customPattern);
         String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
-            stats.recordFormat(System.nanoTime() - startTime, true);
             return cachedResult;
         }
 
         DateTimeFormatter formatter = cache.getDateTimeFormatter(customPattern);
         String result = dateTime.format(formatter);
         cache.getResultCache().put(cacheKey, result);
-        stats.recordFormat(System.nanoTime() - startTime, false);
         return result;
     }
 
     public String formatDate(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "date");
         String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
-            stats.recordFormat(System.nanoTime() - startTime, true);
             return cachedResult;
         }
 
         DateTimeFormatter formatter = cache.getDateTimeFormatter(config.getDatePattern());
         String result = dateTime.format(formatter);
         cache.getResultCache().put(cacheKey, result);
-        stats.recordFormat(System.nanoTime() - startTime, false);
         return result;
     }
 
     public String formatTime(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "time");
         String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
-            stats.recordFormat(System.nanoTime() - startTime, true);
             return cachedResult;
         }
 
         DateTimeFormatter formatter = cache.getDateTimeFormatter(config.getTimePattern());
         String result = dateTime.format(formatter);
         cache.getResultCache().put(cacheKey, result);
-        stats.recordFormat(System.nanoTime() - startTime, false);
         return result;
     }
 
     public String formatISO(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime dateTime = parseInput(input);
 
         String cacheKey = getCacheKey(input, "iso");
         String cachedResult = cache.getResultCache().getIfPresent(cacheKey);
 
         if (cachedResult != null) {
-            stats.recordFormat(System.nanoTime() - startTime, true);
             return cachedResult;
         }
 
         DateTimeFormatter formatter = cache.getDateTimeFormatter(DatePattern.ISO.getPattern());
         String result = dateTime.format(formatter);
         cache.getResultCache().put(cacheKey, result);
-        stats.recordFormat(System.nanoTime() - startTime, false);
         return result;
     }
 
@@ -130,17 +113,10 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
     }
 
     public String formatRelativeFrom(Object input, Object fromDate) {
-        long startTime = System.nanoTime();
-        LocalDateTime inputDateTime = parseInput(input);
-        LocalDateTime fromDateTime = parseInput(fromDate);
-
-        String result = calculateRelativeTime(inputDateTime, fromDateTime);
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return calculateRelativeTime(parseInput(input), parseInput(fromDate));
     }
 
     public String formatRelativeCompact(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime inputDateTime = parseInput(input);
         LocalDateTime now = LocalDateTime.now();
 
@@ -148,13 +124,10 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         String timeStr = timeFormatter.formatCompact(millis);
         boolean isPast = inputDateTime.isBefore(now);
 
-        String result = isPast ? timeStr + " ago" : "in " + timeStr;
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return isPast ? timeStr + " ago" : "in " + timeStr;
     }
 
     public String formatRelativeVerbose(Object input) {
-        long startTime = System.nanoTime();
         LocalDateTime inputDateTime = parseInput(input);
         LocalDateTime now = LocalDateTime.now();
 
@@ -162,9 +135,7 @@ public class DateFormatter extends AbstractFormatter<Object, String> {
         String timeStr = timeFormatter.formatVerbal(millis);
         boolean isPast = inputDateTime.isBefore(now);
 
-        String result = isPast ? timeStr + " ago" : "in " + timeStr;
-        stats.recordFormat(System.nanoTime() - startTime, false);
-        return result;
+        return isPast ? timeStr + " ago" : "in " + timeStr;
     }
 
     public long getDifference(Object input1, Object input2, ChronoUnit unit) {

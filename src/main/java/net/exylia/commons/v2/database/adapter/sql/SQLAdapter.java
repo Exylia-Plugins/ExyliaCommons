@@ -64,6 +64,8 @@ public abstract class SQLAdapter implements DatabaseAdapter {
             hikariConfig.setIdleTimeout(config.getIdleTimeoutMs());
             hikariConfig.setMaxLifetime(config.getMaxLifetimeMs());
             hikariConfig.setAutoCommit(true);
+            hikariConfig.setKeepaliveTime(30_000);
+            hikariConfig.setValidationTimeout(3_000);
             hikariConfig.setPoolName("ExyliaDB-" + getAdapterName() + "-" + System.currentTimeMillis());
 
             this.dataSource = new HikariDataSource(hikariConfig);
@@ -83,8 +85,23 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public void reconnect() throws Exception {
+        DebugAPI.logLibInfo("Reconnecting to " + getAdapterName() + "...");
+        if (dataSource != null && !dataSource.isClosed()) {
+            dataSource.close();
+        }
+        dataSource = null;
+        connect();
+    }
+
+    @Override
     public boolean isConnected() {
-        return dataSource != null && !dataSource.isClosed();
+        if (dataSource == null || dataSource.isClosed()) return false;
+        try (Connection conn = dataSource.getConnection()) {
+            return conn.isValid(2);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override

@@ -24,6 +24,14 @@ public class CacheKey {
         return new CacheKey(namespace + ":" + fieldName, String.valueOf(value));
     }
 
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
     public String getFullKey() {
         return namespace + ":" + key;
     }
