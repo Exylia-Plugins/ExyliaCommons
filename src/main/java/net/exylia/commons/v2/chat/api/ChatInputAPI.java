@@ -6,8 +6,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 public final class ChatInputAPI {
+
+    private static final Pattern ID_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-_]{3,}$");
 
     private ChatInputAPI() {
         throw new UnsupportedOperationException("Utility class");
@@ -97,6 +100,18 @@ public final class ChatInputAPI {
                 .build();
 
         ask(player, built, input -> callback.accept(Double.parseDouble(input)));
+    }
+
+    public static void askId(Player player, String prompt, Consumer<String> callback) {
+        askId(player, ChatInputConfig.builder().prompt(prompt).build(), callback);
+    }
+
+    public static void askId(Player player, ChatInputConfig config, Consumer<String> callback) {
+        ChatInputConfig built = config.toBuilder()
+                .validator(input -> input != null && ID_PATTERN.matcher(input).matches())
+                .invalidMessage("&cInvalid ID. Min 3 chars, only letters, numbers, - and _.")
+                .build();
+        ask(player, built, callback);
     }
 
     public static void cancel(Player player) {

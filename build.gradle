@@ -94,7 +94,8 @@ dependencies {
     compileOnly 'net.william278.husktowns:husktowns-bukkit:3.1.4'
     compileOnly "net.runith:clans-api:1.2.4"
     compileOnly files('libs/ZelTeams-3.3.3.jar')
-    compileOnly files('libs/ZentriTeams-API.jar')
+    implementation files('libs/ZentriTeams-API.jar')
+    implementation files('libs/ExyliaClans-API-1.0.0.jar')
 
     compileOnly 'com.github.timderspieler:DeluxeCombat-API:1.5.1'
     compileOnly 'me.chancesd.pvpmanager:pvpmanager:4.0.4'

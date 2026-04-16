@@ -77,9 +77,20 @@ public final class ParticleAPI {
 
     public static void spawn(Location location, ParticleConfig config) {
         if (location == null || location.getWorld() == null) return;
-        java.util.List<Player> players = location.getWorld().getPlayers();
-        if (players.isEmpty()) return;
-        ParticleRenderer.getInstance().render(players.get(0), config, PlaceholderContext.create());
+        if (location.getWorld().getPlayers().isEmpty()) return;
+        ParticleConfig located = ParticleConfig.builder()
+                .particle(config.getParticle())
+                .count(config.getCount())
+                .offsetX(config.getOffsetX())
+                .offsetY(config.getOffsetY())
+                .offsetZ(config.getOffsetZ())
+                .extra(config.getExtra())
+                .color(config.getColor())
+                .dustSize(config.getDustSize())
+                .scope(ParticleConfig.ParticleScope.LOCATION)
+                .location(location)
+                .build();
+        ParticleRenderer.getInstance().render(null, located, PlaceholderContext.create());
     }
 
     public static void spawnNearby(Player player, String particleName, int count) {

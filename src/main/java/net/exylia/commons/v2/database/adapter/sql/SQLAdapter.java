@@ -343,9 +343,14 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     @Override
     public <T extends Entity> List<T> findByFieldPaged(String fieldName, Object value, int page, int pageSize, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         List<T> results = new ArrayList<>();
-        String sql = fieldName == null ?
-            "SELECT * FROM " + metadata.getTableName() + " LIMIT ? OFFSET ?" :
-            "SELECT * FROM " + metadata.getTableName() + " WHERE " + fieldName + " = ? LIMIT ? OFFSET ?";
+        String sql;
+        if (fieldName == null) {
+            sql = "SELECT * FROM " + metadata.getTableName() + " LIMIT ? OFFSET ?";
+        } else {
+            FieldDescriptor field = metadata.getField(fieldName);
+            if (field == null) throw new IllegalArgumentException("Field not found: " + fieldName);
+            sql = "SELECT * FROM " + metadata.getTableName() + " WHERE " + field.getColumnName() + " = ? LIMIT ? OFFSET ?";
+        }
 
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -419,8 +424,10 @@ public abstract class SQLAdapter implements DatabaseAdapter {
 
     @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
+        FieldDescriptor orderField = metadata.getField(orderByField);
+        if (orderField == null) throw new IllegalArgumentException("Field not found: " + orderByField);
         String order = ascending ? "ASC" : "DESC";
-        String sql = "SELECT * FROM " + metadata.getTableName() + " ORDER BY " + orderByField + " " + order;
+        String sql = "SELECT * FROM " + metadata.getTableName() + " ORDER BY " + orderField.getColumnName() + " " + order;
         List<T> results = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement();
@@ -434,8 +441,10 @@ public abstract class SQLAdapter implements DatabaseAdapter {
 
     @Override
     public <T extends Entity> List<T> findAllSortedPaged(String orderByField, boolean ascending, int page, int pageSize, Class<T> entityClass, EntityMetadata metadata) throws Exception {
+        FieldDescriptor orderField = metadata.getField(orderByField);
+        if (orderField == null) throw new IllegalArgumentException("Field not found: " + orderByField);
         String order = ascending ? "ASC" : "DESC";
-        String sql = "SELECT * FROM " + metadata.getTableName() + " ORDER BY " + orderByField + " " + order + " LIMIT ? OFFSET ?";
+        String sql = "SELECT * FROM " + metadata.getTableName() + " ORDER BY " + orderField.getColumnName() + " " + order + " LIMIT ? OFFSET ?";
         List<T> results = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -453,8 +462,10 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     public <T extends Entity> List<T> findByFieldSorted(String whereField, Object whereValue, String orderField, boolean ascending, int limit, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         FieldDescriptor field = metadata.getField(whereField);
         if (field == null) throw new IllegalArgumentException("Field not found: " + whereField);
+        FieldDescriptor sortField = metadata.getField(orderField);
+        if (sortField == null) throw new IllegalArgumentException("Field not found: " + orderField);
         String order = ascending ? "ASC" : "DESC";
-        String sql = "SELECT * FROM " + metadata.getTableName() + " WHERE " + field.getColumnName() + " = ? ORDER BY " + orderField + " " + order + " LIMIT ?";
+        String sql = "SELECT * FROM " + metadata.getTableName() + " WHERE " + field.getColumnName() + " = ? ORDER BY " + sortField.getColumnName() + " " + order + " LIMIT ?";
         List<T> results = new ArrayList<>();
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

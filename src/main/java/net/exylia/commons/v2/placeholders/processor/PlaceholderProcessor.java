@@ -16,7 +16,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PlaceholderProcessor {
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%]+)%");
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([a-zA-Z0-9_]+)%");
     private static final int MAX_NESTING_DEPTH = 10;
 
     private PlaceholderProcessor() {

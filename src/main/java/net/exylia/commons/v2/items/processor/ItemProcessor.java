@@ -205,8 +205,8 @@ public class ItemProcessor {
         ItemMeta meta = itemStack.getItemMeta();
         if (meta == null) return;
 
-        String rawName = itemData.getRawDisplayName() != null ?
-                        itemData.getRawDisplayName() : itemData.getRawName();
+        String rawName = itemData.getRawName() != null ?
+                        itemData.getRawName() : itemData.getRawDisplayName();
 
         if (rawName != null) {
             String processedName = Placeholders.process(rawName, player, itemData.getContext());

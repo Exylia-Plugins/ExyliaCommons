@@ -121,9 +121,35 @@ public class ActionExecutor {
         String actionString,
         ActionContext context
     ) {
+        if (actionString == null || actionString.isBlank()) {
+            return ActionResult.success();
+        }
+        long startTime = System.currentTimeMillis();
         try {
-            return executeAsync(actionString, context).join();
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Executing action: " + actionString);
+            ParsedArguments parsed = ArgumentParser.parse(actionString);
+            Action action = registry.resolve(parsed.getActionId(), context.getDefaultNamespace())
+                .orElseThrow(() -> new ActionException.ActionNotFoundException(parsed.getActionId()));
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Resolved action: " + action.getMetadata().getFullId());
+            ActionContext enrichedContext = context.toBuilder().arguments(parsed).action(action).build();
+            ActionResult result = pipeline.execute(action, enrichedContext);
+            if (enrichedContext.getExecutionId() != null) {
+                cacheManager.getExecutionCache().recordExecution(enrichedContext.getExecutionId(), result);
+            }
+            long duration = System.currentTimeMillis() - startTime;
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Action executed successfully in " + duration + "ms: " + action.getMetadata().getFullId());
+            return result;
+        } catch (ActionException ex) {
+            long duration = System.currentTimeMillis() - startTime;
+            if (ex.isExpected()) {
+                DebugAPI.logLibDebug(DebugCategory.ACTION, "Action blocked after " + duration + "ms: " + ex.getMessage());
+            } else {
+                DebugAPI.logLibError(DebugCategory.ACTION, "Action execution failed after " + duration + "ms: " + ex.getMessage());
+            }
+            return ActionResult.failure(ex);
         } catch (Exception ex) {
+            long duration = System.currentTimeMillis() - startTime;
+            DebugAPI.logLibError(DebugCategory.ACTION, "Unexpected error during action execution after " + duration + "ms", ex);
             return ActionResult.failure(ex);
         }
     }

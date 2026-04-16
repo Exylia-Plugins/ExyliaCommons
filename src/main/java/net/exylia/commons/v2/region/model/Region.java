@@ -307,6 +307,34 @@ public class Region {
         return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().regenerateRegion(this, schematicName, type, teleportToAir);
     }
 
+    public boolean hasSchematic() {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().schematicExists(this.id);
+    }
+
+    public boolean hasSchematic(String schematicName) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().schematicExists(schematicName);
+    }
+
+    public boolean deleteSchematic() {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().deleteSchematic(this.id);
+    }
+
+    public boolean deleteSchematic(String schematicName) {
+        return net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().deleteSchematic(schematicName);
+    }
+
+    public CompletableFuture<Boolean> deleteSchematicAsync() {
+        return CompletableFuture.supplyAsync(() ->
+            net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().deleteSchematic(this.id)
+        );
+    }
+
+    public CompletableFuture<Boolean> deleteSchematicAsync(String schematicName) {
+        return CompletableFuture.supplyAsync(() ->
+            net.exylia.commons.v2.region.schematic.SchematicManager.getInstance().deleteSchematic(schematicName)
+        );
+    }
+
     public CompletableFuture<Region> cloneTo(Location targetCenter) {
         return CompletableFuture.supplyAsync(() -> {
             Location offset = getCenter().clone().subtract(targetCenter);

@@ -76,11 +76,25 @@ public class ConfigurationParser {
         if (config.contains("lore")) {
             List<String> lore = new ArrayList<>();
             if (config.isList("lore")) {
-                lore = config.getStringList("lore");
+                for (String line : config.getStringList("lore")) {
+                    if (line.contains("<nl>")) {
+                        for (String part : line.split("<nl>", -1)) {
+                            lore.add(part);
+                        }
+                    } else {
+                        lore.add(line);
+                    }
+                }
             } else {
                 String loreSingle = config.getString("lore");
                 if (loreSingle != null && !loreSingle.isEmpty()) {
-                    lore.add(loreSingle);
+                    if (loreSingle.contains("<nl>")) {
+                        for (String part : loreSingle.split("<nl>", -1)) {
+                            lore.add(part);
+                        }
+                    } else {
+                        lore.add(loreSingle);
+                    }
                 }
             }
             if (!lore.isEmpty()) {

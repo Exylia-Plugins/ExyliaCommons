@@ -16,6 +16,7 @@ public class ClanDetector {
     private static final String ULTIMATE_CLANS = "UltimateClans";
     private static final String SIMPLE_CLANS = "SimpleClans";
     private static final String KINGDOMS_X = "Kingdoms";
+    private static final String EXYLIA_CLANS = "ExyliaClans";
 
     public ClanProvider detectBestProvider() {
         List<ClanProvider> registered = ClanProviderRegistry.getInstance().getOrderedProviders();
@@ -68,6 +69,11 @@ public class ClanDetector {
             if (detected != null) return detected;
         }
 
+        if (isPluginAvailable(EXYLIA_CLANS)) {
+            detected = tryCreate("ExyliaClans", ExyliaClansProvider::new);
+            if (detected != null) return detected;
+        }
+
         DebugAPI.logLibWarn("No clan plugin detected");
         return new NoClanProvider();
     }
@@ -106,6 +112,7 @@ public class ClanDetector {
                 || isPluginAvailable(RUNITH_CLANS)
                 || isPluginAvailable(ULTIMATE_CLANS)
                 || isPluginAvailable(SIMPLE_CLANS)
-                || isPluginAvailable(KINGDOMS_X);
+                || isPluginAvailable(KINGDOMS_X)
+                || isPluginAvailable(EXYLIA_CLANS);
     }
 }
