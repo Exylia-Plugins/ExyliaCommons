@@ -93,6 +93,30 @@ public class PlaceholderResolver {
         }
     }
 
+    public Object resolveRelational(Player requester, Player target, PlaceholderContext context) {
+        try {
+            Class<?>[] paramTypes = method.getParameterTypes();
+            Object[] args = new Object[paramTypes.length];
+            int playerIndex = 0;
+
+            for (int i = 0; i < paramTypes.length; i++) {
+                Class<?> paramType = paramTypes[i];
+                if (paramType == Player.class) {
+                    args[i] = (playerIndex == 0) ? requester : target;
+                    playerIndex++;
+                } else if (paramType == PlaceholderContext.class) {
+                    args[i] = context;
+                } else if (context != null) {
+                    args[i] = context.find(paramType);
+                }
+            }
+
+            return method.invoke(instance, args);
+        } catch (Exception e) {
+            throw new RuntimeException("Error resolving relational placeholder: " + name, e);
+        }
+    }
+
     public boolean isAsync() {
         return annotation.async();
     }

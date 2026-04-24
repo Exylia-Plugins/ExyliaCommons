@@ -6,6 +6,7 @@ public enum CooldownTrigger {
     ELYTRA_BOOST,
     CONSUME,
     LAUNCH,
+    BOW_SHOOT,
     RESURRECT;
 
     public static CooldownTrigger fromString(String value) {

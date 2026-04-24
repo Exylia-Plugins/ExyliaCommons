@@ -28,7 +28,10 @@ public class TaskExecutor {
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
     private ScheduledFuture<?> monitoringTask;
 
-    public TaskExecutor(TaskConfig config) {
+    private final String pluginName;
+
+    public TaskExecutor(String pluginName, TaskConfig config) {
+        this.pluginName = pluginName;
         this.config = config;
         this.metrics = new TaskMetrics();
 
@@ -37,7 +40,7 @@ public class TaskExecutor {
             executors.put(category, createExecutor(category, poolConfig));
         }
 
-        this.scheduler = Executors.newScheduledThreadPool(2, new NamedThreadFactory("Exylia-Scheduler"));
+        this.scheduler = Executors.newScheduledThreadPool(2, new NamedThreadFactory(pluginName + "-Scheduler"));
 
         if (config.isEnableMonitoring()) {
             startMonitoring();
@@ -53,7 +56,7 @@ public class TaskExecutor {
             config.getKeepAliveTime(),
             config.getKeepAliveUnit(),
             queue,
-            new NamedThreadFactory("Exylia-" + category.getDisplayName()),
+            new NamedThreadFactory(pluginName + "-" + category.getDisplayName()),
             (r, e) -> {
                 throw new RejectedExecutionException("Task rejected for category " + category + ": queue full");
             }

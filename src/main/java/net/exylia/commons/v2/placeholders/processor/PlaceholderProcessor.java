@@ -32,7 +32,9 @@ public class PlaceholderProcessor {
         int depth = 0;
 
         while (containsPlaceholders(result) && depth < MAX_NESTING_DEPTH) {
+            String prev = result;
             result = processSinglePass(result, player, context);
+            if (result.equals(prev)) break;
             depth++;
         }
 
@@ -56,7 +58,9 @@ public class PlaceholderProcessor {
         int depth = 0;
 
         while (containsPlaceholders(result) && depth < MAX_NESTING_DEPTH) {
+            String prev = result;
             result = processSinglePass(result, player, context);
+            if (result.equals(prev)) break;
             depth++;
         }
 
@@ -84,6 +88,36 @@ public class PlaceholderProcessor {
         while (matcher.find()) {
             String placeholderName = matcher.group(1);
             Object resolved = registry.resolve(placeholderName, player, context);
+            String replacement = objectToString(resolved, matcher.group(0));
+            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
+        }
+
+        matcher.appendTail(sb);
+        return sb.toString();
+    }
+
+    public static String processRelational(String text, Player requester, Player target, PlaceholderContext context) {
+        if (text == null || text.isEmpty()) return text;
+
+        String result = text;
+        int depth = 0;
+
+        while (containsPlaceholders(result) && depth < MAX_NESTING_DEPTH) {
+            result = processSinglePassRelational(result, requester, target, context);
+            depth++;
+        }
+
+        return result;
+    }
+
+    private static String processSinglePassRelational(String text, Player requester, Player target, PlaceholderContext context) {
+        PlaceholderRegistry registry = PlaceholderRegistry.getInstance();
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(text);
+        StringBuilder sb = new StringBuilder(text.length() + 32);
+
+        while (matcher.find()) {
+            String placeholderName = matcher.group(1);
+            Object resolved = registry.resolveRelational(placeholderName, requester, target, context);
             String replacement = objectToString(resolved, matcher.group(0));
             matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
         }
@@ -201,7 +235,8 @@ public class PlaceholderProcessor {
     }
 
     public static boolean containsPlaceholders(String text) {
-        return text != null && PLACEHOLDER_PATTERN.matcher(text).find();
+        if (text == null || text.indexOf('%') < 0) return false;
+        return PLACEHOLDER_PATTERN.matcher(text).find();
     }
 
     private static String objectToString(Object obj, String originalPlaceholder) {

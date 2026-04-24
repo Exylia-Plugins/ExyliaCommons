@@ -17,6 +17,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityResurrectEvent;
+import org.bukkit.event.entity.EntityShootBowEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
@@ -52,7 +53,7 @@ public class ItemCooldownListener implements Listener {
         if (def == null) return;
 
         CooldownTrigger trigger = def.getTrigger();
-        if (trigger != CooldownTrigger.USE && trigger != CooldownTrigger.USE_ON_ELYTRA) return;
+        if (trigger != CooldownTrigger.USE && trigger != CooldownTrigger.USE_ON_ELYTRA && trigger != CooldownTrigger.CONSUME) return;
 
         Player player = event.getPlayer();
         if (trigger == CooldownTrigger.USE_ON_ELYTRA && !player.isGliding()) return;
@@ -105,7 +106,7 @@ public class ItemCooldownListener implements Listener {
     public void onProjectileLaunchCheck(ProjectileLaunchEvent event) {
         if (!(event.getEntity().getShooter() instanceof Player player)) return;
 
-        ItemCooldownDefinition def = registry.getByProjectile(event.getEntity().getClass());
+        ItemCooldownDefinition def = registry.getByEntityType(event.getEntity().getType());
         if (def == null || def.getTrigger() != CooldownTrigger.LAUNCH) return;
 
         if (cooldownManager.isOnCooldown(player, def.getId())) {
@@ -128,10 +129,34 @@ public class ItemCooldownListener implements Listener {
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
         if (!(event.getEntity().getShooter() instanceof Player player)) return;
 
-        ItemCooldownDefinition def = registry.getByProjectile(event.getEntity().getClass());
+        ItemCooldownDefinition def = registry.getByEntityType(event.getEntity().getType());
         if (def == null || def.getTrigger() != CooldownTrigger.LAUNCH) return;
 
         applyCooldown(player, def);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onResurrectCheck(EntityResurrectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+
+        for (ItemCooldownDefinition def : registry.getAll()) {
+            if (def.getTrigger() != CooldownTrigger.RESURRECT) continue;
+
+            if (cooldownManager.isOnCooldown(player, def.getId())) {
+                event.setCancelled(true);
+                return;
+            }
+
+            if (def.hasAnyRegionMaxUses()) {
+                for (String regionId : getPlayerRegionIds(player)) {
+                    if (def.hasRegionMaxUses(regionId)
+                            && getRegionUseCount(player.getUniqueId(), regionId, def.getId()) >= def.getRegionMaxUses(regionId)) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -143,6 +168,41 @@ public class ItemCooldownListener implements Listener {
             if (cooldownManager.isOnCooldown(player, def.getId())) continue;
             applyCooldown(player, def);
         }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityShootBowCheck(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.getBow() == null) return;
+
+        ItemCooldownDefinition def = registry.getByMaterial(event.getBow().getType());
+        if (def == null || def.getTrigger() != CooldownTrigger.BOW_SHOOT) return;
+
+        if (cooldownManager.isOnCooldown(player, def.getId())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (def.hasAnyRegionMaxUses()) {
+            for (String regionId : getPlayerRegionIds(player)) {
+                if (def.hasRegionMaxUses(regionId)
+                        && getRegionUseCount(player.getUniqueId(), regionId, def.getId()) >= def.getRegionMaxUses(regionId)) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onEntityShootBow(EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.getBow() == null) return;
+
+        ItemCooldownDefinition def = registry.getByMaterial(event.getBow().getType());
+        if (def == null || def.getTrigger() != CooldownTrigger.BOW_SHOOT) return;
+
+        applyCooldown(player, def);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -222,9 +282,6 @@ public class ItemCooldownListener implements Listener {
     }
 
     private void applyCooldown(Player player, ItemCooldownDefinition def) {
-        long duration = getApplicableDuration(player, def);
-        if (duration <= 0) return;
-
         if (def.hasAnyRegionMaxUses()) {
             Set<String> regionIds = getPlayerRegionIds(player);
             playerRegionCache.put(player.getUniqueId(), regionIds);
@@ -234,6 +291,9 @@ public class ItemCooldownListener implements Listener {
                 }
             }
         }
+
+        long duration = getApplicableDuration(player, def);
+        if (duration <= 0) return;
 
         cooldownManager.set(player, def.getId(), duration, def.getMaterial());
     }

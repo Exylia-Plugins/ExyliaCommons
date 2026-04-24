@@ -12,7 +12,9 @@ import net.exylia.commons.v2.items.utils.ItemStackUtils;
 import net.exylia.commons.v2.items.utils.PlaceholderDetector;
 import net.exylia.commons.v2.items.validation.ItemValidator;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.visual.api.ColorAPI;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -89,6 +91,29 @@ public class ItemProcessor {
         ItemData resolvedData = applySnapshotIfNeeded(itemData, player);
         ItemStack itemStack = processMaterial(resolvedData, player);
         return processAllFields(itemStack, resolvedData, player);
+    }
+
+    public static List<Component> processLore(List<String> rawLore, Player player, PlaceholderContext context) {
+        if (rawLore == null || rawLore.isEmpty()) {
+            return List.of();
+        }
+
+        PlaceholderContext safeContext = context != null ? context : PlaceholderContext.create();
+        List<Component> processedLore = new ArrayList<>();
+
+        for (String line : rawLore) {
+            String processed = Placeholders.process(line, player, safeContext);
+            String normalized = processed.replace("\\n", "\n").replace("<nl>", "\n");
+            if (normalized.contains("\n")) {
+                for (String subLine : normalized.split("\n", -1)) {
+                    processedLore.add(ColorAPI.parse(subLine));
+                }
+            } else {
+                processedLore.add(ColorAPI.parse(normalized));
+            }
+        }
+
+        return processedLore;
     }
 
     private static ItemData applySnapshotIfNeeded(ItemData itemData, Player player) {
@@ -217,19 +242,7 @@ public class ItemProcessor {
                               itemData.getLoreDynamicSupplier().get() : itemData.getRawLore();
 
         if (rawLore != null && !rawLore.isEmpty()) {
-            List<net.kyori.adventure.text.Component> processedLore = new ArrayList<>();
-            for (String line : rawLore) {
-                String processed = Placeholders.process(line, player, itemData.getContext());
-                String normalized = processed.replace("\\n", "\n");
-                if (normalized.contains("\n")) {
-                    for (String subLine : normalized.split("\n", -1)) {
-                        processedLore.add(ColorAPI.parse(subLine));
-                    }
-                } else {
-                    processedLore.add(ColorAPI.parse(normalized));
-                }
-            }
-            meta.lore(processedLore);
+            meta.lore(processLore(rawLore, player, itemData.getContext()));
         }
 
         itemStack.setItemMeta(meta);

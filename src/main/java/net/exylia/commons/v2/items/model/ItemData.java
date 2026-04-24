@@ -120,6 +120,9 @@ public class ItemData {
     @Builder.Default
     private String templateKey = null;
 
+    @Builder.Default
+    private String condition = null;
+
     public ItemData copy() {
         return ItemData.builder()
                 .itemStack(this.itemStack != null ? this.itemStack.clone() : null)
@@ -154,6 +157,7 @@ public class ItemData {
                 .commands(new ArrayList<>(this.commands))
                 .requiresTarget(this.requiresTarget)
                 .templateKey(this.templateKey)
+                .condition(this.condition)
                 .build();
     }
 }

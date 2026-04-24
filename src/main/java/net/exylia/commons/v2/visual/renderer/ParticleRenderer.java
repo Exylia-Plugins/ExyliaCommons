@@ -5,8 +5,11 @@ import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.config.ParticleConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,6 +50,41 @@ public class ParticleRenderer implements VisualRenderer<ParticleConfig> {
                             config.getOffsetZ(),
                             config.getExtra(),
                             dustOptions
+                    );
+                }
+            }
+        } else if (ParticleCompat.isBlockParticle(config.getParticle())) {
+            Material mat = config.getBlockMaterial() != null ? config.getBlockMaterial() : Material.STONE;
+            BlockData blockData = mat.createBlockData();
+            for (Player target : targets) {
+                if (target.isOnline()) {
+                    target.spawnParticle(
+                            config.getParticle(),
+                            location,
+                            config.getCount(),
+                            config.getOffsetX(),
+                            config.getOffsetY(),
+                            config.getOffsetZ(),
+                            config.getExtra(),
+                            blockData
+                    );
+                }
+            }
+        } else if (ParticleCompat.isItemParticle(config.getParticle())) {
+            ItemStack item = config.getItemStack() != null
+                    ? config.getItemStack()
+                    : new ItemStack(config.getBlockMaterial() != null ? config.getBlockMaterial() : Material.STONE);
+            for (Player target : targets) {
+                if (target.isOnline()) {
+                    target.spawnParticle(
+                            config.getParticle(),
+                            location,
+                            config.getCount(),
+                            config.getOffsetX(),
+                            config.getOffsetY(),
+                            config.getOffsetZ(),
+                            config.getExtra(),
+                            item
                     );
                 }
             }

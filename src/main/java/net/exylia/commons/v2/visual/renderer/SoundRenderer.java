@@ -22,6 +22,7 @@ public class SoundRenderer implements VisualRenderer<SoundConfig> {
 
     @Override
     public void render(Player player, SoundConfig config, PlaceholderContext context) {
+        if (config.getSound() == null) return;
         Collection<Player> targets = determineTargets(player, config);
 
         if (config.getScope() == SoundConfig.SoundScope.PLAYER) {

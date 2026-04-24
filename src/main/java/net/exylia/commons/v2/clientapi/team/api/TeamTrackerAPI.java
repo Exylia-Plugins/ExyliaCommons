@@ -17,18 +17,22 @@ public final class TeamTrackerAPI {
     }
 
     public static TrackingTeam createTeam() {
+        if (manager == null) return null;
         return manager.createTeam();
     }
 
     public static void deleteTeam(UUID teamId) {
+        if (manager == null) return;
         manager.deleteTeam(teamId);
     }
 
     public static void addMember(UUID teamId, Player player) {
+        if (manager == null) return;
         manager.addMember(teamId, player);
     }
 
     public static void removeMember(Player player) {
+        if (manager == null) return;
         manager.removeMember(player);
     }
 }

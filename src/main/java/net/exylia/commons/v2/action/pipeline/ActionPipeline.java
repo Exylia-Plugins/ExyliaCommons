@@ -46,9 +46,9 @@ public class ActionPipeline {
             DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: PRE_EXECUTE for " + action.getMetadata().getFullId());
             executeStage(PipelineStage.PRE_EXECUTE, action, context);
 
-            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: Calling action.execute() for " + action.getMetadata().getFullId());
-            ActionResult result = action.execute(context).join();
-            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: action.execute() returned for " + action.getMetadata().getFullId() + " - success: " + result.isSuccess());
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: Calling action.executeDirect() for " + action.getMetadata().getFullId());
+            ActionResult result = action.executeDirect(context);
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "Pipeline: action.executeDirect() returned for " + action.getMetadata().getFullId() + " - success: " + result.isSuccess());
 
             context.getData().put(RESULT_KEY, result);
             executeStage(PipelineStage.POST_EXECUTE, action, context);

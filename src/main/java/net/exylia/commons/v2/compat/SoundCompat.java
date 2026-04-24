@@ -29,10 +29,14 @@ public final class SoundCompat {
 
     private static Sound tryRegistry(String name) {
         try {
-            String key = name.toLowerCase();
-            if (!key.contains(":")) key = "minecraft:" + key;
-            String[] parts = key.split(":", 2);
-            return Registry.SOUNDS.get(new NamespacedKey(parts[0], parts[1]));
+            String lower = name.toLowerCase();
+            if (!lower.contains(":")) lower = "minecraft:" + lower;
+            String[] parts = lower.split(":", 2);
+            Sound result = Registry.SOUNDS.get(new NamespacedKey(parts[0], parts[1]));
+            if (result != null) return result;
+
+            String dotKey = parts[1].replace("_", ".");
+            return Registry.SOUNDS.get(new NamespacedKey(parts[0], dotKey));
         } catch (Exception ignored) {
             return null;
         }

@@ -12,6 +12,7 @@ import net.exylia.commons.v2.placeholders.resolver.ContextPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlayerPlaceholderResolver;
+import net.exylia.commons.v2.placeholders.resolver.RelationalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.scanner.PlaceholderAnnotationScanner;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -32,6 +33,7 @@ public class PlaceholderRegistry {
     private final Map<String, GlobalPlaceholderResolver> globalResolvers = new ConcurrentHashMap<>();
     private final Map<String, PlayerPlaceholderResolver> playerResolvers = new ConcurrentHashMap<>();
     private final Map<String, ContextPlaceholderResolver> contextResolvers = new ConcurrentHashMap<>();
+    private final Map<String, RelationalPlaceholderResolver> relationalResolvers = new ConcurrentHashMap<>();
     private final Map<String, PlaceholderResolver> argumentResolvers = new ConcurrentHashMap<>();
 
     private final PlaceholderAnnotationScanner scanner;
@@ -110,6 +112,9 @@ public class PlaceholderRegistry {
             case CONTEXT:
                 contextResolvers.put(name, (context, player) -> resolver.resolve(player, context));
                 break;
+            case RELATIONAL:
+                relationalResolvers.put(name, (req, tgt, ctx) -> resolver.resolveRelational(req, tgt, ctx));
+                break;
         }
 
         cache.invalidatePattern(name);
@@ -134,6 +139,28 @@ public class PlaceholderRegistry {
         DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering context placeholder: " + key);
         contextResolvers.put(key, resolver);
         cache.invalidatePattern(key);
+    }
+
+    public void registerRelational(String name, RelationalPlaceholderResolver resolver) {
+        String key = name.toLowerCase();
+        DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering relational placeholder: " + key);
+        relationalResolvers.put(key, resolver);
+        cache.invalidatePattern(key);
+    }
+
+    public Object resolveRelational(String name, Player requester, Player target, PlaceholderContext context) {
+        String key = name.toLowerCase();
+
+        if (context != null && context.has(key)) {
+            return safeResolve(() -> context.get(key), key);
+        }
+
+        RelationalPlaceholderResolver relationalResolver = relationalResolvers.get(key);
+        if (relationalResolver != null) {
+            return safeResolve(() -> relationalResolver.resolve(requester, target, context), key);
+        }
+
+        return resolve(name, requester, context);
     }
 
     public Object resolve(String name, Player player, PlaceholderContext context) {
@@ -230,7 +257,8 @@ public class PlaceholderRegistry {
         String key = name.toLowerCase();
         return globalResolvers.containsKey(key) ||
                 playerResolvers.containsKey(key) ||
-                contextResolvers.containsKey(key);
+                contextResolvers.containsKey(key) ||
+                relationalResolvers.containsKey(key);
     }
 
     public PlaceholderResolver getResolver(String name) {
@@ -253,6 +281,7 @@ public class PlaceholderRegistry {
         globalResolvers.clear();
         playerResolvers.clear();
         contextResolvers.clear();
+        relationalResolvers.clear();
         argumentResolvers.clear();
         initialized = false;
         synchronized (PlaceholderRegistry.class) {
@@ -268,6 +297,7 @@ public class PlaceholderRegistry {
                 globalResolvers.size(),
                 playerResolvers.size(),
                 contextResolvers.size(),
+                relationalResolvers.size(),
                 cache.getStats()
         );
     }
@@ -277,6 +307,7 @@ public class PlaceholderRegistry {
         all.addAll(globalResolvers.keySet());
         all.addAll(playerResolvers.keySet());
         all.addAll(contextResolvers.keySet());
+        all.addAll(relationalResolvers.keySet());
         return all;
     }
 
@@ -289,16 +320,17 @@ public class PlaceholderRegistry {
             int globalCount,
             int playerCount,
             int contextCount,
+            int relationalCount,
             PlaceholderCache.PlaceholderCacheStats cacheStats
     ) {
         public int getTotalCount() {
-            return globalCount + playerCount + contextCount;
+            return globalCount + playerCount + contextCount + relationalCount;
         }
 
         @Override
         public String toString() {
-            return String.format("PlaceholderRegistry{global=%d, player=%d, context=%d, total=%d, cache=%s}",
-                    globalCount, playerCount, contextCount, getTotalCount(), cacheStats);
+            return String.format("PlaceholderRegistry{global=%d, player=%d, context=%d, relational=%d, total=%d, cache=%s}",
+                    globalCount, playerCount, contextCount, relationalCount, getTotalCount(), cacheStats);
         }
     }
 }

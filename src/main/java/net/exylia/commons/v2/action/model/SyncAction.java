@@ -41,6 +41,35 @@ public class SyncAction implements Action {
     }
 
     @Override
+    public ActionResult executeDirect(ActionContext context) {
+        long startTime = System.currentTimeMillis();
+        DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.executeDirect() called for " + metadata.getFullId());
+        if (!TaskAPI.isMainThread()) {
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.executeDirect() dispatching to main thread for " + metadata.getFullId());
+            CompletableFuture<ActionResult> future = new CompletableFuture<>();
+            TaskAPI.runSync(() -> {
+                long executionTime = System.currentTimeMillis() - startTime;
+                try {
+                    handler.accept(context, context.getArguments());
+                    future.complete(ActionResult.success("Action executed successfully", executionTime));
+                } catch (Exception e) {
+                    DebugAPI.logLibError(DebugCategory.ACTION, "SyncAction handler threw exception for " + metadata.getFullId(), e);
+                    future.complete(ActionResult.failure(e));
+                }
+            });
+            return future.join();
+        }
+        try {
+            handler.accept(context, context.getArguments());
+            long executionTime = System.currentTimeMillis() - startTime;
+            return ActionResult.success("Action executed successfully", executionTime);
+        } catch (Exception e) {
+            DebugAPI.logLibError(DebugCategory.ACTION, "SyncAction handler threw exception for " + metadata.getFullId(), e);
+            return ActionResult.failure(e);
+        }
+    }
+
+    @Override
     public ActionMetadata getMetadata() {
         return metadata;
     }

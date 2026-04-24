@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class PapiAdapter {
     private static PapiAdapter instance;
     private final JavaPlugin plugin;
-    private final ConcurrentHashMap<String, PapiExpander> expanders = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, PapiCombinedExpander> expanders = new ConcurrentHashMap<>();
     @Getter
     private boolean papiAvailable;
 
@@ -51,15 +51,18 @@ public class PapiAdapter {
             DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Cannot register PAPI expander - PlaceholderAPI not available");
             return;
         }
-
         try {
-            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering PAPI expander with identifier: " + identifier);
-            PapiExpander expander = new PapiExpander(identifier);
-            if (expander.register()) {
-                expanders.put(identifier, expander);
-                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander registered: " + identifier);
+            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering PAPI expander: " + identifier);
+            PapiCombinedExpander expander = expanders.computeIfAbsent(identifier, PapiCombinedExpander::new);
+            expander.enableNormal();
+            if (!expander.isRegistered()) {
+                if (expander.register()) {
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander registered: " + identifier);
+                } else {
+                    DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Failed to register PAPI expander: " + identifier);
+                }
             } else {
-                DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Failed to register PAPI expander: " + identifier);
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander updated (normal enabled): " + identifier);
             }
         } catch (Exception e) {
             DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error registering PAPI expander: " + e.getMessage(), e);
@@ -67,13 +70,58 @@ public class PapiAdapter {
     }
 
     public void unregisterExpander(String identifier) {
-        PapiExpander expander = expanders.remove(identifier);
-        if (expander != null && papiAvailable) {
-            try {
-                expander.unregister();
-                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered: " + identifier);
-            } catch (Exception e) {
-                DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander: " + e.getMessage(), e);
+        PapiCombinedExpander expander = expanders.get(identifier);
+        if (expander == null) return;
+        expander.disableNormal();
+        if (expander.isFullyDisabled()) {
+            expanders.remove(identifier);
+            if (papiAvailable) {
+                try {
+                    expander.unregister();
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander unregistered: " + identifier);
+                } catch (Exception e) {
+                    DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering PAPI expander: " + e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+    public void registerRelationalExpander(String identifier) {
+        if (!papiAvailable) {
+            DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Cannot register relational PAPI expander - PlaceholderAPI not available");
+            return;
+        }
+        try {
+            DebugAPI.logLibDebug(DebugCategory.PLACEHOLDER, "Registering relational PAPI expander: " + identifier);
+            PapiCombinedExpander expander = expanders.computeIfAbsent(identifier, PapiCombinedExpander::new);
+            expander.enableRelational();
+            if (!expander.isRegistered()) {
+                if (expander.register()) {
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Relational PAPI expander registered: " + identifier);
+                } else {
+                    DebugAPI.logLibWarn(DebugCategory.PLACEHOLDER, "Failed to register relational PAPI expander: " + identifier);
+                }
+            } else {
+                DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "PAPI expander updated (relational enabled): " + identifier);
+            }
+        } catch (Exception e) {
+            DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error registering relational PAPI expander: " + e.getMessage(), e);
+        }
+    }
+
+    public void unregisterRelationalExpander(String identifier) {
+        PapiCombinedExpander expander = expanders.get(identifier);
+        if (expander == null) return;
+        expander.disableRelational();
+        if (expander.isFullyDisabled()) {
+            expanders.remove(identifier);
+            if (papiAvailable) {
+                try {
+                    expander.unregister();
+                    DebugAPI.logLibSuccess(DebugCategory.PLACEHOLDER, "Relational PAPI expander unregistered: " + identifier);
+                } catch (Exception e) {
+                    DebugAPI.logLibError(DebugCategory.PLACEHOLDER, "Error unregistering relational PAPI expander: " + e.getMessage(), e);
+                }
             }
         }
     }

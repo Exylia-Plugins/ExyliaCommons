@@ -5,7 +5,9 @@ import net.exylia.commons.v2.visual.config.ParticleConfig;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,8 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
     private double extra = 0.0;
     private Color color;
     private float dustSize = 1.0f;
+    private Material blockMaterial;
+    private ItemStack itemStack;
     private ParticleConfig.ParticleScope scope = ParticleConfig.ParticleScope.PLAYER;
     private Location location;
 
@@ -86,6 +90,21 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
 
     public ParticleBuilder dustSize(float dustSize) {
         this.dustSize = dustSize;
+        return this;
+    }
+
+    public ParticleBuilder blockMaterial(Material material) {
+        this.blockMaterial = material;
+        return this;
+    }
+
+    public ParticleBuilder blockMaterial(String materialName) {
+        this.blockMaterial = Material.matchMaterial(materialName.toUpperCase());
+        return this;
+    }
+
+    public ParticleBuilder itemStack(ItemStack item) {
+        this.itemStack = item;
         return this;
     }
 
@@ -158,6 +177,10 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
                 }
             }
         }
+        if (parts.length >= 8) {
+            Material mat = Material.matchMaterial(parts[7].trim().toUpperCase());
+            if (mat != null) builder.blockMaterial(mat);
+        }
 
         return builder.build();
     }
@@ -196,6 +219,8 @@ public class ParticleBuilder extends VisualBuilder<ParticleConfig, ParticleBuild
                 .extra(extra)
                 .color(color)
                 .dustSize(dustSize)
+                .blockMaterial(blockMaterial)
+                .itemStack(itemStack)
                 .scope(scope)
                 .location(location)
                 .build();

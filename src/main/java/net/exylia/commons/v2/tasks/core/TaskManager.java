@@ -46,7 +46,7 @@ public class TaskManager {
         this.config = config;
         this.folia = detectFolia();
         this.scheduler = folia ? new FoliaServerScheduler() : new BukkitServerScheduler();
-        this.executor = new TaskExecutor(config);
+        this.executor = new TaskExecutor(plugin.getName(), config);
 
         DebugAPI.logLibInfo(DebugCategory.ASYNC, "TaskManager initialized [" + (folia ? "Folia" : "Bukkit") + " mode]");
     }

@@ -6,7 +6,9 @@ import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.visual.validation.ValidationResult;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,8 @@ public class ParticleConfig extends VisualConfig {
     private final Color color;
     @Builder.Default
     private final float dustSize = 1.0f;
+    private final Material blockMaterial;
+    private final ItemStack itemStack;
     @Builder.Default
     private final ParticleScope scope = ParticleScope.PLAYER;
     private final Location location;

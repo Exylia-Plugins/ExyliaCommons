@@ -22,6 +22,18 @@ public final class ItemCooldown {
         this.material = material;
     }
 
+    ItemCooldown(String id, UUID playerId, long startTimeMs, long durationMs, Material material) {
+        this.id = id;
+        this.playerId = playerId;
+        this.startTimeMs = startTimeMs;
+        this.durationMs = durationMs;
+        this.material = material;
+    }
+
+    public static ItemCooldown fromStorage(String id, UUID playerId, long expiryTimeMs, long durationMs, Material material) {
+        return new ItemCooldown(id, playerId, expiryTimeMs - durationMs, durationMs, material);
+    }
+
     public long getExpiryTimeMs() {
         return startTimeMs + durationMs;
     }

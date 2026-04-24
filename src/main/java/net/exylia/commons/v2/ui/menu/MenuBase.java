@@ -16,6 +16,7 @@ import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.animation.AnimationExecutor;
+import net.exylia.commons.v2.ui.condition.MenuConditionEvaluator;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.exception.MenuStateException;
 import net.exylia.commons.v2.ui.model.FillerData;
@@ -688,6 +689,15 @@ public abstract class MenuBase {
 
         for (Map.Entry<String, ItemData> entry : menuData.getItems().entrySet()) {
             ItemData itemData = entry.getValue();
+
+            if (itemData.getCondition() != null) {
+                PlaceholderContext mergedContext = itemData.getContext() != null
+                        ? this.context.copyAndMerge(itemData.getContext())
+                        : this.context;
+                if (!MenuConditionEvaluator.evaluate(itemData.getCondition(), player, mergedContext)) {
+                    continue;
+                }
+            }
 
             if (itemData.getSlotConfig() != null) {
                 try {

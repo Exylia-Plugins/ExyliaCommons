@@ -9,6 +9,7 @@ import net.exylia.commons.v2.placeholders.registry.PlaceholderRegistry;
 import net.exylia.commons.v2.placeholders.resolver.ContextPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.GlobalPlaceholderResolver;
 import net.exylia.commons.v2.placeholders.resolver.PlayerPlaceholderResolver;
+import net.exylia.commons.v2.placeholders.resolver.RelationalPlaceholderResolver;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -56,7 +57,22 @@ public final class Placeholders {
         PlaceholderRegistry.getInstance().registerContext(name, resolver);
     }
 
-    public static String process(String text, Player player, PlaceholderContext context) {
+    public static void registerRelational(String name, RelationalPlaceholderResolver resolver) {
+        PlaceholderRegistry.getInstance().registerRelational(name, resolver);
+    }
+
+    public static void registerRelationalPapiExpander(String identifier) {
+        PapiAdapter.getInstance().registerRelationalExpander(identifier);
+    }
+
+    public static void unregisterRelationalPapiExpander(String identifier) {
+        if (PapiAdapter.isInitialized()) {
+            PapiAdapter.getInstance().unregisterRelationalExpander(identifier);
+        }
+    }
+
+
+public static String process(String text, Player player, PlaceholderContext context) {
         return PlaceholderProcessor.process(text, player, context);
     }
 
@@ -94,6 +110,14 @@ public final class Placeholders {
 
     public static boolean containsPlaceholders(String text) {
         return PlaceholderProcessor.containsPlaceholders(text);
+    }
+
+    public static String processRelational(String text, Player requester, Player target, PlaceholderContext context) {
+        return PlaceholderProcessor.processRelational(text, requester, target, context);
+    }
+
+    public static String processRelational(String text, Player requester, Player target) {
+        return PlaceholderProcessor.processRelational(text, requester, target, null);
     }
 
     public static String processContextOnly(String text, Player player, PlaceholderContext context) {

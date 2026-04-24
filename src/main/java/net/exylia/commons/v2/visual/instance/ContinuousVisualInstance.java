@@ -30,16 +30,15 @@ public class ContinuousVisualInstance<T extends VisualConfig> extends VisualInst
     public CompletableFuture<Void> start() {
         lifecycle.start();
 
+        PlaceholderContext updateContext = context.copy();
+
         updateTask = Tasks.timer(() -> {
             if (!player.isOnline()) {
                 cancel();
                 return;
             }
 
-            long count = updateCounter.getAndIncrement();
-
-            PlaceholderContext updateContext = context.copy();
-            updateContext.put("update_count", count);
+            updateContext.put("update_count", updateCounter.getAndIncrement());
             updateContext.withCurrentTime();
 
             try {

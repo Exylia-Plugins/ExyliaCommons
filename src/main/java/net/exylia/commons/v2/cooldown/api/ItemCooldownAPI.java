@@ -120,6 +120,14 @@ public final class ItemCooldownAPI {
         return limits;
     }
 
+    public static void add(Player player, String id, long durationMs) {
+        manager.add(player, id, durationMs);
+    }
+
+    public static void decrease(Player player, String id, long durationMs) {
+        manager.decrease(player, id, durationMs);
+    }
+
     public static void remove(Player player, String id) {
         manager.remove(player, id);
     }

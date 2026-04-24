@@ -53,6 +53,7 @@ public class ConfigurationParser {
         parseActions(config, builder);
         parseCommands(config, builder);
         parseRequiresTarget(config, builder);
+        parseCondition(config, builder);
 
         return builder.build();
     }
@@ -513,5 +514,12 @@ public class ConfigurationParser {
     private static void parseRequiresTarget(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
         boolean requiresTarget = config.getBoolean("requires-target", config.getBoolean("requiresTarget", false));
         builder.requiresTarget(requiresTarget);
+    }
+
+    private static void parseCondition(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        String condition = config.getString("condition");
+        if (condition != null && !condition.isBlank()) {
+            builder.condition(condition);
+        }
     }
 }

@@ -18,6 +18,30 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ItemCooldownManager {
 
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, ItemCooldown>> cooldowns = new ConcurrentHashMap<>();
+    private final ItemCooldownStorage storage;
+
+    public ItemCooldownManager(ItemCooldownStorage storage) {
+        this.storage = storage;
+    }
+
+    public void loadPlayer(UUID playerId) {
+        Map<String, ItemCooldown> loaded = storage.load(playerId);
+        if (!loaded.isEmpty()) {
+            cooldowns.put(playerId, new ConcurrentHashMap<>(loaded));
+        }
+    }
+
+    public void saveAndCleanup(UUID playerId) {
+        ConcurrentHashMap<String, ItemCooldown> data = cooldowns.remove(playerId);
+        storage.save(playerId, data != null ? data : Collections.emptyMap());
+    }
+
+    public void shutdown() {
+        for (Map.Entry<UUID, ConcurrentHashMap<String, ItemCooldown>> entry : cooldowns.entrySet()) {
+            storage.save(entry.getKey(), entry.getValue());
+        }
+        cooldowns.clear();
+    }
 
     public void set(Player player, String id, long durationMs) {
         set(player, id, durationMs, null);
@@ -163,6 +187,30 @@ public class ItemCooldownManager {
         if (CooldownAPI.isInitialized()) {
             CooldownAPI.removeAll(player);
         }
+    }
+
+    public void add(Player player, String id, long durationMs) {
+        long remaining = getRemainingMillis(player.getUniqueId(), id);
+        if (remaining <= 0) {
+            set(player, id, durationMs);
+            return;
+        }
+        ItemCooldown existing = get(player.getUniqueId(), id);
+        Material material = existing != null ? existing.getMaterial() : null;
+        set(player, id, remaining + durationMs, material);
+    }
+
+    public void decrease(Player player, String id, long durationMs) {
+        long remaining = getRemainingMillis(player.getUniqueId(), id);
+        if (remaining <= 0) return;
+        long newRemaining = remaining - durationMs;
+        if (newRemaining <= 0) {
+            remove(player, id);
+            return;
+        }
+        ItemCooldown existing = get(player.getUniqueId(), id);
+        Material material = existing != null ? existing.getMaterial() : null;
+        set(player, id, newRemaining, material);
     }
 
     public void cleanupPlayer(UUID playerId) {

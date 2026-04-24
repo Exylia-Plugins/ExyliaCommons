@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+    id("io.freefair.lombok") version "8.14"
+}
+
+group = 'net.exylia'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven { url 'https://repo.papermc.io/repository/maven-public/' }
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    archiveBaseName.set('exylia-clans-api')
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'exylia-clans-api'
+            from components.java
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
+}

@@ -8,6 +8,7 @@ import net.exylia.commons.v2.items.processor.ItemProcessor;
 import net.exylia.commons.v2.items.utils.ClickTypeConverter;
 import net.exylia.commons.v2.items.utils.NBTManager;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.kyori.adventure.text.Component;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -15,6 +16,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public final class ItemsAPI {
@@ -63,6 +65,18 @@ public final class ItemsAPI {
     public static CompletableFuture<ProcessedItem> processFromConfigAsync(ConfigurationSection config, Player player) {
         ItemData itemData = parseFromConfig(config);
         return processAsync(itemData, player);
+    }
+
+    public static List<Component> processLore(List<String> rawLore, Player player, PlaceholderContext context) {
+        return ItemProcessor.processLore(rawLore, player, context);
+    }
+
+    public static List<Component> processLore(List<String> rawLore, Player player) {
+        return ItemProcessor.processLore(rawLore, player, PlaceholderContext.create());
+    }
+
+    public static List<Component> processLore(List<String> rawLore, PlaceholderContext context) {
+        return ItemProcessor.processLore(rawLore, null, context);
     }
 
     public static CompletableFuture<Void> handleClick(

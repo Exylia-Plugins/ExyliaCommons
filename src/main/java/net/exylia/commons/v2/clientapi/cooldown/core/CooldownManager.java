@@ -6,16 +6,18 @@ import net.exylia.commons.v2.clientapi.cooldown.model.CooldownDefinition;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 public class CooldownManager {
 
     private final List<CooldownAdapter> adapters = new ArrayList<>();
 
-    public void initialize() {
+    public void initialize(Plugin plugin) {
         tryRegisterApollo();
     }
 
@@ -53,6 +55,7 @@ public class CooldownManager {
                 adapter.display(player, definition);
             } catch (Exception e) {
                 DebugAPI.logLibError("Error displaying cooldown via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
@@ -77,6 +80,27 @@ public class CooldownManager {
                 DebugAPI.logLibError("Error removing all cooldowns via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
+    }
+
+    public void cleanupPlayer(UUID uuid) {
+        for (CooldownAdapter adapter : adapters) {
+            try {
+                adapter.cleanupPlayer(uuid);
+            } catch (Exception e) {
+                DebugAPI.logLibError("Error cleaning up player cooldown state via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    public void shutdown() {
+        for (CooldownAdapter adapter : adapters) {
+            try {
+                adapter.shutdown();
+            } catch (Exception e) {
+                DebugAPI.logLibError("Error shutting down cooldown adapter " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
+            }
+        }
+        adapters.clear();
     }
 
     public List<CooldownAdapter> getAdapters() {

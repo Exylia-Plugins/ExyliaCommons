@@ -34,7 +34,7 @@ public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
     public SoundBuilder sound(String soundName) {
         this.sound = SoundCompat.fromName(soundName);
         if (this.sound == null) {
-            throw new IllegalArgumentException("Invalid sound name: " + soundName);
+            DebugAPI.logLibWarn(DebugCategory.VISUAL, "Unknown sound name: " + soundName + " — sound will be skipped");
         }
         return this;
     }
@@ -100,7 +100,7 @@ public class SoundBuilder extends VisualBuilder<SoundConfig, SoundBuilder> {
         List<String> errors = new ArrayList<>();
 
         if (sound == null) {
-            errors.add("Sound must be specified");
+            return ValidationResult.success();
         }
 
         if (volume < 0) {

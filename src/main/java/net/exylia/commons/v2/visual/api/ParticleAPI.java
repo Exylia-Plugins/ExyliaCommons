@@ -87,6 +87,8 @@ public final class ParticleAPI {
                 .extra(config.getExtra())
                 .color(config.getColor())
                 .dustSize(config.getDustSize())
+                .blockMaterial(config.getBlockMaterial())
+                .itemStack(config.getItemStack())
                 .scope(ParticleConfig.ParticleScope.LOCATION)
                 .location(location)
                 .build();

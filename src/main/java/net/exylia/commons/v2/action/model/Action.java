@@ -14,4 +14,8 @@ public interface Action {
     default boolean canExecute(ActionContext context) {
         return true;
     }
+
+    default ActionResult executeDirect(ActionContext context) {
+        return execute(context).join();
+    }
 }

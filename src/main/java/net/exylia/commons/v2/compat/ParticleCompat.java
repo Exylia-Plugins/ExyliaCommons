@@ -100,6 +100,17 @@ public final class ParticleCompat {
         return particle == dust;
     }
 
+    public static boolean isBlockParticle(Particle particle) {
+        if (particle == null) return false;
+        String key = particle.getKey().getKey();
+        return key.equals("block") || key.equals("falling_dust") || key.equals("block_marker");
+    }
+
+    public static boolean isItemParticle(Particle particle) {
+        if (particle == null) return false;
+        return particle.getKey().getKey().equals("item");
+    }
+
     public static Particle getDustParticle() {
         return fromName("dust");
     }

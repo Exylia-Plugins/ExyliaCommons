@@ -2,13 +2,23 @@ package net.exylia.commons.v2.visual.cache;
 
 import lombok.Getter;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.visual.color.ColorProcessor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
+
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 @Getter
 public class CacheManager {
     private static volatile CacheManager instance;
     private static final Object LOCK = new Object();
+
+    private record RenderKey(UUID uuid, int templateId) {}
+    private record RenderEntry(String resolvedText, Component component) {}
+
+    private final Map<RenderKey, RenderEntry> playerRenderCache = new ConcurrentHashMap<>();
 
     private CacheManager() {
     }
@@ -29,10 +39,20 @@ public class CacheManager {
             return Component.empty();
         }
 
-        String withPlaceholders = PlaceholderCache.getOrProcess(text, player, context);
+        String resolved = PlaceholderCache.getOrProcess(text, player, context);
 
-        String withColors = ColorCache.getOrParse(withPlaceholders);
+        if (player != null) {
+            RenderKey key = new RenderKey(player.getUniqueId(), System.identityHashCode(text));
+            RenderEntry last = playerRenderCache.get(key);
+            if (last != null && resolved.equals(last.resolvedText())) {
+                return last.component();
+            }
+            Component component = ColorProcessor.parseToComponent(resolved);
+            playerRenderCache.put(key, new RenderEntry(resolved, component));
+            return component;
+        }
 
+        String withColors = ColorCache.getOrParse(resolved);
         return ComponentCache.getOrParse(withColors);
     }
 
@@ -50,12 +70,15 @@ public class CacheManager {
 
     public void invalidatePlayer(Player player) {
         PlaceholderCache.invalidate(player);
+        UUID uuid = player.getUniqueId();
+        playerRenderCache.keySet().removeIf(k -> k.uuid().equals(uuid));
     }
 
     public void clearAll() {
         PlaceholderCache.clear();
         ColorCache.clear();
         ComponentCache.clear();
+        playerRenderCache.clear();
     }
 
     public CacheStats getStats() {
