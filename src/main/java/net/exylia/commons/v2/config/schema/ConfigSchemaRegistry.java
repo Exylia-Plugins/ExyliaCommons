@@ -18,11 +18,13 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class ConfigSchemaRegistry {
 
-    private static final Map<String, Class<?>> registeredSchemas = new HashMap<>();
+    private static final Map<String, List<Class<?>>> registeredSchemas = new HashMap<>();
     private static final Map<Class<?>, ConfigSerializer<?>> serializers = new HashMap<>();
+    private static final Set<String> scheduledFinalizations = new HashSet<>();
 
     static {
         registerSerializer(new BossBarConfigSerializer());
@@ -51,7 +53,10 @@ public class ConfigSchemaRegistry {
         ConfigSchema schema = schemaClass.getAnnotation(ConfigSchema.class);
         String fileName = schema.file();
 
-        registeredSchemas.put(fileName, schemaClass);
+        List<Class<?>> schemas = registeredSchemas.computeIfAbsent(fileName, k -> new ArrayList<>());
+        if (!schemas.contains(schemaClass)) {
+            schemas.add(schemaClass);
+        }
 
         Config config = Configs.file(fileName);
         config.reload();
@@ -60,14 +65,55 @@ public class ConfigSchemaRegistry {
 
         processClass(schemaClass, "", config);
 
-        if (schema.strict()) {
-            Set<String> schemaPaths = collectSchemaPaths(schemaClass, "");
-            removeOrphanedKeys(config, schemaPaths);
-        }
-
         config.save();
 
         loadClass(schemaClass, "", config);
+
+        scheduleFinalizationIfNeeded(fileName);
+    }
+
+    private static void scheduleFinalizationIfNeeded(String fileName) {
+        if (scheduledFinalizations.contains(fileName)) return;
+
+        List<Class<?>> schemas = registeredSchemas.get(fileName);
+        if (schemas == null) return;
+
+        boolean anyStrict = schemas.stream().anyMatch(c -> c.getAnnotation(ConfigSchema.class).strict());
+        if (!anyStrict) return;
+
+        if (!net.exylia.commons.v2.tasks.api.TaskAPI.isInitialized()) return;
+
+        scheduledFinalizations.add(fileName);
+        net.exylia.commons.v2.tasks.api.TaskAPI.asyncScheduledLater(
+                () -> finalizeStrict(fileName),
+                30, TimeUnit.SECONDS
+        );
+        DebugAPI.logLibDebug("[ConfigSchema] Strict finalization scheduled for " + fileName + ".yml in 30s");
+    }
+
+    public static void finalizeStrict(String fileName) {
+        List<Class<?>> schemas = registeredSchemas.get(fileName);
+        if (schemas == null || schemas.isEmpty()) return;
+
+        boolean anyStrict = schemas.stream().anyMatch(c -> c.getAnnotation(ConfigSchema.class).strict());
+        if (!anyStrict) return;
+
+        Config config = Configs.file(fileName);
+
+        Set<String> allPaths = new HashSet<>();
+        for (Class<?> cls : schemas) {
+            allPaths.addAll(collectSchemaPaths(cls, ""));
+        }
+
+        removeOrphanedKeys(config, allPaths);
+        config.save();
+
+        config.reload();
+        for (Class<?> cls : schemas) {
+            loadClass(cls, "", config);
+        }
+
+        scheduledFinalizations.remove(fileName);
     }
 
     public static void load(Class<?> schemaClass) {
@@ -360,20 +406,28 @@ public class ConfigSchemaRegistry {
     }
 
     public static void reloadSchema(String fileName) {
-        Class<?> schemaClass = registeredSchemas.get(fileName);
-        if (schemaClass != null) {
-            ensureDefaults(schemaClass);
+        List<Class<?>> schemas = registeredSchemas.get(fileName);
+        if (schemas == null || schemas.isEmpty()) return;
+
+        for (Class<?> schemaClass : new ArrayList<>(schemas)) {
+            ConfigSchema schema = schemaClass.getAnnotation(ConfigSchema.class);
+            Config config = Configs.file(schema.file());
+            config.reload();
+            processClass(schemaClass, "", config);
+            config.save();
+            loadClass(schemaClass, "", config);
         }
+
+        finalizeStrict(fileName);
     }
 
     public static void reloadAll() {
-        List<Class<?>> schemas = new ArrayList<>(registeredSchemas.values());
-        for (Class<?> schemaClass : schemas) {
-            ensureDefaults(schemaClass);
+        for (String fileName : new ArrayList<>(registeredSchemas.keySet())) {
+            reloadSchema(fileName);
         }
     }
 
-    public static Map<String, Class<?>> getRegisteredSchemas() {
+    public static Map<String, List<Class<?>>> getRegisteredSchemas() {
         return Collections.unmodifiableMap(registeredSchemas);
     }
 
@@ -400,10 +454,11 @@ public class ConfigSchemaRegistry {
     }
 
     private static void removeOrphanedKeys(Config config, Set<String> schemaPaths) {
-        removeOrphanedKeysInSection(config.raw(), "", schemaPaths);
+        Set<String> preserved = config.getPreservedPrefixes();
+        removeOrphanedKeysInSection(config.raw(), "", schemaPaths, preserved);
     }
 
-    private static void removeOrphanedKeysInSection(ConfigurationSection section, String currentPrefix, Set<String> schemaPaths) {
+    private static void removeOrphanedKeysInSection(ConfigurationSection section, String currentPrefix, Set<String> schemaPaths, Set<String> preserved) {
         for (String key : new HashSet<>(section.getKeys(false))) {
             String fullPath = currentPrefix.isEmpty() ? key : currentPrefix + "." + key;
 
@@ -416,10 +471,28 @@ public class ConfigSchemaRegistry {
             }
 
             if (!isOwned) {
+                for (String pPath : preserved) {
+                    if (fullPath.equals(pPath) || fullPath.startsWith(pPath + ".") || pPath.startsWith(fullPath + ".")) {
+                        isOwned = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isOwned) {
                 section.set(key, null);
                 DebugAPI.logLibDebug("[ConfigSchema] [STRICT] Removed orphaned key: " + fullPath);
             } else if (section.isConfigurationSection(key)) {
-                removeOrphanedKeysInSection(section.getConfigurationSection(key), fullPath, schemaPaths);
+                boolean fullyPreserved = false;
+                for (String pPath : preserved) {
+                    if (fullPath.equals(pPath) || fullPath.startsWith(pPath + ".")) {
+                        fullyPreserved = true;
+                        break;
+                    }
+                }
+                if (!fullyPreserved) {
+                    removeOrphanedKeysInSection(section.getConfigurationSection(key), fullPath, schemaPaths, preserved);
+                }
             }
         }
     }

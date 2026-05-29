@@ -19,6 +19,7 @@ public class Config {
     private final String fileName;
     private final File file;
     private FileConfiguration config;
+    private final Set<String> preservedPrefixes = new HashSet<>();
 
     Config(JavaPlugin plugin, String fileName) {
         this.plugin = plugin;
@@ -203,6 +204,18 @@ public class Config {
 
     public boolean merge() {
         return ConfigMerger.merge(this, Set.of());
+    }
+
+    public void addPreservedPrefix(String path) {
+        preservedPrefixes.add(path);
+    }
+
+    public Set<String> getPreservedPrefixes() {
+        return preservedPrefixes;
+    }
+
+    public SectionDefaultsBuilder ifAbsent(String path) {
+        return new SectionDefaultsBuilder(this, path);
     }
 
     public FileConfiguration raw() {
