@@ -33,7 +33,7 @@ class EnderPearlListener implements Listener {
 
 
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onPlayerDeath(PlayerDeathEvent event) {
         PlayerUtils.clearPlayerEnderPearls(event.getPlayer());
     }
