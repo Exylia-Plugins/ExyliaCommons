@@ -1,5 +1,6 @@
 package net.exylia.commons.v2.reward.provider;
 
+import net.exylia.commons.v2.items.snapshot.ItemSnapshot;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.reward.config.ItemRewardConfig;
@@ -21,13 +22,16 @@ public class ItemRewardProvider implements RewardProvider {
     public CompletableFuture<RewardResult> provide(Reward reward, RewardContext context) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                ItemRewardConfig config = (ItemRewardConfig) reward.getData();
+                ItemStack item = resolveItemStack(reward, context);
+                if (item == null) {
+                    return RewardResult.builder()
+                            .success(false)
+                            .reward(reward)
+                            .message("Could not resolve item from reward data")
+                            .build();
+                }
 
-                ItemStack item = createItemStack(config, context);
-
-                Tasks.sync(() -> {
-                    context.getPlayer().getInventory().addItem(item);
-                });
+                Tasks.sync(() -> context.getPlayer().getInventory().addItem(item));
 
                 return RewardResult.success(reward);
             } catch (Exception e) {
@@ -39,6 +43,24 @@ public class ItemRewardProvider implements RewardProvider {
                         .build();
             }
         });
+    }
+
+    private ItemStack resolveItemStack(Reward reward, RewardContext context) {
+        Object data = reward.getData();
+        if (data instanceof ItemStack itemStack) {
+            return itemStack.clone();
+        }
+        if (data instanceof ItemSnapshot snapshot) {
+            return buildFromSnapshot(snapshot);
+        }
+        if (data instanceof ItemRewardConfig config) {
+            return createItemStack(config, context);
+        }
+        return null;
+    }
+
+    private ItemStack buildFromSnapshot(ItemSnapshot snapshot) {
+        return snapshot.toItemStack();
     }
 
     private ItemStack createItemStack(ItemRewardConfig config, RewardContext context) {

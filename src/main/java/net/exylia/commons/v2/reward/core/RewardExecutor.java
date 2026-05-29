@@ -62,7 +62,18 @@ public class RewardExecutor {
                 .sorted(Comparator.comparingInt(Reward::getPriority).reversed())
                 .collect(Collectors.toList());
 
-        List<CompletableFuture<RewardResult>> futures = rewards.stream()
+        return executeRewards(rewards, context);
+    }
+
+    public CompletableFuture<List<RewardResult>> executeRewards(
+            List<Reward> rewards,
+            RewardContext context
+    ) {
+        List<Reward> sorted = rewards.stream()
+                .sorted(Comparator.comparingInt(Reward::getPriority).reversed())
+                .collect(Collectors.toList());
+
+        List<CompletableFuture<RewardResult>> futures = sorted.stream()
                 .map(reward -> executeSingle(reward, context))
                 .collect(Collectors.toList());
 

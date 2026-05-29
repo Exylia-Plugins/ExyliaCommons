@@ -3,6 +3,7 @@ package net.exylia.commons.v2.reward.core;
 import net.exylia.commons.v2.reward.config.RewardConfigLoader;
 import net.exylia.commons.v2.reward.model.Reward;
 import net.exylia.commons.v2.reward.model.RewardContext;
+import net.exylia.commons.v2.reward.model.RewardEntry;
 import net.exylia.commons.v2.reward.model.RewardResult;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -86,6 +87,20 @@ public class RewardManager {
         }
 
         return executor.executeFromConfig(section, context);
+    }
+
+    public CompletableFuture<List<RewardResult>> giveEntries(Player player, List<RewardEntry> entries) {
+        RewardContext context = RewardContext.builder().player(player).build();
+        return giveEntries(player, entries, context);
+    }
+
+    public CompletableFuture<List<RewardResult>> giveEntries(
+            Player player,
+            List<RewardEntry> entries,
+            RewardContext context
+    ) {
+        List<Reward> rewards = entries.stream().map(RewardEntry::toReward).toList();
+        return executor.executeRewards(rewards, context);
     }
 
     public CompletableFuture<RewardResult> giveSingle(Reward reward, RewardContext context) {

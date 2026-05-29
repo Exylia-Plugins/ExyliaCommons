@@ -4,6 +4,7 @@ import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.reward.core.RewardManager;
 import net.exylia.commons.v2.reward.core.RewardStats;
 import net.exylia.commons.v2.reward.model.RewardContext;
+import net.exylia.commons.v2.reward.model.RewardEntry;
 import net.exylia.commons.v2.reward.model.RewardResult;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -61,6 +62,25 @@ public class RewardAPI {
                 .build();
 
         return RewardManager.getInstance().giveFromConfigKey(player, section, key, rewardContext);
+    }
+
+    public static CompletableFuture<List<RewardResult>> give(
+            Player player,
+            List<RewardEntry> entries
+    ) {
+        return RewardManager.getInstance().giveEntries(player, entries);
+    }
+
+    public static CompletableFuture<List<RewardResult>> give(
+            Player player,
+            List<RewardEntry> entries,
+            PlaceholderContext context
+    ) {
+        RewardContext rewardContext = RewardContext.builder()
+                .player(player)
+                .placeholderContext(context)
+                .build();
+        return RewardManager.getInstance().giveEntries(player, entries, rewardContext);
     }
 
     public static RewardBuilder builder() {
