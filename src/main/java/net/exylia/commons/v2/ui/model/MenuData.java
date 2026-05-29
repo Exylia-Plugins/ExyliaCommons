@@ -8,8 +8,10 @@ import net.exylia.commons.v2.items.model.ItemData;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.ui.animation.AnimationSettings;
 import net.exylia.commons.v2.ui.refresh.RefreshMode;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -78,6 +80,8 @@ public class MenuData {
     @Builder.Default
     private List<Integer> editableSlots = new ArrayList<>();
 
+    private transient Map<Integer, Consumer<ItemStack>> captureSlots;
+
     @Builder.Default
     private PlaceholderContext context = PlaceholderContext.create();
 
@@ -95,6 +99,19 @@ public class MenuData {
 
     @Builder.Default
     private AnimationSettings animationSettings = AnimationSettings.builder().build();
+
+    public void addCaptureSlot(int slot, Consumer<ItemStack> handler) {
+        if (captureSlots == null) captureSlots = new HashMap<>();
+        captureSlots.put(slot, handler);
+    }
+
+    public boolean hasCaptureSlot(int slot) {
+        return captureSlots != null && captureSlots.containsKey(slot);
+    }
+
+    public Consumer<ItemStack> getCaptureSlotHandler(int slot) {
+        return captureSlots != null ? captureSlots.get(slot) : null;
+    }
 
     public boolean hasGlobalFiller() {
         return globalFiller != null;
@@ -197,7 +214,7 @@ public class MenuData {
             copiedCustomFillers.add(filler != null ? filler.copy() : null);
         }
 
-        return MenuData.builder()
+        MenuData copy = MenuData.builder()
                 .title(title)
                 .type(type)
                 .size(size)
@@ -227,5 +244,9 @@ public class MenuData {
                 .customFillers(copiedCustomFillers)
                 .animationSettings(animationSettings != null ? animationSettings.copy() : null)
                 .build();
+        if (captureSlots != null) {
+            copy.captureSlots = new HashMap<>(captureSlots);
+        }
+        return copy;
     }
 }

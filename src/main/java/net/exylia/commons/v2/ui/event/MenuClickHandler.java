@@ -16,6 +16,9 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class MenuClickHandler implements Listener {
 
@@ -47,6 +50,19 @@ public class MenuClickHandler implements Listener {
 
             if (menu instanceof ItemInputMenu inputMenu && inputMenu.isEditableSlot(slot)) {
                 Tasks.later(inputMenu::updateEditableItems, 1L);
+                return;
+            }
+
+            InventoryAction action = event.getAction();
+            if (isCursorPlaceAction(action) && menu.getMenuData().hasCaptureSlot(slot)) {
+                event.setCancelled(true);
+                ItemStack cursor = event.getCursor();
+                if (cursor != null && cursor.getType() != Material.AIR) {
+                    Consumer<ItemStack> handler = menu.getMenuData().getCaptureSlotHandler(slot);
+                    if (handler != null) {
+                        handler.accept(cursor.clone());
+                    }
+                }
                 return;
             }
 
@@ -97,9 +113,35 @@ public class MenuClickHandler implements Listener {
                 Tasks.later(inputMenu::updateEditableItems, 1L);
                 return;
             }
+        } else {
+            Set<Integer> menuSlots = event.getRawSlots().stream()
+                    .filter(s -> s < menuSize)
+                    .collect(Collectors.toSet());
+
+            if (menuSlots.size() == 1) {
+                int rawSlot = menuSlots.iterator().next();
+                if (menu.getMenuData().hasCaptureSlot(rawSlot)) {
+                    event.setCancelled(true);
+                    ItemStack placed = event.getNewItems().get(rawSlot);
+                    if (placed != null && placed.getType() != Material.AIR) {
+                        Consumer<ItemStack> handler = menu.getMenuData().getCaptureSlotHandler(rawSlot);
+                        if (handler != null) {
+                            handler.accept(placed.clone());
+                        }
+                    }
+                    return;
+                }
+            }
         }
 
         event.setCancelled(true);
+    }
+
+    private boolean isCursorPlaceAction(InventoryAction action) {
+        return action == InventoryAction.PLACE_ALL
+                || action == InventoryAction.PLACE_ONE
+                || action == InventoryAction.PLACE_SOME
+                || action == InventoryAction.SWAP_WITH_CURSOR;
     }
 
     private void handleItemInputPlayerClick(InventoryClickEvent event, ItemInputMenu menu, Player player) {

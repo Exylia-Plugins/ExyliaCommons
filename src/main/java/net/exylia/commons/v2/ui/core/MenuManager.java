@@ -119,6 +119,8 @@ public class MenuManager {
 
     private void registerActions() {
         MenuActionRegistrar.registerMenuActions(plugin);
+        net.exylia.commons.v2.ui.selector.impl.reward.action.RewardEditorActionRegistrar.register(plugin);
+        net.exylia.commons.v2.ui.selector.impl.effect.action.PotionEffectEditorActionRegistrar.register(plugin);
     }
 
     public CompletableFuture<Void> openMenuAsync(Player player, MenuData menuData) {
