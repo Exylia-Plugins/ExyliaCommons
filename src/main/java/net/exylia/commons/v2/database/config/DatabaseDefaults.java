@@ -5,7 +5,7 @@ import net.exylia.commons.v2.config.schema.ConfigSchema;
 import net.exylia.commons.v2.config.schema.ConfigSection;
 import net.exylia.commons.v2.config.schema.ConfigValue;
 
-@ConfigSchema(file = "database", version = "1.0")
+@ConfigSchema(file = "database", strict = true, version = "1.0")
 public class DatabaseDefaults {
 
     @ConfigSection("database")

@@ -5,7 +5,7 @@ import net.exylia.commons.v2.config.schema.ConfigSchema;
 import net.exylia.commons.v2.config.schema.ConfigSection;
 import net.exylia.commons.v2.config.schema.ConfigValue;
 
-@ConfigSchema(file = "config", version = "1.0")
+@ConfigSchema(file = "config", strict = true,version = "1.0")
 public class FormattersDefaults {
 
     @ConfigSection("formatters")
@@ -89,11 +89,15 @@ public class FormattersDefaults {
 
             @ConfigValue("decimal-places")
             @Comment("Number of decimal places")
-            public static int DECIMAL_PLACES = 2;
+            public static int DECIMAL_PLACES = 0;
 
             @ConfigValue("show-decimals")
             @Comment("Show decimal places")
             public static boolean SHOW_DECIMALS = true;
+
+            @ConfigValue("compact-notation")
+            @Comment("Use compact notation (1K, 1.5M, 2B) instead of full numbers")
+            public static boolean COMPACT_NOTATION = false;
         }
 
         @ConfigSection("percent")

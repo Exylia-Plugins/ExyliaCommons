@@ -191,19 +191,21 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
                 .filter(p -> p != null && p.isOnline())
                 .forEach(p -> renderer.cleanup(p, id));
 
-        if (onCancel != null) {
-            GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
-            try {
-                Tasks.sync(() -> onCancel.accept(ctx));
-            } catch (Exception ignored) {
-            }
-        }
+        Consumer<GlobalCountdownContext> cancelCallback = onCancel;
 
         viewers.clear();
         playerFilter = null;
         onTick = null;
         onCancel = null;
         onComplete = null;
+
+        if (cancelCallback != null) {
+            GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
+            try {
+                Tasks.sync(() -> cancelCallback.accept(ctx));
+            } catch (Exception ignored) {
+            }
+        }
 
         lifecycle.cancel();
         GlobalVisualRegistry.getInstance().unregister(id);
@@ -219,19 +221,21 @@ public class GlobalCountdownInstance<T extends VisualConfig> {
                 .filter(p -> p != null && p.isOnline())
                 .forEach(p -> renderer.cleanup(p, id));
 
-        if (onComplete != null) {
-            GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
-            try {
-                Tasks.sync(() -> onComplete.accept(ctx));
-            } catch (Exception ignored) {
-            }
-        }
+        Consumer<GlobalCountdownContext> completeCallback = onComplete;
 
         viewers.clear();
         playerFilter = null;
         onTick = null;
         onCancel = null;
         onComplete = null;
+
+        if (completeCallback != null) {
+            GlobalCountdownContext ctx = new GlobalCountdownContext(this, baseContext);
+            try {
+                Tasks.sync(() -> completeCallback.accept(ctx));
+            } catch (Exception ignored) {
+            }
+        }
 
         lifecycle.complete();
         GlobalVisualRegistry.getInstance().unregister(id);

@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.lifecycle;
 
 import net.exylia.commons.ExyliaPlugin;
+import net.exylia.commons.v2.chat.core.ChatInputManager;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.skull.api.SkullAPI;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
@@ -20,6 +21,7 @@ public class ShutdownCoordinator {
     public void executeOrderedShutdown(JavaPlugin plugin) {
         DebugAPI.logLibInfo("Starting ordered shutdown for: " + plugin.getDescription().getName());
 
+        ChatInputManager.shutdown();
         SkullAPI.shutdown();
         cleanupPlayerState();
         shutdownManagers();

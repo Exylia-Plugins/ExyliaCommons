@@ -8,6 +8,7 @@ import lombok.Getter;
 import net.exylia.commons.v2.database.annotation.Column;
 import net.exylia.commons.v2.database.annotation.SerializationType;
 import net.exylia.commons.v2.database.serialization.SerializationRegistry;
+import net.exylia.commons.v2.utils.SlugUtils;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
@@ -41,6 +42,7 @@ public class FieldDescriptor {
     private final boolean autoSerialize;
     private final SerializationType serializationType;
     private final boolean initializeEmpty;
+    private final boolean sanitize;
 
     public FieldDescriptor(Field field, Column column) {
         this.field = field;
@@ -60,6 +62,7 @@ public class FieldDescriptor {
         this.autoSerialize = column.autoSerialize();
         this.serializationType = column.serializationType();
         this.initializeEmpty = column.initializeEmpty();
+        this.sanitize = column.sanitize();
 
         field.setAccessible(true);
     }
@@ -83,6 +86,10 @@ public class FieldDescriptor {
     public Object getValue(Entity entity) {
         try {
             Object value = field.get(entity);
+
+            if (sanitize && value instanceof String) {
+                value = SlugUtils.sanitize((String) value).orElse((String) value);
+            }
 
             if (autoSerialize && value != null) {
                 return serializeValue(value);
@@ -171,6 +178,10 @@ public class FieldDescriptor {
             if (value == null) {
                 field.set(entity, null);
                 return;
+            }
+
+            if (sanitize && value instanceof String) {
+                value = SlugUtils.sanitize((String) value).orElse((String) value);
             }
 
             if (autoSerialize && value instanceof String) {
@@ -319,6 +330,18 @@ public class FieldDescriptor {
 
         if ((type == boolean.class || type == Boolean.class) && value instanceof Number) {
             return ((Number) value).intValue() != 0;
+        }
+
+        if (type == java.math.BigDecimal.class) {
+            if (value instanceof java.math.BigDecimal) return value;
+            if (value instanceof Number) return new java.math.BigDecimal(value.toString());
+            if (value instanceof String) return new java.math.BigDecimal((String) value);
+        }
+
+        if (type == java.math.BigInteger.class) {
+            if (value instanceof java.math.BigInteger) return value;
+            if (value instanceof Number) return java.math.BigInteger.valueOf(((Number) value).longValue());
+            if (value instanceof String) return new java.math.BigInteger((String) value);
         }
 
         return value;

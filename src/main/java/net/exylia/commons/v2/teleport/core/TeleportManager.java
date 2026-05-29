@@ -9,20 +9,28 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 public final class TeleportManager {
 
     private final String currentServer;
     private final LocalTeleporter local;
     private final CrossServerTeleporter crossServer;
+    private final List<Consumer<Player>> postTeleportHooks = new CopyOnWriteArrayList<>();
 
     public TeleportManager(Plugin plugin, String currentServer, RedisConnectionPool redisPool, String keyPrefix) {
         this.currentServer = currentServer;
-        this.local = new LocalTeleporter(plugin);
+        this.local = new LocalTeleporter(plugin, postTeleportHooks);
         this.crossServer = redisPool != null ? new CrossServerTeleporter(plugin, redisPool, keyPrefix) : null;
+    }
+
+    public void addPostTeleportHook(Consumer<Player> hook) {
+        postTeleportHooks.add(hook);
     }
 
     public CompletableFuture<Boolean> teleport(Player player, Location location) {

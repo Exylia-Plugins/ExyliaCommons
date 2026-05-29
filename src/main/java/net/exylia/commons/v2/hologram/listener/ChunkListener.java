@@ -28,7 +28,11 @@ public class ChunkListener implements Listener {
                 .filter(h -> isInChunk(h.getLocation(), chunk))
                 .filter(h -> h.getConfig().isSpawnOnChunkLoad())
                 .forEach(hologram -> {
-                    if (!hologram.isSpawned()) {
+                    boolean needsSpawn = !hologram.isSpawned() || !hologram.isEntityValid();
+                    if (needsSpawn) {
+                        if (hologram.isSpawned()) {
+                            hologram.markUnspawned();
+                        }
                         Tasks.at(hologram.getLocation(), () -> {
                             hologram.spawn();
                             pendingRespawns.remove(hologram.getId());
@@ -46,10 +50,8 @@ public class ChunkListener implements Listener {
                 .filter(h -> h.getConfig().isRemoveOnChunkUnload())
                 .forEach(hologram -> {
                     if (hologram.isSpawned()) {
-                        Tasks.at(hologram.getLocation(), () -> {
-                            hologram.despawn();
-                            pendingRespawns.add(hologram.getId());
-                        });
+                        hologram.markUnspawned();
+                        pendingRespawns.add(hologram.getId());
                     }
                 });
     }

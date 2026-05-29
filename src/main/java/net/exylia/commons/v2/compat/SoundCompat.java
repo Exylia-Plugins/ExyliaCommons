@@ -11,9 +11,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class SoundCompat {
 
     private static final Map<String, Sound> NORMALIZED_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> NORMALIZED_KEY_CACHE = new ConcurrentHashMap<>();
     private static volatile boolean cacheInitialized = false;
 
     private SoundCompat() {}
+
+    public static String keyStringOf(String name) {
+        if (name == null || name.isBlank()) return null;
+        String lower = name.toLowerCase();
+        if (!lower.contains(":")) lower = "minecraft:" + lower;
+        String[] parts = lower.split(":", 2);
+        try {
+            if (Registry.SOUNDS.get(new NamespacedKey(parts[0], parts[1])) != null)
+                return parts[0] + ":" + parts[1];
+            String dot = parts[1].replace("_", ".");
+            if (Registry.SOUNDS.get(new NamespacedKey(parts[0], dot)) != null)
+                return parts[0] + ":" + dot;
+        } catch (Exception ignored) {}
+        initCacheIfNeeded();
+        return NORMALIZED_KEY_CACHE.get(normalize(name));
+    }
 
     public static Sound fromName(String name) {
         if (name == null || name.isBlank()) return null;
@@ -66,7 +83,10 @@ public final class SoundCompat {
             if (cacheInitialized) return;
             try {
                 for (Keyed keyed : (Iterable<? extends Keyed>) Registry.SOUNDS) {
-                    NORMALIZED_CACHE.put(normalize(keyed.getKey().getKey()), (Sound) keyed);
+                    String keyPart = keyed.getKey().getKey();
+                    String normalized = normalize(keyPart);
+                    NORMALIZED_CACHE.put(normalized, (Sound) keyed);
+                    NORMALIZED_KEY_CACHE.put(normalized, keyed.getKey().getNamespace() + ":" + keyPart);
                 }
             } catch (Exception ignored) {}
             cacheInitialized = true;

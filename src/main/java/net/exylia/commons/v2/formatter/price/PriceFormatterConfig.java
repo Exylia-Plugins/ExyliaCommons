@@ -13,6 +13,7 @@ public class PriceFormatterConfig {
     private final String thousandSeparator;
     private final int decimalPlaces;
     private final boolean showDecimals;
+    private final boolean compactNotation;
 
     public static PriceFormatterConfig fromConfig() {
         return PriceFormatterConfig.builder()
@@ -22,6 +23,7 @@ public class PriceFormatterConfig {
             .thousandSeparator(FormattersDefaults.Formatters.Price.THOUSAND_SEPARATOR)
             .decimalPlaces(FormattersDefaults.Formatters.Price.DECIMAL_PLACES)
             .showDecimals(FormattersDefaults.Formatters.Price.SHOW_DECIMALS)
+            .compactNotation(FormattersDefaults.Formatters.Price.COMPACT_NOTATION)
             .build();
     }
 
@@ -33,6 +35,7 @@ public class PriceFormatterConfig {
             .thousandSeparator(",")
             .decimalPlaces(2)
             .showDecimals(true)
+            .compactNotation(false)
             .build();
     }
 }

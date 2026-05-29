@@ -22,7 +22,7 @@ public class SyncAction implements Action {
         DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.execute() called for " + metadata.getFullId());
         DebugAPI.logLibDebug(DebugCategory.ACTION, "Is main thread: " + TaskAPI.isMainThread());
 
-        TaskAPI.runSync(() -> {
+        scheduleOnCorrectThread(context, () -> {
             DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction runSync callback executing for " + metadata.getFullId());
             try {
                 DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction calling handler.accept() for " + metadata.getFullId());
@@ -44,10 +44,10 @@ public class SyncAction implements Action {
     public ActionResult executeDirect(ActionContext context) {
         long startTime = System.currentTimeMillis();
         DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.executeDirect() called for " + metadata.getFullId());
-        if (!TaskAPI.isMainThread()) {
-            DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.executeDirect() dispatching to main thread for " + metadata.getFullId());
+        if (!isOnCorrectThread(context)) {
+            DebugAPI.logLibDebug(DebugCategory.ACTION, "SyncAction.executeDirect() dispatching to correct thread for " + metadata.getFullId());
             CompletableFuture<ActionResult> future = new CompletableFuture<>();
-            TaskAPI.runSync(() -> {
+            scheduleOnCorrectThread(context, () -> {
                 long executionTime = System.currentTimeMillis() - startTime;
                 try {
                     handler.accept(context, context.getArguments());
@@ -66,6 +66,23 @@ public class SyncAction implements Action {
         } catch (Exception e) {
             DebugAPI.logLibError(DebugCategory.ACTION, "SyncAction handler threw exception for " + metadata.getFullId(), e);
             return ActionResult.failure(e);
+        }
+    }
+
+    private boolean isOnCorrectThread(ActionContext context) {
+        if (TaskAPI.isFolia()) {
+            if (context.getPlayer() != null) {
+                return TaskAPI.isEntityThread(context.getPlayer());
+            }
+        }
+        return TaskAPI.isMainThread();
+    }
+
+    private void scheduleOnCorrectThread(ActionContext context, Runnable task) {
+        if (TaskAPI.isFolia() && context.getPlayer() != null) {
+            TaskAPI.at(context.getPlayer(), task);
+        } else {
+            TaskAPI.runSync(task);
         }
     }
 

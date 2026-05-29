@@ -16,7 +16,7 @@ public enum CommandType {
 
     public static CommandType fromString(String commandString) {
         if (commandString == null || commandString.isEmpty()) {
-            return PLAYER;
+            return CONSOLE;
         }
 
         String lower = commandString.toLowerCase().trim();
@@ -27,7 +27,7 @@ public enum CommandType {
             }
         }
 
-        return PLAYER;
+        return CONSOLE;
     }
 
     public String stripPrefix(String commandString) {

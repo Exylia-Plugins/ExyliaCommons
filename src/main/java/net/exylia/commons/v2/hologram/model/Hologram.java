@@ -255,6 +255,25 @@ public class Hologram {
         spawned.set(false);
     }
 
+    public void markUnspawned() {
+        if (!spawned.getAndSet(false)) {
+            return;
+        }
+
+        if (perPlayer) {
+            playerDisplays.clear();
+        } else {
+            globalDisplay = null;
+        }
+    }
+
+    public boolean isEntityValid() {
+        if (perPlayer) {
+            return spawned.get() && !playerDisplays.isEmpty();
+        }
+        return spawned.get() && globalDisplay != null && globalDisplay.isValid();
+    }
+
     private void removeEntity(TextDisplay entity) {
         if (entity != null && entity.isValid()) {
             entity.remove();

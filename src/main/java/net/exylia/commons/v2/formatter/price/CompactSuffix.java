@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum CompactSuffix {
+    QUADRILLION("Q", 1_000_000_000_000_000.0),
     TRILLION("T", 1_000_000_000_000.0),
     BILLION("B", 1_000_000_000.0),
     MILLION("M", 1_000_000.0),
@@ -18,7 +19,9 @@ public enum CompactSuffix {
     public static CompactSuffix fromValue(double value) {
         double absValue = Math.abs(value);
 
-        if (absValue >= TRILLION.divisor) {
+        if (absValue >= QUADRILLION.divisor) {
+            return QUADRILLION;
+        } else if (absValue >= TRILLION.divisor) {
             return TRILLION;
         } else if (absValue >= BILLION.divisor) {
             return BILLION;

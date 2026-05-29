@@ -12,8 +12,6 @@ import java.time.format.DateTimeFormatter;
 
 public class DebugFormatter {
 
-    private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
-
     public static Component format(
             DebugSource source,
             DebugType type,
@@ -22,12 +20,6 @@ public class DebugFormatter {
             String prefix
     ) {
         StringBuilder sb = new StringBuilder();
-
-        if (DebugDefaults.Debug.SHOW_TIMESTAMPS) {
-            sb.append("<#696969>[")
-                    .append(LocalTime.now().format(TIME_FORMATTER))
-                    .append("] ");
-        }
 
         sb.append(prefix);
 
@@ -46,14 +38,14 @@ public class DebugFormatter {
                     .append("] ");
         }
 
-        if (DebugDefaults.Debug.SHOW_CLASS_NAMES) {
-            String className = getCallerClassName();
-            if (className != null) {
-                sb.append("<#696969>[")
-                        .append(className)
-                        .append("] ");
-            }
-        }
+//        if (DebugDefaults.Debug.SHOW_CLASS_NAMES) {
+//            String className = getCallerClassName();
+//            if (className != null) {
+//                sb.append("<#696969>[")
+//                        .append(className)
+//                        .append("] ");
+//            }
+//        }
 
         sb.append(color)
                 .append(message);
@@ -61,15 +53,15 @@ public class DebugFormatter {
         return ColorProcessor.parseToComponent(sb.toString());
     }
 
-    private static String getCallerClassName() {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        for (int i = 0; i < stackTrace.length; i++) {
-            String className = stackTrace[i].getClassName();
-            if (!className.startsWith("net.exylia.commons.v2.debug")) {
-                String fullClassName = stackTrace[i].getClassName();
-                return fullClassName.substring(fullClassName.lastIndexOf('.') + 1);
-            }
-        }
-        return null;
-    }
+//    private static String getCallerClassName() {
+//        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+//        for (int i = 0; i < stackTrace.length; i++) {
+//            String className = stackTrace[i].getClassName();
+//            if (!className.startsWith("net.exylia.commons.v2.debug")) {
+//                String fullClassName = stackTrace[i].getClassName();
+//                return fullClassName.substring(fullClassName.lastIndexOf('.') + 1);
+//            }
+//        }
+//        return null;
+//    }
 }

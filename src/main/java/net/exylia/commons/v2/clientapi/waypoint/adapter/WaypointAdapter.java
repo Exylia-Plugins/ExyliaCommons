@@ -3,6 +3,9 @@ package net.exylia.commons.v2.clientapi.waypoint.adapter;
 import net.exylia.commons.v2.clientapi.waypoint.model.WaypointDefinition;
 import org.bukkit.entity.Player;
 
+import java.util.Collections;
+import java.util.List;
+
 public interface WaypointAdapter {
 
     boolean isAvailable();
@@ -17,5 +20,9 @@ public interface WaypointAdapter {
 
     default boolean needsResendOnWorldChange() {
         return false;
+    }
+
+    default List<String> autoRemovedHandles() {
+        return Collections.emptyList();
     }
 }

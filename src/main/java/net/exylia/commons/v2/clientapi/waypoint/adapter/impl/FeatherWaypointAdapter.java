@@ -9,6 +9,9 @@ import net.digitalingot.feather.serverapi.api.waypoint.WaypointService;
 import net.exylia.commons.v2.clientapi.waypoint.adapter.WaypointAdapter;
 import net.exylia.commons.v2.clientapi.waypoint.model.WaypointColor;
 import net.exylia.commons.v2.clientapi.waypoint.model.WaypointDefinition;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.util.Collections;
@@ -40,7 +43,10 @@ public class FeatherWaypointAdapter implements WaypointAdapter {
     @Override
     public String show(Player player, WaypointDefinition definition) {
         FeatherPlayer featherPlayer = FeatherAPI.getPlayerService().getPlayer(player.getUniqueId());
-        if (featherPlayer == null) return null;
+        if (featherPlayer == null) {
+            DebugAPI.logLibDebug("[Feather] show() SKIP player=" + player.getName() + " name=" + definition.getName() + " (not a Feather player)");
+            return null;
+        }
 
         featherPlayer.enableMods(Collections.singletonList(new FeatherMod("waypoints")));
 
@@ -52,16 +58,26 @@ public class FeatherWaypointAdapter implements WaypointAdapter {
                .withColor(toFeatherColor(definition.getColor()))
                .withDuration(toFeatherDuration(definition.getDuration()));
 
-        if (definition.getWorldId() != null) {
-            builder.withWorldId(definition.getWorldId());
+        UUID resolvedWorldId = definition.getWorldId();
+        if (resolvedWorldId == null && definition.getWorldName() != null) {
+            World world = Bukkit.getWorld(definition.getWorldName());
+            if (world != null) resolvedWorldId = world.getUID();
+        }
+        if (resolvedWorldId != null) {
+            builder.withWorldId(resolvedWorldId);
         }
 
         UUID waypointId = waypointService.createWaypoint(featherPlayer, builder);
+        DebugAPI.logLibDebug("[Feather] show() player=" + player.getName() + " name=" + definition.getName()
+                + " worldId=" + resolvedWorldId + " worldName=" + definition.getWorldName()
+                + " pos=" + definition.getX() + "," + definition.getY() + "," + definition.getZ()
+                + " featherWaypointId=" + waypointId);
         return waypointId != null ? waypointId.toString() : null;
     }
 
     @Override
     public void remove(Player player, String handle) {
+        DebugAPI.logLibDebug("[Feather] remove() player=" + player.getName() + " handle=" + handle);
         FeatherPlayer featherPlayer = FeatherAPI.getPlayerService().getPlayer(player.getUniqueId());
         if (featherPlayer == null) return;
         try {
@@ -72,6 +88,7 @@ public class FeatherWaypointAdapter implements WaypointAdapter {
 
     @Override
     public void removeAll(Player player) {
+        DebugAPI.logLibDebug("[Feather] removeAll() player=" + player.getName());
         FeatherPlayer featherPlayer = FeatherAPI.getPlayerService().getPlayer(player.getUniqueId());
         if (featherPlayer == null) return;
         waypointService.destroyAllWaypoints(featherPlayer);

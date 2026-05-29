@@ -5,7 +5,7 @@ import net.exylia.commons.v2.config.schema.ConfigSchema;
 import net.exylia.commons.v2.config.schema.ConfigSection;
 import net.exylia.commons.v2.config.schema.ConfigValue;
 
-@ConfigSchema(file = "config", version = "1.0")
+@ConfigSchema(file = "config", strict = true,version = "1.0")
 public class TasksDefaults {
 
     @ConfigSection("tasks")

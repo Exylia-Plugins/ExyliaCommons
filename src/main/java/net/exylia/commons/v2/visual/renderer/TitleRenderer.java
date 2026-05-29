@@ -41,5 +41,8 @@ public class TitleRenderer implements VisualRenderer<TitleConfig> {
 
     @Override
     public void cleanup(Player player, String visualId) {
+        if (player.isOnline()) {
+            player.clearTitle();
+        }
     }
 }

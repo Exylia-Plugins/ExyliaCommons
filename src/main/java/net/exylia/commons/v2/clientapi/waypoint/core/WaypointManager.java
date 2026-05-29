@@ -5,8 +5,10 @@ import net.exylia.commons.v2.clientapi.waypoint.adapter.impl.ApolloWaypointAdapt
 import net.exylia.commons.v2.clientapi.waypoint.adapter.impl.FeatherWaypointAdapter;
 import net.exylia.commons.v2.clientapi.waypoint.model.WaypointDefinition;
 import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.tasks.api.TaskAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,9 +16,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WaypointManager {
 
     private final List<WaypointAdapter> adapters = new ArrayList<>();
-    private final ConcurrentHashMap<UUID, WaypointEntry> trackingMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<UUID, Set<UUID>> playerTracking = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<UUID, Map<UUID, WaypointDefinition>> persistentWaypoints = new ConcurrentHashMap<>();
+
+    // What SHOULD be shown per player (session-scoped, cleared on quit)
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, WaypointDefinition>> desiredState = new ConcurrentHashMap<>();
+
+    // Persistent waypoints survive reconnect
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, WaypointDefinition>> persistentStore = new ConcurrentHashMap<>();
+
+    // Players queued for reconcile on next scheduled pass
+    private final Set<UUID> pendingReconcile = ConcurrentHashMap.newKeySet();
+
+    // Handles we currently have displayed per player per adapter
+    // Map<playerUUID, Map<waypointId, Map<adapterSimpleName, handle>>>
+    private final ConcurrentHashMap<UUID, ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>>> adapterHandles = new ConcurrentHashMap<>();
 
     public void initialize() {
         tryRegisterApollo();
@@ -29,8 +41,7 @@ public class WaypointManager {
             return;
         }
         try {
-            ApolloWaypointAdapter adapter = new ApolloWaypointAdapter();
-            adapters.add(adapter);
+            adapters.add(new ApolloWaypointAdapter());
             DebugAPI.logLibSuccess("Apollo (Lunar Client) waypoint support enabled.");
         } catch (NoClassDefFoundError | Exception e) {
             DebugAPI.logLibError("Failed to initialize Apollo (Lunar Client) waypoint adapter: " + e.getMessage());
@@ -43,8 +54,7 @@ public class WaypointManager {
             return;
         }
         try {
-            FeatherWaypointAdapter adapter = new FeatherWaypointAdapter();
-            adapters.add(adapter);
+            adapters.add(new FeatherWaypointAdapter());
             DebugAPI.logLibSuccess("Feather Client waypoint support enabled.");
         } catch (NoClassDefFoundError | Exception e) {
             DebugAPI.logLibError("Failed to initialize Feather Client waypoint adapter: " + e.getMessage());
@@ -64,143 +74,223 @@ public class WaypointManager {
         DebugAPI.logLibSuccess("Registered waypoint adapter: " + adapter.getClass().getSimpleName());
     }
 
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
     public UUID show(Player player, WaypointDefinition definition) {
-        UUID trackingId = UUID.randomUUID();
-        sendToAdapters(trackingId, player, definition);
-        return trackingId;
+        UUID id = UUID.randomUUID();
+        removeByName(player.getUniqueId(), definition.getName());
+        desiredState.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).put(id, definition);
+        pendingReconcile.add(player.getUniqueId());
+        DebugAPI.logLibDebug("[Waypoint] show() player=" + player.getName() + " name=" + definition.getName()
+                + " worldId=" + definition.getWorldId() + " worldName=" + definition.getWorldName() + " id=" + id);
+        return id;
     }
 
     public UUID showPersistent(Player player, WaypointDefinition definition) {
         UUID id = UUID.randomUUID();
-        persistentWaypoints.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).put(id, definition);
-        sendToAdapters(id, player, definition);
+        removeByName(player.getUniqueId(), definition.getName());
+        desiredState.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).put(id, definition);
+        persistentStore.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).put(id, definition);
+        pendingReconcile.add(player.getUniqueId());
+        DebugAPI.logLibDebug("[Waypoint] showPersistent() player=" + player.getName() + " name=" + definition.getName()
+                + " worldId=" + definition.getWorldId() + " worldName=" + definition.getWorldName() + " id=" + id);
         return id;
     }
 
-    private void sendToAdapters(UUID id, Player player, WaypointDefinition definition) {
-        WaypointEntry entry = new WaypointEntry(definition);
-        for (WaypointAdapter adapter : adapters) {
-            if (!adapter.isAvailable() || !adapter.supportsPlayer(player)) continue;
-            try {
-                String handle = adapter.show(player, definition);
-                if (handle != null) entry.handles.put(adapter, handle);
-            } catch (Exception e) {
-                DebugAPI.logLibError("Error showing waypoint via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
-            }
-        }
-        trackingMap.put(id, entry);
-        playerTracking.computeIfAbsent(player.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(id);
+    public void remove(Player player, UUID waypointId) {
+        remove(player.getUniqueId(), waypointId);
     }
 
-    public void remove(Player player, UUID trackingId) {
-        WaypointEntry entry = trackingMap.remove(trackingId);
-        if (entry == null) return;
-
-        Set<UUID> playerIds = playerTracking.get(player.getUniqueId());
-        if (playerIds != null) playerIds.remove(trackingId);
-
-        for (Map.Entry<WaypointAdapter, String> e : entry.handles.entrySet()) {
-            if (!e.getKey().isAvailable()) continue;
-            try {
-                e.getKey().remove(player, e.getValue());
-            } catch (Exception ex) {
-                DebugAPI.logLibError("Error removing waypoint via " + e.getKey().getClass().getSimpleName() + ": " + ex.getMessage());
-            }
-        }
+    public void removePersistent(Player player, UUID waypointId) {
+        remove(player.getUniqueId(), waypointId);
     }
 
-    public void removePersistent(Player player, UUID persistentId) {
-        removePersistent(player.getUniqueId(), persistentId);
-    }
-
-    public void removePersistent(UUID playerUUID, UUID persistentId) {
-        Map<UUID, WaypointDefinition> persistent = persistentWaypoints.get(playerUUID);
-        if (persistent != null) persistent.remove(persistentId);
-
-        WaypointEntry entry = trackingMap.remove(persistentId);
-        Set<UUID> playerIds = playerTracking.get(playerUUID);
-        if (playerIds != null) playerIds.remove(persistentId);
-
-        if (entry == null) return;
-        Player player = Bukkit.getPlayer(playerUUID);
-        if (player == null || !player.isOnline()) return;
-
-        for (Map.Entry<WaypointAdapter, String> e : entry.handles.entrySet()) {
-            if (!e.getKey().isAvailable()) continue;
-            try {
-                e.getKey().remove(player, e.getValue());
-            } catch (Exception ex) {
-                DebugAPI.logLibError("Error removing persistent waypoint: " + ex.getMessage());
-            }
-        }
+    public void removePersistent(UUID playerUUID, UUID waypointId) {
+        remove(playerUUID, waypointId);
     }
 
     public void removeAll(Player player) {
-        persistentWaypoints.remove(player.getUniqueId());
-        clearSessionTracking(player);
-        for (WaypointAdapter adapter : adapters) {
-            if (!adapter.isAvailable()) continue;
-            try {
-                adapter.removeAll(player);
-            } catch (Exception e) {
-                DebugAPI.logLibError("Error removing all waypoints via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
-            }
-        }
+        desiredState.remove(player.getUniqueId());
+        persistentStore.remove(player.getUniqueId());
+        pendingReconcile.remove(player.getUniqueId());
+        DebugAPI.logLibDebug("[Waypoint] removeAll() player=" + player.getName());
+        removeTrackedHandles(player);
     }
+
+    // -------------------------------------------------------------------------
+    // Lifecycle hooks
+    // -------------------------------------------------------------------------
 
     public void handleJoin(Player player) {
-        Map<UUID, WaypointDefinition> persistent = persistentWaypoints.get(player.getUniqueId());
-        if (persistent == null || persistent.isEmpty()) return;
-        for (Map.Entry<UUID, WaypointDefinition> entry : persistent.entrySet()) {
-            sendToAdapters(entry.getKey(), player, entry.getValue());
+        // Client reconnected — no stale state on their side
+        adapterHandles.remove(player.getUniqueId());
+        Map<UUID, WaypointDefinition> persistent = persistentStore.get(player.getUniqueId());
+        int count = persistent != null ? persistent.size() : 0;
+        DebugAPI.logLibDebug("[Waypoint] handleJoin() player=" + player.getName() + " persistentWaypoints=" + count);
+        if (persistent != null && !persistent.isEmpty()) {
+            desiredState.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>()).putAll(persistent);
         }
-    }
-
-    public void handleWorldChange(Player player) {
-        Set<UUID> trackingIds = playerTracking.get(player.getUniqueId());
-        if (trackingIds == null || trackingIds.isEmpty()) return;
-        for (UUID trackingId : new HashSet<>(trackingIds)) {
-            WaypointEntry entry = trackingMap.get(trackingId);
-            if (entry == null) continue;
-            if (entry.definition.getWorldId() != null) continue;
-            for (WaypointAdapter adapter : adapters) {
-                if (!adapter.isAvailable() || !adapter.needsResendOnWorldChange()) continue;
-                String oldHandle = entry.handles.remove(adapter);
-                if (oldHandle != null) {
-                    try { adapter.remove(player, oldHandle); } catch (Exception ignored) {}
-                }
-                if (!adapter.supportsPlayer(player)) continue;
-                try {
-                    String newHandle = adapter.show(player, entry.definition);
-                    if (newHandle != null) entry.handles.put(adapter, newHandle);
-                } catch (Exception e) {
-                    DebugAPI.logLibError("Error resending waypoint on world change: " + e.getMessage());
-                }
-            }
-        }
+        pendingReconcile.add(player.getUniqueId());
     }
 
     public void cleanupPlayer(Player player) {
-        clearSessionTracking(player);
+        DebugAPI.logLibDebug("[Waypoint] cleanupPlayer() player=" + player.getName());
+        desiredState.remove(player.getUniqueId());
+        adapterHandles.remove(player.getUniqueId());
+        pendingReconcile.remove(player.getUniqueId());
     }
 
-    private void clearSessionTracking(Player player) {
-        Set<UUID> trackingIds = playerTracking.remove(player.getUniqueId());
-        if (trackingIds != null) {
-            for (UUID id : trackingIds) trackingMap.remove(id);
+    // -------------------------------------------------------------------------
+    // Poller
+    // -------------------------------------------------------------------------
+
+    public void startPoller(Plugin plugin) {
+        // Process pending reconciles (queued by show/remove calls) — runs every 2 ticks
+        TaskAPI.syncTimer(() -> {
+            if (pendingReconcile.isEmpty()) return;
+            Set<UUID> batch = new HashSet<>(pendingReconcile);
+            pendingReconcile.removeAll(batch);
+            for (UUID uuid : batch) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    TaskAPI.at(player, () -> reconcile(player));
+                }
+            }
+        }, 2L, 2L);
+
+        // Full reconcile every 15 seconds — catches Folia world changes, drift, etc.
+        TaskAPI.syncTimer(() -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (!desiredState.containsKey(player.getUniqueId())) continue;
+                TaskAPI.at(player, () -> {
+                    if (player.isOnline()) reconcile(player);
+                });
+            }
+        }, 300L, 300L);
+    }
+
+    // -------------------------------------------------------------------------
+    // Internal
+    // -------------------------------------------------------------------------
+
+    private void remove(UUID playerUUID, UUID waypointId) {
+        DebugAPI.logLibDebug("[Waypoint] remove() playerUUID=" + playerUUID + " waypointId=" + waypointId);
+        Map<UUID, WaypointDefinition> desired = desiredState.get(playerUUID);
+        if (desired != null) desired.remove(waypointId);
+        Map<UUID, WaypointDefinition> persistent = persistentStore.get(playerUUID);
+        if (persistent != null) persistent.remove(waypointId);
+        pendingReconcile.add(playerUUID);
+    }
+
+    private void reconcile(Player player) {
+        if (!player.isOnline()) return;
+
+        Map<UUID, WaypointDefinition> desired = desiredState.get(player.getUniqueId());
+        int desiredCount = desired != null ? desired.size() : 0;
+        UUID currentWorldId = player.getWorld().getUID();
+        String currentWorldName = player.getWorld().getName();
+        DebugAPI.logLibDebug("[Waypoint] reconcile() player=" + player.getName()
+                + " world=" + currentWorldName + " worldId=" + currentWorldId
+                + " desired=" + desiredCount + " adapters=" + adapters.size());
+
+        // Remove only the waypoints WE previously sent — non-destructive to other plugins
+        removeTrackedHandles(player);
+
+        // Remove adapter-specific auto-generated waypoints (e.g., Apollo's built-in "Spawn")
+        for (WaypointAdapter adapter : adapters) {
+            if (!adapter.isAvailable() || !adapter.supportsPlayer(player)) continue;
+            for (String handle : adapter.autoRemovedHandles()) {
+                try { adapter.remove(player, handle); } catch (Exception ignored) {}
+            }
         }
+
+        if (desired == null || desired.isEmpty()) {
+            DebugAPI.logLibDebug("[Waypoint] reconcile() player=" + player.getName() + " no desired waypoints, skipping send");
+            return;
+        }
+
+        int sent = 0;
+        int skippedWorld = 0;
+        int skippedAdapter = 0;
+
+        for (Map.Entry<UUID, WaypointDefinition> entry : desired.entrySet()) {
+            UUID waypointId = entry.getKey();
+            WaypointDefinition definition = entry.getValue();
+
+            UUID waypointWorldId = definition.getWorldId();
+            String waypointWorldName = definition.getWorldName();
+            if (waypointWorldId != null && !waypointWorldId.equals(currentWorldId)) {
+                DebugAPI.logLibDebug("[Waypoint] reconcile() SKIP player=" + player.getName()
+                        + " name=" + definition.getName() + " reason=worldId"
+                        + " waypointWorld=" + waypointWorldId + " playerWorld=" + currentWorldId);
+                skippedWorld++;
+                continue;
+            }
+            if (waypointWorldId == null && waypointWorldName != null && !waypointWorldName.equals(currentWorldName)) {
+                DebugAPI.logLibDebug("[Waypoint] reconcile() SKIP player=" + player.getName()
+                        + " name=" + definition.getName() + " reason=worldName"
+                        + " waypointWorld=" + waypointWorldName + " playerWorld=" + currentWorldName);
+                skippedWorld++;
+                continue;
+            }
+
+            for (WaypointAdapter adapter : adapters) {
+                if (!adapter.isAvailable()) continue;
+                if (!adapter.supportsPlayer(player)) {
+                    DebugAPI.logLibDebug("[Waypoint] reconcile() SKIP_ADAPTER player=" + player.getName()
+                            + " name=" + definition.getName() + " adapter=" + adapter.getClass().getSimpleName());
+                    skippedAdapter++;
+                    continue;
+                }
+                try {
+                    String handle = adapter.show(player, definition);
+                    if (handle != null) {
+                        adapterHandles
+                                .computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>())
+                                .computeIfAbsent(waypointId, k -> new ConcurrentHashMap<>())
+                                .put(adapter.getClass().getSimpleName(), handle);
+                    }
+                    sent++;
+                } catch (Exception e) {
+                    DebugAPI.logLibError("Error applying waypoint via " + adapter.getClass().getSimpleName() + ": " + e.getMessage());
+                }
+            }
+        }
+
+        DebugAPI.logLibDebug("[Waypoint] reconcile() done player=" + player.getName()
+                + " sent=" + sent + " skippedWorld=" + skippedWorld + " skippedAdapter=" + skippedAdapter);
+    }
+
+    private void removeTrackedHandles(Player player) {
+        ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>> playerHandles = adapterHandles.remove(player.getUniqueId());
+        if (playerHandles == null) return;
+        DebugAPI.logLibDebug("[Waypoint] removeTrackedHandles() player=" + player.getName() + " waypoints=" + playerHandles.size());
+        for (ConcurrentHashMap<String, String> adapterMap : playerHandles.values()) {
+            for (Map.Entry<String, String> entry : adapterMap.entrySet()) {
+                WaypointAdapter adapter = findAdapterBySimpleName(entry.getKey());
+                if (adapter == null || !adapter.isAvailable()) continue;
+                try { adapter.remove(player, entry.getValue()); } catch (Exception ignored) {}
+            }
+        }
+    }
+
+    private WaypointAdapter findAdapterBySimpleName(String simpleName) {
+        for (WaypointAdapter adapter : adapters) {
+            if (adapter.getClass().getSimpleName().equals(simpleName)) return adapter;
+        }
+        return null;
+    }
+
+    private void removeByName(UUID playerUUID, String name) {
+        ConcurrentHashMap<UUID, WaypointDefinition> desired = desiredState.get(playerUUID);
+        if (desired != null) desired.entrySet().removeIf(e -> name.equals(e.getValue().getName()));
+        ConcurrentHashMap<UUID, WaypointDefinition> persistent = persistentStore.get(playerUUID);
+        if (persistent != null) persistent.entrySet().removeIf(e -> name.equals(e.getValue().getName()));
     }
 
     public List<WaypointAdapter> getAdapters() {
         return Collections.unmodifiableList(adapters);
-    }
-
-    private static final class WaypointEntry {
-        final WaypointDefinition definition;
-        final Map<WaypointAdapter, String> handles = new ConcurrentHashMap<>();
-
-        WaypointEntry(WaypointDefinition definition) {
-            this.definition = definition;
-        }
     }
 }

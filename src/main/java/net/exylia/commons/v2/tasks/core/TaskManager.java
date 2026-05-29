@@ -251,7 +251,7 @@ public class TaskManager {
         DebugAPI.logLibInfo(DebugCategory.ASYNC, "Shutting down TaskManager...");
         cancelAll();
         executor.shutdown();
-        instance = null;
         DebugAPI.logLibInfo(DebugCategory.ASYNC, "TaskManager shutdown complete");
+        instance = null;
     }
 }

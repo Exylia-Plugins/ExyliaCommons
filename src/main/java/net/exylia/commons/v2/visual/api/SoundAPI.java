@@ -6,6 +6,7 @@ import net.exylia.commons.v2.visual.builder.SoundBuilder;
 import net.exylia.commons.v2.visual.config.SoundConfig;
 import net.exylia.commons.v2.visual.core.VisualManager;
 import net.exylia.commons.v2.visual.renderer.SoundRenderer;
+import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -181,6 +182,21 @@ public final class SoundAPI {
         if (sound != null) {
             player.stopSound(sound, category);
         }
+    }
+
+    public static net.kyori.adventure.sound.Sound resolveAdventure(String soundString) {
+        if (soundString == null || soundString.isBlank()) return null;
+        String[] parts = soundString.split("\\|");
+        String name = parts[0].trim();
+        float volume = parts.length >= 2 ? parseFloat(parts[1], 1f) : 1f;
+        float pitch  = parts.length >= 3 ? parseFloat(parts[2], 1f) : 1f;
+        String keyStr = SoundCompat.keyStringOf(name);
+        if (keyStr == null) return null;
+        return net.kyori.adventure.sound.Sound.sound(Key.key(keyStr), net.kyori.adventure.sound.Sound.Source.MASTER, volume, pitch);
+    }
+
+    private static float parseFloat(String s, float fallback) {
+        try { return Float.parseFloat(s.trim()); } catch (Exception ignored) { return fallback; }
     }
 
     public static SoundBuilder builder() {

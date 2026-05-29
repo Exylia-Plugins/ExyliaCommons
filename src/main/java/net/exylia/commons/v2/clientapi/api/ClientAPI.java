@@ -22,7 +22,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
@@ -72,6 +71,8 @@ public final class ClientAPI {
 
         plugin.getServer().getPluginManager().registerEvents(new ClientListener(plugin), plugin);
         plugin.getServer().getPluginManager().registerEvents(itemCooldownListener, plugin);
+
+        waypointManager.startPoller(plugin);
 
         initialized = true;
         DebugAPI.logLibInfo("ClientAPI initialized.");
@@ -145,12 +146,5 @@ public final class ClientAPI {
             cooldownManager.cleanupPlayer(quitId);
         }
 
-        @EventHandler(priority = EventPriority.MONITOR)
-        public void onWorldChange(PlayerChangedWorldEvent event) {
-            Player player = event.getPlayer();
-            player.getScheduler().runDelayed(plugin, task -> {
-                if (player.isOnline()) waypointManager.handleWorldChange(player);
-            }, null, 5L);
-        }
     }
 }

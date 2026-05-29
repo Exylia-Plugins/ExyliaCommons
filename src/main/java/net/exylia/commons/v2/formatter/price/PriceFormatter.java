@@ -26,8 +26,11 @@ public class PriceFormatter extends AbstractFormatter<Object, String> {
 
     @Override
     public String format(Object input) {
-        BigDecimal amount = parseInput(input);
+        if (config.isCompactNotation()) {
+            return formatCompact(input);
+        }
 
+        BigDecimal amount = parseInput(input);
         String formatted = formatters.get().format(amount);
         return config.isSymbolBefore()
             ? config.getCurrencySymbol() + formatted

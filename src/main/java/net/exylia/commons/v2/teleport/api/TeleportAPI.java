@@ -10,6 +10,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 public final class TeleportAPI {
 
@@ -27,6 +28,14 @@ public final class TeleportAPI {
                 db.getConfig().getRedisConfig().getKeyPrefix()
         );
         plugin.getServer().getPluginManager().registerEvents(new TeleportJoinListener(manager), plugin);
+    }
+
+    public static boolean isInitialized() {
+        return manager != null;
+    }
+
+    public static void addPostTeleportHook(Consumer<Player> hook) {
+        manager.addPostTeleportHook(hook);
     }
 
     public static void shutdown() {

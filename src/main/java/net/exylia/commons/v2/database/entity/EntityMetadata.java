@@ -152,6 +152,11 @@ public class EntityMetadata {
             }
 
             @Override
+            public boolean sanitize() {
+                return false;
+            }
+
+            @Override
             public Class<? extends java.lang.annotation.Annotation> annotationType() {
                 return Column.class;
             }

@@ -3,10 +3,22 @@ package net.exylia.commons.v2.compat;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.block.Biome;
+import org.bukkit.block.Block;
 
 public final class BiomeCompat {
 
     private BiomeCompat() {}
+
+    public static String getBiomeName(Block block) {
+        try {
+            Object biome = block.getClass().getMethod("getBiome").invoke(block);
+            if (biome == null) return "";
+            Object nsKey = biome.getClass().getMethod("getKey").invoke(biome);
+            return (String) nsKey.getClass().getMethod("getKey").invoke(nsKey);
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
 
     public static Biome getByName(String name) {
         if (name == null || name.isBlank()) return fallback();

@@ -43,6 +43,10 @@ public class DebugAPI {
         DebugManager.getInstance().logPlugin(DebugType.WARN, null, message, null);
     }
 
+    public static void logPluginWarn(String message, Throwable throwable) {
+        DebugManager.getInstance().logPlugin(DebugType.WARN, null, message, throwable);
+    }
+
     public static void logPluginWarn(DebugCategory category, String message) {
         DebugManager.getInstance().logPlugin(DebugType.WARN, category, message, null);
     }

@@ -11,6 +11,7 @@ public class PriceFormatterBuilder {
     private String thousandSeparator;
     private Integer decimalPlaces;
     private Boolean showDecimals;
+    private Boolean compactNotation;
 
     public PriceFormatterBuilder cache(FormatterCache cache) {
         this.cache = cache;
@@ -52,6 +53,11 @@ public class PriceFormatterBuilder {
         return this;
     }
 
+    public PriceFormatterBuilder compactNotation(boolean compactNotation) {
+        this.compactNotation = compactNotation;
+        return this;
+    }
+
     public PriceFormatter build() {
         if (cache == null) {
             cache = FormatterCache.getInstance();
@@ -65,6 +71,7 @@ public class PriceFormatterBuilder {
                 .thousandSeparator(thousandSeparator != null ? thousandSeparator : ",")
                 .decimalPlaces(decimalPlaces != null ? decimalPlaces : 2)
                 .showDecimals(showDecimals != null ? showDecimals : true)
+                .compactNotation(compactNotation != null ? compactNotation : false)
                 .build();
         }
 

@@ -74,7 +74,8 @@ public class DebugManager {
                 pluginPrefix
         );
 
-        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
+        sendMessage(formatted, throwable, false);
+//        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
     }
 
     public boolean isLibDebugEnabled() {
@@ -100,7 +101,8 @@ public class DebugManager {
                 LIBRARY_PREFIX
         );
 
-        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
+        sendMessage(formatted, throwable, false);
+//        sendMessage(formatted, throwable, DebugDefaults.Debug.ASYNC_LOGGING);
     }
 
     private void sendMessage(Component formatted, Throwable throwable, boolean async) {

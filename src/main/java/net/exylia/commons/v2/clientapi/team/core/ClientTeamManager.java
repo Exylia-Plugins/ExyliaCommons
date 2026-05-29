@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClientTeamManager extends PacketListenerAbstract {
 
     private final Map<UUID, Set<String>> viewerCreatedTeams = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, Set<String>>> viewerTeamMembers = new ConcurrentHashMap<>();
     private final Map<UUID, Set<UUID>> viewerGlowTargets = new ConcurrentHashMap<>();
     private final Map<Integer, UUID> entityIdToUuid = new ConcurrentHashMap<>();
 
@@ -57,12 +58,18 @@ public class ClientTeamManager extends PacketListenerAbstract {
                 name, WrapperPlayServerTeams.TeamMode.CREATE,
                 Optional.of(buildTeamInfo(color, seeFriendlyInvisibles)), members));
         viewerCreatedTeams.computeIfAbsent(viewer.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(name);
+        Set<String> memberSet = viewerTeamMembers
+                .computeIfAbsent(viewer.getUniqueId(), k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
+        memberSet.clear();
+        memberSet.addAll(members);
     }
 
     public void ensureTeamAndAdd(Player viewer, String name, NamedTextColor color, boolean seeFriendlyInvisibles, String entityName, boolean includeViewer) {
         User user = getUser(viewer);
         if (user == null) return;
         Set<String> created = viewerCreatedTeams.computeIfAbsent(viewer.getUniqueId(), k -> ConcurrentHashMap.newKeySet());
+        Map<String, Set<String>> teamMembersMap = viewerTeamMembers.computeIfAbsent(viewer.getUniqueId(), k -> new ConcurrentHashMap<>());
         if (created.add(name)) {
             List<String> members = includeViewer
                     ? List.of(viewer.getName(), entityName)
@@ -70,16 +77,23 @@ public class ClientTeamManager extends PacketListenerAbstract {
             user.sendPacket(new WrapperPlayServerTeams(
                     name, WrapperPlayServerTeams.TeamMode.CREATE,
                     Optional.of(buildTeamInfo(color, seeFriendlyInvisibles)), members));
+            Set<String> memberSet = teamMembersMap.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
+            memberSet.addAll(members);
         } else {
-            user.sendPacket(new WrapperPlayServerTeams(
-                    name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES,
-                    Optional.empty(), Collections.singletonList(entityName)));
+            Set<String> memberSet = teamMembersMap.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
+            if (memberSet.add(entityName)) {
+                user.sendPacket(new WrapperPlayServerTeams(
+                        name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES,
+                        Optional.empty(), Collections.singletonList(entityName)));
+            }
         }
     }
 
     public void removeFromTeam(Player viewer, String name, String entityName) {
-        Set<String> created = viewerCreatedTeams.get(viewer.getUniqueId());
-        if (created == null || !created.contains(name)) return;
+        Map<String, Set<String>> teamMembersMap = viewerTeamMembers.get(viewer.getUniqueId());
+        if (teamMembersMap == null) return;
+        Set<String> memberSet = teamMembersMap.get(name);
+        if (memberSet == null || !memberSet.remove(entityName)) return;
         User user = getUser(viewer);
         if (user == null) return;
         user.sendPacket(new WrapperPlayServerTeams(
@@ -89,6 +103,7 @@ public class ClientTeamManager extends PacketListenerAbstract {
 
     public void clearViewer(Player viewer) {
         Set<String> teams = viewerCreatedTeams.remove(viewer.getUniqueId());
+        viewerTeamMembers.remove(viewer.getUniqueId());
         viewerGlowTargets.remove(viewer.getUniqueId());
         if (teams == null) return;
         User user = getUser(viewer);
@@ -124,6 +139,7 @@ public class ClientTeamManager extends PacketListenerAbstract {
     public void shutdown() {
         PacketEvents.getAPI().getEventManager().unregisterListener(this);
         viewerCreatedTeams.clear();
+        viewerTeamMembers.clear();
         viewerGlowTargets.clear();
         entityIdToUuid.clear();
     }

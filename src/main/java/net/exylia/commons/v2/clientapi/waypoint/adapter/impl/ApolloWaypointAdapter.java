@@ -10,8 +10,11 @@ import com.lunarclient.apollo.module.waypoint.WaypointModule;
 import com.lunarclient.apollo.player.ApolloPlayer;
 import net.exylia.commons.v2.clientapi.waypoint.adapter.WaypointAdapter;
 import net.exylia.commons.v2.clientapi.waypoint.model.WaypointDefinition;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.entity.Player;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 public class ApolloWaypointAdapter implements WaypointAdapter {
@@ -37,7 +40,10 @@ public class ApolloWaypointAdapter implements WaypointAdapter {
     @Override
     public String show(Player player, WaypointDefinition definition) {
         Optional<ApolloPlayer> apolloPlayerOpt = Apollo.getPlayerManager().getPlayer(player.getUniqueId());
-        if (apolloPlayerOpt.isEmpty()) return null;
+        if (apolloPlayerOpt.isEmpty()) {
+            DebugAPI.logLibDebug("[Apollo] show() SKIP player=" + player.getName() + " name=" + definition.getName() + " (not a Lunar player)");
+            return null;
+        }
 
         ApolloPlayer apolloPlayer = apolloPlayerOpt.get();
 
@@ -58,18 +64,27 @@ public class ApolloWaypointAdapter implements WaypointAdapter {
                 .hidden(definition.isHidden())
                 .build());
 
+        DebugAPI.logLibDebug("[Apollo] show() player=" + player.getName() + " name=" + definition.getName()
+                + " world=" + definition.getWorldName() + " pos=" + definition.getX() + "," + definition.getY() + "," + definition.getZ());
         return definition.getName();
     }
 
     @Override
     public void remove(Player player, String handle) {
+        DebugAPI.logLibDebug("[Apollo] remove() player=" + player.getName() + " handle=" + handle);
         Optional<ApolloPlayer> apolloPlayerOpt = Apollo.getPlayerManager().getPlayer(player.getUniqueId());
         apolloPlayerOpt.ifPresent(apolloPlayer -> waypointModule.removeWaypoint(apolloPlayer, handle));
     }
 
     @Override
     public void removeAll(Player player) {
+        DebugAPI.logLibDebug("[Apollo] removeAll() player=" + player.getName());
         Optional<ApolloPlayer> apolloPlayerOpt = Apollo.getPlayerManager().getPlayer(player.getUniqueId());
         apolloPlayerOpt.ifPresent(waypointModule::resetWaypoints);
+    }
+
+    @Override
+    public List<String> autoRemovedHandles() {
+        return Collections.singletonList("Spawn");
     }
 }

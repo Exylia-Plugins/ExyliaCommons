@@ -25,4 +25,6 @@ public @interface Column {
     SerializationType serializationType() default SerializationType.AUTO;
 
     boolean initializeEmpty() default true;
+
+    boolean sanitize() default false;
 }

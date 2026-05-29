@@ -23,7 +23,7 @@ public class RunithClansProvider implements ClanProvider {
 
         try {
             ClanAPI api = ClanAPI.getInstance();
-            tempEnabled = api != null && api.clansStorage() != null;
+            tempEnabled = api != null && api.storage() != null;
         } catch (Exception e) {
             tempEnabled = false;
         }
@@ -46,7 +46,7 @@ public class RunithClansProvider implements ClanProvider {
         if (!enabled) return Optional.empty();
 
         try {
-            ClansStorage storage = ClanAPI.getInstance().clansStorage();
+            ClansStorage storage = ClanAPI.getInstance().storage();
             ClanMember member = storage.getMember(playerId);
             if (member == null) {
                 if (DebugAPI.isLibDebugEnabled()) {
@@ -91,7 +91,7 @@ public class RunithClansProvider implements ClanProvider {
         if (!enabled) return Optional.empty();
 
         try {
-            ClansStorage storage = ClanAPI.getInstance().clansStorage();
+            ClansStorage storage = ClanAPI.getInstance().storage();
             net.runith.clan.api.model.Clan clan = storage.getClan(tag);
             if (clan == null) {
                 return Optional.empty();
@@ -115,7 +115,7 @@ public class RunithClansProvider implements ClanProvider {
 
         try {
             UUID clanUUID = UUID.fromString(id);
-            ClansStorage storage = ClanAPI.getInstance().clansStorage();
+            ClansStorage storage = ClanAPI.getInstance().storage();
             net.runith.clan.api.model.Clan clan = storage.getClan(clanUUID);
             if (clan == null) {
                 return Optional.empty();
@@ -140,7 +140,7 @@ public class RunithClansProvider implements ClanProvider {
         if (!enabled) return Collections.emptyList();
 
         try {
-            return ClanAPI.getInstance().clansStorage().getOnlineClans().stream()
+            return ClanAPI.getInstance().storage().getOnlineClans().stream()
                     .map(this::convertToClan)
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -159,7 +159,7 @@ public class RunithClansProvider implements ClanProvider {
         if (!enabled) return false;
 
         try {
-            ClansStorage storage = ClanAPI.getInstance().clansStorage();
+            ClansStorage storage = ClanAPI.getInstance().storage();
             ClanMember member = storage.getMember(playerId);
             return member != null && member.getClan() != null;
         } catch (Exception e) {
@@ -189,9 +189,9 @@ public class RunithClansProvider implements ClanProvider {
                 allMemberSet.add(uuid);
 
                 MemberRole role = member.getRole();
-                if (role == MemberRole.LEADER || role == MemberRole.ADMINISTRATOR) {
+                if (role.type() == MemberRole.Type.LEADER || role.type() == MemberRole.Type.ADMIN) {
                     leaderSet.add(uuid);
-                } else if (role == MemberRole.CO_LEADER || role == MemberRole.MOD) {
+                } else if (role.type() == MemberRole.Type.CO_LEADER || role.type() == MemberRole.Type.MOD) {
                     moderatorSet.add(uuid);
                 }
 
