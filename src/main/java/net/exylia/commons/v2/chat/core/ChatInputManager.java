@@ -1,34 +1,47 @@
 package net.exylia.commons.v2.chat.core;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import lombok.Getter;
-import net.exylia.commons.v2.chat.config.ChatInputConfig;
-import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
-import net.exylia.commons.v2.tasks.api.TaskAPI;
-import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
-import net.exylia.commons.v2.visual.api.MessageAPI;
-import net.exylia.commons.v2.visual.api.TitleAPI;
-import net.exylia.commons.v2.visual.builder.TitleBuilder;
+import net.exylia.commons.v2.chat.detect.BedrockDetector;
+import net.exylia.commons.v2.chat.detect.DialogCapabilityDetector;
+import net.exylia.commons.v2.chat.handler.ChatInputHandler;
+import net.exylia.commons.v2.chat.handler.DialogInputHandler;
+import net.exylia.commons.v2.chat.handler.FloodgateInputHandler;
+import net.exylia.commons.v2.chat.handler.InventoryInputHandler;
+import net.exylia.commons.v2.chat.request.BooleanInputRequest;
+import net.exylia.commons.v2.chat.request.ConfirmationRequest;
+import net.exylia.commons.v2.chat.request.InputRequest;
+import net.exylia.commons.v2.chat.request.MultiNumberInputRequest;
+import net.exylia.commons.v2.chat.request.NumberFieldDef;
+import net.exylia.commons.v2.chat.request.NumberInputRequest;
+import net.exylia.commons.v2.chat.request.SingleOptionRequest;
+import net.exylia.commons.v2.chat.request.TextInputRequest;
+import net.exylia.commons.v2.chat.session.InputSession;
+import net.exylia.commons.v2.chat.session.InputSession.HandlerType;
+import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
+import net.exylia.commons.v2.chat.config.ChatInputDefaults;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.Plugin;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public final class ChatInputManager implements Listener {
 
-    @Getter
     private static ChatInputManager instance;
-
     private static Plugin plugin;
 
-    private final Map<UUID, Session> sessions = new ConcurrentHashMap<>();
+    private final Map<UUID, InputSession> sessions = new ConcurrentHashMap<>();
+    private final ChatInputHandler chatHandler = new ChatInputHandler();
+    private final InventoryInputHandler inventoryHandler = new InventoryInputHandler();
+    private DialogInputHandler dialogHandler;
+    private FloodgateInputHandler bedrockHandler;
 
     private ChatInputManager() {}
 
@@ -36,78 +49,130 @@ public final class ChatInputManager implements Listener {
         if (instance != null) return;
         plugin = pluginInstance;
         instance = new ChatInputManager();
+        ConfigSchemaRegistry.ensureDefaults(ChatInputDefaults.class);
         plugin.getServer().getPluginManager().registerEvents(instance, plugin);
+        plugin.getServer().getPluginManager().registerEvents(instance.chatHandler, plugin);
+        plugin.getServer().getPluginManager().registerEvents(instance.inventoryHandler, plugin);
+        if (DialogCapabilityDetector.isServerDialogCapable()) {
+            instance.dialogHandler = new DialogInputHandler();
+            instance.dialogHandler.registerEventListener();
+        }
+        if (BedrockDetector.isFloodgateAvailable()) {
+            instance.bedrockHandler = new FloodgateInputHandler();
+        }
     }
 
     public static void shutdown() {
         if (instance == null) return;
-        instance.sessions.values().forEach(Session::cancel);
+        instance.sessions.values().forEach(session -> {
+            if (session.isActive()) {
+                getHandlerFor(instance, session.getHandlerType()).close(session);
+            }
+        });
         instance.sessions.clear();
+        if (instance.dialogHandler != null) {
+            instance.dialogHandler.unregisterEventListener();
+        }
         HandlerList.unregisterAll(instance);
+        HandlerList.unregisterAll(instance.chatHandler);
+        HandlerList.unregisterAll(instance.inventoryHandler);
         instance = null;
         plugin = null;
     }
 
-    public void startSession(
-        Player player,
-        ChatInputConfig config,
-        Consumer<String> callback
-    ) {
-        cancelSession(player);
+    public static ChatInputManager getInstance() {
+        return instance;
+    }
 
-        Session session = new Session(player, config, callback);
+    public void submit(Player player, InputRequest<?> request) {
+        cancelSessionInternal(player);
+
+        HandlerType handlerType = resolveHandlerType(player, request);
+
+        if (request instanceof MultiNumberInputRequest multiReq && handlerType != HandlerType.DIALOG) {
+            startMultiNumberSequential(player, multiReq, 0, new LinkedHashMap<>());
+            return;
+        }
+
+        DebugAPI.logLibDebug("[ChatInput] " + player.getName() + " submit → handler=" + handlerType + " requestType=" + request.getClass().getSimpleName());
+        InputSession session = new InputSession(player, request, handlerType);
         sessions.put(player.getUniqueId(), session);
 
-        if (config.isCloseInventory()) {
-            player.closeInventory();
-        }
+        boolean shown = switch (handlerType) {
+            case DIALOG -> dialogHandler.show(session);
+            case CHAT -> { chatHandler.show(session); yield true; }
+            case INVENTORY -> { inventoryHandler.show(session); yield true; }
+            case BEDROCK -> { bedrockHandler.show(session); yield true; }
+        };
 
-        if (config.getPrompt() != null) {
-            MessageAPI.send(player, config.getPrompt());
+        if (!shown) {
+            DebugAPI.logLibDebug("[ChatInput] " + player.getName() + " DIALOG show() returned false — falling back");
+            sessions.remove(player.getUniqueId());
+            if (request instanceof MultiNumberInputRequest multiReq) {
+                startMultiNumberSequential(player, multiReq, 0, new LinkedHashMap<>());
+                return;
+            }
+            HandlerType fallback = fallbackHandlerType(request);
+            DebugAPI.logLibDebug("[ChatInput] " + player.getName() + " fallback handler=" + fallback);
+            InputSession fallbackSession = new InputSession(player, request, fallback);
+            sessions.put(player.getUniqueId(), fallbackSession);
+            if (fallback == HandlerType.CHAT) {
+                chatHandler.show(fallbackSession);
+            } else {
+                inventoryHandler.show(fallbackSession);
+            }
         }
+    }
 
-        if (config.isShowTitle()) {
-            startTitleCountdown(player, session);
+    private void startMultiNumberSequential(Player player, MultiNumberInputRequest original, int fieldIndex, Map<String, Number> collected) {
+        List<NumberFieldDef> fields = original.getFields();
+        if (fieldIndex >= fields.size()) {
+            original.accept(collected);
+            return;
         }
-
-        session.timeoutTask = TaskAPI.syncLater(
-            () -> {
-                if (sessions.remove(player.getUniqueId()) != null) {
-                    session.cancelled = true;
-                    if (config.getTimeoutMessage() != null) {
-                        MessageAPI.send(player, config.getTimeoutMessage());
-                    }
-                    if (config.getOnTimeout() != null) {
-                        config.getOnTimeout().run();
-                    }
-                    TitleAPI.cancelAll(player);
-                }
-            },
-            config.getTimeout() * 20L
-        );
+        NumberFieldDef field = fields.get(fieldIndex);
+        NumberInputRequest req = new NumberInputRequest(player, field.label(), field.decimals());
+        req.setMin(field.min());
+        req.setMax(field.max());
+        req.setOnCancel(original.getOnCancel());
+        req.setOnResponse(val -> {
+            collected.put(field.key(), val);
+            startMultiNumberSequential(player, original, fieldIndex + 1, collected);
+        });
+        submit(player, req);
     }
 
     public void cancelSession(Player player) {
-        Session session = sessions.remove(player.getUniqueId());
-        if (session != null) {
-            session.cancel();
-            TitleAPI.cancelAll(player);
-        }
-    }
-
-    public boolean hasSession(Player player) {
-        return sessions.containsKey(player.getUniqueId());
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onChat(AsyncPlayerChatEvent event) {
-        Session session = sessions.get(event.getPlayer().getUniqueId());
+        InputSession session = sessions.remove(player.getUniqueId());
         if (session == null) return;
+        session.setActive(false);
+        getHandlerFor(this, session.getHandlerType()).close(session);
+        Runnable onCancel = session.getRequest().getOnCancel();
+        if (onCancel != null) onCancel.run();
+    }
 
-        event.setCancelled(true);
-        String input = event.getMessage();
+    public void handleCancelFromHandler(Player player) {
+        InputSession session = sessions.remove(player.getUniqueId());
+        if (session == null) return;
+        session.setActive(false);
+        Runnable onCancel = session.getRequest().getOnCancel();
+        if (onCancel != null) onCancel.run();
+    }
 
-        TaskAPI.sync(() -> handleInput(event.getPlayer(), input));
+    @SuppressWarnings("unchecked")
+    public void handleCompleteFromHandler(UUID playerUuid, Object value) {
+        InputSession session = sessions.remove(playerUuid);
+        if (session == null) return;
+        session.setActive(false);
+        ((InputRequest<Object>) session.getRequest()).accept(value);
+    }
+
+    public InputSession getActiveSession(UUID playerUuid) {
+        return sessions.get(playerUuid);
+    }
+
+    public boolean hasActiveSession(Player player) {
+        return sessions.containsKey(player.getUniqueId());
     }
 
     @EventHandler
@@ -115,97 +180,45 @@ public final class ChatInputManager implements Listener {
         cancelSession(event.getPlayer());
     }
 
-    private void handleInput(Player player, String input) {
-        Session session = sessions.get(player.getUniqueId());
-        if (session == null || session.cancelled) return;
-
-        ChatInputConfig config = session.config;
-
-        if (input.equalsIgnoreCase(config.getCancelWord())) {
-            sessions.remove(player.getUniqueId());
-            session.cancel();
-            TitleAPI.cancelAll(player);
-            if (config.getCancelMessage() != null) {
-                MessageAPI.send(player, config.getCancelMessage());
-            }
-            if (config.getOnCancel() != null) {
-                config.getOnCancel().run();
-            }
-            return;
-        }
-
-        if (
-            config.getValidator() != null && !config.getValidator().test(input)
-        ) {
-            if (config.getInvalidMessage() != null) {
-                MessageAPI.send(player, config.getInvalidMessage());
-            }
-            return;
-        }
-
-        sessions.remove(player.getUniqueId());
-        session.cancel();
-        TitleAPI.cancelAll(player);
-        session.callback.accept(input);
+    private void cancelSessionInternal(Player player) {
+        InputSession existing = sessions.remove(player.getUniqueId());
+        if (existing == null) return;
+        existing.setActive(false);
+        getHandlerFor(this, existing.getHandlerType()).close(existing);
     }
 
-    private void startTitleCountdown(Player player, Session session) {
-        ChatInputConfig config = session.config;
-        final int[] remaining = { config.getTimeout() };
-
-        session.titleTask = TaskAPI.syncTimer(
-            () -> {
-                if (
-                    !sessions.containsKey(player.getUniqueId()) ||
-                    session.cancelled
-                ) {
-                    if (session.titleTask != null) session.titleTask.cancel();
-                    return;
-                }
-
-                PlaceholderContext ctx = PlaceholderContext.create().put(
-                    "time",
-                    remaining[0]
-                );
-                TitleAPI.send(
-                    player,
-                    TitleBuilder.create()
-                        .title(config.getTitleText())
-                        .subtitle(config.getSubtitleText())
-                        .times(0, 25, 0)
-                        .build(),
-                    ctx
-                );
-                remaining[0]--;
-            },
-            0L,
-            20L
-        );
+    private HandlerType resolveHandlerType(Player player, InputRequest<?> request) {
+        if (request.isForceChat()) return HandlerType.CHAT;
+        if (BedrockDetector.isBedrockPlayer(player)) {
+            if (BedrockDetector.isFloodgateConfirmed(player)) {
+                DebugAPI.logLibDebug("[ChatInput] " + player.getName() + " Floodgate confirmed → BEDROCK handler");
+                return HandlerType.BEDROCK;
+            }
+            HandlerType fallback = fallbackHandlerType(request);
+            DebugAPI.logLibDebug("[ChatInput] " + player.getName() + " Bedrock detected (UUID/prefix) but Floodgate API unconfirmed → fallback=" + fallback);
+            return fallback;
+        }
+        if (DialogCapabilityDetector.canUseDialog(player)) return HandlerType.DIALOG;
+        return fallbackHandlerType(request);
     }
 
-    private static class Session {
-
-        final Player player;
-        final ChatInputConfig config;
-        final Consumer<String> callback;
-        ScheduledTask timeoutTask;
-        ScheduledTask titleTask;
-        volatile boolean cancelled = false;
-
-        Session(
-            Player player,
-            ChatInputConfig config,
-            Consumer<String> callback
-        ) {
-            this.player = player;
-            this.config = config;
-            this.callback = callback;
+    private HandlerType fallbackHandlerType(InputRequest<?> request) {
+        if (request instanceof TextInputRequest || request instanceof NumberInputRequest || request instanceof MultiNumberInputRequest) {
+            return HandlerType.CHAT;
         }
+        return HandlerType.INVENTORY;
+    }
 
-        void cancel() {
-            cancelled = true;
-            if (timeoutTask != null) timeoutTask.cancel();
-            if (titleTask != null) titleTask.cancel();
-        }
+    private interface HandlerRef {
+        void close(InputSession session);
+    }
+
+    private static HandlerRef getHandlerFor(ChatInputManager mgr, HandlerType type) {
+        return switch (type) {
+            case DIALOG -> mgr.dialogHandler != null ? mgr.dialogHandler::close : session -> {};
+            case CHAT -> mgr.chatHandler::close;
+            case INVENTORY -> mgr.inventoryHandler::close;
+            case BEDROCK -> mgr.bedrockHandler != null ? mgr.bedrockHandler::close : session -> {};
+        };
     }
 }
