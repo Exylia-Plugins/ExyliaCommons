@@ -100,6 +100,21 @@ public class ItemData {
     private Map<String, String> customNBT = new HashMap<>();
 
     @Builder.Default
+    private boolean forceConsumable = false;
+
+    @Builder.Default
+    private float consumableTime = 1.5f;
+
+    @Builder.Default
+    private int consumableNutrition = 0;
+
+    @Builder.Default
+    private float consumableSaturation = 0f;
+
+    @Builder.Default
+    private String consumableSound = "entity.generic.eat";
+
+    @Builder.Default
     private boolean unbreakable = false;
 
     @Builder.Default
@@ -150,6 +165,11 @@ public class ItemData {
                 .dynamicUpdate(this.dynamicUpdate)
                 .rawAttributes(new ArrayList<>(this.rawAttributes))
                 .customNBT(new HashMap<>(this.customNBT))
+                .forceConsumable(this.forceConsumable)
+                .consumableTime(this.consumableTime)
+                .consumableNutrition(this.consumableNutrition)
+                .consumableSaturation(this.consumableSaturation)
+                .consumableSound(this.consumableSound)
                 .unbreakable(this.unbreakable)
                 .maxStackSize(this.maxStackSize)
                 .slotConfig(this.slotConfig)

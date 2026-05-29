@@ -9,6 +9,7 @@ import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.skull.api.SkullAPI;
 import org.bukkit.Color;
 import org.bukkit.Material;
 import org.bukkit.block.Banner;
@@ -22,9 +23,12 @@ import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.potion.PotionType;
 
+import java.util.Base64;
+
 public final class ItemSnapshot {
 
     private static final String PREFIX = "item:";
+    private static final String BYTES_PREFIX = "bytes:";
     private static final Gson GSON = new Gson();
 
     private final String serialized;
@@ -42,63 +46,58 @@ public final class ItemSnapshot {
         if (itemStack == null || itemStack.getType().isAir()) {
             return new ItemSnapshot("AIR");
         }
-
-        ItemMeta meta = itemStack.getItemMeta();
-        String material = itemStack.getType().name();
-
-        if (meta instanceof SkullMeta skullMeta) {
-            return extractFromSkull(skullMeta);
+        try {
+            byte[] bytes = itemStack.serializeAsBytes();
+            return new ItemSnapshot(BYTES_PREFIX + Base64.getEncoder().encodeToString(bytes));
+        } catch (Exception e) {
+            DebugAPI.logLibWarn("ItemSnapshot: Failed to serialize item, falling back to material: " + e.getMessage());
+            return new ItemSnapshot(itemStack.getType().name());
         }
-
-        JsonObject json = new JsonObject();
-        json.addProperty("m", material);
-        boolean needsJson = false;
-
-        if (meta instanceof PotionMeta potionMeta) {
-            JsonObject potionJson = extractPotionJson(potionMeta);
-            if (potionJson != null) {
-                json.add("potion", potionJson);
-                needsJson = true;
-            }
-        }
-
-        if (meta instanceof LeatherArmorMeta leatherMeta) {
-            String colorHex = extractLeatherColor(leatherMeta);
-            if (colorHex != null) {
-                json.addProperty("leather", colorHex);
-                needsJson = true;
-            }
-        }
-
-        if (meta instanceof BannerMeta bannerMeta && !bannerMeta.getPatterns().isEmpty()) {
-            BannerConfig bannerConfig = extractBannerFromMeta(bannerMeta, material);
-            String b64 = bannerConfig.toBase64();
-            if (b64 != null) {
-                json.addProperty("banner", b64);
-                needsJson = true;
-            }
-        }
-
-        if (itemStack.getType() == Material.SHIELD && meta instanceof BlockStateMeta blockMeta) {
-            BannerConfig shieldBanner = extractBannerFromShield(blockMeta);
-            if (shieldBanner != null) {
-                String b64 = shieldBanner.toBase64();
-                if (b64 != null) {
-                    json.addProperty("banner", b64);
-                    needsJson = true;
-                }
-            }
-        }
-
-        if (!needsJson) return new ItemSnapshot(material);
-        return new ItemSnapshot(PREFIX + GSON.toJson(json));
     }
 
     public ItemData toItemData() {
+        if (serialized.startsWith(BYTES_PREFIX)) {
+            try {
+                byte[] bytes = Base64.getDecoder().decode(serialized.substring(BYTES_PREFIX.length()));
+                ItemStack item = ItemStack.deserializeBytes(bytes);
+                return ItemData.builder().rawMaterial(item.getType().name()).build();
+            } catch (Exception e) {
+                return ItemData.builder().rawMaterial("PAPER").build();
+            }
+        }
         if (serialized.startsWith(PREFIX)) {
             return parseItemJson(serialized.substring(PREFIX.length()));
         }
         return ItemData.builder().rawMaterial(serialized).build();
+    }
+
+    public ItemStack toItemStack() {
+        if (serialized.startsWith(BYTES_PREFIX)) {
+            try {
+                byte[] bytes = Base64.getDecoder().decode(serialized.substring(BYTES_PREFIX.length()));
+                return ItemStack.deserializeBytes(bytes);
+            } catch (Exception e) {
+                DebugAPI.logLibWarn("ItemSnapshot: Failed to deserialize bytes: " + e.getMessage());
+                return new ItemStack(Material.PAPER);
+            }
+        }
+        if (serialized.startsWith("urlhead:")) {
+            return SkullAPI.isInitialized()
+                    ? SkullAPI.fromTextureURL(serialized.substring(8))
+                    : new ItemStack(Material.PLAYER_HEAD);
+        }
+        if (serialized.startsWith("basehead:")) {
+            return SkullAPI.isInitialized()
+                    ? SkullAPI.fromTexture(serialized.substring(9))
+                    : new ItemStack(Material.PLAYER_HEAD);
+        }
+        if (serialized.startsWith("playerhead:") || serialized.startsWith("urlhead:") || serialized.startsWith("basehead:")) {
+            return new ItemStack(Material.PLAYER_HEAD);
+        }
+        ItemData data = toItemData();
+        String rawMat = data.getRawMaterial();
+        Material mat = rawMat != null ? Material.matchMaterial(rawMat) : null;
+        return new ItemStack(mat != null ? mat : Material.PAPER);
     }
 
     public String serialize() {

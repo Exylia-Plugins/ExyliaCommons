@@ -47,6 +47,7 @@ public class ConfigurationParser {
         parseDynamicUpdate(config, builder);
         parseAttributes(config, builder);
         parseCustomNBT(config, builder);
+        parseForceConsumable(config, builder);
         parseUnbreakable(config, builder);
         parseMaxStackSize(config, builder);
         parseSlots(config, builder);
@@ -366,6 +367,21 @@ public class ConfigurationParser {
             if (!nbtData.isEmpty()) {
                 builder.customNBT(nbtData);
             }
+        }
+    }
+
+    private static void parseForceConsumable(ConfigurationSection config, ItemData.ItemDataBuilder builder) {
+        boolean forceConsumable = config.getBoolean("force-consumable", config.getBoolean("force_consumable", false));
+        if (forceConsumable) {
+            builder.forceConsumable(true);
+            double time = config.getDouble("consumable-time", config.getDouble("consumable_time", 1.5));
+            builder.consumableTime((float) time);
+            int nutrition = config.getInt("consumable-nutrition", config.getInt("consumable_nutrition", 0));
+            builder.consumableNutrition(nutrition);
+            double saturation = config.getDouble("consumable-saturation", config.getDouble("consumable_saturation", 0.0));
+            builder.consumableSaturation((float) saturation);
+            String sound = config.getString("consumable-sound", config.getString("consumable_sound", "entity.generic.eat"));
+            builder.consumableSound(sound);
         }
     }
 

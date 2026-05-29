@@ -20,6 +20,11 @@ public final class RegionFilter {
 
     private static final RegionFilter NONE_INSTANCE = new RegionFilter(
             RegionFilterType.NONE, RegionFilterChecker.CONTAINS,
+            Collections.emptyList(), Collections.emptyMap(), false
+    );
+
+    private static final RegionFilter PVP_CHECK_INSTANCE = new RegionFilter(
+            RegionFilterType.NONE, RegionFilterChecker.CONTAINS,
             Collections.emptyList(), Collections.emptyMap(), true
     );
 
@@ -48,12 +53,9 @@ public final class RegionFilter {
         boolean checkPvp = section.getBoolean("disable-in-non-pvp-regions", true);
         RegionFilterType type = RegionFilterType.fromString(section.getString("type", "NONE"));
 
-        if (type == RegionFilterType.NONE && !checkPvp) {
-            return new RegionFilter(RegionFilterType.NONE, RegionFilterChecker.CONTAINS,
-                    Collections.emptyList(), Collections.emptyMap(), false);
+        if (type == RegionFilterType.NONE) {
+            return checkPvp ? PVP_CHECK_INSTANCE : NONE_INSTANCE;
         }
-
-        if (type == RegionFilterType.NONE) return NONE_INSTANCE;
 
         RegionFilterChecker checker = RegionFilterChecker.fromString(section.getString("checker", "CONTAINS"));
 

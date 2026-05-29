@@ -113,6 +113,31 @@ public class AttributeManager {
         return null;
     }
 
+    public static void applyBlockInteractionRange(ItemStack itemStack, double value) {
+        if (attributeClass == null || addAttributeModifierMethod == null) return;
+        if (itemStack == null) return;
+
+        Object attribute = null;
+        for (String name : new String[]{"PLAYER_BLOCK_INTERACTION_RANGE", "BLOCK_INTERACTION_RANGE"}) {
+            try {
+                attribute = attributeClass.getMethod("valueOf", String.class).invoke(null, name);
+                break;
+            } catch (Exception ignored) {}
+        }
+        if (attribute == null) return;
+
+        ItemMeta meta = itemStack.getItemMeta();
+        if (meta == null) return;
+
+        try {
+            Object modifier = attributeModifierClass.getDeclaredConstructor(
+                UUID.class, String.class, double.class, addNumberOperation.getClass()
+            ).newInstance(UUID.randomUUID(), "force_consumable_range", value, addNumberOperation);
+            addAttributeModifierMethod.invoke(meta, attribute, modifier);
+            itemStack.setItemMeta(meta);
+        } catch (Exception ignored) {}
+    }
+
     private static double parseValue(String valueStr) {
         try {
             return Double.parseDouble(valueStr);

@@ -208,6 +208,7 @@ public class ItemProcessor {
         processHideTooltip(itemStack, itemData);
         processCustomAttributes(itemStack, itemData);
         processCustomNBT(itemStack, itemData);
+        processConsumable(itemStack, itemData);
         processUnbreakable(itemStack, itemData);
         processMaxStackSize(itemStack, itemData);
 
@@ -359,6 +360,11 @@ public class ItemProcessor {
                 itemStack, itemData.getCustomNBT()
             );
         }
+    }
+
+    private static void processConsumable(ItemStack itemStack, ItemData itemData) {
+        ConsumableProcessor.apply(itemStack, itemData.isForceConsumable(), itemData.getConsumableTime(),
+                itemData.getConsumableNutrition(), itemData.getConsumableSaturation(), itemData.getConsumableSound());
     }
 
     private static void processUnbreakable(ItemStack itemStack, ItemData itemData) {
