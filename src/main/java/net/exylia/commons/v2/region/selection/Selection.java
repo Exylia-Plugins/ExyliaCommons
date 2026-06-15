@@ -24,7 +24,9 @@ public class Selection {
     }
 
     public boolean isComplete() {
-        return pos1 != null && pos2 != null && pos1.getWorld().equals(pos2.getWorld());
+        return pos1 != null && pos2 != null
+                && pos1.getWorld() != null && pos2.getWorld() != null
+                && pos1.getWorld().equals(pos2.getWorld());
     }
 
     public static Selection of(Location pos1, Location pos2) {

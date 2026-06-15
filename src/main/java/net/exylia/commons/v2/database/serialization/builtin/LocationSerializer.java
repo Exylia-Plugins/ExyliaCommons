@@ -2,7 +2,6 @@ package net.exylia.commons.v2.database.serialization.builtin;
 
 import net.exylia.commons.v2.database.serialization.Deserializer;
 import net.exylia.commons.v2.database.serialization.Serializer;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -36,7 +35,7 @@ class LocationDeserializer implements Deserializer<Location> {
         if (parts.length < 4) return null;
 
         try {
-            World world = Bukkit.getWorld(parts[0]);
+            World world = WorldResolver.find(parts[0]);
             if (world == null) return null;
             double x = Double.parseDouble(parts[1]);
             double y = Double.parseDouble(parts[2]);
