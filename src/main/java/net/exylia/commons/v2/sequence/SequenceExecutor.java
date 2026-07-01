@@ -11,10 +11,12 @@ import org.bukkit.entity.Firework;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.meta.FireworkMeta;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -24,23 +26,43 @@ import java.util.function.BiPredicate;
  * Executes a list of effect strings defined in YAML.
  *
  * Supported types:
- *   [PARTICLE]    TYPE;count:N;offset:X,Y,Z;speed:F;y:F;color:R,G,B;size:F
- *   [SOUND]       SOUND_NAME;volume;pitch
+ *   [PARTICLE]      TYPE;count:N;offset:X,Y,Z;speed:F;y:F;color:R,G,B;size:F
+ *   [SOUND]         SOUND_NAME;volume;pitch
  *   [LIGHTNING]
  *   [EXPLOSION]
- *   [FIREWORK]    color:R,G,B;fade:R,G,B;type:TYPE;trail:true;power:N
- *   [COMMAND]     command {player} {world} {x} {y} {z}
- *   [DELAY]       seconds
- *   [POTION]      effect_type;duration;amplifier
- *   [BLOCK_BREAK] MATERIAL;count:N;offset:X,Y,Z;y:F
- *   [TITLE]       title;subtitle;fadeIn;stay;fadeOut
- *   [ACTION_BAR]  text
- *   [CIRCLE]      PARTICLE;radius:F;points:N;y:F;color:R,G,B;size:F;count:N
- *   [SPHERE]      PARTICLE;radius:F;points:N;color:R,G,B;size:F;count:N
- *   [BEAM]        PARTICLE;height:F;points:N;y:F;color:R,G,B;size:F;count:N
- *   [SPIRAL]      PARTICLE;height:F;radius:F;turns:N;points:N;y:F;color:R,G,B;size:F;count:N
+ *   [FIREWORK]      color:R,G,B;fade:R,G,B;type:TYPE;trail:true;power:N
+ *   [COMMAND]       command {player} {world} {x} {y} {z}
+ *   [DELAY]         seconds
+ *   [POTION]        effect_type;duration;amplifier
+ *   [BLOCK_BREAK]   MATERIAL;count:N;offset:X,Y,Z;y:F
+ *   [TITLE]         title;subtitle;fadeIn;stay;fadeOut
+ *   [ACTION_BAR]    text
+ *
+ * Geometric shapes — all accept ticks:N and interval:F for progressive animation:
+ *   [CIRCLE]        PARTICLE;radius:F;points:N;y:F;color:R,G,B;size:F;count:N;ticks:N;interval:F
+ *   [SPHERE]        PARTICLE;radius:F;points:N;color:R,G,B;size:F;count:N;ticks:N;interval:F
+ *   [BEAM]          PARTICLE;height:F;points:N;y:F;color:R,G,B;size:F;count:N;ticks:N;interval:F
+ *   [SPIRAL]        PARTICLE;height:F;radius:F;turns:N;points:N;y:F;color:R,G,B;size:F;count:N;ticks:N;interval:F
+ *   [DOUBLE_HELIX]  PARTICLE;height:F;radius:F;turns:N;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [TORNADO]       PARTICLE;height:F;radius:F;top_radius:F;turns:N;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [STAR]          PARTICLE;radius:F;spikes:N;inner:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [CAGE]          PARTICLE;radius:F;height:F;columns:N;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [DISC]          PARTICLE;radius:F;rings:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [VORTEX]        PARTICLE;radius:F;turns:N;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [WAVE]          PARTICLE;length:F;amplitude:F;frequency:N;arms:N;angle:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [CROSS]         PARTICLE;radius:F;arms:N;angle:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [GALAXY]        PARTICLE;radius:F;turns:N;arms:N;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [TORUS]         PARTICLE;radius:F;tube:F;segments:N;tube_segments:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [BURST]         PARTICLE;radius:F;beams:N;angle:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [PYRAMID]       PARTICLE;base:F;height:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [RING_PULSE]    PARTICLE;radius:F;rings:N;spacing:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [WINGS]         PARTICLE;span:F;arch:F;depth:F;dir:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [ARCH]          PARTICLE;radius:F;arc:F;dir:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
+ *   [CLAW]          PARTICLE;radius:F;claws:N;spread:F;curve:F;dir:F;drop:F;points:N;y:F;color:R,G,B;size:F;ticks:N;interval:F
  */
 public class SequenceExecutor {
+
+    static final NamespacedKey EFFECT_FIREWORK_KEY = new NamespacedKey("exylia_commons", "effect_firework");
 
     private static final Particle PARTICLE_EXPLOSION = resolveParticle("EXPLOSION", "EXPLOSION_LARGE", "EXPLOSION_EMITTER");
     private static final Particle PARTICLE_BLOCK      = resolveParticle("BLOCK", "BLOCK_CRACK");
@@ -103,11 +125,27 @@ public class SequenceExecutor {
             case "BLOCK_BREAK" -> executeBlockBreak(args, ctx);
             case "TITLE"       -> executeTitle(args, ctx);
             case "ACTION_BAR"  -> executeActionBar(args, ctx);
-            case "CIRCLE"      -> executeCircle(args, ctx);
-            case "SPHERE"      -> executeSphere(args, ctx);
-            case "BEAM"        -> executeBeam(args, ctx);
-            case "SPIRAL"      -> executeSpiral(args, ctx);
-            default            -> DebugAPI.logPluginWarn("Unknown sequence effect type: " + type);
+            case "CIRCLE"       -> executeCircle(args, ctx);
+            case "SPHERE"       -> executeSphere(args, ctx);
+            case "BEAM"         -> executeBeam(args, ctx);
+            case "SPIRAL"       -> executeSpiral(args, ctx);
+            case "DOUBLE_HELIX" -> executeDoubleHelix(args, ctx);
+            case "TORNADO"      -> executeTornado(args, ctx);
+            case "STAR"         -> executeStar(args, ctx);
+            case "CAGE"         -> executeCage(args, ctx);
+            case "DISC"         -> executeDisc(args, ctx);
+            case "VORTEX"       -> executeVortex(args, ctx);
+            case "WAVE"         -> executeWave(args, ctx);
+            case "CROSS"        -> executeCross(args, ctx);
+            case "GALAXY"       -> executeGalaxy(args, ctx);
+            case "TORUS"        -> executeTorus(args, ctx);
+            case "BURST"        -> executeBurst(args, ctx);
+            case "PYRAMID"      -> executePyramid(args, ctx);
+            case "RING_PULSE"   -> executeRingPulse(args, ctx);
+            case "WINGS"        -> executeWings(args, ctx);
+            case "ARCH"         -> executeArch(args, ctx);
+            case "CLAW"         -> executeClaw(args, ctx);
+            default             -> DebugAPI.logPluginWarn("Unknown sequence effect type: " + type);
         }
     }
 
@@ -159,7 +197,18 @@ public class SequenceExecutor {
 
         float volume = parts.length > 1 ? (float) parseDouble(parts[1].trim(), 1.0) : 1.0f;
         float pitch  = parts.length > 2 ? (float) parseDouble(parts[2].trim(), 1.0) : 1.0f;
-        world.playSound(ctx.getLocation(), sound, volume, pitch);
+
+        BiPredicate<Player, UUID> filter = ctx.getParticleFilter();
+        if (filter != null && ctx.getSourcePlayer() != null) {
+            UUID sourceId = ctx.getSourcePlayer().getUniqueId();
+            for (Player observer : world.getPlayers()) {
+                if (filter.test(observer, sourceId)) {
+                    observer.playSound(ctx.getLocation(), sound, volume, pitch);
+                }
+            }
+        } else {
+            world.playSound(ctx.getLocation(), sound, volume, pitch);
+        }
     }
 
     // ── [LIGHTNING] ───────────────────────────────────────────────────────────
@@ -213,6 +262,7 @@ public class SequenceExecutor {
         meta.addEffect(FireworkEffect.builder().withColor(fc).withFade(ff).with(ft).trail(ftr).build());
         meta.setPower(fp);
         fw.setFireworkMeta(meta);
+        fw.getPersistentDataContainer().set(EFFECT_FIREWORK_KEY, PersistentDataType.BYTE, (byte) 1);
         TaskAPI.atLater(loc, fw::detonate, 50L, TimeUnit.MILLISECONDS);
     }
 
@@ -316,33 +366,34 @@ public class SequenceExecutor {
     private void executeCircle(String args, SequenceContext ctx) {
         World world = ctx.getLocation().getWorld();
         if (world == null) return;
-
         String[] parts = args.split(";");
         if (parts.length == 0 || parts[0].isBlank()) return;
-
         Particle particle = parseParticle(parts[0]);
         if (particle == null) return;
 
-        double radius = 1.0, yShift = 0, dustSize = 1.0;
-        int points = 16, count = 1;
+        double radius = 1.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 16, count = 1, ticks = 1;
         Color dustColor = null;
 
         for (int i = 1; i < parts.length; i++) {
             String part = parts[i].trim();
-            if      (part.startsWith("radius:")) radius    = parseDouble(part.substring(7), 1.0);
-            else if (part.startsWith("points:")) points    = parseInt(part.substring(7), 16);
-            else if (part.startsWith("y:"))      yShift    = parseDouble(part.substring(2), 0);
-            else if (part.startsWith("count:"))  count     = parseInt(part.substring(6), 1);
-            else if (part.startsWith("color:"))  dustColor = parseColor(part.substring(6), null);
-            else if (part.startsWith("size:"))   dustSize  = parseDouble(part.substring(5), 1.0);
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 16);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
         }
 
         double step = 2 * Math.PI / points;
+        List<Location> locs = new ArrayList<>(points);
         for (int i = 0; i < points; i++) {
             double angle = i * step;
-            Location loc = ctx.getLocation().clone().add(radius * Math.cos(angle), yShift, radius * Math.sin(angle));
-            spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, (float) dustSize, ctx);
+            locs.add(ctx.getLocation().clone().add(radius * Math.cos(angle), yShift, radius * Math.sin(angle)));
         }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
     }
 
     // ── [SPHERE] ──────────────────────────────────────────────────────────────
@@ -350,38 +401,39 @@ public class SequenceExecutor {
     private void executeSphere(String args, SequenceContext ctx) {
         World world = ctx.getLocation().getWorld();
         if (world == null) return;
-
         String[] parts = args.split(";");
         if (parts.length == 0 || parts[0].isBlank()) return;
-
         Particle particle = parseParticle(parts[0]);
         if (particle == null) return;
 
-        double radius = 1.0, dustSize = 1.0;
-        int points = 32, count = 1;
+        double radius = 1.0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 32, count = 1, ticks = 1;
         Color dustColor = null;
 
         for (int i = 1; i < parts.length; i++) {
             String part = parts[i].trim();
-            if      (part.startsWith("radius:")) radius    = parseDouble(part.substring(7), 1.0);
-            else if (part.startsWith("points:")) points    = parseInt(part.substring(7), 32);
-            else if (part.startsWith("count:"))  count     = parseInt(part.substring(6), 1);
-            else if (part.startsWith("color:"))  dustColor = parseColor(part.substring(6), null);
-            else if (part.startsWith("size:"))   dustSize  = parseDouble(part.substring(5), 1.0);
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 32);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
         }
 
         double goldenAngle = Math.PI * (3.0 - Math.sqrt(5.0));
+        List<Location> locs = new ArrayList<>(points);
         for (int i = 0; i < points; i++) {
             double y     = 1.0 - (i / (double) (points - 1)) * 2.0;
             double r     = Math.sqrt(1.0 - y * y);
             double theta = goldenAngle * i;
-            Location loc = ctx.getLocation().clone().add(
+            locs.add(ctx.getLocation().clone().add(
                 radius * r * Math.cos(theta),
                 radius * y + 1.0,
                 radius * r * Math.sin(theta)
-            );
-            spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, (float) dustSize, ctx);
+            ));
         }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
     }
 
     // ── [BEAM] ────────────────────────────────────────────────────────────────
@@ -389,32 +441,33 @@ public class SequenceExecutor {
     private void executeBeam(String args, SequenceContext ctx) {
         World world = ctx.getLocation().getWorld();
         if (world == null) return;
-
         String[] parts = args.split(";");
         if (parts.length == 0 || parts[0].isBlank()) return;
-
         Particle particle = parseParticle(parts[0]);
         if (particle == null) return;
 
-        double height = 3.0, yShift = 0, dustSize = 1.0;
-        int points = 20, count = 1;
+        double height = 3.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 20, count = 1, ticks = 1;
         Color dustColor = null;
 
         for (int i = 1; i < parts.length; i++) {
             String part = parts[i].trim();
-            if      (part.startsWith("height:")) height    = parseDouble(part.substring(7), 3.0);
-            else if (part.startsWith("points:")) points    = parseInt(part.substring(7), 20);
-            else if (part.startsWith("y:"))      yShift    = parseDouble(part.substring(2), 0);
-            else if (part.startsWith("count:"))  count     = parseInt(part.substring(6), 1);
-            else if (part.startsWith("color:"))  dustColor = parseColor(part.substring(6), null);
-            else if (part.startsWith("size:"))   dustSize  = parseDouble(part.substring(5), 1.0);
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("height:"))   height       = parseDouble(part.substring(7), 3.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 20);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
         }
 
         double step = height / Math.max(points, 1);
+        List<Location> locs = new ArrayList<>(points + 1);
         for (int i = 0; i <= points; i++) {
-            Location loc = ctx.getLocation().clone().add(0, yShift + i * step, 0);
-            spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, (float) dustSize, ctx);
+            locs.add(ctx.getLocation().clone().add(0, yShift + i * step, 0));
         }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
     }
 
     // ── [SPIRAL] ─────────────────────────────────────────────────────────────
@@ -422,50 +475,806 @@ public class SequenceExecutor {
     private void executeSpiral(String args, SequenceContext ctx) {
         World world = ctx.getLocation().getWorld();
         if (world == null) return;
-
         String[] parts = args.split(";");
         if (parts.length == 0 || parts[0].isBlank()) return;
-
         Particle particle = parseParticle(parts[0]);
         if (particle == null) return;
 
-        double height = 3.0, radius = 1.0, yShift = 0, dustSize = 1.0;
-        int turns = 2, points = 40, count = 1;
+        double height = 3.0, radius = 1.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int turns = 2, points = 40, count = 1, ticks = 1;
         Color dustColor = null;
 
         for (int i = 1; i < parts.length; i++) {
             String part = parts[i].trim();
-            if      (part.startsWith("height:")) height    = parseDouble(part.substring(7), 3.0);
-            else if (part.startsWith("radius:")) radius    = parseDouble(part.substring(7), 1.0);
-            else if (part.startsWith("turns:"))  turns     = parseInt(part.substring(6), 2);
-            else if (part.startsWith("points:")) points    = parseInt(part.substring(7), 40);
-            else if (part.startsWith("y:"))      yShift    = parseDouble(part.substring(2), 0);
-            else if (part.startsWith("count:"))  count     = parseInt(part.substring(6), 1);
-            else if (part.startsWith("color:"))  dustColor = parseColor(part.substring(6), null);
-            else if (part.startsWith("size:"))   dustSize  = parseDouble(part.substring(5), 1.0);
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("height:"))   height       = parseDouble(part.substring(7), 3.0);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 40);
+            else if (part.startsWith("turns:"))    turns        = parseInt(part.substring(6), 2);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
         }
 
         double totalAngle = turns * 2.0 * Math.PI;
         double angleStep  = totalAngle / Math.max(points, 1);
         double heightStep = height / Math.max(points, 1);
 
+        List<Location> locs = new ArrayList<>(points);
         for (int i = 0; i < points; i++) {
             double angle = i * angleStep;
-            Location loc = ctx.getLocation().clone().add(
+            locs.add(ctx.getLocation().clone().add(
                 radius * Math.cos(angle),
                 yShift + i * heightStep,
                 radius * Math.sin(angle)
-            );
-            spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, (float) dustSize, ctx);
+            ));
         }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [DOUBLE_HELIX] ────────────────────────────────────────────────────────
+
+    private void executeDoubleHelix(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double height = 3.0, radius = 1.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int turns = 2, points = 40, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("height:"))   height       = parseDouble(part.substring(7), 3.0);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 40);
+            else if (part.startsWith("turns:"))    turns        = parseInt(part.substring(6), 2);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double totalAngle = turns * 2.0 * Math.PI;
+        double angleStep  = totalAngle / Math.max(points, 1);
+        double heightStep = height / Math.max(points, 1);
+
+        List<Location> locs = new ArrayList<>(points * 2);
+        for (int i = 0; i < points; i++) {
+            double angle = i * angleStep;
+            double y     = yShift + i * heightStep;
+            locs.add(ctx.getLocation().clone().add(radius * Math.cos(angle), y, radius * Math.sin(angle)));
+            locs.add(ctx.getLocation().clone().add(radius * Math.cos(angle + Math.PI), y, radius * Math.sin(angle + Math.PI)));
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [TORNADO] ─────────────────────────────────────────────────────────────
+
+    private void executeTornado(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double height = 4.0, baseRadius = 1.5, topRadius = 0.2, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int turns = 3, points = 60, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:"))   intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("top_radius:")) topRadius    = parseDouble(part.substring(11), 0.2);
+            else if (part.startsWith("height:"))     height       = parseDouble(part.substring(7), 4.0);
+            else if (part.startsWith("radius:"))     baseRadius   = parseDouble(part.substring(7), 1.5);
+            else if (part.startsWith("points:"))     points       = parseInt(part.substring(7), 60);
+            else if (part.startsWith("turns:"))      turns        = parseInt(part.substring(6), 3);
+            else if (part.startsWith("ticks:"))      ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))      count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))      dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))       dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))          yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double totalAngle = turns * 2.0 * Math.PI;
+        double angleStep  = totalAngle / Math.max(points, 1);
+        double heightStep = height / Math.max(points, 1);
+
+        List<Location> locs = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            double t     = (double) i / points;
+            double r     = baseRadius + (topRadius - baseRadius) * t;
+            double angle = i * angleStep;
+            locs.add(ctx.getLocation().clone().add(r * Math.cos(angle), yShift + i * heightStep, r * Math.sin(angle)));
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [STAR] ────────────────────────────────────────────────────────────────
+
+    private void executeStar(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 1.5, innerRatio = 0.5, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int spikes = 5, points = 8, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.5);
+            else if (part.startsWith("spikes:"))   spikes       = parseInt(part.substring(7), 5);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 8);
+            else if (part.startsWith("inner:"))    innerRatio   = parseDouble(part.substring(6), 0.5);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double innerRadius = radius * innerRatio;
+        int totalVerts     = spikes * 2;
+        double angleStep   = 2.0 * Math.PI / totalVerts;
+        double startAngle  = -Math.PI / 2;
+
+        List<Location> locs = new ArrayList<>(totalVerts * (points + 1));
+        for (int i = 0; i < totalVerts; i++) {
+            double rA = (i % 2 == 0) ? radius : innerRadius;
+            double rB = (i % 2 == 0) ? innerRadius : radius;
+            double aA = startAngle + i * angleStep;
+            double aB = aA + angleStep;
+            for (int j = 0; j <= points; j++) {
+                double t = (double) j / points;
+                double x = rA * Math.cos(aA) * (1 - t) + rB * Math.cos(aB) * t;
+                double z = rA * Math.sin(aA) * (1 - t) + rB * Math.sin(aB) * t;
+                locs.add(ctx.getLocation().clone().add(x, yShift, z));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [CAGE] ────────────────────────────────────────────────────────────────
+
+    private void executeCage(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 1.5, height = 3.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int columns = 8, points = 16, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("columns:"))  columns      = parseInt(part.substring(8), 8);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.5);
+            else if (part.startsWith("height:"))   height       = parseDouble(part.substring(7), 3.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 16);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double angleStep  = 2.0 * Math.PI / Math.max(columns, 1);
+        double heightStep = height / Math.max(points, 1);
+        double[] cosAngles = new double[columns];
+        double[] sinAngles = new double[columns];
+        for (int col = 0; col < columns; col++) {
+            double angle = col * angleStep;
+            cosAngles[col] = Math.cos(angle);
+            sinAngles[col] = Math.sin(angle);
+        }
+
+        List<Location> locs = new ArrayList<>(columns * (points + 1));
+        for (int pt = 0; pt <= points; pt++) {
+            double y = yShift + pt * heightStep;
+            for (int col = 0; col < columns; col++) {
+                locs.add(ctx.getLocation().clone().add(radius * cosAngles[col], y, radius * sinAngles[col]));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [DISC] ────────────────────────────────────────────────────────────────
+
+    private void executeDisc(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int rings = 5, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("rings:"))    rings        = parseInt(part.substring(6), 5);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        List<Location> locs = new ArrayList<>();
+        locs.add(ctx.getLocation().clone().add(0, yShift, 0));
+        for (int ring = 1; ring <= rings; ring++) {
+            double r    = radius * ((double) ring / rings);
+            int    pts  = Math.max(8, (int) (r * 16));
+            double step = 2.0 * Math.PI / pts;
+            for (int i = 0; i < pts; i++) {
+                double angle = i * step;
+                locs.add(ctx.getLocation().clone().add(r * Math.cos(angle), yShift, r * Math.sin(angle)));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [VORTEX] ──────────────────────────────────────────────────────────────
+
+    private void executeVortex(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int turns = 3, points = 60, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 60);
+            else if (part.startsWith("turns:"))    turns        = parseInt(part.substring(6), 3);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double totalAngle = turns * 2.0 * Math.PI;
+        List<Location> locs = new ArrayList<>(points);
+        for (int i = 0; i < points; i++) {
+            double t     = (double) i / points;
+            double r     = radius * (1.0 - t);
+            double angle = t * totalAngle;
+            locs.add(ctx.getLocation().clone().add(r * Math.cos(angle), yShift, r * Math.sin(angle)));
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [WAVE] ────────────────────────────────────────────────────────────────
+
+    private void executeWave(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double length = 5.0, amplitude = 1.0, yShift = 0, dustSize = 1.0, angleDeg = 0, intervalSecs = 0.05;
+        int frequency = 2, arms = 1, points = 40, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:"))  intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("amplitude:")) amplitude    = parseDouble(part.substring(10), 1.0);
+            else if (part.startsWith("frequency:")) frequency    = parseInt(part.substring(10), 2);
+            else if (part.startsWith("length:"))    length       = parseDouble(part.substring(7), 5.0);
+            else if (part.startsWith("points:"))    points       = parseInt(part.substring(7), 40);
+            else if (part.startsWith("angle:"))     angleDeg     = parseDouble(part.substring(6), 0);
+            else if (part.startsWith("ticks:"))     ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))     count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))     dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("arms:"))      arms         = parseInt(part.substring(5), 1);
+            else if (part.startsWith("size:"))      dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))         yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double armOffset = 2.0 * Math.PI / Math.max(arms, 1);
+        double[] dxArr = new double[arms];
+        double[] dzArr = new double[arms];
+        for (int a = 0; a < arms; a++) {
+            double dir = Math.toRadians(angleDeg) + a * armOffset;
+            dxArr[a] = Math.cos(dir);
+            dzArr[a] = Math.sin(dir);
+        }
+
+        List<Location> locs = new ArrayList<>(arms * (points + 1));
+        for (int i = 0; i <= points; i++) {
+            double t    = (double) i / points;
+            double dist = -length / 2.0 + t * length;
+            double yOsc = amplitude * Math.sin(frequency * 2.0 * Math.PI * t);
+            for (int a = 0; a < arms; a++) {
+                locs.add(ctx.getLocation().clone().add(dist * dxArr[a], yShift + yOsc, dist * dzArr[a]));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [CROSS] ───────────────────────────────────────────────────────────────
+
+    private void executeCross(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, yShift = 0, dustSize = 1.0, angleDeg = 0, intervalSecs = 0.05;
+        int arms = 4, points = 16, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 16);
+            else if (part.startsWith("angle:"))    angleDeg     = parseDouble(part.substring(6), 0);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("arms:"))     arms         = parseInt(part.substring(5), 4);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double step = 2.0 * Math.PI / Math.max(arms, 1);
+        double[] dxArr = new double[arms];
+        double[] dzArr = new double[arms];
+        for (int a = 0; a < arms; a++) {
+            double angle = Math.toRadians(angleDeg) + a * step;
+            dxArr[a] = Math.cos(angle);
+            dzArr[a] = Math.sin(angle);
+        }
+
+        List<Location> locs = new ArrayList<>(arms * (points + 1));
+        for (int j = 0; j <= points; j++) {
+            double r = (double) j / points * radius;
+            for (int a = 0; a < arms; a++) {
+                locs.add(ctx.getLocation().clone().add(r * dxArr[a], yShift, r * dzArr[a]));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [GALAXY] ──────────────────────────────────────────────────────────────
+
+    private void executeGalaxy(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.5, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int turns = 2, arms = 2, points = 50, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.5);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 50);
+            else if (part.startsWith("turns:"))    turns        = parseInt(part.substring(6), 2);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("arms:"))     arms         = parseInt(part.substring(5), 2);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double armOffset  = 2.0 * Math.PI / Math.max(arms, 1);
+        double totalAngle = turns * 2.0 * Math.PI;
+
+        List<Location> locs = new ArrayList<>(arms * points);
+        for (int i = 0; i < points; i++) {
+            double t = (double) i / points;
+            double r = t * radius;
+            for (int a = 0; a < arms; a++) {
+                double angle = a * armOffset + t * totalAngle;
+                locs.add(ctx.getLocation().clone().add(r * Math.cos(angle), yShift, r * Math.sin(angle)));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [TORUS] ───────────────────────────────────────────────────────────────
+
+    private void executeTorus(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 1.5, tubeRadius = 0.5, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int segments = 20, tubeSegments = 10, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:"))     intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("tube_segments:")) tubeSegments = parseInt(part.substring(14), 10);
+            else if (part.startsWith("segments:"))     segments     = parseInt(part.substring(9), 20);
+            else if (part.startsWith("radius:"))       radius       = parseDouble(part.substring(7), 1.5);
+            else if (part.startsWith("ticks:"))        ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))        count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))        dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("tube:"))         tubeRadius   = parseDouble(part.substring(5), 0.5);
+            else if (part.startsWith("size:"))         dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))            yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        List<Location> locs = new ArrayList<>(segments * tubeSegments);
+        for (int i = 0; i < segments; i++) {
+            double phi = 2.0 * Math.PI * i / segments;
+            for (int j = 0; j < tubeSegments; j++) {
+                double theta = 2.0 * Math.PI * j / tubeSegments;
+                double x = (radius + tubeRadius * Math.cos(theta)) * Math.cos(phi);
+                double y = tubeRadius * Math.sin(theta);
+                double z = (radius + tubeRadius * Math.cos(theta)) * Math.sin(phi);
+                locs.add(ctx.getLocation().clone().add(x, yShift + y + 1.0, z));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [BURST] ───────────────────────────────────────────────────────────────
+
+    private void executeBurst(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, yShift = 0, dustSize = 1.0, angleDeg = 0, intervalSecs = 0.05;
+        int beams = 8, points = 10, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 10);
+            else if (part.startsWith("angle:"))    angleDeg     = parseDouble(part.substring(6), 0);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("beams:"))    beams        = parseInt(part.substring(6), 8);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double step = 2.0 * Math.PI / Math.max(beams, 1);
+        double[] dxArr = new double[beams];
+        double[] dzArr = new double[beams];
+        for (int b = 0; b < beams; b++) {
+            double angle = Math.toRadians(angleDeg) + b * step;
+            dxArr[b] = Math.cos(angle);
+            dzArr[b] = Math.sin(angle);
+        }
+
+        List<Location> locs = new ArrayList<>(beams * (points + 1));
+        for (int j = 0; j <= points; j++) {
+            double r = (double) j / points * radius;
+            for (int b = 0; b < beams; b++) {
+                locs.add(ctx.getLocation().clone().add(r * dxArr[b], yShift, r * dzArr[b]));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [PYRAMID] ─────────────────────────────────────────────────────────────
+
+    private void executePyramid(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double base = 2.0, height = 3.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 16, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("height:"))   height       = parseDouble(part.substring(7), 3.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 16);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("base:"))     base         = parseDouble(part.substring(5), 2.0);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double[] cx = {base, base, -base, -base};
+        double[] cz = {base, -base, -base, base};
+
+        List<Location> locs = new ArrayList<>(8 * (points + 1));
+        for (int j = 0; j <= points; j++) {
+            double t = (double) j / points;
+            for (int i = 0; i < 4; i++) {
+                int next = (i + 1) % 4;
+                locs.add(ctx.getLocation().clone().add(
+                    cx[i] * (1 - t) + cx[next] * t, yShift, cz[i] * (1 - t) + cz[next] * t));
+            }
+            for (int i = 0; i < 4; i++) {
+                locs.add(ctx.getLocation().clone().add(cx[i] * (1 - t), yShift + height * t, cz[i] * (1 - t)));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [RING_PULSE] ──────────────────────────────────────────────────────────
+
+    private void executeRingPulse(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, spacing = 0.4, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int rings = 6, points = 24, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("spacing:"))  spacing      = parseDouble(part.substring(8), 0.4);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 24);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("rings:"))    rings        = parseInt(part.substring(6), 6);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double step = 2.0 * Math.PI / Math.max(points, 1);
+        List<Location> locs = new ArrayList<>(rings * points);
+        for (int ring = 0; ring < rings; ring++) {
+            double y = yShift + ring * spacing;
+            for (int i = 0; i < points; i++) {
+                double angle = i * step;
+                locs.add(ctx.getLocation().clone().add(radius * Math.cos(angle), y, radius * Math.sin(angle)));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [WINGS] ───────────────────────────────────────────────────────────────
+    // Two mirrored arcs forming organic wings. arch>0 curves up, arch<0 curves down (bat).
+    // dir rotates the wing plane around Y axis (0 = wings spread along X axis).
+
+    private void executeWings(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double span = 2.5, arch = 1.0, depth = 0.4, dirDeg = 0.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 30, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 30);
+            else if (part.startsWith("depth:"))    depth        = parseDouble(part.substring(6), 0.4);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("span:"))     span         = parseDouble(part.substring(5), 2.5);
+            else if (part.startsWith("arch:"))     arch         = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("dir:"))      dirDeg       = parseDouble(part.substring(4), 0.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double dirRad = Math.toRadians(dirDeg);
+        double cosDir = Math.cos(dirRad);
+        double sinDir = Math.sin(dirRad);
+
+        List<Location> locs = new ArrayList<>((points + 1) * 2);
+        for (int i = 0; i <= points; i++) {
+            double t    = (double) i / points;
+            double sine = Math.sin(t * Math.PI);
+            for (int w = 0; w < 2; w++) {
+                double sign = (w == 0) ? 1.0 : -1.0;
+                double lx = sign * t * span;
+                double ly = yShift + arch * sine;
+                double lz = depth * sine;
+                double x  = lx * cosDir - lz * sinDir;
+                double z  = lx * sinDir + lz * cosDir;
+                locs.add(ctx.getLocation().clone().add(x, ly, z));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [ARCH] ────────────────────────────────────────────────────────────────
+    // A symmetric upright arc (gate/arch shape). arc=180 is a full semicircle.
+    // dir rotates the horizontal spread around Y axis.
+
+    private void executeArch(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 1.5, arcDeg = 180.0, dirDeg = 0.0, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int points = 20, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 1.5);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 20);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("arc:"))      arcDeg       = parseDouble(part.substring(4), 180.0);
+            else if (part.startsWith("dir:"))      dirDeg       = parseDouble(part.substring(4), 0.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double halfArc = Math.toRadians(arcDeg / 2.0);
+        double dirRad  = Math.toRadians(dirDeg);
+        double cosDir  = Math.cos(dirRad);
+        double sinDir  = Math.sin(dirRad);
+
+        List<Location> locs = new ArrayList<>(points + 1);
+        for (int i = 0; i <= points; i++) {
+            double t     = (double) i / points;
+            double theta = Math.PI / 2.0 - halfArc + t * 2.0 * halfArc;
+            double u     = radius * Math.cos(theta);
+            double v     = radius * Math.sin(theta);
+            double x     = u * cosDir;
+            double z     = u * sinDir;
+            locs.add(ctx.getLocation().clone().add(x, yShift + v, z));
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
+    }
+
+    // ── [CLAW] ────────────────────────────────────────────────────────────────
+    // N curved lines radiating outward from center, drooping downward at the tip.
+    // spread = total angle covered by all claws; curve = angular drift per claw.
+
+    private void executeClaw(String args, SequenceContext ctx) {
+        World world = ctx.getLocation().getWorld();
+        if (world == null) return;
+        String[] parts = args.split(";");
+        if (parts.length == 0 || parts[0].isBlank()) return;
+        Particle particle = parseParticle(parts[0]);
+        if (particle == null) return;
+
+        double radius = 2.0, spreadDeg = 90.0, curveDeg = 20.0, dirDeg = 0.0, drop = 0.3, yShift = 0, dustSize = 1.0, intervalSecs = 0.05;
+        int claws = 3, points = 14, count = 1, ticks = 1;
+        Color dustColor = null;
+
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim();
+            if      (part.startsWith("interval:")) intervalSecs = parseDouble(part.substring(9), 0.05);
+            else if (part.startsWith("spread:"))   spreadDeg    = parseDouble(part.substring(7), 90.0);
+            else if (part.startsWith("radius:"))   radius       = parseDouble(part.substring(7), 2.0);
+            else if (part.startsWith("points:"))   points       = parseInt(part.substring(7), 14);
+            else if (part.startsWith("claws:"))    claws        = parseInt(part.substring(6), 3);
+            else if (part.startsWith("curve:"))    curveDeg     = parseDouble(part.substring(6), 20.0);
+            else if (part.startsWith("ticks:"))    ticks        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("count:"))    count        = parseInt(part.substring(6), 1);
+            else if (part.startsWith("color:"))    dustColor    = parseColor(part.substring(6), null);
+            else if (part.startsWith("drop:"))     drop         = parseDouble(part.substring(5), 0.3);
+            else if (part.startsWith("size:"))     dustSize     = parseDouble(part.substring(5), 1.0);
+            else if (part.startsWith("dir:"))      dirDeg       = parseDouble(part.substring(4), 0.0);
+            else if (part.startsWith("y:"))        yShift       = parseDouble(part.substring(2), 0);
+        }
+
+        double spreadRad  = Math.toRadians(spreadDeg);
+        double startAngle = Math.toRadians(dirDeg) - spreadRad / 2.0;
+        double angleStep  = claws > 1 ? spreadRad / (claws - 1) : 0.0;
+        double curveRad   = Math.toRadians(curveDeg);
+        double[] baseAngles = new double[claws];
+        for (int c = 0; c < claws; c++) baseAngles[c] = startAngle + c * angleStep;
+
+        List<Location> locs = new ArrayList<>(claws * (points + 1));
+        for (int i = 0; i <= points; i++) {
+            double t = (double) i / points;
+            double r = t * radius;
+            for (int c = 0; c < claws; c++) {
+                double angle = baseAngles[c] + curveRad * t;
+                double x = r * Math.cos(angle);
+                double z = r * Math.sin(angle);
+                double y = yShift - drop * t * t * radius;
+                locs.add(ctx.getLocation().clone().add(x, y, z));
+            }
+        }
+        spawnAnimated(world, particle, locs, count, dustColor, (float) dustSize, ticks, (long)(intervalSecs * 1000), ctx);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private void spawnAnimated(World world, Particle particle, List<Location> locs,
+                                int count, Color dustColor, float dustSize,
+                                int ticks, long intervalMs, SequenceContext ctx) {
+        int total = locs.size();
+        if (total == 0) return;
+        if (ticks <= 1 || total == 1) {
+            for (Location loc : locs)
+                spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, dustSize, ctx);
+            return;
+        }
+        for (int i = 0; i < total; i++) {
+            long delay = (long) ((double) i / (total - 1) * (ticks - 1) * intervalMs);
+            Location loc = locs.get(i);
+            if (delay == 0) {
+                spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, dustSize, ctx);
+            } else {
+                TaskAPI.atLater(loc, () ->
+                    spawnParticleAt(world, particle, loc, count, 0, 0, 0, 0, dustColor, dustSize, ctx),
+                    delay, TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
     private void spawnParticleAt(World world, Particle particle, Location loc, int count,
                                   double oX, double oY, double oZ, double speed,
                                   Color dustColor, float dustSize, SequenceContext ctx) {
-        Object data = dustColor != null ? new Particle.DustOptions(dustColor, dustSize) : null;
+        Object data = resolveParticleData(particle, dustColor, dustSize);
+        if (data == null && particle.getDataType() != Void.class) return;
+
         BiPredicate<Player, UUID> filter = ctx.getParticleFilter();
 
         if (filter != null && ctx.getSourcePlayer() != null) {
@@ -478,6 +1287,19 @@ public class SequenceExecutor {
         } else {
             world.spawnParticle(particle, loc, count, oX, oY, oZ, speed, data);
         }
+    }
+
+    private Object resolveParticleData(Particle particle, Color dustColor, float dustSize) {
+        Class<?> type = particle.getDataType();
+        if (type == Particle.DustOptions.class)              return dustColor != null ? new Particle.DustOptions(dustColor, dustSize) : null;
+        if (type == Particle.DustTransition.class)           return dustColor != null ? new Particle.DustTransition(dustColor, Color.WHITE, dustSize) : null;
+        if (type == Float.class)                             return 0.0f;
+        if (type == Integer.class)                           return 0;
+        if (type == Color.class)                             return dustColor != null ? dustColor : Color.WHITE;
+        if (type == org.bukkit.block.data.BlockData.class)   return Bukkit.createBlockData(Material.STONE);
+        if (type == org.bukkit.inventory.ItemStack.class)    return new org.bukkit.inventory.ItemStack(Material.SNOWBALL);
+        if (type == Void.class)                              return null;
+        return null;
     }
 
     private Particle parseParticle(String name) {
