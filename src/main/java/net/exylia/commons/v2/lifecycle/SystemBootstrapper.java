@@ -11,6 +11,8 @@ import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.reward.core.RewardManager;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
+import net.exylia.commons.v2.sequence.SequenceListener;
+import net.exylia.commons.v2.sequence.preview.EffectPreview;
 import net.exylia.commons.v2.ui.selector.impl.reward.action.RewardEditorActionRegistrar;
 import net.exylia.commons.v2.utils.PlayerUtils;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -65,6 +67,10 @@ public class SystemBootstrapper {
 
             DebugAPI.logLibDebug("Registering RewardEditor actions...");
             RewardEditorActionRegistrar.register(plugin);
+
+            EffectPreview.init(plugin);
+            DebugAPI.logLibDebug("Registering SequenceListener...");
+            plugin.getServer().getPluginManager().registerEvents(new SequenceListener(), plugin);
 
             DebugAPI.logLibInfo("Core systems initialized successfully");
         } catch (Exception e) {

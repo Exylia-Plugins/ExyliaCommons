@@ -3,6 +3,7 @@ package net.exylia.commons.v2.items.utils;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.items.integration.CustomItemManager;
 import net.exylia.commons.v2.items.skull.SkullParser;
+import net.exylia.commons.v2.items.snapshot.ItemSnapshot;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.skull.api.SkullAPI;
 import org.bukkit.Material;
@@ -14,6 +15,10 @@ public class ItemStackUtils {
         if (materialString == null || materialString.isEmpty()) {
             DebugAPI.logLibWarn("ItemStackUtils: Material string is null or empty, falling back to STONE");
             return new ItemStack(Material.STONE);
+        }
+
+        if (materialString.startsWith("bytes:")) {
+            return ItemSnapshot.from(materialString).toItemStack();
         }
 
         if (SkullParser.isSkullString(materialString)) {
@@ -63,6 +68,10 @@ public class ItemStackUtils {
     public static boolean isValidMaterial(String materialString) {
         if (materialString == null || materialString.isEmpty()) {
             return false;
+        }
+
+        if (materialString.startsWith("bytes:")) {
+            return true;
         }
 
         if (SkullParser.isSkullString(materialString)) {

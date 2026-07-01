@@ -7,6 +7,7 @@ import com.lunarclient.apollo.mods.impl.ModTeamView;
 import com.lunarclient.apollo.module.modsetting.ModSettingModule;
 import com.lunarclient.apollo.module.team.TeamMember;
 import com.lunarclient.apollo.module.team.TeamModule;
+import com.lunarclient.apollo.option.SimpleOption;
 import com.lunarclient.apollo.player.ApolloPlayer;
 import net.exylia.commons.v2.clientapi.team.adapter.TeamTrackerAdapter;
 import net.exylia.commons.v2.clientapi.team.model.TrackingTeam;
@@ -21,6 +22,18 @@ import java.util.List;
 import java.util.Optional;
 
 public class ApolloTeamTrackerAdapter implements TeamTrackerAdapter {
+
+    private static final SimpleOption<Boolean> APOLLO_TEAMS_OPTION;
+
+    static {
+        SimpleOption<Boolean> option;
+        try {
+            option = ModTeamView.APOLLO_TEAMS;
+        } catch (NoSuchFieldError e) {
+            option = null;
+        }
+        APOLLO_TEAMS_OPTION = option;
+    }
 
     private final TeamModule teamModule;
     private final ModSettingModule modSettingModule;
@@ -46,7 +59,9 @@ public class ApolloTeamTrackerAdapter implements TeamTrackerAdapter {
         if (apolloPlayer.isEmpty()) return;
         if (modSettingModule != null) {
             modSettingModule.getOptions().set(apolloPlayer.get(), ModTeamView.ENABLED, true);
-            modSettingModule.getOptions().set(apolloPlayer.get(), ModTeamView.APOLLO_TEAMS, true);
+            if (APOLLO_TEAMS_OPTION != null) {
+                modSettingModule.getOptions().set(apolloPlayer.get(), APOLLO_TEAMS_OPTION, true);
+            }
             modSettingModule.getOptions().set(apolloPlayer.get(), ModMarkers.ENABLED, true);
         }
     }

@@ -9,6 +9,11 @@ import org.bukkit.entity.EnderPearl;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
+
+import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -22,6 +27,7 @@ public class PlayerUtils {
     private static Cache<UUID, Set<EnderPearl>> enderPearlCache;
     private static final Map<UUID, Set<UUID>> hiddenFromViewer = new ConcurrentHashMap<>();
     private static boolean packetEventsAvailable;
+    private static Method getEnderPearlsMethod;
     @Setter
     private static BiFunction<Player, Player, Component> tabDisplayProvider;
 
@@ -31,6 +37,11 @@ public class PlayerUtils {
         enderPearlCache = Caffeine.newBuilder()
                 .expireAfterWrite(20, TimeUnit.SECONDS)
                 .build();
+        try {
+            getEnderPearlsMethod = Player.class.getMethod("getEnderPearls");
+        } catch (NoSuchMethodException ignored) {
+            getEnderPearlsMethod = null;
+        }
         plugin.getServer().getPluginManager().registerEvents(new EnderPearlListener(), plugin);
         if (instance.getServer().getPluginManager().isPluginEnabled("TAB")) {
             PlayerUtils.setTabDisplayProvider((target, viewer) -> {
@@ -73,13 +84,32 @@ public class PlayerUtils {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static void clearPlayerEnderPearls(Player player) {
-        Set<EnderPearl> pearls = enderPearlCache.getIfPresent(player.getUniqueId());
-        if (pearls == null) return;
-        for (EnderPearl pearl : pearls) {
-            if (pearl.isValid() && !pearl.isDead()) pearl.remove();
+        int nativeCount = 0;
+        if (getEnderPearlsMethod != null) {
+            try {
+                Collection<EnderPearl> pearls = (Collection<EnderPearl>) getEnderPearlsMethod.invoke(player);
+                nativeCount = pearls.size();
+                pearls.forEach(EnderPearl::remove);
+            } catch (Exception ignored) {}
         }
-        enderPearlCache.invalidate(player.getUniqueId());
+        int cacheCount = 0;
+        Set<EnderPearl> cached = enderPearlCache.getIfPresent(player.getUniqueId());
+        if (cached != null) {
+            for (EnderPearl pearl : cached) {
+                if (!pearl.isDead()) {
+                    if (!pearl.getLocation().getChunk().isLoaded()) {
+                        pearl.getLocation().getChunk().load();
+                    }
+                    pearl.remove();
+                    cacheCount++;
+                }
+            }
+            enderPearlCache.invalidate(player.getUniqueId());
+        }
+        DebugAPI.logLibDebug(DebugCategory.GENERAL, "Cleared " + (nativeCount + cacheCount) + " ender pearl(s) for " + player.getName()
+                + " (native=" + nativeCount + ", cache=" + cacheCount + ")");
     }
 
     public static void hidePlayer(Player viewer, Player target) {

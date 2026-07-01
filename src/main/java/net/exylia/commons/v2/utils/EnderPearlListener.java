@@ -28,7 +28,9 @@ class EnderPearlListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        PlayerUtils.clearPlayerSession(event.getPlayer().getUniqueId());
+        Player player = event.getPlayer();
+        PlayerUtils.clearPlayerEnderPearls(player);
+        PlayerUtils.clearPlayerSession(player.getUniqueId());
     }
 
 

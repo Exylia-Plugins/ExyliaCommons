@@ -104,6 +104,30 @@ public final class ItemSnapshot {
         return serialized;
     }
 
+    public String toDisplayLabel() {
+        if (serialized.startsWith(BYTES_PREFIX)) {
+            try {
+                byte[] bytes = Base64.getDecoder().decode(serialized.substring(BYTES_PREFIX.length()));
+                ItemStack item = ItemStack.deserializeBytes(bytes);
+                return item.getType().name();
+            } catch (Exception e) {
+                return "UNKNOWN";
+            }
+        }
+        if (serialized.startsWith("urlhead:") || serialized.startsWith("basehead:")) {
+            return "CUSTOM_HEAD";
+        }
+        if (serialized.startsWith("playerhead:")) {
+            return "PLAYER_HEAD:" + serialized.substring(11);
+        }
+        return serialized;
+    }
+
+    public static String displayLabel(String iconMaterial) {
+        if (iconMaterial == null || iconMaterial.isEmpty()) return "NONE";
+        return ItemSnapshot.from(iconMaterial).toDisplayLabel();
+    }
+
     @Override
     public String toString() {
         return serialized;

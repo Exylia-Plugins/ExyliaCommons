@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.database.serialization.Deserializer;
 import net.exylia.commons.v2.database.serialization.Serializer;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
 public class SelectionSerializer implements Serializer<Selection> {
@@ -53,8 +52,8 @@ class SelectionDeserializer implements Deserializer<Selection> {
             double y2 = json.get("y2").getAsDouble();
             double z2 = json.get("z2").getAsDouble();
 
-            Location pos1 = new Location(Bukkit.getWorld(worldName), x1, y1, z1);
-            Location pos2 = new Location(Bukkit.getWorld(worldName), x2, y2, z2);
+            Location pos1 = new Location(WorldResolver.find(worldName), x1, y1, z1);
+            Location pos2 = new Location(WorldResolver.find(worldName), x2, y2, z2);
 
             return Selection.of(pos1, pos2);
         } catch (Exception e) {
