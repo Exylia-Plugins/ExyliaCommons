@@ -49,6 +49,14 @@ public class PlaceholderContext {
         return this;
     }
 
+    public PlaceholderContext addNumeric(String key, double delta) {
+        if (key == null) return this;
+        Object existing = keyedData.get(key);
+        double current = existing instanceof Number number ? number.doubleValue() : 0.0;
+        keyedData.put(key, current + delta);
+        return this;
+    }
+
     public PlaceholderContext withPlayer(Player player) {
         this.player = player;
         if (player != null) {

@@ -89,7 +89,13 @@ public class RedisCacheStrategy implements CacheStrategy<CacheKey, Object> {
     public void put(CacheKey key, Object value) {
         if (value == null) return;
         localCache.put(key, value);
+        // writeToRedis blocks until the SETEX lands, so peers that receive the
+        // invalidate below and immediately re-fetch from L2 are guaranteed to see
+        // this value, not the one it replaced (write-behind saves call put() on
+        // every mutation, so this is the only cross-server signal for fresh data
+        // until the buffered DB flush eventually runs invalidateAll()).
         writeToRedis(toRedisKey(key), key, value);
+        bus.publishInvalidate(key);
     }
 
     @Override

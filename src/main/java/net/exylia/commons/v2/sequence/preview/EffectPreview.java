@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 public final class EffectPreview {
 
@@ -50,26 +50,32 @@ public final class EffectPreview {
     }
 
     public static void play(Player player, List<String> effects, Runnable onComplete) {
-        Consumer<Location> runner = loc -> {
+        BiConsumer<Player, Location> runner = (viewer, loc) -> {
             SequenceContext ctx = SequenceContext.builder()
                     .location(loc)
-                    .sourcePlayer(player)
-                    .particleFilter((observer, srcId) -> observer.getUniqueId().equals(player.getUniqueId()))
+                    .sourcePlayer(viewer)
+                    .particleFilter((observer, srcId) -> observer.getUniqueId().equals(viewer.getUniqueId()))
                     .build();
             SequenceAPI.execute(ctx, effects);
         };
         playInternal(player, runner, estimateDelayMs(effects), onComplete);
     }
 
-    public static void play(Player player, Consumer<Location> effectRunner, Runnable onComplete) {
+    /**
+     * The runner receives the previewing player alongside the location. Effect implementations
+     * MUST scope any particles/sounds/entities to that player only (e.g. via Player#spawnParticle,
+     * Player#playSound, or by hiding spawned entities from everyone else) instead of broadcasting
+     * through World-level APIs, or bystanders will see the preview.
+     */
+    public static void play(Player player, BiConsumer<Player, Location> effectRunner, Runnable onComplete) {
         playInternal(player, effectRunner, 0L, onComplete);
     }
 
-    public static void play(Player player, Consumer<Location> effectRunner, long durationMs, Runnable onComplete) {
+    public static void play(Player player, BiConsumer<Player, Location> effectRunner, long durationMs, Runnable onComplete) {
         playInternal(player, effectRunner, durationMs, onComplete);
     }
 
-    private static void playInternal(Player player, Consumer<Location> effectRunner, long effectDurationMs, Runnable onComplete) {
+    private static void playInternal(Player player, BiConsumer<Player, Location> effectRunner, long effectDurationMs, Runnable onComplete) {
         if (FROZEN_PLAYERS.contains(player.getUniqueId())) return;
         player.closeInventory();
 
@@ -88,7 +94,7 @@ public final class EffectPreview {
 
         TaskAPI.atLater(previewLoc, () -> {
             dummy.die();
-            effectRunner.accept(previewLoc);
+            effectRunner.accept(player, previewLoc);
         }, DUMMY_DEATH_DELAY_MS, TimeUnit.MILLISECONDS);
 
         long totalDelay = DUMMY_DEATH_DELAY_MS + effectDurationMs + EXTRA_MS;

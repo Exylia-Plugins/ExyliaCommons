@@ -70,10 +70,10 @@ public class SnapshotStore {
                 Tasks.runOnEntity(player, () -> {
                     if (!player.isOnline()) return;
                     if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
-                    Tasks.dbRun(() -> repo.delete(record));
-                    restoreGeneration.remove(uuid);
                     record.getSnapshot().applyToPlayer(player);
                     if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
+                    restoreGeneration.remove(uuid);
+                    Tasks.dbRun(() -> repo.delete(record));
                 });
             });
     }
@@ -83,12 +83,12 @@ public class SnapshotStore {
         Optional<PlayerStateRecord> opt = repo.findById(uuid.toString());
         if (opt.isPresent()) {
             PlayerStateRecord record = opt.get();
-            repo.delete(record);
-            restoreGeneration.remove(uuid);
             if (player.isOnline()) {
                 record.getSnapshot().applyToPlayer(player);
                 if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
             }
+            repo.delete(record);
+            restoreGeneration.remove(uuid);
         }
     }
 
@@ -104,10 +104,10 @@ public class SnapshotStore {
                 Tasks.runOnEntity(player, () -> {
                     if (!player.isOnline()) return;
                     if (restoreGeneration.getOrDefault(uuid, 0L) != gen) return;
-                    Tasks.dbRun(() -> repo.delete(record));
-                    restoreGeneration.remove(uuid);
                     record.getSnapshot().applyToPlayer(player);
                     if (teleportCallback != null) teleportCallback.accept(record.getLastLocation());
+                    restoreGeneration.remove(uuid);
+                    Tasks.dbRun(() -> repo.delete(record));
                 });
             });
     }

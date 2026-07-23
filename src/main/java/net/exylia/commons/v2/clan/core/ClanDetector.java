@@ -11,7 +11,6 @@ public class ClanDetector {
     private static final String FCTIONS_UUID = "Factions";
     private static final String HUSK_TOWNS = "HuskTowns";
     private static final String ZEL_TEAMS = "ZelTeams";
-    private static final String ZENTRI_TEAMS = "ZentriTeams";
     private static final String RUNITH_CLANS = "RunithClans";
     private static final String ULTIMATE_CLANS = "UltimateClans";
     private static final String SIMPLE_CLANS = "SimpleClans";
@@ -41,11 +40,6 @@ public class ClanDetector {
 
         if (isPluginAvailable(ZEL_TEAMS)) {
             detected = tryCreate("ZelTeams", ZelTeamsProvider::new);
-            if (detected != null) return detected;
-        }
-
-        if (isPluginAvailable(ZENTRI_TEAMS)) {
-            detected = tryCreate("ZentriTeams", ZentriTeamsProvider::new);
             if (detected != null) return detected;
         }
 
@@ -108,7 +102,6 @@ public class ClanDetector {
         return isPluginAvailable(FCTIONS_UUID)
                 || isPluginAvailable(HUSK_TOWNS)
                 || isPluginAvailable(ZEL_TEAMS)
-                || isPluginAvailable(ZENTRI_TEAMS)
                 || isPluginAvailable(RUNITH_CLANS)
                 || isPluginAvailable(ULTIMATE_CLANS)
                 || isPluginAvailable(SIMPLE_CLANS)

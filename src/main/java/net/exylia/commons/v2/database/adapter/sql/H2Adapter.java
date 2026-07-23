@@ -177,6 +177,12 @@ public class H2Adapter extends SQLAdapter {
         T entity = entityClass.getDeclaredConstructor().newInstance();
         for (FieldDescriptor field : metadata.getFields()) {
             Object value = rs.getObject(field.getColumnName());
+            // TEXT/CLOB columns (any non-primitive field type, e.g. serialized objects)
+            // come back as java.sql.Clob here instead of String, which blows up the
+            // reflective field.set() below with an IllegalArgumentException.
+            if (value instanceof java.sql.Clob clob) {
+                value = clob.getSubString(1, (int) clob.length());
+            }
             if (value != null) {
                 field.setValue(entity, value);
             }
