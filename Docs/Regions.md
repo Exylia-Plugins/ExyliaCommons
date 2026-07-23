@@ -10,13 +10,17 @@ member-only areas, event arenas, and any location-based rule.
 
 | Class | File | Role |
 |-------|------|------|
-| `RegionAPI` | `v2/region/api/RegionAPI.java` | Static facade |
-| `RegionManager` | `v2/region/...` | Singleton lifecycle, registry, queries |
-| `RegionBuilder` | `v2/region/...` | Fluent construction + presets |
-| region events | `v2/region/event/...` | Enter/exit/etc. (cancellable) |
+| `RegionAPI` | `v2/region/api/RegionAPI.java` | Singleton facade (instance methods via `getInstance()`) |
+| `RegionManager` | `v2/region/core/...` | Registry, queries |
+| `RegionBuilder` | `v2/region/api/RegionBuilder.java` | Fluent construction + presets |
+| `Region` / `RegionFlag` / `RegionPriority` | `v2/region/model/...` | Model + flags |
 | `RegionCallback` | `v2/region/...` | onEnter/onExit hooks |
-| selection | `v2/region/selection/...` | `SelectionManager`, `Selection`, wands |
-| schematic | `v2/region/schematic/...` | `SchematicType`, WE/FAWE integration |
+| selection | `v2/region/selection/...` | `SelectionSession`, `Selection`, wands |
+| schematic | `v2/region/schematic/...` | `SchematicManager`, WE/FAWE integration |
+
+> **`RegionAPI` is a singleton with instance methods**, not a pure static facade. Only
+> `initialize`, `getInstance`, and `isInitialized` are static; everything else is called on
+> `RegionAPI.getInstance()`.
 
 ## Purpose
 
@@ -26,33 +30,67 @@ plugins don't reimplement region tracking.
 
 ## Initialization (opt-in)
 
-`RegionAPI.initialize(plugin)` / `RegionManager.initialize` must be called explicitly (it is
-**not** bootstrapped). Call it in `onExyliaEnable` and `cleanup()` in `onExyliaDisable`.
-`RegionManager.getInstance()` throws `IllegalStateException` if used before init.
+`RegionAPI.initialize(plugin)` must be called explicitly (it is **not** bootstrapped).
+`RegionAPI.getInstance()` throws `IllegalStateException` if used before init.
 
 ```java
-@Override protected void onExyliaEnable()  { RegionAPI.initialize(this); }
-@Override protected void onExyliaDisable() { RegionManager.getInstance().cleanup(); }
+@Override protected void onExyliaEnable() { RegionAPI.initialize(this); }
+```
+
+## Public API (selected, all on `RegionAPI.getInstance()`)
+
+```java
+RegionBuilder createRegion(String id);
+boolean registerRegion(Region region);   boolean unregisterRegion(String regionId);
+Optional<Region> getRegion(String regionId);   Collection<Region> getAllRegions();
+List<Region> getRegionsAt(Location location);
+Optional<Region> getHighestPriorityRegionAt(Location location);
+Set<Region> getPlayerRegions(Player player);
+boolean isPlayerInRegion(Player player, Region region);   boolean isPlayerInAnyRegion(Player player);
+
+// Selection / wands
+SelectionSession showSelector(Player player, Region region [, Color color]);
+ItemStack giveWand(Player player);   ItemStack createWand([String selectionId]);   boolean isWand(ItemStack item);
+Optional<Selection> getPlayerSelection(Player player);
+void setSelectionPos1(Player, Location);   void setSelectionPos2(Player, Location);
+void setSelectionCallback(Player, Consumer<Selection>);   void clearPlayerSelection(Player);
+Region createRegionFromSelection(String regionId, Player player);
+SchematicManager getSchematicManager();
 ```
 
 ## Defining Regions
 
-Build regions with `RegionBuilder`, including presets like `safeZone` and `membersOnly`:
+Build with `RegionAPI.getInstance().createRegion(id)`. The builder offers **no-arg preset
+methods** (`safeZone()`, `membersOnly()`, `playerBuildOnly()`) plus flags, owners/members,
+priority, and enter/exit callbacks. Build via `.build()`, then register:
 
 ```java
-Region hub = RegionBuilder.safeZone("hub", corner1, corner2)
-    .onEnter(ctx -> VisualAPIsWelcome(ctx.getPlayer()))
-    .onExit(ctx -> {})
+RegionAPI regions = RegionAPI.getInstance();
+
+Region hub = regions.createRegion("hub")
+    .selection(corner1, corner2)          // or .selection(Selection)
+    .safeZone()                           // preset (no args)
+    .displayName("&aHub")
+    .priority(RegionPriority.HIGH)
+    .flag(RegionFlag.PVP, false)
+    .onEnter(ctx -> { /* ... */ })
+    .onExit(ctx -> { /* ... */ })
     .build();
-RegionAPI.register(hub);
+
+regions.registerRegion(hub);
 ```
+
+Available builder methods include: `selection`, `displayName`, `description`, `priority`,
+`flag(RegionFlag, boolean | RegionFlagState)`, `owners(UUID...)`, `members(UUID...)`,
+`metadata(key, value)`, `allowedBlocks`, `breakableBlocks`, `onEnter`, `onExit`,
+`temporaryBlocks`/`temporaryBlocksSeconds`, and the presets `safeZone()`, `membersOnly()`,
+`playerBuildOnly()`.
 
 ## Events & Access Control
 
-Six region events are provided (enter/exit/etc.), and the **pre-events are cancellable** — use
-them to implement custom access control. `RegionCallback` provides `onEnter`/`onExit` hooks for
-side effects. Region actions integrate with the [Action](Actions.md) subsystem
-(`ActionSource.REGION`).
+Region events are provided (enter/exit and related), and **pre-events are cancellable** — use them
+for custom access control. `RegionCallback` provides `onEnter`/`onExit` hooks for side effects.
+Region actions integrate with the [Action](Actions.md) subsystem (`ActionSource.REGION`).
 
 ## Schematics (optional)
 
@@ -70,15 +108,17 @@ without them, but schematic features require them.
 
 ## Best Practices
 
-- `initialize` in `onEnable`, `cleanup()` in `onDisable`.
-- Use `RegionBuilder` presets (`safeZone`, `membersOnly`) for common cases.
+- `initialize` in `onExyliaEnable`.
+- Use the builder presets (`safeZone()`, `membersOnly()`, `playerBuildOnly()`) for common cases.
 - Use the **cancellable pre-events** for custom access control rather than polling.
+- Use `createRegionFromSelection` + the wand flow for admin-driven region creation.
 - Ship WorldEdit/FAWE only if you use `.schem` features.
 
 ## Common Mistakes
 
-- Using `RegionManager.getInstance()` before `initialize()` → `IllegalStateException`.
-- Forgetting `cleanup()` on disable.
+- Calling instance methods statically — only `initialize`/`getInstance`/`isInitialized` are static;
+  the rest are on `RegionAPI.getInstance()`.
+- Using `RegionAPI.getInstance()` before `initialize()` → `IllegalStateException`.
 - Expecting schematic features without WorldEdit/FAWE installed.
 
 ## Extension Points

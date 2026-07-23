@@ -30,68 +30,103 @@ pipeline provides all of that so each subsystem doesn't reinvent it.
 `ActionAPI.initialize(plugin)` is called **automatically** during bootstrap. Built-in
 reward-editor actions are registered afterward by `RewardEditorActionRegistrar.register(plugin)`.
 
-## Important: Action tokens vs Sequence tokens
+> `ActionAPI.initialize` is a **no-op if already initialized** (it does not throw, unlike
+> `CommandManager`). `ActionAPI.getManager()`/pipeline access throws `IllegalStateException` if
+> used before init.
 
-> The `[COMMAND]`, `[MESSAGE]`, `[SOUND]` bracket tokens you see in effect YAML belong to the
-> **[Sequence](Sequence.md)** engine, **not** the action subsystem. The action subsystem executes
-> **actions** (e.g. `[open_menu]`, custom registered IDs) through its pipeline. This is the single
-> most common conceptual mix-up in ExyliaCommons.
+## Important: Action strings vs Sequence tokens
+
+> The `[COMMAND]` / `[SOUND]` bracket tokens you see in effect YAML belong to the
+> **[Sequence](Sequence.md)** engine, **not** the action subsystem. (There is **no `[MESSAGE]`
+> token** anywhere — neither in the sequence engine nor as a built-in action.) The action
+> subsystem executes **actions** identified by their registered id (optionally namespaced),
+> parsed from an action string via `ActionAPI.execute(actionString, ActionContext)`. This is the
+> single most common conceptual mix-up in ExyliaCommons.
+
+## Public API (`ActionAPI`, static)
+
+```java
+void initialize(JavaPlugin plugin);   boolean isInitialized();
+
+ActionBuilder create(String id [, JavaPlugin owner]);              // fluent action definition
+ActionChainBuilder createChain(String id [, JavaPlugin owner]);    // chained actions
+
+CompletableFuture<ActionResult> executeAsync(String actionString, ActionContext context);
+ActionResult execute(String actionString, ActionContext context);
+
+void register(Action action);   CompletableFuture<Void> registerAsync(Action action);
+Optional<Action> get(String id);   Collection<Action> getAll();   Collection<Action> getAllByNamespace(String namespace);
+void unregister(String actionId, JavaPlugin owner);   void unregisterAll(JavaPlugin owner);
+void reload();   void shutdown();   ActionStats getStats();   ActionManager getManager();
+```
 
 ## Execution Pipeline
 
-`ActionExecutor.executeAsync` runs the whole pipeline inside `Tasks.run(...)`. Stage order
-(`ActionPipeline.execute`):
+The pipeline runs asynchronously. `PipelineStage` has exactly **four** stages
+(`v2/action/pipeline/PipelineStage.java`): `PRE_VALIDATE`, `PRE_EXECUTE`, `POST_EXECUTE`, `ERROR`.
 
-```
-PRE_VALIDATE → action.canExecute() → PRE_EXECUTE → action.executeDirect() → POST_EXECUTE
-                                                                          (exception → ERROR)
-```
-
-- On exception, the pipeline enters the `ERROR` stage and returns `ActionResult.failure`.
+- Permission, cooldown, and rate-limit are **middlewares registered on `PRE_EXECUTE`** (by
+  `ActionManager.initializeDefaultMiddlewares`), not separate stages.
+- On exception, the pipeline enters the `ERROR` stage and returns an `ActionResult.failure`.
 - `ActionException.isExpected()` distinguishes **blocked** (cooldown/permission) from **real
   errors**, so blocked actions are not logged as errors.
-- `SyncAction` vs `AsyncAction` determines the thread affinity of the handler.
+- Whether an action runs sync or async is chosen on the builder (`.sync()` / `.async()` /
+  `.mode(ExecutionMode)`).
 
 ## Registering Custom Actions
 
-Implement an `Action` (`SyncAction` or `AsyncAction`) and register it with an owner plugin so it
-can be cleanly unregistered on disable:
+Define an action with the fluent `ActionBuilder` (via `ActionAPI.create`) and register it. Pass an
+owner plugin so it can be cleanly unregistered on disable.
 
 ```java
-ActionAPI.register(owningPlugin, new MyAction("do_thing"));
+Action action = ActionAPI.create("do_thing", this)   // this = owning JavaPlugin
+    .namespace("myplugin")                            // avoid id collisions
+    .async()                                          // run handler off-thread (IO-safe)
+    .permission("myplugin.do")
+    .cooldownMillis(500)
+    .handler((ctx, args) -> { /* perform the action */ })
+    .build();
+
+ActionAPI.register(action);
 // ...
-ActionAPI.unregisterAll(owningPlugin); // on disable
+ActionAPI.unregisterAll(this); // on disable
 ```
 
-Use **namespacing** to avoid simple-ID collisions across plugins.
+Execute an action string against a context:
+
+```java
+ActionAPI.executeAsync("myplugin:do_thing arg1 arg2", context)
+    .thenAccept(result -> { /* handle ActionResult */ });
+```
 
 ## Extension Points
 
-- **Middleware**: `ActionPipeline.registerMiddleware(stage, middleware)` for cross-cutting
-  concerns (metrics, extra validation).
-- **PermissionProvider**: custom permission resolution.
-- **RateLimiter**: custom cooldown/rate-limiting.
-- **Custom `Action` implementations**: the core extension mechanism.
+- **`ActionBuilder`** configuration: `namespace`, `permission`, `cooldown`/`cooldownMillis`,
+  `rateLimit`, `auditable`, `priority`, `alias`/`aliases`, `sync`/`async`/`mode`, `handler`.
+- **`ActionChainBuilder`** for multi-step chained actions.
+- Custom `Action` implementations registered via `register`.
 
 ## Threading Considerations
 
-- The pipeline runs via the task system; `SyncAction` handlers run on the sync thread,
-  `AsyncAction` handlers on async pools.
-- Put IO in `AsyncAction`s; keep `SyncAction`s to Bukkit-touching, fast work.
+- The pipeline runs off-thread; `.sync()` actions run on the sync thread, `.async()` actions on
+  async pools.
+- Put IO in `.async()` actions; keep `.sync()` actions to fast, Bukkit-touching work.
 
 ## Best Practices
 
-- Always pass a `JavaPlugin owner` on registration so `unregisterAll` cleans up on disable.
-- **Namespace** action IDs to avoid collisions.
-- Put IO in `async()` actions; keep sync actions minimal.
-- Use middleware / custom `PermissionProvider` / `RateLimiter` for cross-cutting logic instead of
-  inlining it in each action.
+- Always pass a `JavaPlugin owner` (via `create(id, owner)` or `.plugin(...)`) so `unregisterAll`
+  cleans up on disable.
+- **Namespace** action ids to avoid collisions.
+- Use `.async()` for IO; keep sync actions minimal.
+- Use builder-level `permission`/`cooldown`/`rateLimit`/`auditable` instead of inlining those
+  concerns in the handler.
 
 ## Common Mistakes
 
-- Confusing action tokens with [Sequence](Sequence.md) `[COMMAND]`/`[MESSAGE]`/`[SOUND]`.
+- Confusing action strings with the [Sequence](Sequence.md) `[COMMAND]`/`[SOUND]` tokens.
+- Assuming a `[MESSAGE]` token or action exists — it does not.
 - Registering without an owner plugin → no clean unregistration path.
-- Doing blocking IO in a `SyncAction`.
+- Doing blocking IO in a `.sync()` action.
 
 ## Relationship With Other Systems
 
@@ -99,4 +134,4 @@ Use **namespacing** to avoid simple-ID collisions across plugins.
   (`ActionSource.REGION`/`ITEM_*`), and the reward-editor UI.
 - Can execute commands via [CommandAPI](Commands.md).
 - Resolves [Placeholders](Placeholders.md).
-- Reloaded via the [Reload](Reload.md) system (`ActionAdapter`).
+- Reloaded via the [Reload](Reload.md) system (`ActionAdapter`, registered as `"ActionManager"`).

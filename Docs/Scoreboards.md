@@ -11,7 +11,9 @@ support, interval-based updates, smart line/title diffing, and optional TAB inte
 |-------|------|------|
 | `ScoreboardAPI` | `v2/scoreboard/api/ScoreboardAPI.java` | Static facade |
 | `ScoreboardManager` | `v2/scoreboard/...` | Singleton lifecycle, per-player boards |
-| serializers | `v2/scoreboard/config/serializer/...` | YAML ↔ scoreboard model |
+| `ScoreboardBuilder` | `v2/scoreboard/builder/ScoreboardBuilder.java` | Programmatic scoreboards |
+| `ScoreboardLoader` | `v2/scoreboard/config/...` | YAML → scoreboard model |
+| `ScoreboardInstance` | `v2/scoreboard/...` | A live per-player board |
 | exceptions | `v2/scoreboard/exception/...` | `ScoreboardException`, `ScoreboardLimitException`, `ScoreboardRenderException` |
 
 ## Purpose
@@ -36,28 +38,53 @@ protected void onExyliaEnable() {
 
 ## YAML Format
 
-A scoreboard defines a title and a list of lines. Lines may contain placeholders and color
-presets, and the board can specify an update interval. Lines are limited (**more than 15 lines
-throws**).
+A scoreboard defines a `title`, a `lines` list, and a nested `update:` section. Text may contain
+placeholders and color presets. Lines are limited: **an empty `lines`, a missing `title`, or more
+than 15 lines throws `IllegalArgumentException`** (not a scoreboard-specific exception). The
+verbatim message for the line cap is `"Scoreboard cannot have more than 15 lines"`.
+
+This is the shipped `scoreboard/example.yml`, which is the authoritative key set:
 
 ```yaml
-title: "{primary}&lMY SERVER"
-update-interval: 20
+title: "&6&lMi Servidor"
+enabled: true
 lines:
-  - "{muted}&m----------------"
-  - "Player: {highlight}%player_name%"
-  - "Rank: {accent}%vault_rank%"
-  - "Online: {success}%server_online%"
-  - "{muted}&m----------------"
+  - "&7-----------------"
+  - "&eJugadores: &f%online%"
+  - "&eDinero: &f$%money%"
+  - "&7-----------------"
+update:
+  interval: 20      # ticks
+  smart: true       # smart updates (diff lines/title, only rewrite changes)
+  cache: true       # cache enabled
 ```
 
-(See the shipped `scoreboard/example.yml` for the authoritative key set.)
+> The update interval is **nested** under `update.interval` (not a top-level `update-interval`).
 
 ## Usage
 
-Show, update, hide, and swap boards through `ScoreboardAPI` (per-player). Placeholder and color
-computation runs off-thread; line/title diffing minimizes packets so only changed lines are
-rewritten. Errors during rendering are wrapped in `ScoreboardRenderException`.
+`ScoreboardAPI` (static) API:
+
+```java
+void initialize(Plugin plugin);
+ScoreboardBuilder builder();
+Scoreboard load(ConfigurationSection section);
+CompletableFuture<String> show(Player player, Scoreboard scoreboard [, PlaceholderContext context]);
+boolean hide(Player player);   boolean has(Player player);
+Optional<ScoreboardInstance> get(Player player);
+void updateContext(Player player, PlaceholderContext context);
+void forceUpdate(Player player);
+void hideAll();   int getActiveCount();   ScoreboardStats getStats();
+```
+
+```java
+Scoreboard board = ScoreboardAPI.load(Configs.get("scoreboard").section("."));
+ScoreboardAPI.show(player, board);
+```
+
+`show` returns a `CompletableFuture<String>` (the board id). Placeholder and color computation runs
+off-thread; line/title diffing minimizes packets so only changed lines are rewritten. Errors during
+rendering are wrapped in `ScoreboardRenderException`.
 
 ## Lifecycle
 
@@ -74,13 +101,13 @@ rewritten. Errors during rendering are wrapped in `ScoreboardRenderException`.
 
 ## Configuration
 
-- Scoreboard `.yml` files (e.g. `scoreboard/example.yml`), with `title`, `lines`, and
-  `update-interval`.
+- Scoreboard `.yml` files (e.g. `scoreboard/example.yml`) with `title`, `lines`, `enabled`, and a
+  nested `update:` section (`interval`, `smart`, `cache`).
 
 ## Best Practices
 
-- Keep line count within limits (≤15) and use `update-interval` sensibly (frequent updates cost
-  packets).
+- Keep line count within limits (≤15) and use `update.interval` sensibly (frequent updates cost
+  packets); enable `update.smart` and `update.cache`.
 - Use placeholders + color presets for dynamic, themed content.
 - Let the listener handle world-change reinit; do not manually recreate boards on respawn (double
   schedules).
@@ -89,7 +116,9 @@ rewritten. Errors during rendering are wrapped in `ScoreboardRenderException`.
 ## Common Mistakes
 
 - Forgetting `ScoreboardAPI.initialize(plugin)` (not auto-initialized) → `IllegalStateException`.
-- Exceeding 15 lines → throws.
+- Using a top-level `update-interval` — the key is nested `update.interval`.
+- Empty `lines`, missing `title`, or >15 lines → `IllegalArgumentException` (not
+  `ScoreboardLimitException`).
 - Manually recreating boards on world change/respawn — the listener already handles it.
 
 ## Relationship With Other Systems

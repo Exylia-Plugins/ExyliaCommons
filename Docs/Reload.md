@@ -71,24 +71,39 @@ ReloadAPI.getInstance().reloadAll(sender)
 
 The recommended place for a consuming plugin to do its **own** reload work (especially anything
 that touches the Bukkit API) is the `onReload(ReloadContext)` hook on `ExyliaPlugin` — it runs on
-the sync thread, unlike adapter `performReload()` which runs async. Use `ReloadContext.put/get` to
-pass computed state from an adapter into the hook.
+the sync thread, unlike adapter `performReload()` which runs async. `ReloadContext` exposes
+`put(String key, Object value)`, `<T> Optional<T> get(String key, Class<T> type)`,
+`boolean wasReloaded(String systemName)`, and `markReloaded(...)`. Use `put`/`get` to pass computed
+state from an adapter into the hook, and `wasReloaded(...)` to check whether a given system was
+reloaded in this pass.
 
 ## Priority & Ordering
 
-Systems declare a `ReloadPriority`. The engine reloads in ascending priority order so dependencies
-come first:
+Systems declare a `ReloadPriority`. The engine reloads in ascending priority order (lower numeric
+weight first) so dependencies come first. The enum weights (`v2/reload/core/ReloadPriority.java`)
+are `CRITICAL(0)`, `HIGH(100)`, `NORMAL(200)`, `LOW(300)`, `CLEANUP(1000)`.
 
-| Priority | Examples |
-|----------|----------|
-| `CRITICAL` | Config, ConfigSchema, ConfigSystem, DebugConfig |
-| `HIGH` | Messages |
-| `NORMAL` | Clan, database caches, most managers |
-| `LOW` | FormatterRegistry |
+Built-in adapters and their priorities:
 
-**Critical short-circuit:** in `executeReloadAll`, if a `CRITICAL` system's metrics are not
-successful — or an exception is thrown during its reload — the loop **breaks** and remaining
-systems are **not** reloaded. Non-critical failures are recorded but the pass continues.
+| Priority | Built-in systems |
+|----------|------------------|
+| `CRITICAL` | `Config` |
+| `HIGH` | `Messages`, `DatabaseV2`, `Redis` |
+| `NORMAL` | `ConfigSchema`, `ConfigSystem`, `DebugConfig`, `ClanManager`, `ScoreboardManager`, `HologramManager`, `ActionManager`, `RegionManager`, `PlaceholderSystem`, `CommandManager`, `RewardManager`, `SkullManager`, `VisualManager`, `ColorPresetManager`, `ColorSystem`, `DiscordWebhooks` (each set by its adapter) |
+| `LOW` | `FormatterRegistry` |
+
+> The full registered set (keys) is: `Config`, `ConfigSchema`, `ConfigSystem`, `DebugConfig`,
+> `Messages`, `DatabaseV2`, `Redis`, `ClanManager`, `ScoreboardManager`, `HologramManager`,
+> `ActionManager`, `RegionManager`, `PlaceholderSystem`, `CommandManager`, `RewardManager`,
+> `SkullManager`, `VisualManager`, `ColorPresetManager`, `FormatterRegistry`, `ColorSystem`,
+> `DiscordWebhooks`. (Combat, Economy, Teleport, and Channel are **not** in the default set.)
+
+**Critical short-circuit is by `isCritical()`, NOT by priority.** In `executeReloadAll`, if a
+system whose **`isCritical()` returns `true`** fails (or throws during reload), the loop **breaks**
+and remaining systems are **not** reloaded. `isCritical()` defaults to `false` and is independent
+of `ReloadPriority` — a system may have `CRITICAL` priority yet not be short-circuit-critical.
+Among the built-ins, **only `Config`** overrides `isCritical()` to `true`. Non-critical failures
+are recorded but the pass continues.
 
 ## Per-System Timeout
 
@@ -98,21 +113,32 @@ Each system's reload is bounded by `ReloadOrchestrator.executeReload` using
 
 ## Writing a Custom Reloadable System
 
-Extend `ReloadableSystemAdapter` — it runs `performCacheClear()` then `performReload()` on a
-`CompletableFuture.supplyAsync`, wrapping into success/failure metrics:
+Extend `ReloadableSystemAdapter`. Its constructor takes **`(String name, ReloadPriority
+priority)`** (pass them via `super(...)`); `getName()`/`getPriority()` are already implemented —
+do **not** re-implement them. `reload(...)` runs `performCacheClear()` then `performReload()` on a
+`CompletableFuture.supplyAsync`, wrapping into success/failure metrics. You implement the two
+abstract `protected` methods and may override the interface defaults `isAvailable()`,
+`getTimeoutSeconds()`, and `isCritical()`.
 
 ```java
 public class ShopReloadAdapter extends ReloadableSystemAdapter {
-    @Override public String getName() { return "Shops"; }
+    public ShopReloadAdapter() {
+        super("Shops", ReloadPriority.NORMAL);          // name + priority via super
+    }
     @Override public boolean isAvailable() { return ShopManager.isInitialized(); }
-    @Override protected void performCacheClear() { ShopManager.get().clearCache(); }
-    @Override protected void performReload() throws Exception { ShopManager.get().loadFromConfig(); }
-    // optionally override getPriority() and getTimeoutSeconds()
+    @Override protected void performCacheClear() throws Exception { ShopManager.get().clearCache(); }
+    @Override protected void performReload()     throws Exception { ShopManager.get().loadFromConfig(); }
+    // optionally: @Override public long getTimeoutSeconds() { return 15L; }
+    // optionally: @Override public boolean isCritical() { return true; } // abort remainder on failure
 }
 
 // Register (e.g. in onExyliaEnable):
 ReloadAPI.getInstance().registerReloadable("Shops", new ShopReloadAdapter());
 ```
+
+> The name you register under (`registerReloadable("Shops", ...)`) is the **map key**; the
+> adapter's own `getName()` (from `super("Shops", ...)`) should match it. Registering with a key
+> that collides with a built-in silently overwrites that built-in.
 
 > **`performReload()` runs async** — do **not** touch the Bukkit API there. Do Bukkit-thread work
 > in `ExyliaPlugin.onReload` (sync) instead.

@@ -164,16 +164,18 @@ On open, the player's inventory is saved; on close it is restored. This uses the
 ## Threading Considerations
 
 - **Inventory writes must be synchronous** (main/region thread). Only item *processing*
-  (placeholders, skull fetch) is async.
-- Prefer `openAsync`/`processAsync`; the framework performs the sync display step for you.
+  (placeholders, skull fetch) is async — done internally via `ItemsAPI.processAsync`.
+- Prefer `MenuAPI.openAsync`; the framework performs the sync display step for you. (`MenuAPI` has
+  no `processAsync` method — item processing is an `ItemsAPI` concern.)
 - Never mutate an inventory or `ItemStack` off the main thread.
 
 ## Best Practices
 
-- Prefer `openAsync`/`processAsync` and let the framework schedule the sync display.
+- Prefer `MenuAPI.openAsync` and let the framework schedule the sync display.
 - Enable `snapshot.enabled: true` (with `restore_on_close: true`) for full-inventory menus.
 - Use pagination suppliers with a non-`DISABLED` refresh mode for live data.
-- **Preload/batch skulls at startup** (`SkullAPI.preloadPlayers`) so heads render from cache.
+- **Preload/batch skulls at startup** (`SkullAPI.preloadPlayers(String...)`) so heads render from
+  cache.
 - Attach `actions`/`commands`/`click_sounds` per item with click-type groups instead of global
   handlers.
 - Call `MenuAPI.shutdown()` on disable (handled by the coordinator for shared state; call it if

@@ -39,14 +39,21 @@ skulls independently, initialize it yourself. It is shut down by the `ShutdownCo
 - **Asynchronous** fetching performs the real Mojang lookup off-thread and completes a future.
 
 ```java
-// Preload at startup so later sync builds hit cache
-SkullAPI.preloadPlayers(names);
+// Preload at startup so later sync builds hit cache (varargs)
+SkullAPI.preloadPlayers("Notch", "jeb_");
+// batch: CompletableFuture<List<ItemStack>> SkullAPI.batchPlayers(String...)
 
 // Async fetch (real texture)
 SkullAPI.fromPlayerAsync(name).thenAccept(head -> { /* apply on main thread */ });
+SkullAPI.fromPlayerAsync(name, head -> { /* consumer overload */ });
 
 // Sync (cache/default only — safe on main thread, no network)
-ItemStack head = SkullAPI.fromPlayer(name);
+ItemStack head = SkullAPI.fromPlayer(name);       // or fromPlayerCached(name)
+
+// From texture / URL:
+ItemStack t = SkullAPI.fromTexture(base64);       // fromTextureAsync(...) for real fetch
+ItemStack u = SkullAPI.fromTextureURL(url);
+SkullBuilder b = SkullAPI.player(name);           // fluent builder
 ```
 
 ## Caching & Back-Pressure
@@ -83,7 +90,8 @@ restores interrupt status.
 
 ## Best Practices
 
-- **Preload/batch** heads at startup (`SkullAPI.preloadPlayers`) so menus render from cache.
+- **Preload/batch** heads at startup (`SkullAPI.preloadPlayers(String...)` /
+  `SkullAPI.batchPlayers(String...)`) so menus render from cache.
 - Use the **sync** path in menu item building (fast, cache/default) and rely on preloading for
   real textures.
 - Use the **async** path only when you need a guaranteed real texture and can wait.

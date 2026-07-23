@@ -12,8 +12,11 @@ the installed backend and falls back to a no-op provider when none is present.
 | Combat | `CombatAPI` | DeluxeCombat, PvPManager | `NoCombatProvider` |
 | Economy | `EconomyAPI` | Vault, PlayerPoints | `DummyProvider` |
 
-All three are **opt-in** (call `initialize(plugin)` in `onExyliaEnable`) and throw
-`IllegalStateException` if used before init.
+All three are **opt-in** (call `initialize(plugin)` in `onExyliaEnable`). **Clans and Combat**
+throw `IllegalStateException` if their manager is used before `initialize`. **Economy does NOT
+throw** — `EconomyManager.getInstance()` is lazily constructed, so calling balance/deposit/etc.
+before `initialize()` will **NPE** on the unresolved default provider. `EconomyAPI.isAvailable()`
+safely returns `false` when uninitialized — guard with it.
 
 ---
 
@@ -116,10 +119,11 @@ void reload(); void shutdown(); void clearCache(); CombatStats getStats();
 
 ### Caching & threading
 
-Only `getPlayerData*` is cached (Caffeine). **Live state** methods (`isInCombat`,
-`getRemainingCombatTime`, `tag`, etc.) delegate directly to the provider and are **not cached** —
-combat tag is volatile, so do not cache their results yourself. Under `NoCombatProvider`,
-`tag`/`untag`/`togglePvP` are no-ops.
+Only `getPlayerData*` is cached (Caffeine, default TTL **2 minutes** / max 5000 —
+`CombatConfig.combatDataCacheTTL`). **Live state** methods (`isInCombat`, `getRemainingCombatTime`,
+`tag`, etc.) delegate directly to the provider and are **not cached** — combat tag is volatile, so
+do not cache their results yourself. Under `NoCombatProvider`, `tag`/`untag`/`togglePvP` are
+no-ops.
 
 ---
 
@@ -186,7 +190,9 @@ If the backend does IO, offload to [TaskAPI](TaskAPI.md) yourself. Not in the de
 
 ## Common Mistakes
 
-- Using any facade before `initialize` → `IllegalStateException`.
+- Using the Clan/Combat facade before `initialize` → `IllegalStateException`; using the Economy
+  facade before `initialize` → **NPE** (not `IllegalStateException`). Guard economy with
+  `isAvailable()`.
 - Confusing clan registry priority (descending) with economy enum-order resolution.
 - Relying on `EconomyAPI.transfer` — it always fails.
 - Caching `CombatAPI.isInCombat` — it is volatile/live.

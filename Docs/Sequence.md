@@ -7,11 +7,22 @@ the recommended way to build choreographed effects (kill effects, arrow trails, 
 rather than hand-scheduling particles, sounds, and delays. Consumed by ExyliaArrows,
 ExyliaKillEffect, and any future Exylia plugin.
 
-> **Complete effect grammar reference:** see [`../SEQUENCE_API.md`](../SEQUENCE_API.md) at the repo
-> root. It documents every effect token (`[PARTICLE]`, `[SOUND]`, `[LIGHTNING]`, `[EXPLOSION]`,
-> `[FIREWORK]`, `[COMMAND]`, `[DELAY]`, `[POTION]`, `[BLOCK_BREAK]`, `[TITLE]`, `[ACTION_BAR]`,
-> `[CIRCLE]`, `[SPHERE]`, `[BEAM]`, `[SPIRAL]`) with every parameter and default, plus full example
-> effects. This document covers how the engine fits into the framework.
+> **Effect grammar reference:** see [`../SEQUENCE_API.md`](../SEQUENCE_API.md) at the repo root. It
+> documents the core tokens (`[PARTICLE]`, `[SOUND]`, `[LIGHTNING]`, `[EXPLOSION]`, `[FIREWORK]`,
+> `[COMMAND]`, `[DELAY]`, `[POTION]`, `[BLOCK_BREAK]`, `[TITLE]`, `[ACTION_BAR]`, `[CIRCLE]`,
+> `[SPHERE]`, `[BEAM]`, `[SPIRAL]`) with every parameter and default, plus full example effects.
+> This document covers how the engine fits into the framework.
+
+### Full token set
+
+The `SequenceExecutor` dispatch (`v2/sequence/SequenceExecutor.java`) supports **30 tokens** —
+more than `SEQUENCE_API.md` documents. In addition to the 15 core tokens above, these particle
+**shape** tokens exist and take the same `PARTICLE;...` style parameters:
+
+`[DOUBLE_HELIX]`, `[TORNADO]`, `[STAR]`, `[CAGE]`, `[DISC]`, `[VORTEX]`, `[WAVE]`, `[CROSS]`,
+`[GALAXY]`, `[TORUS]`, `[BURST]`, `[PYRAMID]`, `[RING_PULSE]`, `[WINGS]`, `[ARCH]`, `[CLAW]`.
+
+There is **no `[MESSAGE]` token** — use `[TITLE]` or `[ACTION_BAR]` for player-facing text.
 
 **Key classes**
 
@@ -92,9 +103,10 @@ filter example.
 ## `[COMMAND]` runs on the console
 
 The `[COMMAND]` token executes a **console** command directly (with `{player}`, `{world}`,
-`{x/y/z}` placeholders). It does **not** go through [CommandAPI](Commands.md). Do not confuse
-sequence `[COMMAND]`/`[MESSAGE]`/`[SOUND]` tokens with the [Action](Actions.md) subsystem — they
-are unrelated systems with similar-looking bracket syntax.
+`{x/y/z}` placeholders). It does **not** go through [CommandAPI](Commands.md). Do not confuse the
+sequence `[COMMAND]`/`[SOUND]` tokens with the [Action](Actions.md) subsystem — they are unrelated
+systems with similar-looking bracket syntax. (There is **no `[MESSAGE]` token**; use `[TITLE]` or
+`[ACTION_BAR]` for player-facing text.)
 
 ## Threading Considerations
 
@@ -119,7 +131,8 @@ matching your server version.
 
 ## Common Mistakes
 
-- Confusing sequence `[COMMAND]`/`[MESSAGE]` tokens with the [Action](Actions.md) system.
+- Confusing sequence `[COMMAND]`/`[SOUND]` tokens with the [Action](Actions.md) system.
+- Referencing a `[MESSAGE]` token — it does not exist; use `[TITLE]`/`[ACTION_BAR]`.
 - Calling `executeOnCurrentThread` from the wrong thread.
 - Using `DUST` particles without a `color` param.
 - Assuming a particle enum name exists on all versions (use the correct name for your version).

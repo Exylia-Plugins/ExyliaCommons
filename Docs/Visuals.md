@@ -32,9 +32,10 @@ identical renders are cheap, and countdown/animation helpers so timers don't req
 
 ## Initialization
 
-`VisualManager.initialize(plugin)` and `ColorAPI.initialize(plugin)` are called **automatically**
-during bootstrap. Every public send validates initialization (`validateInitialized()`) and throws
-`IllegalStateException` if not initialized.
+`VisualManager.getInstance().initialize(plugin)` (a singleton **instance** method) and
+`ColorAPI.initialize(plugin)` (static) are called **automatically** during bootstrap. Every public
+send validates initialization and throws `IllegalStateException` if not initialized. You normally
+never call these yourself.
 
 Re-initialization semantics: same plugin → `softReset()` (clears registries/caches, hides boss
 bars, stays initialized); different plugin → full `shutdown()` then re-init.
@@ -43,19 +44,23 @@ bars, stays initialized); different plugin → full `shutdown()` then re-init.
 
 ### Titles / Action Bars
 
-Sends take a config object (e.g. `TitleConfig`) plus an optional `PlaceholderContext`. Updatable
-sends are keyed by an identifier so you refresh a value instead of spamming new sends:
+Title/action-bar sends take a **config object** (`TitleConfig` / `ActionBarConfig`), not a raw
+string, and return a `CompletableFuture<String>` (the visual id). Verbatim:
 
 ```java
-// Self-updating title keyed by "score" — verbatim signature:
-// TitleAPI.sendUpdatable(Player player, String key, TitleConfig config, PlaceholderContext context)
-TitleAPI.sendUpdatable(player, "score", titleConfig, context);
+CompletableFuture<String> TitleAPI.send(Player player, TitleConfig config [, PlaceholderContext context]);
+CompletableFuture<String> TitleAPI.countdown(Player player, int durationSeconds, TitleConfig config, PlaceholderContext context);
+TitleAPI.CountdownTitleBuilder TitleAPI.countdownBuilder(Player player, int durationSeconds, TitleConfig config);
+void TitleAPI.cancelAll(Player player);
+```
 
-// Cancel:
+```java
+TitleConfig config = /* build via TitleConfig builder or load from config */;
+TitleAPI.send(player, config);
 TitleAPI.cancelAll(player);
 ```
 
-Build the `TitleConfig`/`ActionBarConfig` via their builders (or load them from config via the
+Build `TitleConfig`/`ActionBarConfig` via their builders (or load them from config via the
 registered serializers). Text supports color presets and placeholders.
 
 ### Boss Bars (stateful — always cancel through the API)
@@ -71,27 +76,38 @@ boolean BossBarAPI.cancelGlobalCountdown(String id);
 ### Countdowns
 
 Per-player countdowns are keyed; global multi-viewer countdowns parse the component once and
-batch-send to all viewers:
+batch-send to all viewers. `broadcastCountdown` returns a builder:
 
 ```java
-TitleAPI.broadcastCountdown(...);   // one component parse, batched send
+// GlobalCountdownTitleBuilder broadcastCountdown(String id, int durationSeconds, TitleConfig config)
+TitleAPI.broadcastCountdown("event-start", 30, config); // one parse, batched send
+TitleAPI.cancelGlobalCountdown("event-start");
 ```
 
 ### Messages
 
+`MessageAPI.send`/`broadcast` accept a `String` (or `List<String>`), an optional
+`PlaceholderContext`, and are **`void`**:
+
 ```java
 MessageAPI.send(player, "{primary}Hello");
+MessageAPI.send(player, "{primary}Hello", context);
 MessageAPI.broadcast("{info}Server restarting soon");
-MessageAPI.broadcastRadius(location, radius, "{warning}Boss spawned");
-// filtered / centered / routed variants also available
+MessageAPI.broadcastExcluding("{info}...", excludedPlayer);
+MessageAPI.sendToFiltered(p -> p.hasPermission("staff"), "{muted}Staff only");
+MessageAPI.sendInRadius(location, radius, "{warning}Boss spawned"); // NOT broadcastRadius
 ```
+
+Route-based variants (`sendRoute` / `sendRouteInRadius`) resolve message templates from files.
 
 ### Sounds / Particles / Fireworks
 
 ```java
-SoundAPI.play(player, Sound.UI_BUTTON_CLICK);
-ParticleAPI.spawn(location, Particle.FLAME, count);
-FireworkAPI.spawn(location, ...); // spawn + detonate
+SoundAPI.play(player, Sound.UI_BUTTON_CLICK);          // + (volume, pitch) / String / SoundConfig overloads
+SoundAPI.playAt(location, Sound.BLOCK_ANVIL_LAND);
+ParticleAPI.spawn(location, Particle.FLAME, count);    // + Player / String / ParticleConfig overloads
+FireworkAPI.launch(location, FireworkEffect.Type.BALL_LARGE, Color.RED); // NOT spawn
+FireworkAPI.launch(location, fireworkString);          // parse from a "color:...;type:..." string
 ```
 
 For complex choreographed effects, prefer the [Sequence](Sequence.md) engine.
@@ -100,9 +116,13 @@ For complex choreographed effects, prefer the [Sequence](Sequence.md) engine.
 
 Per-player caps prevent spam. Total default `DEFAULT_MAX_PER_PLAYER = 20`; per-type: `ACTIONBAR=5`,
 `BOSSBAR=10`, `TITLE=3`, `PARTICLE=100`, `SOUND=50`, `MESSAGE=50`, `EFFECT=20`, `FIREWORK=10`
-(unlisted default 10). Over-limit sends return
-`CompletableFuture.failedFuture(new LimitExceededException(...))` — check the returned future if
-you must know.
+(unlisted default 10).
+
+> The limiter applies only to the **future-returning** send/countdown paths (Title/ActionBar/
+> BossBar `send`/`countdown`), which return
+> `CompletableFuture.failedFuture(new LimitExceededException(...))` when over the cap. The `void`
+> convenience methods (`MessageAPI.send`, `SoundAPI.play`, `ParticleAPI.spawn`, `EffectAPI.apply`,
+> `FireworkAPI.launch`) do **not** go through the limiter and cannot report a limit failure.
 
 ## Configuration
 
@@ -119,7 +139,7 @@ you must know.
 
 ## Best Practices
 
-- Use `sendUpdatable`/keyed countdowns for live values instead of spamming `send`.
+- Use keyed countdowns / countdown builders for live values instead of spamming `send`.
 - For multi-viewer timers use `broadcastCountdown` (single parse, batched send).
 - Always cancel boss bars through `BossBarAPI.cancel/cancelAll` so the bar is hidden.
 - Define colors/gradients as presets and reference `{preset}`; reload with
@@ -132,7 +152,10 @@ you must know.
   in unusually early code; bootstrap initializes it).
 - Using a generic manager cancel for boss bars instead of `BossBarAPI.cancel*` → the bar stays
   visible.
-- Spamming `send` every tick instead of using updatable/countdown helpers → hits the limiter.
+- Spamming `send` every tick instead of using countdown helpers → hits the limiter.
+- Expecting `MessageAPI.broadcastRadius` / `FireworkAPI.spawn` — the methods are
+  `MessageAPI.sendInRadius` and `FireworkAPI.launch`.
+- Passing a raw string to `TitleAPI.send` — it takes a `TitleConfig`.
 - Spawning particles off the owning region thread on Folia.
 
 ## Performance Considerations

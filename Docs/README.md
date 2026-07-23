@@ -181,8 +181,10 @@ public final class MyPlugin extends ExyliaPlugin {
   Folia, region/entity work must run on the owning region/entity thread.
 - **Prefer YAML-driven definitions** (menus, items, scoreboards, holograms, rewards, sequences)
   over hardcoding. The framework is built around declarative configuration.
-- **`[COMMAND]`, `[MESSAGE]`, `[SOUND]` tokens belong to the [Sequence](Sequence.md) engine**,
-  not the [Action](Actions.md) subsystem. This is the most common conceptual mix-up.
+- **`[COMMAND]` / `[SOUND]` (and the many particle-shape) tokens belong to the
+  [Sequence](Sequence.md) engine**, not the [Action](Actions.md) subsystem. There is **no
+  `[MESSAGE]` token** anywhere — use `[TITLE]`/`[ACTION_BAR]`. This is the most common conceptual
+  mix-up.
 - **`EconomyManager.transfer` is a stub** and always fails. Use explicit `withdraw` + `deposit`.
 - Strict config schemas **delete unregistered keys** ~30s after load. See
   [Configuration.md](Configuration.md).

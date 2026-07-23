@@ -110,4 +110,7 @@ unsubscribes all.
 - Depends on [SimpleRedis](Redis.md), [MessageAPI](Visuals.md), and [Placeholders](Placeholders.md).
 - Conceptually adjacent to [Conversations](PlayerInteraction.md) (both intercept chat) but
   independent — mind interception precedence if you use both.
-- Reloaded via the [Reload](Reload.md) system (`RedisAdapter`/`DiscordAdapter` families).
+- The Channel system has **no dedicated reload adapter** and is **not** in the default reload set.
+  Reloading `SimpleRedis` via the `Redis` adapter rebuilds the connection but does **not**
+  re-initialize the channel messenger, which is fixed at `ChannelAPI.initialize` (see the
+  Redis-vs-local note above).

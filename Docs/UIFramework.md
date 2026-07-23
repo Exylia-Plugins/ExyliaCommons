@@ -45,7 +45,8 @@ protected void onExyliaEnable() {
 - **Inventory reads/writes must be on the main/region thread.** The framework offloads *item
   population* (placeholder resolution, skull fetch) to async work, but the final inventory writes
   are synchronous.
-- Prefer the **async open/process** paths (`openAsync`/`processAsync`) and let the framework
+- Prefer the **async open** path (`MenuAPI.openAsync`); item processing is handled internally via
+  `ItemsAPI.processAsync`. Let the framework
   handle the sync display step.
 - Preload skulls at startup so menus render from cache without stalls.
 

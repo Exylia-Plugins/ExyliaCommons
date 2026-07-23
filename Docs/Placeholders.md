@@ -11,9 +11,10 @@ subsystem (menus, scoreboards, holograms, visuals, commands, rewards).
 | Class | File | Role |
 |-------|------|------|
 | `Placeholders` | `v2/placeholders/api/Placeholders.java` | Static facade |
-| `PlaceholderRegistry` | `v2/placeholders/...` | Singleton registry |
-| `PlaceholderContext` | `v2/placeholders/...` | Per-resolution context |
-| `@Placeholder` | `v2/placeholders/...` | Annotation for declarative placeholders |
+| `PlaceholderRegistry` | `v2/placeholders/core/...` | Singleton registry |
+| `PlaceholderContext` | `v2/placeholders/context/PlaceholderContext.java` | Per-resolution context |
+| `@Placeholder` | `v2/placeholders/annotation/...` | Annotation for declarative placeholders |
+| `GlobalPlaceholderResolver` / `PlayerPlaceholderResolver` / `ContextPlaceholderResolver` / `RelationalPlaceholderResolver` | `v2/placeholders/resolver/...` | Functional resolver SPIs |
 
 ## Purpose
 
@@ -32,25 +33,51 @@ placeholders (PAPI bridging is opt-in and safe when PAPI is missing).
 
 ### Declarative (recommended)
 
-Annotate methods/classes with `@Placeholder` and register the class:
+Annotate methods/classes with `@Placeholder` and register the instance(s):
 
 ```java
-Placeholders.registerAnnotatedClasses(new MyPlaceholders());
+Placeholders.registerAnnotatedClass(new MyPlaceholders());        // single instance
+Placeholders.registerAnnotatedClasses(new A(), new B());          // varargs
 ```
 
-Annotated placeholders can declare a cache TTL (`cacheTtlMs`), an `async` flag, and support
-argument placeholders (e.g. `%myplugin_top_1%`) via argument matching (`_*` / `hasArgument`)
-instead of registering many discrete names.
+Annotated placeholders can declare a cache TTL, an `async` flag, and support argument placeholders
+(e.g. `%myplugin_top_1%`) instead of registering many discrete names.
 
-### Programmatic
+### Programmatic (functional resolvers)
 
-Register resolvers directly via the registry for dynamic cases.
+Register resolvers directly. There are four resolver categories:
+
+```java
+Placeholders.registerGlobal("server_online", () -> String.valueOf(onlineCount()));
+Placeholders.registerPlayer("myplugin_kills", player -> String.valueOf(getKills(player)));
+Placeholders.registerContext("myplugin_arg", (text, ctx) -> ctx.get("arg"));
+Placeholders.registerRelational("myplugin_relation", (requester, target) -> relationBetween(requester, target));
+```
+
+### PlaceholderAPI bridging
+
+```java
+Placeholders.registerPapiExpander("myplugin");            // expose your placeholders to PAPI
+Placeholders.registerRelationalPapiExpander("myplugin");  // relational PAPI expander
+```
 
 ## Resolving Text
 
+The `process` signatures are `(text)`, `(text, Player)`, `(text, PlaceholderContext)`,
+`(text, Player, PlaceholderContext)` — **text is the first argument** (there is no
+`process(player, text)` overload). Async and relational variants exist:
+
 ```java
-String out = Placeholders.process(player, "Hello {primary}%player_name%");
+String out = Placeholders.process("Hello {primary}%player_name%", player);
+Placeholders.processAsync("...", player).thenAccept(this::send);
+
+String rel = Placeholders.processRelational("%myplugin_relation%", requester, target);
+String ctxOnly = Placeholders.processContextOnly(text, player, context);
+String papiOnly = Placeholders.processPapiOnly(text, player);
 ```
+
+Helpers: `extractPlaceholders(text)`, `containsPlaceholders(text)`, `hasResolver(name)`,
+`getRegisteredPlaceholders()`, `clearCache()`, `getStats()`.
 
 Resolution combines locally registered placeholders, PAPI (if present), and color presets. All
 text-facing subsystems call this internally when you provide a player/context.
@@ -59,7 +86,8 @@ text-facing subsystems call this internally when you provide a player/context.
 
 No. PAPI is a **`compileOnly`** dependency. Locally registered placeholders resolve without it.
 PAPI-provided placeholders (`%vault_*%`, etc.) resolve only when PAPI is installed. Use
-`ExyliaPlugin.isPlaceholderAPIEnabled()` to check.
+`ExyliaPlugin.isPlaceholderAPIEnabled()` to check. Bridging your placeholders **to** PAPI is opt-in
+via `registerPapiExpander(...)`.
 
 ## Threading Considerations
 
@@ -69,16 +97,20 @@ PAPI-provided placeholders (`%vault_*%`, etc.) resolve only when PAPI is install
 
 ## Best Practices
 
-- Prefer **`@Placeholder`**-annotated classes registered via `registerAnnotatedClasses`.
-- Use **argument placeholders** (`_*`) instead of registering many near-identical names.
-- Cache expensive placeholders with `cacheTtlMs`.
-- Do not assume PAPI is present; register your own placeholders locally.
+- Prefer **`@Placeholder`**-annotated classes registered via `registerAnnotatedClass(es)`.
+- Use `registerGlobal`/`registerPlayer`/`registerContext`/`registerRelational` for dynamic
+  functional resolvers.
+- Cache expensive placeholders with a cache TTL.
+- Do not assume PAPI is present; register your own placeholders locally, and expose them to PAPI
+  with `registerPapiExpander` only when you want cross-plugin visibility.
 
 ## Common Mistakes
 
+- Calling `process(player, text)` — the signature is `process(text, player)` (text first).
 - Using `PlaceholderRegistry.getInstance()` before init → `IllegalStateException` (rare; bootstrap
   initializes it).
-- Doing blocking work in a synchronous resolver → stalls renders. Mark it `async`.
+- Doing blocking work in a synchronous resolver → stalls renders. Use the `async` flag / async
+  resolvers and `processAsync`.
 - Assuming `%papi_*%` placeholders resolve without PlaceholderAPI installed.
 
 ## Relationship With Other Systems
@@ -87,4 +119,6 @@ PAPI-provided placeholders (`%vault_*%`, etc.) resolve only when PAPI is install
   [Holograms](Holograms.md), [Visuals](Visuals.md), [Commands](Commands.md), [Rewards](Rewards.md),
   and [Actions](Actions.md).
 - Works alongside [ColorAPI](Formatting.md) color presets.
+- Reloaded via the [Reload](Reload.md) system (`PlaceholderAdapter`, registered as
+  `"PlaceholderSystem"`).
 - Reloaded via the [Reload](Reload.md) system (`PlaceholderAdapter`).

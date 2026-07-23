@@ -31,22 +31,49 @@ Caffeine cache (`maximumSize(1000)`, `expireAfterWrite(5, MINUTES)`), and regist
 plugin channels `exylia:commands` and `BungeeCord`. `execute` before `initialize` throws
 `IllegalStateException("CommandManager not initialized")`.
 
-## Usage
+## Public API (`CommandAPI`, static)
+
+All execution methods are **async** and return a `CompletableFuture`:
+
+```java
+void initialize(JavaPlugin plugin);   boolean isInitialized();
+
+CompletableFuture<CommandResult>       execute(Player player, String commandString [, PlaceholderContext context]);
+CompletableFuture<List<CommandResult>> executeAll(Player player, List<String> commands [, PlaceholderContext context]);
+CompletableFuture<List<CommandResult>> fromConfig(Player player, ConfigurationSection section [, PlaceholderContext context]);
+CompletableFuture<List<CommandResult>> fromConfigKey(Player player, ConfigurationSection section, String key [, ...]);
+CompletableFuture<CommandResult>       executeAsync(Player player, String commandString [, PlaceholderContext context]);
+CommandBuilder builder();   CommandStats getStats();   void shutdown();
+```
+
+### Command prefixes (sender selection)
+
+The prefix chooses the sender (`v2/command/model/CommandType.java`). **A command with no prefix
+runs as CONSOLE.**
+
+| Prefix | Runs as | Cross-server |
+|--------|---------|--------------|
+| `player:` | the player | no |
+| `console:` | the console | no |
+| `player-proxy:` | the player, forwarded to another server | yes (proxy) |
+| `console-proxy:` | the console, forwarded | yes (proxy) |
+| *(none)* | console (default) | no |
 
 ### Execute a single command
 
 ```java
-CommandAPI.execute(player, "player: spawn");   // run as the player
-CommandAPI.execute(player, "console: give %player_name% diamond 1"); // run as console
+CommandAPI.execute(player, "player: spawn")
+    .thenAccept(result -> { /* CommandResult */ });
+CommandAPI.execute(player, "give %player_name% diamond 1"); // no prefix → console
 ```
 
-Commands support `player:` / `console:` prefixes to choose the sender, and placeholders are
-processed via [Placeholders](Placeholders.md).
+Placeholders are processed via [Placeholders](Placeholders.md).
 
 ### Execute a list from config
 
 ```java
-CommandAPI.fromConfig(player, section); // runs a YAML-defined list of commands
+CommandAPI.fromConfig(player, section);          // uses the loader's default key
+CommandAPI.fromConfigKey(player, section, "commands");
 ```
 
 ```yaml
@@ -57,32 +84,41 @@ commands:
 
 ### Cross-server
 
-`ProxyCommandSender` dispatches over BungeeCord / the `exylia:commands` plugin channel so commands
-can target other servers on the network.
+The `player-proxy:` / `console-proxy:` prefixes forward the command over BungeeCord. Under the
+hood `ProxyCommandSender` uses the BungeeCord `Forward`/`ExyliaCommand` sub-channel; it requires
+proxy messaging to be enabled and the player to be online (otherwise the result reports
+`"Proxy messaging not enabled"` / `"Player not online for proxy command"`).
 
 ## Threading Considerations
 
-- Command dispatch to Bukkit runs on the main/region thread as required.
+- `execute*` returns a `CompletableFuture` and runs asynchronously; command dispatch to Bukkit is
+  scheduled on the main/region thread as required.
 - Placeholder resolution happens as part of execution.
 
 ## Best Practices
 
-- Use `fromConfig(player, section)` for YAML-driven command lists (menus, rewards, actions).
-- Prefix commands with `player:` / `console:` explicitly for clarity.
+- Use `fromConfig(player, section)` / `fromConfigKey(...)` for YAML-driven command lists (menus,
+  rewards, actions).
+- Prefix commands with `player:` / `console:` explicitly for clarity; remember **no prefix =
+  console**.
 - Use **Lamp** for actual slash-command registration in your plugin — `CommandAPI` is for
   execution.
-- Rely on the cross-server proxy for network-wide commands instead of custom channel code.
+- Use `player-proxy:` / `console-proxy:` for network-wide commands instead of custom channel code.
+- Consume the returned `CommandResult`(s) to detect failures.
 
 ## Common Mistakes
 
 - Treating `CommandAPI` as a command-registration framework — it is an executor.
-- Calling `execute` before `initialize` → `IllegalStateException` (open a menu or call
-  `CommandAPI.initialize` first).
+- Assuming a no-prefix command runs as the player — it runs as **console** by default.
+- Treating `execute*` as synchronous/void — it returns a `CompletableFuture<CommandResult>`.
+- Calling `execute` before `initialize` → `IllegalStateException("CommandManager not initialized")`
+  (open a menu or call `CommandAPI.initialize` first). Double-init throws
+  `IllegalStateException("CommandManager already initialized")`.
 
 ## Relationship With Other Systems
 
-- Called by [Rewards](Rewards.md) (`CommandRewardProvider`) and [Menus](Menus.md) item clicks.
+- Called by [Rewards](Rewards.md) (command rewards) and [Menus](Menus.md) item clicks.
 - Processes [Placeholders](Placeholders.md).
-- Lazily initialized by [Menus](Menus.md) (`MenuAPI.initialize`).
+- Lazily initialized by [Menus](Menus.md) (`MenuAPI.initialize` → `MenuManager.initialize`).
 - Distinct from the [Sequence](Sequence.md) `[COMMAND]` token, which uses the console directly.
-- Reloaded via the [Reload](Reload.md) system (`CommandAdapter`).
+- Reloaded via the [Reload](Reload.md) system (`CommandAdapter`, registered as `"CommandManager"`).
