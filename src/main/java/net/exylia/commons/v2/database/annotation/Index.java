@@ -10,4 +10,10 @@ public @interface Index {
     String name();
 
     String[] fields();
+
+    /** Index key directions matching {@link #fields()}; positive is ascending, negative descending. */
+    int[] directions() default {};
+
+    /** Include the persisted entity primary key as the final tie-breaker key. */
+    boolean includePrimaryKey() default false;
 }

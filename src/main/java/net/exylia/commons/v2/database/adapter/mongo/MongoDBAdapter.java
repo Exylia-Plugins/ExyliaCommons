@@ -2,6 +2,7 @@ package net.exylia.commons.v2.database.adapter.mongo;
 
 import com.mongodb.client.*;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.WriteModel;
@@ -72,15 +73,60 @@ public class MongoDBAdapter implements DatabaseAdapter {
 
     @Override
     public void createTable(EntityMetadata metadata) throws Exception {
-        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
-        if (collection == null) {
+        if (!tableExists(metadata)) {
             database.createCollection(metadata.getTableName());
         }
+        createIndexes(metadata);
     }
 
     @Override
     public void updateTable(EntityMetadata metadata) throws Exception {
-        // MongoDB is schema-less, no need to update
+        // MongoDB is schema-less; keep indexes in sync with entity metadata.
+        createIndexes(metadata);
+    }
+
+    private void createIndexes(EntityMetadata metadata) {
+        if (metadata.getIndexes().isEmpty()) return;
+
+        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
+        for (net.exylia.commons.v2.database.annotation.Index index : metadata.getIndexes()) {
+            String[] fields = index.fields();
+            if (fields.length == 0) continue;
+
+            try {
+                int[] directions = index.directions();
+                Document keys = new Document();
+                for (int i = 0; i < fields.length; i++) {
+                    keys.append(fields[i], i < directions.length && directions[i] < 0 ? -1 : 1);
+                }
+                if (index.includePrimaryKey()) {
+                    int primaryKeyDirection = directions.length > fields.length && directions[fields.length] < 0 ? -1 : 1;
+                    keys.append("_id", primaryKeyDirection);
+                }
+                if (keys.keySet().stream().anyMatch(field -> field.startsWith("_") && !field.equals("_id"))) {
+                    continue;
+                }
+
+                Document existing = findIndexByName(collection, index.name());
+                if (existing != null && !keys.equals(existing.get("key"))) {
+                    collection.dropIndex(index.name());
+                    existing = null;
+                }
+                if (existing == null) {
+                    collection.createIndex(keys, new IndexOptions().name(index.name()));
+                }
+            } catch (Exception e) {
+                DebugAPI.logLibWarn("Failed to create MongoDB index " + index.name() + " on "
+                        + metadata.getTableName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private Document findIndexByName(MongoCollection<Document> collection, String name) {
+        for (Document index : collection.listIndexes()) {
+            if (name.equals(index.getString("name"))) return index;
+        }
+        return null;
     }
 
     @Override
@@ -216,9 +262,8 @@ public class MongoDBAdapter implements DatabaseAdapter {
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
         List<T> results = new ArrayList<>();
-        FindIterable<Document> query = ascending ?
-                collection.find().sort(new Document(orderByField, 1)) :
-                collection.find().sort(new Document(orderByField, -1));
+        FindIterable<Document> query = collection.find()
+                .sort(new Document(orderByField, ascending ? 1 : -1).append("_id", 1));
         for (Document doc : query) {
             results.add(documentToEntity(doc, entityClass, metadata));
         }
@@ -230,9 +275,10 @@ public class MongoDBAdapter implements DatabaseAdapter {
         MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
         List<T> results = new ArrayList<>();
         int skip = page * pageSize;
-        FindIterable<Document> query = ascending ?
-                collection.find().sort(new Document(orderByField, 1)).skip(skip).limit(pageSize) :
-                collection.find().sort(new Document(orderByField, -1)).skip(skip).limit(pageSize);
+        FindIterable<Document> query = collection.find()
+                .sort(new Document(orderByField, ascending ? 1 : -1).append("_id", 1))
+                .skip(skip)
+                .limit(pageSize);
         for (Document doc : query) {
             results.add(documentToEntity(doc, entityClass, metadata));
         }
@@ -244,7 +290,7 @@ public class MongoDBAdapter implements DatabaseAdapter {
         MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
         List<T> results = new ArrayList<>();
         FindIterable<Document> query = collection.find(Filters.eq(whereField, whereValue))
-                .sort(new Document(orderField, ascending ? 1 : -1))
+                .sort(new Document(orderField, ascending ? 1 : -1).append("_id", 1))
                 .limit(limit);
         for (Document doc : query) {
             results.add(documentToEntity(doc, entityClass, metadata));
