@@ -30,7 +30,7 @@ items:
     material: BARRIER
     name: "{error}Close"
     actions:
-      - "exyliacommons:close"     # built-in
+      - "myplugin:close"          # built-in namespace follows the initializing plugin name
 ```
 
 **Standard:** the only Java for a menu is (a) registering any custom actions and (b) calling
@@ -42,16 +42,16 @@ Buttons trigger registered [actions](../Actions.md) (via the pipeline, with `Act
 `commands` (via [CommandAPI](../Commands.md)). Register custom actions once, owned by your plugin:
 
 ```java
-ActionAPI.register(ActionAPI.create("open_shop", this)
+ActionAPI.create("open_shop", this)
     .namespace("myplugin")
     .sync()                                  // opening a menu touches the main thread
     .handler((ctx, args) -> openMenu(ctx.getPlayer(), "menus/shop"))
-    .build());
+    .build(); // build() registers the action
 // onDisable: ActionAPI.unregisterAll(this);
 ```
 
-Built-in actions (`exyliacommons:close/back/next_page/previous_page`) cover navigation — don't
-re-implement them.
+Built-in actions (`<initializing-plugin-name>:close/back/next_page/previous_page`) cover navigation
+— don't re-implement them.
 
 ## 3. Open asynchronously
 

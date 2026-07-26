@@ -29,7 +29,7 @@ Action fireball = ActionAPI.create("fireball", this)
     })
     .build();
 
-ActionAPI.register(fireball);
+// build() already registered fireball.
 ```
 
 Trigger it (e.g. from a menu button `actions: ["myplugin:fireball"]`, or directly):

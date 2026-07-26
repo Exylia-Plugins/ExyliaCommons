@@ -27,9 +27,11 @@ Equivalent explicit form:
 ```java
 TaskAPI.database(() -> profileRepository.findById(uuid))
     .thenAccept(result -> {
-        if (result.isSuccess()) {
-            TaskAPI.runSync(() -> result.getValue().ifPresent(this::applyToPlayer));
+        if (!result.isSuccess()) {
+            result.getError().ifPresent(error -> DebugAPI.logPluginError("Profile load failed", error));
+            return;
         }
+        TaskAPI.runSync(() -> result.getValue().ifPresent(this::applyToPlayer));
     });
 ```
 

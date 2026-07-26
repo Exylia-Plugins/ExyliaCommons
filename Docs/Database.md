@@ -195,6 +195,10 @@ directly. This is the recommended model for session data (profiles, stats) becau
 TTL-based invalidation for data bound to the player's presence — but remember to **load on join
 yourself**.
 
+> If the YAML database adapter is a supported deployment option, use an explicit primary-key
+> column name of `id` because the current YAML adapter stores the primary key under the literal
+> `id` map key. SQL adapters do not have this limitation.
+
 ## Serialization Registry
 
 Complex Bukkit/Adventure types are (de)serialized via `SerializationRegistry.getInstance()`.

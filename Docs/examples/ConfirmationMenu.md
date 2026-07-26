@@ -77,17 +77,17 @@ public final class ConfirmationService {
     }
 
     private void registerActions() {
-        ActionAPI.register(ActionAPI.create("confirm_yes", plugin)
+        ActionAPI.create("confirm_yes", plugin)
             .namespace("myplugin")
             .sync()
             .handler((ctx, args) -> finish(ctx.getPlayer(), true))
-            .build());
+            .build(); // build() registers the action
 
-        ActionAPI.register(ActionAPI.create("confirm_no", plugin)
+        ActionAPI.create("confirm_no", plugin)
             .namespace("myplugin")
             .sync()
             .handler((ctx, args) -> finish(ctx.getPlayer(), false))
-            .build());
+            .build(); // build() registers the action
     }
 
     private void finish(Player player, boolean confirmed) {

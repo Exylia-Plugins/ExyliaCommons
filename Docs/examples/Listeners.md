@@ -79,10 +79,13 @@ public final class WelcomeListener implements Listener {
     public void onFirstJoin(PlayerJoinEvent event) {
         if (event.getPlayer().hasPlayedBefore()) return;
         Player player = event.getPlayer();
+        String playerName = player.getName();
 
-        TaskAPI.io(() -> WebhookClient.postJoin(player.getName()))  // network IO off-thread
-            .thenRun(() -> TaskAPI.runSync(() ->
-                Bukkit.broadcastMessage("Welcome " + player.getName() + "!")));
+        TaskAPI.io(() -> WebhookClient.postJoin(playerName))  // network IO off-thread
+            .thenAccept(result -> {
+                if (!result.isSuccess()) return;
+                TaskAPI.runSync(() -> Bukkit.broadcastMessage("Welcome " + playerName + "!"));
+            });
     }
 }
 ```

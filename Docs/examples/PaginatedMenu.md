@@ -45,7 +45,7 @@ items:
     material: BARRIER
     name: "&cClose"
     actions:
-      - "exyliacommons:close"
+      - "myplugin:close"
 ```
 
 ## 2. Open with a live data supplier

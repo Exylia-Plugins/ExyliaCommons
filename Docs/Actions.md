@@ -75,8 +75,9 @@ The pipeline runs asynchronously. `PipelineStage` has exactly **four** stages
 
 ## Registering Custom Actions
 
-Define an action with the fluent `ActionBuilder` (via `ActionAPI.create`) and register it. Pass an
-owner plugin so it can be cleanly unregistered on disable.
+Define an action with the fluent `ActionBuilder` (via `ActionAPI.create`). `build()` registers the
+action with `ActionManager` automatically; **do not call `ActionAPI.register(action)` again**.
+Pass an owner plugin so it can be cleanly unregistered on disable.
 
 ```java
 Action action = ActionAPI.create("do_thing", this)   // this = owning JavaPlugin
@@ -86,8 +87,6 @@ Action action = ActionAPI.create("do_thing", this)   // this = owning JavaPlugin
     .cooldownMillis(500)
     .handler((ctx, args) -> { /* perform the action */ })
     .build();
-
-ActionAPI.register(action);
 // ...
 ActionAPI.unregisterAll(this); // on disable
 ```
@@ -104,7 +103,8 @@ ActionAPI.executeAsync("myplugin:do_thing arg1 arg2", context)
 - **`ActionBuilder`** configuration: `namespace`, `permission`, `cooldown`/`cooldownMillis`,
   `rateLimit`, `auditable`, `priority`, `alias`/`aliases`, `sync`/`async`/`mode`, `handler`.
 - **`ActionChainBuilder`** for multi-step chained actions.
-- Custom `Action` implementations registered via `register`.
+- Custom `Action` implementations registered with `ActionAPI.register(...)` when they are created
+  outside `ActionBuilder`; builder-created actions are already registered by `build()`.
 
 ## Threading Considerations
 

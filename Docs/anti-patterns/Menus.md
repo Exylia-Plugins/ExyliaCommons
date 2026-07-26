@@ -70,12 +70,12 @@ shop:
 ```
 
 ```java
-ActionAPI.register(ActionAPI.create("open_shop", this).namespace("myplugin").sync()
-    .handler((ctx, args) -> openMenu(ctx.getPlayer(), "menus/shop")).build());
+ActionAPI.create("open_shop", this).namespace("myplugin").sync()
+    .handler((ctx, args) -> openMenu(ctx.getPlayer(), "menus/shop")).build();
 ```
 
-Use the built-in navigation actions (`exyliacommons:close/back/next_page/previous_page`) instead of
-re-implementing them.
+Use the built-in navigation actions (`<initializing-plugin-name>:close/back/next_page/previous_page`)
+instead of re-implementing them.
 
 ---
 

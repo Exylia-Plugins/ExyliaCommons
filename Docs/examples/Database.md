@@ -23,7 +23,8 @@ Entities `extend Entity`, are annotated with `@Table`, map fields with `@Column`
 @PlayerSession                         // auto-flush on quit (no auto-load — see the join listener)
 public class Profile extends Entity {
 
-    @Column(primaryKey = true, length = 36)
+    // Use name = "id" when the YAML database adapter must be supported.
+    @Column(name = "id", primaryKey = true, length = 36)
     private String uuid;
 
     @Column(length = 16)
@@ -99,8 +100,13 @@ profiles.findByAsync("name", "Notch")
 public void onJoin(PlayerJoinEvent e) {
     UUID uuid = e.getPlayer().getUniqueId();
     TaskAPI.databaseThenSync(
-        () -> profiles.findById(uuid.toString())
-                      .orElseGet(() -> Profile.createDefault(uuid, e.getPlayer().getName())),
+    () -> {
+        Optional<Profile> existing = profiles.findById(uuid.toString());
+        if (existing.isPresent()) return existing.get();
+        Profile created = Profile.createDefault(uuid, e.getPlayer().getName());
+        profiles.save(created); // runs on the DATABASE pool; write-behind may buffer it
+        return created;
+    },
         profile -> cache.put(uuid, profile)
     );
 }

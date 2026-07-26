@@ -64,7 +64,7 @@ public class SnapshotData {
         data.setOffHand(player.getInventory().getItemInOffHand());
 
         data.setHealth(player.getHealth());
-        data.setMaxHealth(player.getAttribute(MAX_HEALTH_ATTR).getValue());
+        data.setMaxHealth(player.getAttribute(MAX_HEALTH_ATTR).getBaseValue());
 
         data.setFoodLevel(player.getFoodLevel());
         data.setSaturation(player.getSaturation());
@@ -106,7 +106,7 @@ public class SnapshotData {
         }
 
         player.getAttribute(MAX_HEALTH_ATTR).setBaseValue(maxHealth);
-        player.setHealth(Math.min(health, maxHealth));
+        player.setHealth(Math.min(health, player.getAttribute(MAX_HEALTH_ATTR).getValue()));
 
         player.setFoodLevel(foodLevel);
         player.setSaturation(saturation);

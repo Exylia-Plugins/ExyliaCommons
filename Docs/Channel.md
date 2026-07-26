@@ -2,9 +2,9 @@
 
 ## Overview
 
-The channel subsystem provides permission-gated **cross-server chat channels** with per-channel
+The channel subsystem provides permission-gated chat channels with per-channel
 cooldowns and a "write mode" (players type into a channel). It uses `SimpleRedis` pub/sub for
-cross-server delivery, or a local-only messenger when Redis is unavailable.
+cross-server delivery for `sendMessage`, or a local-only messenger when Redis is unavailable.
 
 **Key classes**
 
@@ -54,7 +54,7 @@ void clearWriteMode(Player player);
 Optional<String> getWriteMode(Player player);  boolean isInWriteMode(Player player);
 
 void sendMessage(String channelId, Player sender, String message);
-void broadcast(String channelId, String message);
+void broadcast(String channelId, String message); // local server only
 
 int getActiveChannelCount();  Set<String> getAllChannelIds();  void clearAll();
 ```
@@ -75,7 +75,8 @@ ChannelAPI.sendMessage("staff", player, "hello team");
 ```
 
 - A player with `<permission>` sees/uses the channel; `<permission>.bypass` skips the cooldown.
-- The message `format` supports `%player%`, `%message%`, `%server%` placeholders.
+- `sendMessage` supports `%player%`, `%message%`, and `%server%` on Redis delivery. `broadcast`
+  is local-only and supplies only the message value; do not rely on `%player%`/`%server%` there.
 
 ## Redis Messaging
 
@@ -88,6 +89,9 @@ unsubscribes all.
 
 - Redis publish is **async**. Pub/sub callbacks run on the Redis listener thread and dispatch to
   players via `MessageAPI`.
+- The current local fallback implementation performs Bukkit player iteration from
+  `CompletableFuture.runAsync`; treat local fallback as unsafe for Folia-sensitive work and prefer
+  Redis delivery or bridge local delivery through `TaskAPI.sync`/entity schedulers.
 - Cooldown/write-mode/permission state is in-memory.
 
 ## Best Practices
@@ -104,6 +108,7 @@ unsubscribes all.
   fixed.
 - Channel IDs with invalid characters → `IllegalArgumentException`.
 - `broadcast` on a missing channel throws; Redis `sendMessage` silently returns if missing.
+- `broadcast` is not cross-server; use `sendMessage` with a sender for Redis delivery.
 
 ## Relationship With Other Systems
 
@@ -114,3 +119,6 @@ unsubscribes all.
   Reloading `SimpleRedis` via the `Redis` adapter rebuilds the connection but does **not**
   re-initialize the channel messenger, which is fixed at `ChannelAPI.initialize` (see the
   Redis-vs-local note above).
+- There is no public `ChannelAPI.shutdown()`. `clearAll()` clears registry/write-mode state but does
+  not unsubscribe Redis channels or clear every cooldown resource; plan channel cleanup around the
+  manager lifecycle and avoid reloading Redis underneath an active messenger.

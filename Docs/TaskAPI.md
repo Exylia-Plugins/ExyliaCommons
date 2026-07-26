@@ -69,6 +69,29 @@ compute(Supplier<T> | Runnable);    // TaskCategory.COMPUTE pool
 Use the category that matches the workload so pools stay balanced: `database()` for DB queries,
 `io()` for file/network IO, `compute()` for CPU-bound work.
 
+### Always inspect `TaskResult`
+
+Supplier exceptions normally complete the future with a `TaskResult` in the `FAILED` state; they do
+not necessarily complete the `CompletableFuture` exceptionally. Check `isSuccess()` and inspect
+`getError()`/`getState()`:
+
+```java
+TaskAPI.io(() -> readFile())
+    .thenAccept(result -> {
+        if (!result.isSuccess()) {
+            result.getError().ifPresent(error -> DebugAPI.logPluginError("IO failed", error));
+            return;
+        }
+        String contents = result.getValue();
+        // apply contents through a sync hop if Bukkit state is involved
+    });
+```
+
+Timeout and cancellation are separate states. Treat any state other than `COMPLETED` as
+unsuccessful when the result is required. The `Tasks.*Value` helpers can turn a failed task into a
+normally completed future containing `null`; use the full `TaskResult` API when failure handling
+matters.
+
 ### Sync (main / region-agnostic) scheduling
 
 ```java
@@ -104,7 +127,9 @@ useful for cleanup.
 ```
 
 This is the canonical pattern: do blocking work off-thread, then apply the result on the main
-thread. Prefer it over manual `CompletableFuture` chaining.
+thread. The consumer runs only for successful task results and there is no failure callback. Use the
+result-returning `database()`/`async()` methods when failures must be logged, reported, retried, or
+distinguished from an empty value.
 
 ### Thread checks
 
@@ -184,6 +209,9 @@ TaskAPI.io(() -> readFile()).thenAccept(result -> {
   data races. Use `at(entity/location, ...)`.
 - Doing blocking IO/DB calls on a scheduler thread → server stalls. Use `io()`/`database()`.
 - Assuming `isMainThread()` is meaningful on Folia — prefer `isRegionThread`/`isEntityThread`.
+- Assuming `.exceptionally(...)` handles supplier failures — inspect `TaskResult` instead.
+- Using `asyncThenSync` when failures need handling — use the result-returning overload and bridge
+  explicitly.
 - Forgetting to cancel long-lived timers on disable (though `TaskAPI.shutdown()` cancels
   everything at plugin unload).
 

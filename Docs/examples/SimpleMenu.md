@@ -47,11 +47,12 @@ items:
     material: BARRIER
     name: "&cClose"
     actions:
-      - "exyliacommons:close"     # built-in menu action
+      - "myplugin:close"          # built-in menu action namespace is the initializing plugin name
 ```
 
-> Built-in menu actions available out of the box: `close`, `back`, `next_page`, `previous_page`
-> (registered under the `exyliacommons` namespace by `MenuActionRegistrar`).
+> Built-in menu actions available out of the box: `close`, `back`, `next_page`, `previous_page`.
+> They are registered under the initializing plugin's lowercase name, for example
+> `myplugin:close`, not a fixed `exyliacommons` namespace.
 
 ## 2. Register your custom action
 
@@ -79,8 +80,7 @@ public final class MyPlugin extends ExyliaPlugin {
                 openMenu(player, "menus/shop");  // open another YAML menu
             })
             .build();
-
-        ActionAPI.register(openShop);
+        // build() already registered openShop. Do not register it a second time.
     }
 
     @Override

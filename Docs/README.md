@@ -64,7 +64,7 @@ initialized explicitly by the consuming plugin.
 | Config schema defaults | `ConfigSchemaRegistry.ensureDefaults(DebugDefaults, FormattersDefaults)` |
 | **TaskAPI** | `TaskAPI.initialize(plugin)` |
 | Debug | `DebugConfig.reload()` |
-| Color / Visual | `ColorAPI.initialize`, `VisualManager.initialize` |
+| Color / Visual | `ColorAPI.initialize`, `VisualManager.getInstance().initialize` |
 | PlayerUtils | `PlayerUtils.initialize` |
 | Placeholders | `Placeholders.initialize` |
 | Chat input | `ChatInputManager.init` |
@@ -77,7 +77,12 @@ initialized explicitly by the consuming plugin.
 
 `MenuAPI`, `SkullAPI`*, `CommandAPI`*, `RegionAPI`, `ScoreboardAPI`, `Database`, `TeleportAPI`,
 `ChannelAPI`, `ClanAPI`, `CombatAPI`, `EconomyAPI`, `SnapshotAPI`, `ConversationAPI`,
-`WizardAPI`, `SimpleRedis`, `HologramManager`.
+`WizardAPI`, `SimpleRedis`, `HologramAPI`, `CraftingAPI`, `ClientAPI`, `Yaml`, `DiscordWebhooks`.
+
+`SnapshotStoreAPI` additionally requires `Database`; `TeleportAPI` requires `Database` and uses its
+database Redis pool. `ClientAPI` initializes the client waypoint/team/cooldown systems together and
+should be treated as one opt-in lifecycle. `HologramAPI`, not `HologramManager`, is the consumer
+entry point.
 
 > \* `CommandAPI` and `SkullAPI` are lazily initialized by `MenuAPI.initialize`, so if you open
 > menus they come up automatically. If you use them independently, initialize them yourself.
@@ -137,6 +142,7 @@ See [Lifecycle.md](Lifecycle.md) for the full bootstrap/shutdown sequence.
 | [Teleport.md](Teleport.md) | Local + cross-server teleport |
 | [Channel.md](Channel.md) | Cross-server messaging over Redis |
 | [PlayerInteraction.md](PlayerInteraction.md) | Chat input, conversations, wizards, snapshots |
+| [AdditionalSystems.md](AdditionalSystems.md) | Crafting, YAML persistence, expressions, client APIs, Discord webhooks |
 
 ---
 

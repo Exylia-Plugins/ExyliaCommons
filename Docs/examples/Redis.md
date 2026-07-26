@@ -19,6 +19,10 @@ Related: [Redis](../Redis.md).
 protected void onExyliaEnable() {
     SimpleRedis.init(this);   // config from redis.yml (or init(this, SimpleRedisConfig))
 
+    if (!SimpleRedis.isInitialized()) {
+        DebugAPI.logPluginWarn("Redis is disabled in redis.yml — cross-server features disabled.");
+        return;
+    }
     if (!SimpleRedis.get().isConnected()) {
         DebugAPI.logPluginWarn("Redis not connected — cross-server features disabled.");
     }
@@ -42,22 +46,33 @@ Tasks.io(() -> {
 Tasks.io(() -> redis.get("session:" + uuid))
     .thenAccept(result -> {
         if (result.isSuccess() && result.getValue() != null) {
-            Tasks.sync(() -> applyToken(player, result.getValue()));
+            String tokenValue = result.getValue();
+            Tasks.at(player, () -> applyToken(player, tokenValue));
         }
     });
 
-// Counters & sets:
-long online = redis.incr("network:online");
-redis.sadd("party:" + partyId, player.getUniqueId().toString());
-Set<String> members = redis.smembers("party:" + partyId);
+// Counters & sets (these synchronous calls also belong off-thread):
+Tasks.io(() -> {
+    long online = redis.incr("network:online");
+    redis.sadd("party:" + partyId, player.getUniqueId().toString());
+    return redis.smembers("party:" + partyId);
+}).thenAccept(result -> {
+    if (!result.isSuccess()) return;
+    Tasks.sync(() -> useMembers(result.getValue()));
+});
 ```
 
 ## Objects (serialized JSON)
 
 ```java
 // Store/read a serializable object with a TTL:
-redis.setObject("profile:" + uuid, profileSnapshot, 600);
-ProfileSnapshot snap = redis.getObject("profile:" + uuid, ProfileSnapshot.class);
+Tasks.io(() -> redis.setObject("profile:" + uuid, profileSnapshot, 600));
+Tasks.io(() -> redis.getObject("profile:" + uuid, ProfileSnapshot.class))
+    .thenAccept(result -> {
+        if (result.isSuccess() && result.getValue() != null) {
+            Tasks.at(player, () -> applySnapshot(player, result.getValue()));
+        }
+    });
 ```
 
 ## Pub/Sub (cross-server events)
@@ -74,7 +89,13 @@ redis.pubSub().subscribeObject("network:announce", Announcement.class, msg ->
 ## Raw access when you need a specific command
 
 ```java
-Long removed = redis.execute(jedis -> jedis.zremrangeByScore("leaderboard", 0, 100));
+Tasks.io(() -> redis.execute(jedis -> jedis.zremrangeByScore("leaderboard", 0, 100)))
+    .thenAccept(result -> {
+        if (result.isSuccess()) {
+            Long removed = result.getValue();
+            // Handle the result without touching Bukkit here.
+        }
+    });
 ```
 
 ---
@@ -90,7 +111,7 @@ Long removed = redis.execute(jedis -> jedis.zremrangeByScore("leaderboard", 0, 1
 
 ## Common mistakes
 
-- Using `SimpleRedis.getInstance()` — the accessor is `SimpleRedis.get()`.
+- Calling `SimpleRedis.get()` when Redis is disabled — check `SimpleRedis.isInitialized()` first.
 - Calling synchronous ops (`get`/`set`/...) on the main thread — they block on network IO. Use
   `Tasks.io(...)` or the async variants.
 - Applying Bukkit changes directly from a pub/sub callback thread — bridge back with `Tasks.sync`.
