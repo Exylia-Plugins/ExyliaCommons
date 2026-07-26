@@ -26,6 +26,9 @@ public class RewardResult {
     @Builder.Default
     private final boolean skippedByCondition = false;
 
+    @Builder.Default
+    private final boolean skippedByPermission = false;
+
     public static RewardResult success(Reward reward) {
         return RewardResult.builder()
                 .success(true)
@@ -74,6 +77,15 @@ public class RewardResult {
                 .reward(reward)
                 .skippedByCondition(true)
                 .message("Skipped by condition check")
+                .build();
+    }
+
+    public static RewardResult skippedPermission(Reward reward) {
+        return RewardResult.builder()
+                .success(false)
+                .reward(reward)
+                .skippedByPermission(true)
+                .message("Skipped by permission check")
                 .build();
     }
 }

@@ -92,6 +92,12 @@ public class RewardExecutor {
             return CompletableFuture.completedFuture(RewardResult.skippedProbability(reward));
         }
 
+        if (!context.isSkipPermissionCheck() && reward.getPermission() != null && !reward.getPermission().isBlank()
+                && !context.getPlayer().hasPermission(reward.getPermission())) {
+            DebugAPI.logLibDebug(DebugCategory.REWARD, "Reward skipped (permission): " + reward.getId());
+            return CompletableFuture.completedFuture(RewardResult.skippedPermission(reward));
+        }
+
         if (!context.isSkipConditions() && reward.getCondition() != null) {
             boolean conditionMet = ConditionProcessor.evaluate(
                     reward.getCondition(),
@@ -163,6 +169,7 @@ public class RewardExecutor {
                 .data(config.getRawData())
                 .chance(config.getChance())
                 .condition(config.getCondition())
+                .permission(config.getPermission())
                 .message(config.getMessage())
                 .priority(config.getPriority())
                 .build();

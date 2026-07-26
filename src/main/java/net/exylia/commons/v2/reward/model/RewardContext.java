@@ -34,4 +34,7 @@ public class RewardContext {
 
     @Builder.Default
     private final boolean skipProbability = false;
+
+    @Builder.Default
+    private final boolean skipPermissionCheck = false;
 }

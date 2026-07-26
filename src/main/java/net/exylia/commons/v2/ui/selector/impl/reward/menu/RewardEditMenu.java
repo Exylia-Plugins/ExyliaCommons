@@ -83,6 +83,29 @@ public final class RewardEditMenu {
                         .build()))
                 .build();
 
+        ItemData permissionButton = ItemData.builder()
+                .rawMaterial("NAME_TAG")
+                .rawDisplayName("&a&lPermission")
+                .rawLore(List.of(
+                        "&7Required to receive this reward.",
+                        "&7Current: &f" + (entry.getPermission() != null ? entry.getPermission() : "none"),
+                        "",
+                        "&eClick to change",
+                        "&cRight-Click to clear"
+                ))
+                .slotConfig(SlotConfig.single(34))
+                .actions(List.of(
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.LEFT)
+                                .action("commons:reward_set_permission " + entry.getId())
+                                .build(),
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.RIGHT)
+                                .action("commons:reward_clear_permission " + entry.getId())
+                                .build()
+                ))
+                .build();
+
         ItemData deliveryMessageButton = ItemData.builder()
                 .rawMaterial("WRITABLE_BOOK")
                 .rawDisplayName("&f&lDelivery Message")
@@ -133,6 +156,7 @@ public final class RewardEditMenu {
         items.put("value", valueButton);
         items.put("chance", chanceButton);
         items.put("condition", conditionButton);
+        items.put("permission", permissionButton);
         items.put("priority", priorityButton);
         items.put("delivery_msg", deliveryMessageButton);
         items.put("delete", deleteButton);

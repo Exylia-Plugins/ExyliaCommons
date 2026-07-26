@@ -219,6 +219,43 @@ public final class RewardEditorActionRegistrar {
                 })
                 .build();
 
+        ActionAPI.create("reward_set_permission", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    ChatInputAPI.text(player, "Enter required permission (or 'none' to clear)")
+                            .onCancel(() -> RewardEditMenu.open(player, entry))
+                            .onResponse(value -> {
+                                entry.setPermission(value.equalsIgnoreCase("none") ? null : value);
+                                session.replaceReward(entry);
+                                RewardEditMenu.open(player, entry);
+                            })
+                            .ask();
+                })
+                .build();
+
+        ActionAPI.create("reward_clear_permission", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    entry.setPermission(null);
+                    session.replaceReward(entry);
+                    RewardEditMenu.open(player, entry);
+                })
+                .build();
+
         ActionAPI.create("reward_set_priority", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();

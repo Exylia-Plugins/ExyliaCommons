@@ -19,6 +19,7 @@ public class RewardBuilder {
     private Object data;
     private double chance = 100.0;
     private String condition;
+    private String permission;
     private String message;
     private int priority = 0;
 
@@ -59,6 +60,11 @@ public class RewardBuilder {
         return this;
     }
 
+    public RewardBuilder permission(String permission) {
+        this.permission = permission;
+        return this;
+    }
+
     public RewardBuilder successMessage(String message) {
         this.message = message;
         return this;
@@ -80,6 +86,7 @@ public class RewardBuilder {
                 .data(data)
                 .chance(chance)
                 .condition(condition)
+                .permission(permission)
                 .message(message)
                 .priority(priority)
                 .build();

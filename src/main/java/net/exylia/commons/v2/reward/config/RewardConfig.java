@@ -14,6 +14,7 @@ public class RewardConfig {
     private final double chance = 100.0;
 
     private final String condition;
+    private final String permission;
     private final String message;
 
     @Builder.Default

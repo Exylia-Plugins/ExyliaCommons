@@ -28,6 +28,7 @@ public class RewardEntry {
     private double chance = 100.0;
 
     private String condition;
+    private String permission;
     private String deliveryMessage;
 
     @Builder.Default
@@ -66,6 +67,7 @@ public class RewardEntry {
                 .data(data)
                 .chance(chance)
                 .condition(condition)
+                .permission(permission)
                 .message(deliveryMessage)
                 .priority(priority)
                 .build();
@@ -111,6 +113,7 @@ public class RewardEntry {
                 .message(message)
                 .chance(chance)
                 .condition(condition)
+                .permission(permission)
                 .deliveryMessage(deliveryMessage)
                 .priority(priority)
                 .build();

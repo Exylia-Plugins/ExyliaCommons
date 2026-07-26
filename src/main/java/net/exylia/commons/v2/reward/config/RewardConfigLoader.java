@@ -86,6 +86,7 @@ public class RewardConfigLoader {
                 .rawData(section.getString("command"))
                 .chance(section.getDouble("chance", 100.0))
                 .condition(section.getString("condition"))
+                .permission(section.getString("permission"))
                 .message(section.getString("message"))
                 .priority(section.getInt("priority", 0))
                 .build();
@@ -121,6 +122,7 @@ public class RewardConfigLoader {
                 .rawData(itemConfig)
                 .chance(section.getDouble("chance", 100.0))
                 .condition(section.getString("condition"))
+                .permission(section.getString("permission"))
                 .message(section.getString("message"))
                 .priority(section.getInt("priority", 0))
                 .build();
@@ -154,6 +156,7 @@ public class RewardConfigLoader {
                     .rawData(section.getString("message"))
                     .chance(section.getDouble("chance", 100.0))
                     .condition(section.getString("condition"))
+                    .permission(section.getString("permission"))
                     .priority(section.getInt("priority", 0))
                     .build();
         };

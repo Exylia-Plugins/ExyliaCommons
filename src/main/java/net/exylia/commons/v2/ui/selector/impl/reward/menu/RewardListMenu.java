@@ -147,6 +147,9 @@ public final class RewardListMenu {
         if (entry.getCondition() != null) {
             lore.add("&7Condition: &f" + entry.getCondition());
         }
+        if (entry.getPermission() != null) {
+            lore.add("&7Permission: &f" + entry.getPermission());
+        }
         lore.add("");
         lore.add("&aLeft Click &7» Edit");
         lore.add("&cRight Click &7» Delete");
