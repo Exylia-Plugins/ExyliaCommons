@@ -24,6 +24,7 @@ public final class RewardEditMenu {
         ItemData globalFiller = ItemData.builder()
                 .rawMaterial("GRAY_STAINED_GLASS_PANE")
                 .rawDisplayName(" ")
+                .hideTooltip(true)
                 .build();
 
         ItemData displayItem = buildDisplayItem(entry);
@@ -40,7 +41,7 @@ public final class RewardEditMenu {
                         "&eClick to change",
                         "&cRight-Click to clear"
                 ))
-                .slotConfig(SlotConfig.single(15))
+                .slotConfig(SlotConfig.single(19))
                 .actions(List.of(
                         ClickAction.builder()
                                 .clickType(ClickTypeGroup.LEFT)
@@ -61,7 +62,7 @@ public final class RewardEditMenu {
                         "",
                         "&eClick to change"
                 ))
-                .slotConfig(SlotConfig.single(20))
+                .slotConfig(SlotConfig.single(21))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:reward_set_chance " + entry.getId())
@@ -99,7 +100,7 @@ public final class RewardEditMenu {
                         "",
                         "&eClick to change"
                 ))
-                .slotConfig(SlotConfig.single(24))
+                .slotConfig(SlotConfig.single(23))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:reward_set_priority " + entry.getId())
@@ -116,7 +117,7 @@ public final class RewardEditMenu {
                         "&eClick to change",
                         "&cRight-Click to clear"
                 ))
-                .slotConfig(SlotConfig.single(34))
+                .slotConfig(SlotConfig.single(24))
                 .actions(List.of(
                         ClickAction.builder()
                                 .clickType(ClickTypeGroup.LEFT)
@@ -139,7 +140,7 @@ public final class RewardEditMenu {
                         "&eClick to change",
                         "&cRight-Click to clear"
                 ))
-                .slotConfig(SlotConfig.single(30))
+                .slotConfig(SlotConfig.single(25))
                 .actions(List.of(
                         ClickAction.builder()
                                 .clickType(ClickTypeGroup.LEFT)
@@ -156,7 +157,7 @@ public final class RewardEditMenu {
                 .rawMaterial("TNT")
                 .rawDisplayName("&c&lDelete Reward")
                 .rawLore(List.of("&7Click to permanently delete this reward"))
-                .slotConfig(SlotConfig.single(32))
+                .slotConfig(SlotConfig.single(44))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:reward_delete " + entry.getId())
@@ -218,7 +219,7 @@ public final class RewardEditMenu {
                         "&7Type: " + typeName,
                         "&7Value: &f" + entry.getValuePreview()
                 ))
-                .slotConfig(SlotConfig.single(13))
+                .slotConfig(SlotConfig.single(4))
                 .build();
     }
 
@@ -258,7 +259,7 @@ public final class RewardEditMenu {
                             "",
                             "&eClick to change"
                     ))
-                    .slotConfig(SlotConfig.single(11))
+                    .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
                             .clickType(ClickTypeGroup.ANY)
                             .action("commons:reward_set_value " + entry.getId())
@@ -272,7 +273,7 @@ public final class RewardEditMenu {
                             "",
                             "&eClick to change item"
                     ))
-                    .slotConfig(SlotConfig.single(11))
+                    .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
                             .clickType(ClickTypeGroup.ANY)
                             .action("commons:reward_set_value " + entry.getId())
@@ -287,7 +288,7 @@ public final class RewardEditMenu {
                             "",
                             "&eClick to change"
                     ))
-                    .slotConfig(SlotConfig.single(11))
+                    .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
                             .clickType(ClickTypeGroup.ANY)
                             .action("commons:reward_set_value " + entry.getId())
