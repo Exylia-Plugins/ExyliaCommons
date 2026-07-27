@@ -21,16 +21,18 @@ public final class RewardTypeSelectMenu {
         ItemData globalFiller = ItemData.builder()
                 .rawMaterial("GRAY_STAINED_GLASS_PANE")
                 .rawDisplayName(" ")
+                .hideTooltip(true)
                 .build();
 
         ItemData commandButton = ItemData.builder()
                 .rawMaterial("COMMAND_BLOCK")
-                .rawDisplayName("&6&lCommand Reward")
+                .rawDisplayName("{warning}&lCOMMAND REWARD ⌨")
                 .rawLore(List.of(
-                        "&7Execute a console command",
-                        "&7when the reward is given.",
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Executes a console command",
+                        " {letters_black}▎ {letters}when this reward is given.",
                         "",
-                        "&eClick to select"
+                        "{warning}➥ Click to select"
                 ))
                 .slotConfig(SlotConfig.single(11))
                 .actions(List.of(ClickAction.builder()
@@ -41,12 +43,13 @@ public final class RewardTypeSelectMenu {
 
         ItemData itemButton = ItemData.builder()
                 .rawMaterial("CHEST")
-                .rawDisplayName("&b&lItem Reward")
+                .rawDisplayName("{info}&lITEM REWARD 🎁")
                 .rawLore(List.of(
-                        "&7Give a specific item",
-                        "&7to the player.",
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Gives a specific item",
+                        " {letters_black}▎ {letters}to the player.",
                         "",
-                        "&eClick to select"
+                        "{warning}➥ Click to select"
                 ))
                 .slotConfig(SlotConfig.single(13))
                 .actions(List.of(ClickAction.builder()
@@ -57,12 +60,13 @@ public final class RewardTypeSelectMenu {
 
         ItemData messageButton = ItemData.builder()
                 .rawMaterial("PAPER")
-                .rawDisplayName("&d&lMessage Reward")
+                .rawDisplayName("{letters}&lMESSAGE REWARD ✉")
                 .rawLore(List.of(
-                        "&7Send a message to the",
-                        "&7player as a reward.",
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Sends a message to the",
+                        " {letters_black}▎ {letters}player as a reward.",
                         "",
-                        "&eClick to select"
+                        "{warning}➥ Click to select"
                 ))
                 .slotConfig(SlotConfig.single(15))
                 .actions(List.of(ClickAction.builder()
@@ -73,8 +77,12 @@ public final class RewardTypeSelectMenu {
 
         ItemData backButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Back")
-                .rawLore(List.of("&7Return to the reward list"))
+                .rawDisplayName("{secondary}&l« BACK")
+                .rawLore(List.of(
+                        " {letters_black}▎ {letters}Return to the reward list.",
+                        "",
+                        "{warning}➥ Click to go back"
+                ))
                 .slotConfig(SlotConfig.single(22))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -89,7 +97,7 @@ public final class RewardTypeSelectMenu {
         items.put("back", backButton);
 
         MenuData menuData = MenuData.builder()
-                .title("&8Select Reward Type")
+                .title("{primary}&lSELECT REWARD TYPE")
                 .type(MenuType.SIMPLE)
                 .size(27)
                 .globalFiller(globalFiller)

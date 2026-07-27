@@ -44,8 +44,13 @@ public final class RewardListMenu {
 
         ItemData addButton = ItemData.builder()
                 .rawMaterial("EMERALD")
-                .rawDisplayName("<#8fffc1><bold>ADD REWARD")
-                .rawLore(List.of("&7Click to add a new reward"))
+                .rawDisplayName("{success}&lADD REWARD")
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Create a new command, item",
+                        "{letters_black}▎ {letters}or message reward.",
+                        "",
+                        "{warning}➥ Click to add"
+                ))
                 .slotConfig(SlotConfig.single(45))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -55,9 +60,14 @@ public final class RewardListMenu {
 
         ItemData saveButton = ItemData.builder()
                 .rawMaterial("LIME_DYE")
-                .rawDisplayName("<#8fffc1><bold>SAVE")
+                .rawDisplayName("{success}&lSAVE CHANGES")
                 .glowing(true)
-                .rawLore(List.of("&7Click to save all rewards"))
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Persist every reward configured",
+                        "{letters_black}▎ {letters}in this list.",
+                        "",
+                        "{warning}➥ Click to save"
+                ))
                 .slotConfig(SlotConfig.single(52))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -67,8 +77,13 @@ public final class RewardListMenu {
 
         ItemData cancelButton = ItemData.builder()
                 .rawMaterial("RED_DYE")
-                .rawDisplayName("<#a33b53><bold>CANCEL")
-                .rawLore(List.of("&7Click to cancel without saving"))
+                .rawDisplayName("{error}&lCANCEL")
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Discard every unsaved change",
+                        "{letters_black}▎ {letters}and close this menu.",
+                        "",
+                        "{warning}➥ Click to cancel"
+                ))
                 .slotConfig(SlotConfig.single(53))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -78,13 +93,13 @@ public final class RewardListMenu {
 
         ItemData prevButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Previous Page")
+                .rawDisplayName("{secondary}&l« Previous Page")
                 .slotConfig(SlotConfig.single(47))
                 .build();
 
         ItemData nextButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Next Page")
+                .rawDisplayName("{secondary}&lNext Page »")
                 .slotConfig(SlotConfig.single(51))
                 .build();
 
@@ -112,8 +127,13 @@ public final class RewardListMenu {
         if (RewardClipboard.has(player)) {
             ItemData pasteButton = ItemData.builder()
                     .rawMaterial("WRITABLE_BOOK")
-                    .rawDisplayName("<#f7d77a><bold>PASTE REWARD")
-                    .rawLore(List.of("&7Click to paste copied reward"))
+                    .rawDisplayName("{highlight}&lPASTE REWARD")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Add a copy of the reward",
+                            "{letters_black}▎ {letters}currently in your clipboard.",
+                            "",
+                            "{warning}➥ Click to paste"
+                    ))
                     .slotConfig(SlotConfig.single(46))
                     .actions(List.of(ClickAction.builder()
                             .clickType(ClickTypeGroup.ANY)
@@ -136,26 +156,27 @@ public final class RewardListMenu {
 
     private static ItemData buildRewardItem(RewardEntry entry) {
         String material = materialFor(entry.getType());
-        String name = "<color:" + colorFor(entry.getType()) + ">" + entry.getDisplayName();
+        String color = colorFor(entry.getType());
+        String name = "<color:" + color + ">&l" + entry.getDisplayName();
 
         List<String> lore = new ArrayList<>();
-        lore.add("&8ID: &7" + entry.getId().substring(0, 8) + "...");
-        lore.add("&7Type: &f" + formatType(entry.getType()));
-        lore.add("&7Value: &f" + entry.getValuePreview());
-        lore.add("&7Chance: &f" + entry.getChance() + "%");
+        lore.add("{secondary}Details:");
+        lore.add(" {letters_black}▎ {letters}Type " + typeIcon(entry.getType()) + " {letters_black}» <color:" + color + ">" + formatType(entry.getType()));
+        lore.add(" {letters_black}▎ {letters}Value {letters_black}» {info}" + entry.getValuePreview());
+        lore.add(" {letters_black}▎ {letters}Chance 🎲 {letters_black}» {highlight}" + formatChance(entry.getChance()) + "%");
         if (entry.getPriority() != 0) {
-            lore.add("&7Priority: &f" + entry.getPriority());
+            lore.add(" {letters_black}▎ {letters}Priority {letters_black}» {info}" + entry.getPriority());
         }
         if (entry.getCondition() != null) {
-            lore.add("&7Condition: &f" + entry.getCondition());
+            lore.add(" {letters_black}▎ {letters}Condition {letters_black}» {info}" + entry.getCondition());
         }
         if (entry.getPermission() != null) {
-            lore.add("&7Permission: &f" + entry.getPermission());
+            lore.add(" {letters_black}▎ {letters}Permission 🔒 {letters_black}» {info}" + entry.getPermission());
         }
         lore.add("");
-        lore.add("&aLeft Click &7» Edit");
-        lore.add("&cRight Click &7» Delete");
-        lore.add("&eShift+Left &7» Copy");
+        lore.add("{success}● {letters}Left Click {letters_black}» Edit");
+        lore.add("{error}● {letters}Right Click {letters_black}» Delete");
+        lore.add("{warning}● {letters}Shift + Left {letters_black}» Copy");
 
         return ItemData.builder()
                 .rawMaterial(material)
@@ -194,12 +215,24 @@ public final class RewardListMenu {
         };
     }
 
+    private static String typeIcon(RewardType type) {
+        return switch (type) {
+            case COMMAND -> "⌨";
+            case ITEM -> "🎁";
+            case MESSAGE -> "✉";
+        };
+    }
+
     private static String colorFor(RewardType type) {
         return switch (type) {
             case COMMAND -> "#f5a86c";
             case ITEM -> "#83d8ff";
             case MESSAGE -> "#d7b8ff";
         };
+    }
+
+    private static String formatChance(double chance) {
+        return chance == Math.floor(chance) ? String.valueOf((int) chance) : String.valueOf(chance);
     }
 
     private static List<Integer> buildPaginationSlots() {

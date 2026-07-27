@@ -43,8 +43,13 @@ public final class PotionEffectListMenu {
 
         ItemData addButton = ItemData.builder()
                 .rawMaterial("EMERALD")
-                .rawDisplayName("<#8fffc1><bold>ADD EFFECT")
-                .rawLore(List.of("&7Click to add a new potion effect"))
+                .rawDisplayName("{success}&lADD EFFECT")
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Add a new potion effect",
+                        "{letters_black}▎ {letters}to this list.",
+                        "",
+                        "{warning}➥ Click to add"
+                ))
                 .slotConfig(SlotConfig.single(45))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -54,9 +59,14 @@ public final class PotionEffectListMenu {
 
         ItemData saveButton = ItemData.builder()
                 .rawMaterial("LIME_DYE")
-                .rawDisplayName("<#8fffc1><bold>SAVE")
+                .rawDisplayName("{success}&lSAVE CHANGES")
                 .glowing(true)
-                .rawLore(List.of("&7Click to save all effects"))
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Persist every effect configured",
+                        "{letters_black}▎ {letters}in this list.",
+                        "",
+                        "{warning}➥ Click to save"
+                ))
                 .slotConfig(SlotConfig.single(52))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -66,8 +76,13 @@ public final class PotionEffectListMenu {
 
         ItemData cancelButton = ItemData.builder()
                 .rawMaterial("RED_DYE")
-                .rawDisplayName("<#a33b53><bold>CANCEL")
-                .rawLore(List.of("&7Click to cancel without saving"))
+                .rawDisplayName("{error}&lCANCEL")
+                .rawLore(List.of(
+                        "{letters_black}▎ {letters}Discard every unsaved change",
+                        "{letters_black}▎ {letters}and close this menu.",
+                        "",
+                        "{warning}➥ Click to cancel"
+                ))
                 .slotConfig(SlotConfig.single(53))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -77,13 +92,13 @@ public final class PotionEffectListMenu {
 
         ItemData prevButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Previous Page")
+                .rawDisplayName("{secondary}&l« Previous Page")
                 .slotConfig(SlotConfig.single(47))
                 .build();
 
         ItemData nextButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Next Page")
+                .rawDisplayName("{secondary}&lNext Page »")
                 .slotConfig(SlotConfig.single(51))
                 .build();
 
@@ -122,13 +137,14 @@ public final class PotionEffectListMenu {
 
     private static ItemData buildEffectItem(PotionEffectResult result, int index) {
         String color = PotionEffectColors.colorFor(result.effectType());
-        String name = "<color:" + color + ">" + result.formattedTypeName();
+        String name = "<color:" + color + ">&l" + result.formattedTypeName();
 
         List<String> lore = new ArrayList<>();
-        lore.add("&7Level: &f" + result.level());
-        lore.add("&7Duration: &f" + formatDuration(result.durationSeconds()));
+        lore.add("{secondary}Details:");
+        lore.add(" {letters_black}▎ {letters}Level {letters_black}» {highlight}" + result.level());
+        lore.add(" {letters_black}▎ {letters}Duration ⏱ {letters_black}» {info}" + formatDuration(result.durationSeconds()));
         lore.add("");
-        lore.add("&cRight Click &7» Remove");
+        lore.add("{error}● {letters}Right Click {letters_black}» Remove");
 
         return ItemData.builder()
                 .rawMaterial("POTION")

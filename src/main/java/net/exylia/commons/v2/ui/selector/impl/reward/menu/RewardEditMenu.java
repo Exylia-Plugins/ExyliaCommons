@@ -33,13 +33,16 @@ public final class RewardEditMenu {
 
         ItemData nameButton = ItemData.builder()
                 .rawMaterial("NAME_TAG")
-                .rawDisplayName("&e&lDisplay Name")
+                .rawDisplayName("{highlight}&lDISPLAY NAME")
                 .rawLore(List.of(
-                        "&7Shown in menus and reward broadcasts.",
-                        "&7Current: &f" + (entry.getName() != null && !entry.getName().isBlank() ? entry.getName() : "(none — uses value)"),
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Shown in menus and reward",
+                        " {letters_black}▎ {letters}broadcasts instead of the raw value.",
                         "",
-                        "&eClick to change",
-                        "&cRight-Click to clear"
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getName() != null && !entry.getName().isBlank() ? entry.getName() : "None"),
+                        "",
+                        "{success}● {letters}Left Click {letters_black}» Change",
+                        "{error}● {letters}Right Click {letters_black}» Clear"
                 ))
                 .slotConfig(SlotConfig.single(19))
                 .actions(List.of(
@@ -56,11 +59,15 @@ public final class RewardEditMenu {
 
         ItemData chanceButton = ItemData.builder()
                 .rawMaterial("SUNFLOWER")
-                .rawDisplayName("&e&lChance")
+                .rawDisplayName("{highlight}&lCHANCE 🎲")
                 .rawLore(List.of(
-                        "&7Current: &f" + entry.getChance() + "%",
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Probability of receiving",
+                        " {letters_black}▎ {letters}this reward when it is given.",
                         "",
-                        "&eClick to change"
+                        " {letters_black}▎ {letters}Current {letters_black}» {highlight}" + formatChance(entry.getChance()) + "%",
+                        "",
+                        "{warning}➥ Click to change"
                 ))
                 .slotConfig(SlotConfig.single(21))
                 .actions(List.of(ClickAction.builder()
@@ -71,12 +78,16 @@ public final class RewardEditMenu {
 
         ItemData conditionButton = ItemData.builder()
                 .rawMaterial("COMPARATOR")
-                .rawDisplayName("&b&lCondition")
+                .rawDisplayName("{info}&lCONDITION")
                 .rawLore(List.of(
-                        "&7Current: &f" + (entry.getCondition() != null ? entry.getCondition() : "none"),
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Expression that must be true",
+                        " {letters_black}▎ {letters}for this reward to be given.",
                         "",
-                        "&eClick to change",
-                        "&cRight-Click to clear"
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getCondition() != null ? entry.getCondition() : "None"),
+                        "",
+                        "{success}● {letters}Left Click {letters_black}» Change",
+                        "{error}● {letters}Right Click {letters_black}» Clear"
                 ))
                 .slotConfig(SlotConfig.single(22))
                 .actions(List.of(
@@ -93,12 +104,15 @@ public final class RewardEditMenu {
 
         ItemData priorityButton = ItemData.builder()
                 .rawMaterial("REPEATER")
-                .rawDisplayName("&d&lPriority")
+                .rawDisplayName("{secondary_light}&lPRIORITY")
                 .rawLore(List.of(
-                        "&7Current: &f" + entry.getPriority(),
-                        "&8Higher = executed first",
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Execution order relative to",
+                        " {letters_black}▎ {letters}other rewards. Higher goes first.",
                         "",
-                        "&eClick to change"
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + entry.getPriority(),
+                        "",
+                        "{warning}➥ Click to change"
                 ))
                 .slotConfig(SlotConfig.single(23))
                 .actions(List.of(ClickAction.builder()
@@ -109,13 +123,16 @@ public final class RewardEditMenu {
 
         ItemData permissionButton = ItemData.builder()
                 .rawMaterial("NAME_TAG")
-                .rawDisplayName("&a&lPermission")
+                .rawDisplayName("{success}&lPERMISSION 🔒")
                 .rawLore(List.of(
-                        "&7Required to receive this reward.",
-                        "&7Current: &f" + (entry.getPermission() != null ? entry.getPermission() : "none"),
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Permission node required to",
+                        " {letters_black}▎ {letters}receive this reward.",
                         "",
-                        "&eClick to change",
-                        "&cRight-Click to clear"
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getPermission() != null ? entry.getPermission() : "None"),
+                        "",
+                        "{success}● {letters}Left Click {letters_black}» Change",
+                        "{error}● {letters}Right Click {letters_black}» Clear"
                 ))
                 .slotConfig(SlotConfig.single(24))
                 .actions(List.of(
@@ -132,13 +149,16 @@ public final class RewardEditMenu {
 
         ItemData deliveryMessageButton = ItemData.builder()
                 .rawMaterial("WRITABLE_BOOK")
-                .rawDisplayName("&f&lDelivery Message")
+                .rawDisplayName("{letters}&lDELIVERY MESSAGE")
                 .rawLore(List.of(
-                        "&7Sent to player after reward.",
-                        "&7Current: &f" + (entry.getDeliveryMessage() != null ? entry.getDeliveryMessage() : "none"),
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Message sent to the player",
+                        " {letters_black}▎ {letters}right after this reward is given.",
                         "",
-                        "&eClick to change",
-                        "&cRight-Click to clear"
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getDeliveryMessage() != null ? entry.getDeliveryMessage() : "None"),
+                        "",
+                        "{success}● {letters}Left Click {letters_black}» Change",
+                        "{error}● {letters}Right Click {letters_black}» Clear"
                 ))
                 .slotConfig(SlotConfig.single(25))
                 .actions(List.of(
@@ -155,8 +175,13 @@ public final class RewardEditMenu {
 
         ItemData deleteButton = ItemData.builder()
                 .rawMaterial("TNT")
-                .rawDisplayName("&c&lDelete Reward")
-                .rawLore(List.of("&7Click to permanently delete this reward"))
+                .rawDisplayName("{error}&lDELETE REWARD")
+                .rawLore(List.of(
+                        " {letters_black}▎ {letters}Permanently remove this reward",
+                        " {letters_black}▎ {letters}from the list.",
+                        "",
+                        "{warning}➥ Click to delete"
+                ))
                 .slotConfig(SlotConfig.single(44))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -166,8 +191,12 @@ public final class RewardEditMenu {
 
         ItemData backButton = ItemData.builder()
                 .rawMaterial("ARROW")
-                .rawDisplayName("&7Back")
-                .rawLore(List.of("&7Return to the reward list"))
+                .rawDisplayName("{secondary}&l« BACK")
+                .rawLore(List.of(
+                        " {letters_black}▎ {letters}Return to the reward list.",
+                        "",
+                        "{warning}➥ Click to go back"
+                ))
                 .slotConfig(SlotConfig.single(36))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
@@ -188,7 +217,7 @@ public final class RewardEditMenu {
         items.put("back", backButton);
 
         MenuData menuData = MenuData.builder()
-                .title("&8Edit Reward")
+                .title("{primary}&lEDIT REWARD")
                 .type(MenuType.SIMPLE)
                 .size(45)
                 .globalFiller(globalFiller)
@@ -206,21 +235,26 @@ public final class RewardEditMenu {
         };
 
         String typeName = switch (entry.getType()) {
-            case COMMAND -> "&6Command";
-            case ITEM -> "&bItem";
-            case MESSAGE -> "&dMessage";
+            case COMMAND -> "{warning}Command";
+            case ITEM -> "{info}Item";
+            case MESSAGE -> "{letters}Message";
         };
 
         return ItemData.builder()
                 .rawMaterial(material)
-                .rawDisplayName(typeName + " &7» &f" + entry.getDisplayName())
+                .rawDisplayName("{primary}&l" + entry.getDisplayName())
                 .rawLore(List.of(
-                        "&8ID: " + entry.getId(),
-                        "&7Type: " + typeName,
-                        "&7Value: &f" + entry.getValuePreview()
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}ID {letters_black}» {muted}" + entry.getId().substring(0, 8) + "...",
+                        " {letters_black}▎ {letters}Type {letters_black}» " + typeName,
+                        " {letters_black}▎ {letters}Value {letters_black}» {info}" + entry.getValuePreview()
                 ))
                 .slotConfig(SlotConfig.single(4))
                 .build();
+    }
+
+    private static String formatChance(double chance) {
+        return chance == Math.floor(chance) ? String.valueOf((int) chance) : String.valueOf(chance);
     }
 
     private static String resolveItemMaterial(RewardEntry entry) {
@@ -252,12 +286,16 @@ public final class RewardEditMenu {
         return switch (entry.getType()) {
             case COMMAND -> ItemData.builder()
                     .rawMaterial("OAK_SIGN")
-                    .rawDisplayName("&6&lCommand Value")
+                    .rawDisplayName("{warning}&lCOMMAND VALUE ⌨")
                     .rawLore(List.of(
-                            "&7Current: &f" + (entry.getCommand() != null ? entry.getCommand() : "(not set)"),
-                            "&8Use %player% for player name",
+                            "{secondary}Details:",
+                            " {letters_black}▎ {letters}Command executed when",
+                            " {letters_black}▎ {letters}this reward is given.",
+                            " {letters_black}▎ {muted}Use %player% for the player name.",
                             "",
-                            "&eClick to change"
+                            " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getCommand() != null ? entry.getCommand() : "Not set"),
+                            "",
+                            "{warning}➥ Click to change"
                     ))
                     .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
@@ -267,11 +305,15 @@ public final class RewardEditMenu {
                     .build();
             case ITEM -> ItemData.builder()
                     .rawMaterial("ITEM_FRAME")
-                    .rawDisplayName("&b&lItem Value")
+                    .rawDisplayName("{info}&lITEM VALUE 🎁")
                     .rawLore(List.of(
-                            "&7Current: &f" + entry.getValuePreview(),
+                            "{secondary}Details:",
+                            " {letters_black}▎ {letters}Item given to the player",
+                            " {letters_black}▎ {letters}when this reward is given.",
                             "",
-                            "&eClick to change item"
+                            " {letters_black}▎ {letters}Current {letters_black}» {info}" + entry.getValuePreview(),
+                            "",
+                            "{warning}➥ Click to change item"
                     ))
                     .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
@@ -281,12 +323,16 @@ public final class RewardEditMenu {
                     .build();
             case MESSAGE -> ItemData.builder()
                     .rawMaterial("WRITABLE_BOOK")
-                    .rawDisplayName("&d&lMessage Value")
+                    .rawDisplayName("{letters}&lMESSAGE VALUE ✉")
                     .rawLore(List.of(
-                            "&7Current: &f" + (entry.getMessage() != null ? entry.getMessage() : "(not set)"),
-                            "&8Supports color codes and placeholders",
+                            "{secondary}Details:",
+                            " {letters_black}▎ {letters}Message sent to the player",
+                            " {letters_black}▎ {letters}when this reward is given.",
+                            " {letters_black}▎ {muted}Supports color codes and placeholders.",
                             "",
-                            "&eClick to change"
+                            " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getMessage() != null ? entry.getMessage() : "Not set"),
+                            "",
+                            "{warning}➥ Click to change"
                     ))
                     .slotConfig(SlotConfig.single(20))
                     .actions(List.of(ClickAction.builder()
