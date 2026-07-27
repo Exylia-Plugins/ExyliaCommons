@@ -3,6 +3,7 @@ package net.exylia.commons.v2.ui.selector.api;
 import net.exylia.commons.v2.ui.selector.impl.color.BukkitColorSelector;
 import net.exylia.commons.v2.ui.selector.impl.effect.PotionEffectEditorSelector;
 import net.exylia.commons.v2.ui.selector.impl.effect.PotionEffectSelector;
+import net.exylia.commons.v2.ui.selector.impl.namedcommand.NamedCommandEditorSelector;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorSelector;
 import org.bukkit.entity.Player;
 
@@ -22,6 +23,10 @@ public final class SelectorAPI {
 
     public static RewardEditorSelector rewardEditor(Player player) {
         return RewardEditorSelector.of(player);
+    }
+
+    public static NamedCommandEditorSelector namedCommandEditor(Player player) {
+        return NamedCommandEditorSelector.of(player);
     }
 
     public static BukkitColorSelector color(Player player) {
