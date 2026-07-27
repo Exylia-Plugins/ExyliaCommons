@@ -18,6 +18,8 @@ public class RewardEntry {
     @Builder.Default
     private String id = UUID.randomUUID().toString();
 
+    private String name;
+
     private RewardType type;
 
     private String command;
@@ -73,6 +75,10 @@ public class RewardEntry {
                 .build();
     }
 
+    public String getDisplayName() {
+        return name != null && !name.isBlank() ? name : getValuePreview();
+    }
+
     public String getValuePreview() {
         return switch (type) {
             case COMMAND -> command != null ? command : "(not set)";
@@ -107,6 +113,7 @@ public class RewardEntry {
     public RewardEntry copy() {
         return RewardEntry.builder()
                 .id(UUID.randomUUID().toString())
+                .name(name)
                 .type(type)
                 .command(command)
                 .itemSnapshot(itemSnapshot)

@@ -30,6 +30,29 @@ public final class RewardEditMenu {
 
         ItemData valueButton = buildValueButton(entry);
 
+        ItemData nameButton = ItemData.builder()
+                .rawMaterial("NAME_TAG")
+                .rawDisplayName("&e&lDisplay Name")
+                .rawLore(List.of(
+                        "&7Shown in menus and reward broadcasts.",
+                        "&7Current: &f" + (entry.getName() != null && !entry.getName().isBlank() ? entry.getName() : "(none — uses value)"),
+                        "",
+                        "&eClick to change",
+                        "&cRight-Click to clear"
+                ))
+                .slotConfig(SlotConfig.single(15))
+                .actions(List.of(
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.LEFT)
+                                .action("commons:reward_set_name " + entry.getId())
+                                .build(),
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.RIGHT)
+                                .action("commons:reward_clear_name " + entry.getId())
+                                .build()
+                ))
+                .build();
+
         ItemData chanceButton = ItemData.builder()
                 .rawMaterial("SUNFLOWER")
                 .rawDisplayName("&e&lChance")
@@ -154,6 +177,7 @@ public final class RewardEditMenu {
         LinkedHashMap<String, ItemData> items = new LinkedHashMap<>();
         items.put("display", displayItem);
         items.put("value", valueButton);
+        items.put("name", nameButton);
         items.put("chance", chanceButton);
         items.put("condition", conditionButton);
         items.put("permission", permissionButton);
@@ -188,10 +212,11 @@ public final class RewardEditMenu {
 
         return ItemData.builder()
                 .rawMaterial(material)
-                .rawDisplayName(typeName + " &7» &f" + entry.getValuePreview())
+                .rawDisplayName(typeName + " &7» &f" + entry.getDisplayName())
                 .rawLore(List.of(
                         "&8ID: " + entry.getId(),
-                        "&7Type: " + typeName
+                        "&7Type: " + typeName,
+                        "&7Value: &f" + entry.getValuePreview()
                 ))
                 .slotConfig(SlotConfig.single(13))
                 .build();

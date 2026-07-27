@@ -160,6 +160,43 @@ public final class RewardEditorActionRegistrar {
                 })
                 .build();
 
+        ActionAPI.create("reward_set_name", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    ChatInputAPI.text(player, "Enter display name (or 'none' to use the value)")
+                            .onCancel(() -> RewardEditMenu.open(player, entry))
+                            .onResponse(value -> {
+                                entry.setName(value.equalsIgnoreCase("none") ? null : value);
+                                session.replaceReward(entry);
+                                RewardEditMenu.open(player, entry);
+                            })
+                            .ask();
+                })
+                .build();
+
+        ActionAPI.create("reward_clear_name", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    entry.setName(null);
+                    session.replaceReward(entry);
+                    RewardEditMenu.open(player, entry);
+                })
+                .build();
+
         ActionAPI.create("reward_set_chance", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();

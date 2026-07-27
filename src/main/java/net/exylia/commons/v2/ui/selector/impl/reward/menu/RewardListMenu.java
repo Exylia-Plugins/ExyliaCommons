@@ -136,10 +136,12 @@ public final class RewardListMenu {
 
     private static ItemData buildRewardItem(RewardEntry entry) {
         String material = materialFor(entry.getType());
-        String name = "<color:" + colorFor(entry.getType()) + ">" + formatType(entry.getType()) + " &7» &f" + entry.getValuePreview();
+        String name = "<color:" + colorFor(entry.getType()) + ">" + entry.getDisplayName();
 
         List<String> lore = new ArrayList<>();
         lore.add("&8ID: &7" + entry.getId().substring(0, 8) + "...");
+        lore.add("&7Type: &f" + formatType(entry.getType()));
+        lore.add("&7Value: &f" + entry.getValuePreview());
         lore.add("&7Chance: &f" + entry.getChance() + "%");
         if (entry.getPriority() != 0) {
             lore.add("&7Priority: &f" + entry.getPriority());
