@@ -1,0 +1,219 @@
+package net.exylia.commons.v2.ui.selector.impl.loot.action;
+
+import net.exylia.commons.v2.action.api.ActionAPI;
+import net.exylia.commons.v2.chat.api.ChatInputAPI;
+import net.exylia.commons.v2.items.input.IconInputHelper;
+import net.exylia.commons.v2.loot.model.LootEntry;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorRegistry;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootEditMenu;
+import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootListMenu;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.List;
+
+public final class LootEditorActionRegistrar {
+
+    private static final String NS = "commons";
+
+    private LootEditorActionRegistrar() {}
+
+    public static void register(JavaPlugin plugin) {
+        if (ActionAPI.get(NS + ":loot_list").isPresent()) return;
+
+        ActionAPI.create("loot_list", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_add", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    IconInputHelper.ask(
+                            player,
+                            () -> LootListMenu.open(player, session),
+                            snapshot -> {
+                                LootEntry entry = LootEntry.builder()
+                                        .itemSnapshot(snapshot.serialize())
+                                        .build();
+                                session.addEntry(entry);
+                                LootListMenu.open(player, session);
+                            }
+                    );
+                })
+                .build();
+
+        ActionAPI.create("loot_edit", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    LootEditMenu.open(player, entry);
+                })
+                .build();
+
+        ActionAPI.create("loot_delete", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    session.removeEntry(id);
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_save", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    LootEditorRegistry.getInstance().remove(player);
+                    if (session.getOnSave() != null) {
+                        session.getOnSave().accept(player, List.copyOf(session.getEntries()));
+                    }
+                })
+                .build();
+
+        ActionAPI.create("loot_cancel", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    LootEditorRegistry.getInstance().remove(player);
+                    if (session.getOnCancel() != null) {
+                        session.getOnCancel().run();
+                    }
+                })
+                .build();
+
+        ActionAPI.create("loot_set_item", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    IconInputHelper.ask(
+                            player,
+                            () -> LootEditMenu.open(player, entry),
+                            snapshot -> {
+                                entry.setItemSnapshot(snapshot.serialize());
+                                session.replaceEntry(entry);
+                                LootEditMenu.open(player, entry);
+                            }
+                    );
+                })
+                .build();
+
+        ActionAPI.create("loot_adjust_min", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    int delta = args.getInt(1, 0);
+                    int updated = Math.max(1, Math.min(entry.getMaxAmount(), entry.getMinAmount() + delta));
+                    entry.setMinAmount(updated);
+                    session.replaceEntry(entry);
+                    LootEditMenu.open(player, entry);
+                })
+                .build();
+
+        ActionAPI.create("loot_adjust_max", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    int delta = args.getInt(1, 0);
+                    int updated = Math.max(entry.getMinAmount(), Math.min(64, entry.getMaxAmount() + delta));
+                    entry.setMaxAmount(updated);
+                    session.replaceEntry(entry);
+                    LootEditMenu.open(player, entry);
+                })
+                .build();
+
+        ActionAPI.create("loot_adjust_weight", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    double delta = args.getInt(1, 0);
+                    double updated = Math.max(0.1, Math.min(100.0, entry.getWeight() + delta));
+                    entry.setWeight(Math.round(updated * 10.0) / 10.0);
+                    session.replaceEntry(entry);
+                    LootEditMenu.open(player, entry);
+                })
+                .build();
+
+        ActionAPI.create("loot_set_tier", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    ChatInputAPI.text(player, "Enter tier name (or 'none' to clear)")
+                            .onCancel(() -> LootEditMenu.open(player, entry))
+                            .onResponse(value -> {
+                                entry.setTier(value.equalsIgnoreCase("none") ? null : value.toUpperCase());
+                                session.replaceEntry(entry);
+                                LootEditMenu.open(player, entry);
+                            })
+                            .ask();
+                })
+                .build();
+
+        ActionAPI.create("loot_clear_tier", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    entry.setTier(null);
+                    session.replaceEntry(entry);
+                    LootEditMenu.open(player, entry);
+                })
+                .build();
+    }
+}
