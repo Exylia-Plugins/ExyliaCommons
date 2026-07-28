@@ -12,6 +12,7 @@ import net.exylia.commons.v2.ui.model.MenuType;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardClipboard;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.reward.RewardListClipboard;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -141,6 +142,47 @@ public final class RewardListMenu {
                             .build()))
                     .build();
             menuData.getItems().put("paste", pasteButton);
+        }
+
+        if (!session.getRewards().isEmpty()) {
+            ItemData copyAllButton = ItemData.builder()
+                    .rawMaterial("BOOKSHELF")
+                    .rawDisplayName("{info}&lCOPY ALL REWARDS")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Copy every reward in this",
+                            "{letters_black}▎ {letters}list (" + session.getRewards().size() + ") to your clipboard,",
+                            "{letters_black}▎ {letters}ready to paste in another event.",
+                            "",
+                            "{warning}➥ Click to copy all"
+                    ))
+                    .slotConfig(SlotConfig.single(48))
+                    .actions(List.of(ClickAction.builder()
+                            .clickType(ClickTypeGroup.ANY)
+                            .action("commons:reward_copy_all")
+                            .build()))
+                    .build();
+            menuData.getItems().put("copy_all", copyAllButton);
+        }
+
+        if (RewardListClipboard.has(player)) {
+            ItemData pasteAllButton = ItemData.builder()
+                    .rawMaterial("ENCHANTED_BOOK")
+                    .glowing(true)
+                    .rawDisplayName("{highlight}&lPASTE ALL REWARDS")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Append the " + RewardListClipboard.size(player) + " reward(s) stored",
+                            "{letters_black}▎ {letters}in your list clipboard to this",
+                            "{letters_black}▎ {letters}event's reward list.",
+                            "",
+                            "{warning}➥ Click to paste all"
+                    ))
+                    .slotConfig(SlotConfig.single(49))
+                    .actions(List.of(ClickAction.builder()
+                            .clickType(ClickTypeGroup.ANY)
+                            .action("commons:reward_paste_all")
+                            .build()))
+                    .build();
+            menuData.getItems().put("paste_all", pasteAllButton);
         }
 
         MenuAPI.open(player, menuData);

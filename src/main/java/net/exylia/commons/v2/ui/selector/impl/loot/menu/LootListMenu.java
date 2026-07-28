@@ -12,6 +12,7 @@ import net.exylia.commons.v2.ui.model.MenuType;
 import net.exylia.commons.v2.ui.model.NavigationData;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootListClipboard;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -141,6 +142,47 @@ public final class LootListMenu {
                             .build()))
                     .build();
             menuData.getItems().put("paste", pasteButton);
+        }
+
+        if (!session.getEntries().isEmpty()) {
+            ItemData copyAllButton = ItemData.builder()
+                    .rawMaterial("BOOKSHELF")
+                    .rawDisplayName("{info}&lCOPY ALL ENTRIES")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Copy every entry in this",
+                            "{letters_black}▎ {letters}loot table (" + session.getEntries().size() + ") to your clipboard,",
+                            "{letters_black}▎ {letters}ready to paste in another table.",
+                            "",
+                            "{warning}➥ Click to copy all"
+                    ))
+                    .slotConfig(SlotConfig.single(48))
+                    .actions(List.of(ClickAction.builder()
+                            .clickType(ClickTypeGroup.ANY)
+                            .action("commons:loot_copy_all")
+                            .build()))
+                    .build();
+            menuData.getItems().put("copy_all", copyAllButton);
+        }
+
+        if (LootListClipboard.has(player)) {
+            ItemData pasteAllButton = ItemData.builder()
+                    .rawMaterial("ENCHANTED_BOOK")
+                    .glowing(true)
+                    .rawDisplayName("{highlight}&lPASTE ALL ENTRIES")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Append the " + LootListClipboard.size(player) + " entries stored",
+                            "{letters_black}▎ {letters}in your table clipboard to this",
+                            "{letters_black}▎ {letters}loot table.",
+                            "",
+                            "{warning}➥ Click to paste all"
+                    ))
+                    .slotConfig(SlotConfig.single(49))
+                    .actions(List.of(ClickAction.builder()
+                            .clickType(ClickTypeGroup.ANY)
+                            .action("commons:loot_paste_all")
+                            .build()))
+                    .build();
+            menuData.getItems().put("paste_all", pasteAllButton);
         }
 
         MenuAPI.open(player, menuData);

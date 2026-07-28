@@ -7,6 +7,7 @@ import net.exylia.commons.v2.loot.model.LootEntry;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorRegistry;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootListClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootListMenu;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -107,6 +108,35 @@ public final class LootEditorActionRegistrar {
                         return;
                     }
                     session.addEntry(pasted);
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_copy_all", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    LootListClipboard.copy(player, session.getEntries());
+                    player.sendMessage(ColorAPI.parse("{success}Copied " + session.getEntries().size() + " loot entries to clipboard."));
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_paste_all", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    List<LootEntry> pasted = LootListClipboard.paste(player);
+                    if (pasted == null) {
+                        player.sendMessage(ColorAPI.parse("{error}No loot table in clipboard."));
+                        return;
+                    }
+                    pasted.forEach(session::addEntry);
+                    player.sendMessage(ColorAPI.parse("{success}Pasted " + pasted.size() + " loot entries."));
                     LootListMenu.open(player, session);
                 })
                 .build();

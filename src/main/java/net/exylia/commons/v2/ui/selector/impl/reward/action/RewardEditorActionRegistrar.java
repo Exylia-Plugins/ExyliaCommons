@@ -9,6 +9,7 @@ import net.exylia.commons.v2.ui.api.MenuAPI;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardClipboard;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorRegistry;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.reward.RewardListClipboard;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardListMenu;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardTypeSelectMenu;
@@ -117,6 +118,35 @@ public final class RewardEditorActionRegistrar {
                         return;
                     }
                     session.addReward(pasted);
+                    RewardListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("reward_copy_all", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    RewardListClipboard.copy(player, session.getRewards());
+                    player.sendMessage(ColorAPI.parse("{success}Copied " + session.getRewards().size() + " reward(s) to clipboard."));
+                    RewardListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("reward_paste_all", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    List<RewardEntry> pasted = RewardListClipboard.paste(player);
+                    if (pasted == null) {
+                        player.sendMessage(ColorAPI.parse("{error}No reward list in clipboard."));
+                        return;
+                    }
+                    pasted.forEach(session::addReward);
+                    player.sendMessage(ColorAPI.parse("{success}Pasted " + pasted.size() + " reward(s)."));
                     RewardListMenu.open(player, session);
                 })
                 .build();
