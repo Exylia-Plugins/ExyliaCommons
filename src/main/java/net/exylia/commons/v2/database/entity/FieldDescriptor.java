@@ -32,6 +32,7 @@ public class FieldDescriptor {
     private final Field field;
     private final Class<?> type;
     private final Class<?> elementType;
+    private final Type genericType;
 
     private final boolean primaryKey;
     private final boolean autoIncrement;
@@ -48,6 +49,7 @@ public class FieldDescriptor {
         this.field = field;
         this.fieldName = field.getName();
         this.type = field.getType();
+        this.genericType = field.getGenericType();
         this.elementType = extractElementType(field);
 
         String colName = column.name();
@@ -242,7 +244,7 @@ public class FieldDescriptor {
         SerializationRegistry registry = SerializationRegistry.getInstance();
 
         if (!registry.hasDeserializer(elementType)) {
-            return GSON.fromJson(value, (Type) type);
+            return GSON.fromJson(value, genericType != null ? genericType : type);
         }
 
         Collection<Object> collection = createCollectionInstance();
