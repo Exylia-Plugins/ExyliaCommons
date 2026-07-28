@@ -10,6 +10,7 @@ import net.exylia.commons.v2.ui.api.MenuAPI;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuType;
 import net.exylia.commons.v2.ui.model.NavigationData;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
 import org.bukkit.entity.Player;
 
@@ -123,6 +124,25 @@ public final class LootListMenu {
         menuData.getItems().put("save", saveButton);
         menuData.getItems().put("cancel", cancelButton);
 
+        if (LootClipboard.has(player)) {
+            ItemData pasteButton = ItemData.builder()
+                    .rawMaterial("WRITABLE_BOOK")
+                    .rawDisplayName("{highlight}&lPASTE ENTRY")
+                    .rawLore(List.of(
+                            "{letters_black}▎ {letters}Add a copy of the entry",
+                            "{letters_black}▎ {letters}currently in your clipboard.",
+                            "",
+                            "{warning}➥ Click to paste"
+                    ))
+                    .slotConfig(SlotConfig.single(46))
+                    .actions(List.of(ClickAction.builder()
+                            .clickType(ClickTypeGroup.ANY)
+                            .action("commons:loot_paste")
+                            .build()))
+                    .build();
+            menuData.getItems().put("paste", pasteButton);
+        }
+
         MenuAPI.open(player, menuData);
     }
 
@@ -147,6 +167,7 @@ public final class LootListMenu {
         lore.add("");
         lore.add("{success}● {letters}Left Click {letters_black}» Edit");
         lore.add("{error}● {letters}Right Click {letters_black}» Delete");
+        lore.add("{warning}● {letters}Shift + Left {letters_black}» Copy");
 
         return ItemData.builder()
                 .rawMaterial(material)
@@ -159,6 +180,10 @@ public final class LootListMenu {
                         ClickAction.builder()
                                 .clickType(ClickTypeGroup.RIGHT)
                                 .action("commons:loot_delete " + entry.getId())
+                                .build(),
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.SHIFT_LEFT)
+                                .action("commons:loot_copy " + entry.getId())
                                 .build()
                 ))
                 .build();

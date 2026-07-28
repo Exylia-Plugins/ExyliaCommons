@@ -12,6 +12,7 @@ import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorSession;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardListMenu;
 import net.exylia.commons.v2.ui.selector.impl.reward.menu.RewardTypeSelectMenu;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -99,7 +100,7 @@ public final class RewardEditorActionRegistrar {
                     if (entry == null) return;
 
                     RewardClipboard.copy(player, entry);
-                    player.sendMessage("§aCopied reward to clipboard.");
+                    player.sendMessage(ColorAPI.parse("{success}Reward copied to clipboard."));
                     RewardListMenu.open(player, session);
                 })
                 .build();
@@ -112,7 +113,7 @@ public final class RewardEditorActionRegistrar {
 
                     RewardEntry pasted = RewardClipboard.paste(player);
                     if (pasted == null) {
-                        player.sendMessage("§cNo reward in clipboard.");
+                        player.sendMessage(ColorAPI.parse("{error}No reward in clipboard."));
                         return;
                     }
                     session.addReward(pasted);

@@ -4,10 +4,12 @@ import net.exylia.commons.v2.action.api.ActionAPI;
 import net.exylia.commons.v2.chat.api.ChatInputAPI;
 import net.exylia.commons.v2.items.input.IconInputHelper;
 import net.exylia.commons.v2.loot.model.LootEntry;
+import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorRegistry;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootListMenu;
+import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -73,6 +75,38 @@ public final class LootEditorActionRegistrar {
 
                     String id = args.getString(0, "");
                     session.removeEntry(id);
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_copy", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    LootClipboard.copy(player, entry);
+                    player.sendMessage(ColorAPI.parse("{success}Loot entry copied to clipboard."));
+                    LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_paste", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    LootEntry pasted = LootClipboard.paste(player);
+                    if (pasted == null) {
+                        player.sendMessage(ColorAPI.parse("{error}No loot entry in clipboard."));
+                        return;
+                    }
+                    session.addEntry(pasted);
                     LootListMenu.open(player, session);
                 })
                 .build();
