@@ -17,7 +17,7 @@ import java.util.List;
 
 public final class IconPickerMenu {
 
-    public static final int CAPTURE_SLOT = 20;
+    public static final int CAPTURE_SLOT = 11;
 
     private IconPickerMenu() {}
 
@@ -42,7 +42,7 @@ public final class IconPickerMenu {
                         " {letters_black}▎ {muted}The item is captured instantly.",
                         " {letters_black}▎ {muted}Right-click the slot to clear it."
                 ))
-                .slotConfig(SlotConfig.single(19))
+                .slotConfig(SlotConfig.single(11))
                 .build();
 
         LinkedHashMap<String, ItemData> items = new LinkedHashMap<>();
@@ -72,7 +72,7 @@ public final class IconPickerMenu {
                         "",
                         "{warning}➥ Click to type"
                 ))
-                .slotConfig(SlotConfig.single(29))
+                .slotConfig(SlotConfig.single(13))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:iconpicker_set_id")
@@ -90,7 +90,7 @@ public final class IconPickerMenu {
                         "",
                         "{warning}➥ Click to select"
                 ))
-                .slotConfig(SlotConfig.single(31))
+                .slotConfig(SlotConfig.single(15))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:iconpicker_open_heads")
@@ -108,7 +108,7 @@ public final class IconPickerMenu {
                         "",
                         "{warning}➥ Click to confirm"
                 ))
-                .slotConfig(SlotConfig.single(33))
+                .slotConfig(SlotConfig.single(34))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:iconpicker_confirm")
@@ -124,7 +124,7 @@ public final class IconPickerMenu {
                         "",
                         "{warning}➥ Click to cancel"
                 ))
-                .slotConfig(SlotConfig.single(13))
+                .slotConfig(SlotConfig.single(35))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
                         .action("commons:iconpicker_cancel")
@@ -135,7 +135,7 @@ public final class IconPickerMenu {
         MenuData menuData = MenuData.builder()
                 .title("{primary}&lICON PICKER")
                 .type(MenuType.SIMPLE)
-                .size(45)
+                .size(36)
                 .globalFiller(globalFiller)
                 .items(items)
                 .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
