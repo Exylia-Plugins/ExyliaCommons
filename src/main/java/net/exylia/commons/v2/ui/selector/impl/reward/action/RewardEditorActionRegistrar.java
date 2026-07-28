@@ -345,6 +345,28 @@ public final class RewardEditorActionRegistrar {
                 })
                 .build();
 
+        ActionAPI.create("reward_set_amount", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    ChatInputAPI.integer(player, "Item amount (1 - 6400)")
+                            .range(1, 6400)
+                            .onCancel(() -> RewardEditMenu.open(player, entry))
+                            .onResponse(value -> {
+                                entry.setItemAmount(value.intValue());
+                                session.replaceReward(entry);
+                                RewardEditMenu.open(player, entry);
+                            })
+                            .ask();
+                })
+                .build();
+
         ActionAPI.create("reward_set_icon", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();
@@ -446,11 +468,21 @@ public final class RewardEditorActionRegistrar {
                         RewardEntry entry = RewardEntry.builder()
                                 .type(RewardType.ITEM)
                                 .itemSnapshot(snapshot.serialize())
+                                .itemAmount(resolveInitialAmount(snapshot))
                                 .build();
                         session.addReward(entry);
                         RewardListMenu.open(player, session);
                     }
             );
+        }
+    }
+
+    private static int resolveInitialAmount(net.exylia.commons.v2.items.snapshot.ItemSnapshot snapshot) {
+        try {
+            int amount = snapshot.toItemStack().getAmount();
+            return Math.max(1, amount);
+        } catch (Exception e) {
+            return 1;
         }
     }
 

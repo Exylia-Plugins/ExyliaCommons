@@ -28,6 +28,9 @@ public class RewardEntry {
     private String icon;
 
     @Builder.Default
+    private int itemAmount = 1;
+
+    @Builder.Default
     private double chance = 100.0;
 
     private String condition;
@@ -62,7 +65,7 @@ public class RewardEntry {
         Object data = switch (type) {
             case COMMAND -> command;
             case MESSAGE -> message;
-            case ITEM -> itemSnapshot != null ? ItemSnapshot.from(itemSnapshot) : null;
+            case ITEM -> buildItemStack();
         };
         return Reward.builder()
                 .id(id)
@@ -78,6 +81,13 @@ public class RewardEntry {
 
     public String getDisplayName() {
         return name != null && !name.isBlank() ? name : getValuePreview();
+    }
+
+    private ItemStack buildItemStack() {
+        if (itemSnapshot == null) return null;
+        ItemStack item = ItemSnapshot.from(itemSnapshot).toItemStack();
+        item.setAmount(Math.max(1, itemAmount));
+        return item;
     }
 
     public boolean hasIcon() {
@@ -129,12 +139,13 @@ public class RewardEntry {
             case ITEM -> {
                 if (itemSnapshot == null) yield "(no item)";
                 String snap = itemSnapshot;
+                String amountPrefix = itemAmount > 1 ? itemAmount + "x " : "";
                 if (snap.startsWith("bytes:")) {
                     try {
                         ItemStack item = ItemSnapshot.from(snap).toItemStack();
-                        yield item.getType().name().toLowerCase().replace('_', ' ');
+                        yield amountPrefix + item.getType().name().toLowerCase().replace('_', ' ');
                     } catch (Exception e) {
-                        yield "item";
+                        yield amountPrefix + "item";
                     }
                 }
                 if (snap.startsWith("item:")) {
@@ -142,13 +153,13 @@ public class RewardEntry {
                     if (mIdx >= 0) {
                         int start = mIdx + 5;
                         int end = snap.indexOf('"', start);
-                        if (end > start) yield snap.substring(start, end).toLowerCase().replace('_', ' ');
+                        if (end > start) yield amountPrefix + snap.substring(start, end).toLowerCase().replace('_', ' ');
                     }
                 }
                 if (snap.startsWith("urlhead:") || snap.startsWith("playerhead:") || snap.startsWith("basehead:")) {
-                    yield "Custom Skull";
+                    yield amountPrefix + "Custom Skull";
                 }
-                yield snap.toLowerCase().replace('_', ' ');
+                yield amountPrefix + snap.toLowerCase().replace('_', ' ');
             }
         };
     }
@@ -162,6 +173,7 @@ public class RewardEntry {
                 .itemSnapshot(itemSnapshot)
                 .message(message)
                 .icon(icon)
+                .itemAmount(itemAmount)
                 .chance(chance)
                 .condition(condition)
                 .permission(permission)

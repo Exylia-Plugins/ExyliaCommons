@@ -145,6 +145,26 @@ public final class RewardEditMenu {
                 ))
                 .build();
 
+        ItemData amountButton = ItemData.builder()
+                .rawMaterial("HOPPER")
+                .rawDisplayName("{secondary_light}&lITEM AMOUNT")
+                .rawLore(List.of(
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}How many of this item are",
+                        " {letters_black}▎ {letters}given at once. Only applies",
+                        " {letters_black}▎ {letters}to item rewards.",
+                        "",
+                        " {letters_black}▎ {letters}Current {letters_black}» {highlight}" + entry.getItemAmount(),
+                        "",
+                        "{warning}➥ Click to change"
+                ))
+                .slotConfig(SlotConfig.single(30))
+                .actions(List.of(ClickAction.builder()
+                        .clickType(ClickTypeGroup.ANY)
+                        .action("commons:reward_set_amount " + entry.getId())
+                        .build()))
+                .build();
+
         ItemData iconButton = ItemData.builder()
                 .rawMaterial(entry.getResolvedIconMaterial())
                 .rawDisplayName("{secondary_light}&lPREVIEW ICON 🖼")
@@ -238,6 +258,9 @@ public final class RewardEditMenu {
         items.put("condition", conditionButton);
         items.put("permission", permissionButton);
         items.put("priority", priorityButton);
+        if (entry.getType() == RewardType.ITEM) {
+            items.put("amount", amountButton);
+        }
         items.put("icon", iconButton);
         items.put("delivery_msg", deliveryMessageButton);
         items.put("delete", deleteButton);
