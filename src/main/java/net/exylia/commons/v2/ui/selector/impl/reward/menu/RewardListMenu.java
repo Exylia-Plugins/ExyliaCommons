@@ -112,6 +112,7 @@ public final class RewardListMenu {
                 .paginationFiller(paginationFiller)
                 .paginationSlots(PAGINATION_SLOTS)
                 .paginationItems(rewardItems)
+                .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
                 .paginationNavigation(NavigationData.builder()
                         .previousButton(prevButton)
                         .previousButtonSlot(47)

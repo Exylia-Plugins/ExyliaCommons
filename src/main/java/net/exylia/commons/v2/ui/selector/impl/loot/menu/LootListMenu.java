@@ -112,6 +112,7 @@ public final class LootListMenu {
                 .paginationFiller(paginationFiller)
                 .paginationSlots(PAGINATION_SLOTS)
                 .paginationItems(entryItems)
+                .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
                 .paginationNavigation(NavigationData.builder()
                         .previousButton(prevButton)
                         .previousButtonSlot(47)

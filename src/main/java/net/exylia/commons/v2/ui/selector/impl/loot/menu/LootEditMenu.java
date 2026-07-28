@@ -197,6 +197,7 @@ public final class LootEditMenu {
                 .size(45)
                 .globalFiller(globalFiller)
                 .items(items)
+                .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
                 .build();
 
         MenuAPI.open(player, menuData);

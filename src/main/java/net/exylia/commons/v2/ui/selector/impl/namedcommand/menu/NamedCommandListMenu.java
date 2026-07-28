@@ -110,6 +110,7 @@ public final class NamedCommandListMenu {
                 .paginationFiller(paginationFiller)
                 .paginationSlots(PAGINATION_SLOTS)
                 .paginationItems(commandItems)
+                .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
                 .paginationNavigation(NavigationData.builder()
                         .previousButton(prevButton)
                         .previousButtonSlot(47)

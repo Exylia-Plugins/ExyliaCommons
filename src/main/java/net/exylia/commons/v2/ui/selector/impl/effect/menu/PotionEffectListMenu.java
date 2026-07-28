@@ -110,6 +110,7 @@ public final class PotionEffectListMenu {
                 .paginationFiller(paginationFiller)
                 .paginationSlots(PAGINATION_SLOTS)
                 .paginationItems(effectItems)
+                .clickSounds(List.of("UI_BUTTON_CLICK|1.0|1.5"))
                 .paginationNavigation(NavigationData.builder()
                         .previousButton(prevButton)
                         .previousButtonSlot(47)
