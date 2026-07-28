@@ -198,7 +198,7 @@ public final class RewardListMenu {
     }
 
     private static ItemData buildRewardItem(RewardEntry entry) {
-        String material = materialFor(entry.getType());
+        String material = entry.getResolvedIconMaterial();
         String color = colorFor(entry.getType());
         String name = "<color:" + color + ">&l" + entry.getDisplayName();
 
@@ -240,14 +240,6 @@ public final class RewardListMenu {
                                 .build()
                 ))
                 .build();
-    }
-
-    private static String materialFor(RewardType type) {
-        return switch (type) {
-            case COMMAND -> "COMMAND_BLOCK";
-            case ITEM -> "CHEST";
-            case MESSAGE -> "PAPER";
-        };
     }
 
     private static String formatType(RewardType type) {

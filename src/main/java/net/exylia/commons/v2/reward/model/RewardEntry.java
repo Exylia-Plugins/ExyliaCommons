@@ -25,6 +25,7 @@ public class RewardEntry {
     private String command;
     private String itemSnapshot;
     private String message;
+    private String icon;
 
     @Builder.Default
     private double chance = 100.0;
@@ -79,6 +80,48 @@ public class RewardEntry {
         return name != null && !name.isBlank() ? name : getValuePreview();
     }
 
+    public boolean hasIcon() {
+        return icon != null && !icon.isBlank();
+    }
+
+    public String getResolvedIconMaterial() {
+        if (hasIcon()) {
+            return resolveMaterialFromSnapshot(icon);
+        }
+        if (type == RewardType.ITEM && itemSnapshot != null) {
+            return resolveMaterialFromSnapshot(itemSnapshot);
+        }
+        return switch (type) {
+            case COMMAND -> "COMMAND_BLOCK";
+            case ITEM -> "CHEST";
+            case MESSAGE -> "PAPER";
+        };
+    }
+
+    private static String resolveMaterialFromSnapshot(String snap) {
+        if (snap == null) return "CHEST";
+        if (snap.startsWith("bytes:")) {
+            try {
+                ItemStack item = ItemSnapshot.from(snap).toItemStack();
+                return item.getType().name();
+            } catch (Exception e) {
+                return "CHEST";
+            }
+        }
+        if (snap.startsWith("item:")) {
+            int mIdx = snap.indexOf("\"m\":\"");
+            if (mIdx >= 0) {
+                int start = mIdx + 5;
+                int end = snap.indexOf('"', start);
+                if (end > start) return snap.substring(start, end);
+            }
+        }
+        if (snap.startsWith("urlhead:") || snap.startsWith("playerhead:") || snap.startsWith("basehead:")) {
+            return "PLAYER_HEAD";
+        }
+        return snap.contains(":") ? "CHEST" : snap.toUpperCase();
+    }
+
     public String getValuePreview() {
         return switch (type) {
             case COMMAND -> command != null ? command : "(not set)";
@@ -118,6 +161,7 @@ public class RewardEntry {
                 .command(command)
                 .itemSnapshot(itemSnapshot)
                 .message(message)
+                .icon(icon)
                 .chance(chance)
                 .condition(condition)
                 .permission(permission)

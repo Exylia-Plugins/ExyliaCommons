@@ -345,6 +345,45 @@ public final class RewardEditorActionRegistrar {
                 })
                 .build();
 
+        ActionAPI.create("reward_set_icon", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    player.closeInventory();
+                    IconInputHelper.ask(
+                            player,
+                            () -> RewardEditMenu.open(player, entry),
+                            snapshot -> {
+                                entry.setIcon(snapshot.serialize());
+                                session.replaceReward(entry);
+                                RewardEditMenu.open(player, entry);
+                            }
+                    );
+                })
+                .build();
+
+        ActionAPI.create("reward_clear_icon", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    RewardEditorSession session = RewardEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    RewardEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    entry.setIcon(null);
+                    session.replaceReward(entry);
+                    RewardEditMenu.open(player, entry);
+                })
+                .build();
+
         ActionAPI.create("reward_set_delivery_msg", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();

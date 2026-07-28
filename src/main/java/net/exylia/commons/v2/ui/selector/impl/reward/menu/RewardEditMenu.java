@@ -4,14 +4,12 @@ import net.exylia.commons.v2.items.config.SlotConfig;
 import net.exylia.commons.v2.items.model.ClickAction;
 import net.exylia.commons.v2.items.model.ClickTypeGroup;
 import net.exylia.commons.v2.items.model.ItemData;
-import net.exylia.commons.v2.items.snapshot.ItemSnapshot;
 import net.exylia.commons.v2.reward.model.RewardEntry;
 import net.exylia.commons.v2.reward.model.RewardType;
 import net.exylia.commons.v2.ui.api.MenuAPI;
 import net.exylia.commons.v2.ui.model.MenuData;
 import net.exylia.commons.v2.ui.model.MenuType;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -147,6 +145,34 @@ public final class RewardEditMenu {
                 ))
                 .build();
 
+        ItemData iconButton = ItemData.builder()
+                .rawMaterial(entry.getResolvedIconMaterial())
+                .rawDisplayName("{secondary_light}&lPREVIEW ICON 🖼")
+                .rawLore(List.of(
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Item shown to players in",
+                        " {letters_black}▎ {letters}preview menus for this reward.",
+                        " {letters_black}▎ {muted}Falls back to the item value or a",
+                        " {letters_black}▎ {muted}type-based icon when not set.",
+                        "",
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.hasIcon() ? "Custom" : "Default"),
+                        "",
+                        "{success}● {letters}Left Click {letters_black}» Change",
+                        "{error}● {letters}Right Click {letters_black}» Clear"
+                ))
+                .slotConfig(SlotConfig.single(31))
+                .actions(List.of(
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.LEFT)
+                                .action("commons:reward_set_icon " + entry.getId())
+                                .build(),
+                        ClickAction.builder()
+                                .clickType(ClickTypeGroup.RIGHT)
+                                .action("commons:reward_clear_icon " + entry.getId())
+                                .build()
+                ))
+                .build();
+
         ItemData deliveryMessageButton = ItemData.builder()
                 .rawMaterial("WRITABLE_BOOK")
                 .rawDisplayName("{letters}&lDELIVERY MESSAGE")
@@ -212,6 +238,7 @@ public final class RewardEditMenu {
         items.put("condition", conditionButton);
         items.put("permission", permissionButton);
         items.put("priority", priorityButton);
+        items.put("icon", iconButton);
         items.put("delivery_msg", deliveryMessageButton);
         items.put("delete", deleteButton);
         items.put("back", backButton);
@@ -229,11 +256,7 @@ public final class RewardEditMenu {
     }
 
     private static ItemData buildDisplayItem(RewardEntry entry) {
-        String material = switch (entry.getType()) {
-            case COMMAND -> "COMMAND_BLOCK";
-            case ITEM -> resolveItemMaterial(entry);
-            case MESSAGE -> "PAPER";
-        };
+        String material = entry.getResolvedIconMaterial();
 
         String typeName = switch (entry.getType()) {
             case COMMAND -> "{warning}Command";
@@ -256,31 +279,6 @@ public final class RewardEditMenu {
 
     private static String formatChance(double chance) {
         return chance == Math.floor(chance) ? String.valueOf((int) chance) : String.valueOf(chance);
-    }
-
-    private static String resolveItemMaterial(RewardEntry entry) {
-        if (entry.getItemSnapshot() == null) return "CHEST";
-        String snap = entry.getItemSnapshot();
-        if (snap.startsWith("bytes:")) {
-            try {
-                ItemStack item = ItemSnapshot.from(snap).toItemStack();
-                return item.getType().name();
-            } catch (Exception e) {
-                return "CHEST";
-            }
-        }
-        if (snap.startsWith("item:")) {
-            int mIdx = snap.indexOf("\"m\":\"");
-            if (mIdx >= 0) {
-                int start = mIdx + 5;
-                int end = snap.indexOf('"', start);
-                if (end > start) return snap.substring(start, end);
-            }
-        }
-        if (snap.startsWith("urlhead:") || snap.startsWith("playerhead:") || snap.startsWith("basehead:")) {
-            return "PLAYER_HEAD";
-        }
-        return snap.contains(":") ? "CHEST" : snap.toUpperCase();
     }
 
     private static ItemData buildValueButton(RewardEntry entry) {
