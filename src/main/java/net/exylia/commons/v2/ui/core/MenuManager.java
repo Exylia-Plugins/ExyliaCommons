@@ -123,6 +123,7 @@ public class MenuManager {
         net.exylia.commons.v2.ui.selector.impl.effect.action.PotionEffectEditorActionRegistrar.register(plugin);
         net.exylia.commons.v2.ui.selector.impl.namedcommand.action.NamedCommandEditorActionRegistrar.register(plugin);
         net.exylia.commons.v2.ui.selector.impl.loot.action.LootEditorActionRegistrar.register(plugin);
+        net.exylia.commons.v2.ui.selector.impl.iconpicker.action.IconPickerActionRegistrar.register(plugin);
     }
 
     public CompletableFuture<Void> openMenuAsync(Player player, MenuData menuData) {

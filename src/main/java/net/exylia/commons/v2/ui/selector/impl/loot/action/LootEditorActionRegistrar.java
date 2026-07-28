@@ -2,8 +2,8 @@ package net.exylia.commons.v2.ui.selector.impl.loot.action;
 
 import net.exylia.commons.v2.action.api.ActionAPI;
 import net.exylia.commons.v2.chat.api.ChatInputAPI;
-import net.exylia.commons.v2.items.input.IconInputHelper;
 import net.exylia.commons.v2.loot.model.LootEntry;
+import net.exylia.commons.v2.ui.selector.impl.iconpicker.IconPickerAPI;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorRegistry;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
@@ -40,7 +40,7 @@ public final class LootEditorActionRegistrar {
                     LootEditorSession session = LootEditorRegistry.getInstance().get(player);
                     if (session == null) return;
 
-                    IconInputHelper.ask(
+                    IconPickerAPI.open(
                             player,
                             () -> LootListMenu.open(player, session),
                             snapshot -> {
@@ -177,7 +177,7 @@ public final class LootEditorActionRegistrar {
                     LootEntry entry = session.findById(id);
                     if (entry == null) return;
 
-                    IconInputHelper.ask(
+                    IconPickerAPI.open(
                             player,
                             () -> LootEditMenu.open(player, entry),
                             snapshot -> {

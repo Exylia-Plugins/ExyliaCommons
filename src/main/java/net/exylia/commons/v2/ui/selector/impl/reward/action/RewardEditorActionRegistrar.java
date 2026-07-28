@@ -2,10 +2,10 @@ package net.exylia.commons.v2.ui.selector.impl.reward.action;
 
 import net.exylia.commons.v2.action.api.ActionAPI;
 import net.exylia.commons.v2.chat.api.ChatInputAPI;
-import net.exylia.commons.v2.items.input.IconInputHelper;
 import net.exylia.commons.v2.reward.model.RewardEntry;
 import net.exylia.commons.v2.reward.model.RewardType;
 import net.exylia.commons.v2.ui.api.MenuAPI;
+import net.exylia.commons.v2.ui.selector.impl.iconpicker.IconPickerAPI;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardClipboard;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorRegistry;
 import net.exylia.commons.v2.ui.selector.impl.reward.RewardEditorSession;
@@ -355,8 +355,7 @@ public final class RewardEditorActionRegistrar {
                     RewardEntry entry = session.findById(id);
                     if (entry == null) return;
 
-                    player.closeInventory();
-                    IconInputHelper.ask(
+                    IconPickerAPI.open(
                             player,
                             () -> RewardEditMenu.open(player, entry),
                             snapshot -> {
@@ -440,7 +439,7 @@ public final class RewardEditorActionRegistrar {
                     })
                     .ask();
 
-            case ITEM -> IconInputHelper.ask(
+            case ITEM -> IconPickerAPI.open(
                     player,
                     () -> RewardTypeSelectMenu.open(player, session),
                     snapshot -> {
@@ -475,7 +474,7 @@ public final class RewardEditorActionRegistrar {
                     })
                     .ask();
 
-            case ITEM -> IconInputHelper.ask(
+            case ITEM -> IconPickerAPI.open(
                     player,
                     () -> RewardEditMenu.open(player, entry),
                     snapshot -> {
