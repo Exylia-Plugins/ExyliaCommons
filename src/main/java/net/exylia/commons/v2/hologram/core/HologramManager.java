@@ -253,12 +253,12 @@ public class HologramManager {
     }
 
     private void cleanup() {
-        registry.getAll().forEach(hologram -> {
-            if (hologram.isPerPlayer()) {
-                hologram.getPlayerDisplays().keySet().removeIf(playerId ->
-                        Bukkit.getPlayer(playerId) == null);
-            }
-        });
+        registry.getAll().forEach(hologram ->
+                hologram.getPlayerViewerIds().forEach(playerId -> {
+                    if (Bukkit.getPlayer(playerId) == null) {
+                        hologram.cleanupPlayer(playerId);
+                    }
+                }));
 
         cacheManager.cleanup();
     }

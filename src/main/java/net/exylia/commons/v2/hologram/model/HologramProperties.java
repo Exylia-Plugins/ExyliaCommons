@@ -52,6 +52,15 @@ public class HologramProperties {
     @Builder.Default
     private final int brightness = -1;
 
+    /**
+     * Glow color override (as used by the scoreboard-team glow effect).
+     * Null means no glow.
+     */
+    private final org.bukkit.Color glowColorOverride;
+
+    @Builder.Default
+    private final boolean glowing = false;
+
     public static HologramProperties defaultProperties() {
         return HologramProperties.builder().build();
     }
@@ -72,6 +81,8 @@ public class HologramProperties {
                 .defaultBackground(this.defaultBackground)
                 .lineSpacing(this.lineSpacing)
                 .brightness(this.brightness)
+                .glowColorOverride(this.glowColorOverride)
+                .glowing(this.glowing)
                 .build();
     }
 }

@@ -226,7 +226,7 @@ public final class LootEditMenu {
             }
         }
         if (snap.startsWith("urlhead:") || snap.startsWith("playerhead:") || snap.startsWith("basehead:")) {
-            return "PLAYER_HEAD";
+            return snap;
         }
         return snap.contains(":") ? "BARRIER" : snap.toUpperCase();
     }

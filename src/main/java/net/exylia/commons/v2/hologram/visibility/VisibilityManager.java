@@ -47,7 +47,7 @@ public class VisibilityManager {
         }
 
         Set<Player> shouldSee = getVisiblePlayers(hologram);
-        Set<UUID> currentlySee = hologram.getPlayerDisplays().keySet();
+        Set<UUID> currentlySee = hologram.getPlayerViewerIds();
 
         shouldSee.stream()
                 .filter(p -> !currentlySee.contains(p.getUniqueId()))

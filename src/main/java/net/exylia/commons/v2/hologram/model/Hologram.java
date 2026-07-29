@@ -2,30 +2,44 @@ package net.exylia.commons.v2.hologram.model;
 
 import lombok.Getter;
 import lombok.Setter;
-import net.exylia.commons.v2.tasks.api.Tasks;
-import net.exylia.commons.v2.hologram.entity.HologramDisplayEntity;
 import net.exylia.commons.v2.hologram.exception.HologramException;
+import net.exylia.commons.v2.hologram.renderer.LineRenderer;
+import net.exylia.commons.v2.hologram.renderer.LineRendererFactory;
 import net.exylia.commons.v2.hologram.visibility.VisibilityCondition;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.entity.Display;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * A hologram: a vertically-stacked set of {@link HologramLine}s (each one
+ * TEXT, ITEM or BLOCK) rendered as a group at a location.
+ * <p>
+ * Each line owns its own {@link LineRenderer}, which is packet-based (no
+ * server-side entity — see {@code PacketLineRenderer}) whenever PacketEvents
+ * is available, and transparently falls back to a real Bukkit Display entity
+ * otherwise ({@code BukkitLineRenderer}). Callers never need to know which
+ * one is in use.
+ */
 @Getter
 public class Hologram {
+    private static final double DEFAULT_LINE_GAP = 0.25;
+
     private final String id;
     private final Location location;
     private final List<HologramLine> lines;
@@ -37,9 +51,16 @@ public class Hologram {
     private final double viewDistance;
     private final JavaPlugin plugin;
 
-    private final Map<UUID, TextDisplay> playerDisplays = new ConcurrentHashMap<>();
-    @Getter
-    private TextDisplay globalDisplay;
+    /** One renderer per line, in the same order as {@link #lines}. */
+    private final List<LineRenderer> renderers = new ArrayList<>();
+    /**
+     * Players currently receiving spawn packets / seeing the real entity for
+     * this hologram. Tracked regardless of {@link #perPlayer}: every viewer
+     * needs an explicit spawn/destroy at the protocol level, the flag only
+     * changes whether the rendered text content differs per player.
+     */
+    private final Set<UUID> viewers = ConcurrentHashMap.newKeySet();
+
     private final AtomicBoolean spawned = new AtomicBoolean(false);
     private final AtomicBoolean enabled = new AtomicBoolean(true);
 
@@ -53,7 +74,7 @@ public class Hologram {
                     JavaPlugin plugin, boolean enabled) {
         this.id = id;
         this.location = location;
-        this.lines = lines;
+        this.lines = new ArrayList<>(lines);
         this.properties = properties;
         this.config = config;
         this.persistent = persistent;
@@ -78,113 +99,75 @@ public class Hologram {
         }
 
         try {
-            if (perPlayer) {
-                spawnForOnlinePlayers();
-            } else {
-                spawnGlobal();
+            createRenderers();
+
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                if (canSee(player)) {
+                    spawnForPlayerInternal(player);
+                }
             }
+
             spawned.set(true);
         } catch (Exception e) {
             throw new HologramException.HologramSpawnException("Failed to spawn hologram " + id, e);
         }
     }
 
-    private void spawnGlobal() {
-        HologramDisplayEntity.cleanupDuplicateEntities(location);
-
-        TextDisplay display = (TextDisplay) location.getWorld()
-                .spawnEntity(location, EntityType.TEXT_DISPLAY);
-
-        display.text(buildComponent(null));
-        display.setPersistent(false);
-        applyProperties(display, properties);
-
-        globalDisplay = display;
-
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            if (!canSee(player)) {
-                player.hideEntity(plugin, display);
-            }
+    private void createRenderers() {
+        renderers.clear();
+        List<Location> lineLocations = computeLineLocations();
+        for (int i = 0; i < lines.size(); i++) {
+            HologramLine line = lines.get(i);
+            HologramProperties lineProps = line.getPropertiesOrDefault(properties);
+            renderers.add(LineRendererFactory.create(plugin, lineLocations.get(i), line, lineProps));
         }
     }
 
-    private void spawnForOnlinePlayers() {
-        for (Player player : Bukkit.getOnlinePlayers()) {
-            if (canSee(player)) {
-                spawnForPlayer(player);
-            }
+    /**
+     * Stacks lines downward from the anchor location, each separated by
+     * {@link #DEFAULT_LINE_GAP} blocks (matching the vertical text spacing
+     * professional hologram plugins use), so multi-line holograms read
+     * top-to-bottom in creation order.
+     */
+    private List<Location> computeLineLocations() {
+        List<Location> result = new ArrayList<>(lines.size());
+        for (int i = 0; i < lines.size(); i++) {
+            result.add(location.clone().add(0, -i * DEFAULT_LINE_GAP, 0));
         }
+        return result;
     }
 
     public void spawnForPlayer(Player player) {
         if (!canSee(player)) {
             return;
         }
-
-        HologramDisplayEntity.cleanupDuplicateEntities(location);
-
-        TextDisplay display = (TextDisplay) location.getWorld()
-                .spawnEntity(location, EntityType.TEXT_DISPLAY);
-
-        display.text(buildComponent(player));
-        display.setPersistent(false);
-        applyProperties(display, properties);
-
-        player.showEntity(plugin, display);
-        playerDisplays.put(player.getUniqueId(), display);
+        spawnForPlayerInternal(player);
     }
 
-    private Component buildComponent(Player player) {
-        Component result = Component.empty();
-        for (int i = 0; i < lines.size(); i++) {
-            HologramLine line = lines.get(i);
-            String processed = placeholderContext != null
-                    ? Placeholders.process(line.getText(), player, placeholderContext)
-                    : (player != null ? Placeholders.process(line.getText(), player) : Placeholders.process(line.getText()));
-            Component parsed = ColorAPI.parse(processed + "<reset>");
-            if (i == 0) {
-                result = parsed;
-            } else {
-                result = result.append(Component.newline()).append(parsed);
+    private void spawnForPlayerInternal(Player player) {
+        for (int i = 0; i < renderers.size(); i++) {
+            LineRenderer renderer = renderers.get(i);
+            renderer.spawnFor(player);
+            if (perPlayer && lines.get(i).isText()) {
+                Component component = buildLineComponent(lines.get(i), player);
+                renderer.updateText(component);
             }
         }
-        return result;
+        viewers.add(player.getUniqueId());
     }
 
-    private void applyProperties(TextDisplay display, HologramProperties props) {
-        display.setBillboard(props.getBillboard());
-        display.setAlignment(props.getAlignment());
-
-        org.bukkit.util.Transformation transformation = display.getTransformation();
-        transformation.getScale().set(props.getScaleX(), props.getScaleY(), props.getScaleZ());
-        display.setTransformation(transformation);
-
-        display.setShadowed(props.isShadow());
-        display.setSeeThrough(props.isSeeThrough());
-        display.setLineWidth(props.getLineWidth());
-
-        if (props.getBackgroundColor() != null) {
-            Color bgColor = props.getBackgroundColor();
-            int alpha = props.getBackgroundAlpha();
-            if (alpha < 255) {
-                Color colorWithAlpha = Color.fromARGB(alpha, bgColor.getRed(), bgColor.getGreen(), bgColor.getBlue());
-                display.setBackgroundColor(colorWithAlpha);
-            } else {
-                display.setBackgroundColor(bgColor);
-            }
-        } else if (props.getBackgroundAlpha() == 0) {
-            display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+    private Component buildLineComponent(HologramLine line, Player player) {
+        if (!line.isText()) {
+            return null;
         }
-
-        display.setTextOpacity(props.getTextOpacity());
-        display.setDefaultBackground(props.isDefaultBackground());
-
-        if (props.getBrightness() >= 0) {
-            display.setBrightness(new Display.Brightness(
-                    (props.getBrightness() >> 4) & 0xF,
-                    props.getBrightness() & 0xF
-            ));
+        String source = line.getText();
+        if (source == null) {
+            return line.getComponent();
         }
+        String processed = placeholderContext != null
+                ? Placeholders.process(source, player, placeholderContext)
+                : (player != null ? Placeholders.process(source, player) : Placeholders.process(source));
+        return ColorAPI.parse(processed + "<reset>");
     }
 
     public CompletableFuture<Void> updateAsync() {
@@ -193,50 +176,24 @@ public class Hologram {
         }
 
         return CompletableFuture.runAsync(() -> {
-            if (perPlayer) {
-                updatePerPlayer();
-            } else {
-                updateGlobal();
-            }
-        });
-    }
+            for (int i = 0; i < lines.size(); i++) {
+                HologramLine line = lines.get(i);
+                if (!line.isText()) continue;
+                LineRenderer renderer = renderers.get(i);
 
-    private void updateGlobal() {
-        TextDisplay display = globalDisplay;
-        if (display == null || !display.isValid()) return;
-        Tasks.at(display, () -> {
-            if (display.isValid()) {
-                display.text(buildComponent(null));
-            }
-        });
-    }
-
-    private void updatePerPlayer() {
-        List<UUID> toRemove = new ArrayList<>();
-
-        playerDisplays.forEach((playerId, display) -> {
-            Player player = Bukkit.getPlayer(playerId);
-
-            if (player == null || !player.isOnline()) {
-                toRemove.add(playerId);
-                if (display != null && display.isValid()) {
-                    Tasks.at(display, () -> removeEntity(display));
-                }
-                return;
-            }
-
-            if (display != null && display.isValid()) {
-                Tasks.at(display, () -> {
-                    if (display.isValid()) {
-                        display.text(buildComponent(player));
+                if (perPlayer) {
+                    for (UUID viewerId : viewers) {
+                        Player player = Bukkit.getPlayer(viewerId);
+                        if (player == null || !player.isOnline()) continue;
+                        Component component = buildLineComponent(line, player);
+                        Tasks.at(location, () -> renderer.updateTextFor(player, component));
                     }
-                });
-            } else if (display != null) {
-                toRemove.add(playerId);
+                } else {
+                    Component component = buildLineComponent(line, null);
+                    Tasks.at(location, () -> renderer.updateText(component));
+                }
             }
         });
-
-        toRemove.forEach(playerDisplays::remove);
     }
 
     public void despawn() {
@@ -244,13 +201,11 @@ public class Hologram {
             return;
         }
 
-        if (perPlayer) {
-            playerDisplays.values().forEach(this::removeEntity);
-            playerDisplays.clear();
-        } else {
-            removeEntity(globalDisplay);
-            globalDisplay = null;
+        for (LineRenderer renderer : renderers) {
+            renderer.despawnForAll();
         }
+        renderers.clear();
+        viewers.clear();
 
         spawned.set(false);
     }
@@ -259,25 +214,12 @@ public class Hologram {
         if (!spawned.getAndSet(false)) {
             return;
         }
-
-        if (perPlayer) {
-            playerDisplays.clear();
-        } else {
-            globalDisplay = null;
-        }
+        renderers.clear();
+        viewers.clear();
     }
 
     public boolean isEntityValid() {
-        if (perPlayer) {
-            return spawned.get() && !playerDisplays.isEmpty();
-        }
-        return spawned.get() && globalDisplay != null && globalDisplay.isValid();
-    }
-
-    private void removeEntity(TextDisplay entity) {
-        if (entity != null && entity.isValid()) {
-            entity.remove();
-        }
+        return spawned.get() && !renderers.isEmpty() && renderers.get(0).isValid();
     }
 
     public void teleport(Location newLocation) {
@@ -299,14 +241,9 @@ public class Hologram {
             return;
         }
 
-        if (perPlayer) {
-            playerDisplays.values().forEach(display -> {
-                if (display != null && display.isValid()) {
-                    display.teleportAsync(newLocation);
-                }
-            });
-        } else if (globalDisplay != null && globalDisplay.isValid()) {
-            globalDisplay.teleportAsync(newLocation);
+        List<Location> lineLocations = computeLineLocations();
+        for (int i = 0; i < renderers.size() && i < lineLocations.size(); i++) {
+            renderers.get(i).teleport(lineLocations.get(i));
         }
     }
 
@@ -315,11 +252,25 @@ public class Hologram {
             throw new IndexOutOfBoundsException("Line index out of bounds: " + index);
         }
         HologramLine oldLine = lines.get(index);
-        lines.set(index, new HologramLine(text, oldLine.getComponent(), oldLine.getProperties()));
+        HologramLine newLine = new HologramLine(text, oldLine.getComponent(), oldLine.getProperties());
+        lines.set(index, newLine);
+
+        if (spawned.get() && index < renderers.size()) {
+            Component component = buildLineComponent(newLine, null);
+            renderers.get(index).updateText(component);
+        }
     }
 
     public void addLine(String text) {
         lines.add(new HologramLine(text));
+        if (spawned.get()) {
+            despawn();
+            spawn();
+        }
+    }
+
+    public void addLine(HologramLine line) {
+        lines.add(line);
         if (spawned.get()) {
             despawn();
             spawn();
@@ -334,6 +285,21 @@ public class Hologram {
         if (spawned.get()) {
             despawn();
             spawn();
+        }
+    }
+
+    /**
+     * Applies a background color override to the first TEXT line of this
+     * hologram (or does nothing if there is none). Useful for dynamic
+     * status colors (e.g. a payload cart's capture progress).
+     */
+    public void setBackgroundColor(Color color) {
+        for (int i = 0; i < lines.size(); i++) {
+            if (lines.get(i).isText() && i < renderers.size()) {
+                HologramProperties updated = properties.withBackgroundColor(color);
+                renderers.get(i).updateProperties(updated);
+                return;
+            }
         }
     }
 
@@ -355,30 +321,28 @@ public class Hologram {
     }
 
     public void showTo(Player player) {
-        if (!perPlayer) {
-            return;
-        }
-
-        if (!playerDisplays.containsKey(player.getUniqueId())) {
-            Tasks.at(location, () -> spawnForPlayer(player));
+        if (!viewers.contains(player.getUniqueId())) {
+            Tasks.at(location, () -> spawnForPlayerInternal(player));
         }
     }
 
     public void hideFrom(Player player) {
-        if (!perPlayer) {
-            return;
-        }
-
-        TextDisplay display = playerDisplays.remove(player.getUniqueId());
-        if (display != null && display.isValid()) {
-            Tasks.at(display, () -> removeEntity(display));
+        viewers.remove(player.getUniqueId());
+        for (LineRenderer renderer : renderers) {
+            if (renderer.isViewing(player)) {
+                Tasks.at(location, () -> renderer.despawnFor(player));
+            }
         }
     }
 
     public void cleanupPlayer(UUID playerId) {
-        TextDisplay display = playerDisplays.remove(playerId);
-        if (display != null && display.isValid()) {
-            Tasks.at(display, () -> removeEntity(display));
+        Player player = Bukkit.getPlayer(playerId);
+        viewers.remove(playerId);
+        if (player == null) return;
+        for (LineRenderer renderer : renderers) {
+            if (renderer.isViewing(player)) {
+                Tasks.at(location, () -> renderer.despawnFor(player));
+            }
         }
     }
 
@@ -414,5 +378,13 @@ public class Hologram {
 
     public int getLineCount() {
         return lines.size();
+    }
+
+    /**
+     * Returns an immutable snapshot of the players currently viewing this
+     * hologram.
+     */
+    public Set<UUID> getPlayerViewerIds() {
+        return Collections.unmodifiableSet(viewers);
     }
 }

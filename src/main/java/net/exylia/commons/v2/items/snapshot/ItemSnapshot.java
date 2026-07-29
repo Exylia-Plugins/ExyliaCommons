@@ -9,6 +9,8 @@ import net.exylia.commons.v2.items.config.BannerConfig;
 import net.exylia.commons.v2.items.config.LeatherArmorConfig;
 import net.exylia.commons.v2.items.config.PotionConfig;
 import net.exylia.commons.v2.items.model.ItemData;
+import net.exylia.commons.v2.items.skull.SkullParser;
+import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.skull.api.SkullAPI;
 import org.bukkit.Color;
 import org.bukkit.Material;
@@ -81,18 +83,10 @@ public final class ItemSnapshot {
                 return new ItemStack(Material.PAPER);
             }
         }
-        if (serialized.startsWith("urlhead:")) {
+        if (SkullParser.isSkullString(serialized)) {
             return SkullAPI.isInitialized()
-                    ? SkullAPI.fromTextureURL(serialized.substring(8))
+                    ? SkullParser.parse(serialized, null, PlaceholderContext.create())
                     : new ItemStack(Material.PLAYER_HEAD);
-        }
-        if (serialized.startsWith("basehead:")) {
-            return SkullAPI.isInitialized()
-                    ? SkullAPI.fromTexture(serialized.substring(9))
-                    : new ItemStack(Material.PLAYER_HEAD);
-        }
-        if (serialized.startsWith("playerhead:") || serialized.startsWith("urlhead:") || serialized.startsWith("basehead:")) {
-            return new ItemStack(Material.PLAYER_HEAD);
         }
         ItemData data = toItemData();
         String rawMat = data.getRawMaterial();

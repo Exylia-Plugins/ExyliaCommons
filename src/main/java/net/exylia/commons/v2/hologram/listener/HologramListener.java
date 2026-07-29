@@ -35,13 +35,8 @@ public class HologramListener implements Listener {
 
         Collection<Hologram> all = manager.getAllHolograms();
         for (Hologram hologram : all) {
-            if (hologram.isPerPlayer()) {
-                if (hologram.canSee(player)) hologram.showTo(player);
-            } else {
-                org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
-                if (!hologram.canSee(player) && display != null) {
-                    TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
-                }
+            if (hologram.canSee(player)) {
+                TaskAPI.at(hologram.getLocation(), () -> hologram.spawnForPlayer(player));
             }
         }
     }
@@ -52,7 +47,7 @@ public class HologramListener implements Listener {
         UUID playerId = player.getUniqueId();
 
         for (Hologram hologram : manager.getAllHolograms()) {
-            if (hologram.isPerPlayer()) hologram.cleanupPlayer(playerId);
+            hologram.cleanupPlayer(playerId);
         }
 
         manager.getVisibilityManager().untrackPlayer(player);
@@ -94,23 +89,12 @@ public class HologramListener implements Listener {
             Hologram hologram = manager.getHologram(id).orElse(null);
             if (hologram == null) continue;
 
-            if (hologram.isPerPlayer()) {
-                boolean canSeeNow = hologram.canSee(player);
-                boolean isSeeing = hologram.getPlayerDisplays().containsKey(playerId);
-                if (canSeeNow && !isSeeing) {
-                    hologram.showTo(player);
-                } else if (!canSeeNow && isSeeing) {
-                    hologram.hideFrom(player);
-                }
-            } else {
-                org.bukkit.entity.TextDisplay display = hologram.getGlobalDisplay();
-                if (display == null) continue;
-                boolean canSee = hologram.canSee(player);
-                if (canSee && !player.canSee(display)) {
-                    TaskAPI.at(display, () -> player.showEntity(manager.getPlugin(), display));
-                } else if (!canSee && player.canSee(display)) {
-                    TaskAPI.at(display, () -> player.hideEntity(manager.getPlugin(), display));
-                }
+            boolean canSeeNow = hologram.canSee(player);
+            boolean isSeeing = hologram.getPlayerViewerIds().contains(playerId);
+            if (canSeeNow && !isSeeing) {
+                hologram.showTo(player);
+            } else if (!canSeeNow && isSeeing) {
+                hologram.hideFrom(player);
             }
         }
     }
