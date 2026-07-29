@@ -102,15 +102,20 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
         renderer.cleanup(player, id);
 
+        // Remove from the registry before invoking onCancel: if the callback
+        // restarts a countdown with the same key (common for "loop" style
+        // countdowns like AFK zone rewards), sendCountdown() must not find
+        // this now-dead instance still registered, or it will just reset()
+        // a stopped instance instead of creating a fresh running one.
+        lifecycle.cancel();
+        VisualRegistry.getInstance().remove(player.getUniqueId(), id);
+
         if (onCancel != null) {
             try {
                 onCancel.run();
             } catch (Exception ignored) {
             }
         }
-
-        lifecycle.cancel();
-        VisualRegistry.getInstance().remove(player.getUniqueId(), id);
     }
 
     private void complete() {
@@ -120,15 +125,19 @@ public class CountdownVisualInstance<T extends VisualConfig> extends VisualInsta
 
         renderer.cleanup(player, id);
 
+        // Same ordering fix as cancel(): unregister before onComplete so that
+        // callbacks which immediately re-arm a countdown under the same key
+        // (e.g. AFK zone reward loop) always create a brand new instance
+        // instead of silently no-op'ing on the completed/dead one.
+        lifecycle.complete();
+        VisualRegistry.getInstance().remove(player.getUniqueId(), id);
+
         if (onComplete != null) {
             try {
                 onComplete.run();
             } catch (Exception ignored) {
             }
         }
-
-        lifecycle.complete();
-        VisualRegistry.getInstance().remove(player.getUniqueId(), id);
     }
 
     public void resetDuration(long newDurationTicks) {
