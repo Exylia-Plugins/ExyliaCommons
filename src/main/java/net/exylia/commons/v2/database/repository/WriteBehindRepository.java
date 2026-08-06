@@ -205,6 +205,24 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public CompletableFuture<Integer> truncateAsync() {
+        return Tasks.dbValue(this::truncate);
+    }
+
+    @Override
+    public int truncate() {
+        // Everything is being wiped at the storage layer, so any queued
+        // writes/deletes for this entity are now moot — drop them first so a
+        // subsequent scheduled flush doesn't resurrect rows that truncate()
+        // just removed.
+        dirtyEntities.clear();
+        pendingDeletes.clear();
+        int count = delegate.truncate();
+        DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Truncated " + entityName + " (" + count + " rows) — dropped any pending writes/deletes");
+        return count;
+    }
+
     // --- Reads (read-your-writes) ---
 
     @Override
@@ -378,6 +396,8 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
     public void invalidateCache() { delegate.invalidateCache(); }
     @Override
     public void invalidateCache(Object id) { delegate.invalidateCache(id); }
+    @Override
+    public void invalidateCacheLocal(Object id) { delegate.invalidateCacheLocal(id); }
     @Override
     public CacheStats getCacheStats() { return delegate.getCacheStats(); }
     @Override

@@ -53,6 +53,16 @@ public interface DatabaseAdapter {
 
     <T extends Entity> void deleteBatch(List<T> entities, EntityMetadata metadata) throws Exception;
 
+    /**
+     * Wipes every row/document of this entity's table in a single operation
+     * (e.g. {@code DELETE FROM table} with no WHERE clause, or an equivalent
+     * bulk primitive), instead of loading and deleting entities one by one.
+     * Use this for "clear everything" operations — it is orders of magnitude
+     * faster than paginating + deleting per-row once the table has a
+     * non-trivial number of entries. Returns the number of rows removed.
+     */
+    int truncate(EntityMetadata metadata) throws Exception;
+
     <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception;
 
     <T extends Entity> List<T> findAllSortedPaged(String orderByField, boolean ascending, int page, int pageSize, Class<T> entityClass, EntityMetadata metadata) throws Exception;

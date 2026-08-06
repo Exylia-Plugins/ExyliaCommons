@@ -208,6 +208,15 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public int truncate(EntityMetadata metadata) throws Exception {
+        List<Map<String, Object>> table = getTable(metadata.getTableName());
+        int count = table.size();
+        table.clear();
+        saveTable(metadata.getTableName());
+        return count;
+    }
+
+    @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         List<Map<String, Object>> table = getTable(metadata.getTableName());
         List<T> results = new ArrayList<>();

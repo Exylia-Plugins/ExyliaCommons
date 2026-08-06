@@ -423,6 +423,15 @@ public abstract class SQLAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public int truncate(EntityMetadata metadata) throws Exception {
+        String sql = "DELETE FROM " + metadata.getTableName();
+        try (Connection conn = dataSource.getConnection();
+             Statement stmt = conn.createStatement()) {
+            return stmt.executeUpdate(sql);
+        }
+    }
+
+    @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         FieldDescriptor orderField = metadata.getField(orderByField);
         if (orderField == null) throw new IllegalArgumentException("Field not found: " + orderByField);

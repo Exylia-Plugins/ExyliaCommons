@@ -213,6 +213,18 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
     }
 
     @Override
+    public CompletableFuture<Integer> truncateAsync() {
+        return Tasks.dbValue(this::truncate);
+    }
+
+    @Override
+    public int truncate() {
+        int count = adapter.truncate(metadata);
+        invalidateCache();
+        return count;
+    }
+
+    @Override
     public CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit) {
         return Tasks.dbValue(() -> findAllOrderedBy(fieldName, ascending, limit));
     }

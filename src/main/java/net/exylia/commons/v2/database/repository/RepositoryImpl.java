@@ -30,6 +30,17 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
         this.cache = cache;
     }
 
+    /**
+     * Cache namespace for this repository. Uses the @Table name rather than
+     * entityClass.getSimpleName(), because multiple plugins commonly declare their
+     * own internal class literally named "PlayerData" — using the simple class name
+     * would collide in the shared Redis keyspace (same key-prefix) between unrelated
+     * plugins and corrupt/overwrite each other's cached entities.
+     */
+    private String ns() {
+        return metadata.getTableName();
+    }
+
     @Override
     public CompletableFuture<Optional<T>> findByIdAsync(Object id) {
         return Tasks.dbValue(() -> findById(id));
@@ -37,7 +48,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public Optional<T> findById(Object id) {
-        CacheKey key = CacheKey.of(entityClass, id);
+        CacheKey key = CacheKey.of(ns(), id);
         Object cached = cache.get(key, k -> {
             try {
                 return adapter.findById(id, entityClass, metadata).orElse(null);
@@ -55,7 +66,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public List<T> findAll() {
-        CacheKey key = CacheKey.of(entityClass, "ALL");
+        CacheKey key = CacheKey.of(ns(), "ALL");
         Object cached = cache.get(key, k -> {
             try {
                 List<T> results = adapter.findAll(entityClass, metadata);
@@ -74,7 +85,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public Optional<T> findBy(String fieldName, Object value) {
-        CacheKey key = CacheKey.of(entityClass.getSimpleName() + ":" + fieldName, value);
+        CacheKey key = CacheKey.of(ns() + ":" + fieldName, value);
         Object cached = cache.get(key, k -> {
             try {
                 List<T> results = adapter.findByField(fieldName, value, entityClass, metadata);
@@ -93,7 +104,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public List<T> findAllBy(String fieldName, Object value) {
-        CacheKey key = CacheKey.of(entityClass.getSimpleName() + ":list:" + fieldName, value);
+        CacheKey key = CacheKey.of(ns() + ":list:" + fieldName, value);
         Object cached = cache.get(key, k -> {
             try {
                 List<T> results = adapter.findByField(fieldName, value, entityClass, metadata);
@@ -151,7 +162,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     @Override
     public void putToCache(T entity) {
         if (entity == null || entity.getId() == null) return;
-        cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+        cache.put(CacheKey.of(ns(), entity.getId()), entity);
     }
 
     @Override
@@ -166,7 +177,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
             }
 
             cache.invalidateAll();
-            cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+            cache.put(CacheKey.of(ns(), entity.getId()), entity);
         } catch (Exception e) {
             throw new RepositoryException("Error saving entity", e);
         }
@@ -186,7 +197,7 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
             adapter.upsertBatch(entities, metadata);
             cache.invalidateAll();
             for (T entity : entities) {
-                cache.put(CacheKey.of(entityClass, entity.getId()), entity);
+                cache.put(CacheKey.of(ns(), entity.getId()), entity);
             }
         } catch (Exception e) {
             throw new RepositoryException("Error saving batch of entities", e);
@@ -220,6 +231,22 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
             invalidateCache();
         } catch (Exception e) {
             throw new RepositoryException("Error deleting batch of entities", e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> truncateAsync() {
+        return Tasks.dbValue(this::truncate);
+    }
+
+    @Override
+    public int truncate() {
+        try {
+            int count = adapter.truncate(metadata);
+            invalidateCache();
+            return count;
+        } catch (Exception e) {
+            throw new RepositoryException("Error truncating table", e);
         }
     }
 
@@ -287,8 +314,14 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
 
     @Override
     public void invalidateCache(Object id) {
-        CacheKey key = CacheKey.of(entityClass, id);
+        CacheKey key = CacheKey.of(ns(), id);
         cache.invalidate(key);
+    }
+
+    @Override
+    public void invalidateCacheLocal(Object id) {
+        CacheKey key = CacheKey.of(ns(), id);
+        cache.invalidateLocal(key);
     }
 
     @Override

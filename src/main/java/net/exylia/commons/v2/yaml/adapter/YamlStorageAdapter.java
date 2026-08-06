@@ -124,6 +124,30 @@ public class YamlStorageAdapter {
         }
     }
 
+    /**
+     * Deletes every entity file for this table in one pass, instead of
+     * loading+deleting entities one by one. Returns the number of files
+     * removed.
+     */
+    public int truncate(EntityMetadata metadata) {
+        try {
+            Path tableDir = getTableDirectory(metadata);
+            if (!Files.exists(tableDir)) {
+                return 0;
+            }
+            List<Path> yamlFiles = fileManager.listYamlFiles(tableDir);
+            for (Path file : yamlFiles) {
+                if (config.isBackupEnabled() && backupManager != null) {
+                    backupManager.backup(file, metadata.getTableName());
+                }
+                Files.delete(file);
+            }
+            return yamlFiles.size();
+        } catch (IOException e) {
+            throw new YamlStorageException("Failed to truncate table: " + metadata.getTableName(), e);
+        }
+    }
+
     private Path getTableDirectory(EntityMetadata metadata) throws IOException {
         Path dir = baseDir.resolve(metadata.getTableName());
 

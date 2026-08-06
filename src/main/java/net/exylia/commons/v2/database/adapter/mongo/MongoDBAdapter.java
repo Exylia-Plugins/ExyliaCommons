@@ -259,6 +259,11 @@ public class MongoDBAdapter implements DatabaseAdapter {
     }
 
     @Override
+    public int truncate(EntityMetadata metadata) throws Exception {
+        return (int) database.getCollection(metadata.getTableName()).deleteMany(new Document()).getDeletedCount();
+    }
+
+    @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
         List<T> results = new ArrayList<>();

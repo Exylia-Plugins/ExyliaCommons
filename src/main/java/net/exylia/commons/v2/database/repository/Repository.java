@@ -53,6 +53,17 @@ public interface Repository<T extends Entity> {
 
     void deleteAll(List<T> entities);
 
+    /**
+     * Wipes the entire table/collection in a single bulk operation instead of
+     * loading and deleting entities one by one. Prefer this over paginating
+     * + {@link #deleteAll(List)} for "clear everything" operations — it stays
+     * O(1) round-trips regardless of table size. Returns the number of rows
+     * removed.
+     */
+    CompletableFuture<Integer> truncateAsync();
+
+    int truncate();
+
     CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit);
 
     List<T> findAllOrderedBy(String fieldName, boolean ascending, int limit);
@@ -82,6 +93,21 @@ public interface Repository<T extends Entity> {
     void invalidateCache();
 
     void invalidateCache(Object id);
+
+    /**
+     * Drops only the local (per-JVM) cached copy of this entity, forcing the next
+     * {@link #findById(Object)} to go through to the shared L2 store (Redis) instead
+     * of trusting a possibly-stale local snapshot. Does NOT delete from Redis and does
+     * NOT publish a cross-server invalidation.
+     * <p>
+     * Use this on player join / server switch to guarantee the freshest cross-server
+     * state is read, even if a previous PlayerQuitEvent invalidation message from
+     * another server hasn't been processed yet (pub/sub is best-effort/async and has
+     * no ordering guarantee relative to the player's own reconnect).
+     */
+    default void invalidateCacheLocal(Object id) {
+        invalidateCache(id);
+    }
 
     CacheStats getCacheStats();
 
