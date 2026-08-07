@@ -3,10 +3,13 @@ package net.exylia.commons.v2.scoreboard.core;
 import lombok.Getter;
 import net.exylia.commons.v2.placeholders.context.PlaceholderContext;
 import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
+import net.exylia.commons.v2.scoreboard.integration.TabIntegration;
 import net.exylia.commons.v2.scoreboard.listener.ScoreboardListener;
 import net.exylia.commons.v2.scoreboard.model.Scoreboard;
 import net.exylia.commons.v2.scoreboard.model.ScoreboardStats;
 import net.exylia.commons.v2.scoreboard.protocol.PacketScoreboardSupport;
+import net.exylia.commons.v2.tasks.api.Tasks;
+import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
@@ -15,11 +18,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public final class ScoreboardManager {
 
     private static final String LOG_PREFIX = "[Scoreboard] [ScoreboardManager] ";
+    private static final long REINIT_DELAY_TICKS = 20L;
 
     private static volatile ScoreboardManager instance;
     private static final Object LOCK = new Object();
@@ -28,6 +33,7 @@ public final class ScoreboardManager {
     private final ScoreboardRegistry registry;
     private final ScoreboardFactory factory;
     private final ScoreboardScheduler scheduler;
+    private final Map<UUID, ScheduledTask> pendingReinitTasks = new ConcurrentHashMap<>();
     private volatile boolean initialized;
 
     private ScoreboardManager(Plugin plugin) {
@@ -63,6 +69,7 @@ public final class ScoreboardManager {
 
     private void initializeInternal() {
         Bukkit.getPluginManager().registerEvents(new ScoreboardListener(this), plugin);
+        TabIntegration.register(this);
         initialized = true;
         Bukkit.getLogger().info(LOG_PREFIX + "ScoreboardManager initialized for plugin " + plugin.getName()
                 + " | packetEventsAvailable=" + PacketScoreboardSupport.isAvailable());
@@ -92,6 +99,7 @@ public final class ScoreboardManager {
         }
 
         UUID playerId = player.getUniqueId();
+        cancelPendingReinit(playerId);
         registry.remove(playerId).ifPresent(previous -> {
             Bukkit.getLogger().info(LOG_PREFIX + "showScoreboard(" + playerName + ") -> hiding previous active scoreboard (id=" + previous.getScoreboard().getId() + ") before showing new one");
             previous.hide();
@@ -121,6 +129,7 @@ public final class ScoreboardManager {
             Bukkit.getLogger().warning(LOG_PREFIX + "hideScoreboard aborted -> player is null");
             return false;
         }
+        cancelPendingReinit(player.getUniqueId());
         ScoreboardInstance current = registry.remove(player.getUniqueId()).orElse(null);
         if (current == null) {
             Bukkit.getLogger().info(LOG_PREFIX + "hideScoreboard(" + playerName + ") -> no active scoreboard found, nothing to hide");
@@ -128,8 +137,32 @@ public final class ScoreboardManager {
         }
         scheduler.unschedule(current);
         current.hide();
+        if (player.isOnline()) {
+            TabIntegration.resetScoreboard(player);
+        }
         Bukkit.getLogger().info(LOG_PREFIX + "hideScoreboard(" + playerName + ") -> hidden scoreboard id=" + current.getScoreboard().getId());
         return true;
+    }
+
+    /**
+     * Defers a full packet re-send of the player's active board. Used after
+     * events that wipe the client-side scoreboard (TAB player load, world
+     * change, respawn); the delay lets the other system finish first.
+     */
+    public void scheduleReinit(Player player, ScoreboardInstance instance) {
+        UUID playerId = player.getUniqueId();
+        cancelPendingReinit(playerId);
+        Bukkit.getLogger().info(LOG_PREFIX + "scheduleReinit(" + player.getName() + ") -> re-sending board in " + REINIT_DELAY_TICKS + " ticks");
+        ScheduledTask task = Tasks.later(() -> {
+            pendingReinitTasks.remove(playerId);
+            if (player.isOnline()) instance.reinitialize();
+        }, REINIT_DELAY_TICKS);
+        pendingReinitTasks.put(playerId, task);
+    }
+
+    private void cancelPendingReinit(UUID playerId) {
+        ScheduledTask task = pendingReinitTasks.remove(playerId);
+        if (task != null && !task.isCancelled()) task.cancel();
     }
 
     public Optional<ScoreboardInstance> getScoreboard(Player player) {
@@ -153,6 +186,10 @@ public final class ScoreboardManager {
     }
 
     public void hideAll() {
+        pendingReinitTasks.values().forEach(task -> {
+            if (!task.isCancelled()) task.cancel();
+        });
+        pendingReinitTasks.clear();
         registry.all().forEach(ScoreboardInstance::hide);
         registry.clear();
         scheduler.shutdown();

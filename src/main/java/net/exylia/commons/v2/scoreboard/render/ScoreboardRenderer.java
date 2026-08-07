@@ -92,9 +92,16 @@ public final class ScoreboardRenderer {
         int previousSize = previous.lines().size();
         int currentSize = current.lines().size();
         int shared = Math.min(previousSize, currentSize);
+        // Scores are size - index, so a size change shifts EVERY line's score:
+        // without re-sending them, surviving lines keep their old score and
+        // collide with the new lines' scores, breaking the sidebar order.
+        boolean sizeChanged = previousSize != currentSize;
         for (int index = 0; index < shared; index++) {
             RenderedLine oldLine = previous.lines().get(index);
             RenderedLine newLine = current.lines().get(index);
+            if (sizeChanged) {
+                PacketScoreboardSender.updateScore(player, entryName(index), objective, scoreFor(index, currentSize));
+            }
             if (!oldLine.content().equals(newLine.content())) {
                 PacketScoreboardSender.updateLine(player, teamName(index), entryName(index), scoreFor(index, currentSize), newLine.content());
             }

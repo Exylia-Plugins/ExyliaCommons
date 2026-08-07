@@ -107,6 +107,34 @@ public final class ScoreboardInstance {
         totalRenderNanos.addAndGet(System.nanoTime() - started);
     }
 
+    /**
+     * Re-sends the full board from scratch. Needed after another system (TAB
+     * loading the player, world change, respawn) wipes the client-side
+     * scoreboard state that our packets created.
+     */
+    public void reinitialize() {
+        if (!active.get()) {
+            Bukkit.getLogger().info(LOG_PREFIX + "reinitialize(" + player.getName() + ") skipped -> instance inactive");
+            return;
+        }
+        if (!player.isOnline()) {
+            Bukkit.getLogger().warning(LOG_PREFIX + "reinitialize(" + player.getName() + ") skipped -> player is not online");
+            return;
+        }
+        if (!PacketScoreboardSender.isReady(player)) {
+            Bukkit.getLogger().warning(LOG_PREFIX + "reinitialize(" + player.getName() + ") skipped -> PacketScoreboardSender.isReady()=false");
+            return;
+        }
+        RenderedBoard previous = renderedBoard;
+        int lineCount = previous == null ? scoreboard.getLines().size() : previous.lines().size();
+        Bukkit.getLogger().info(LOG_PREFIX + "reinitialize(" + player.getName() + ") -> destroying and re-sending objective=" + objective + " (" + lineCount + " lines)");
+        renderer.destroy(player, lineCount);
+        RenderedBoard result = renderer.render(player, context);
+        renderer.create(player, result);
+        renderedBoard = result;
+        lastUpdateNanos = System.nanoTime();
+    }
+
     public void updateContext(PlaceholderContext context) {
         this.context = context == null ? PlaceholderContext.create() : context;
     }

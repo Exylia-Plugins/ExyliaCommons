@@ -118,7 +118,7 @@ public final class PacketScoreboardSender {
                 Collections.emptyList()));
     }
 
-    private static void updateScore(Player player, String entry, String objective, int score) {
+    public static void updateScore(Player player, String entry, String objective, int score) {
         Bukkit.getLogger().info(LOG_PREFIX + "updateScore(" + playerName(player) + ", entry=" + escape(entry) + ", objective=" + objective + ", score=" + score + ")");
         send(player, new WrapperPlayServerUpdateScore(
                 entry,
