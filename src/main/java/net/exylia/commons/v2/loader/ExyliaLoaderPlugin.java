@@ -1,9 +1,7 @@
 package net.exylia.commons.v2.loader;
 
 import com.lukittu.loader.LoaderPlugin;
-import com.lukittu.loader.entry.ILukittuLoader;
 import com.lukittu.loader.spigot.SpigotLukittuLoader;
-import com.lukittu.loader.util.PlatformHelper;
 import lombok.Getter;
 import net.exylia.commons.v2.config.Configs;
 import net.exylia.commons.v2.debug.api.DebugAPI;
@@ -19,7 +17,7 @@ import java.io.*;
 import java.util.*;
 import java.util.logging.Logger;
 
-public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
+public abstract class ExyliaLoaderPlugin implements LoaderPlugin<SpigotLukittuLoader> {
 
     private static boolean initialized = false;
     private static final Set<ExyliaLoaderPlugin> activePlugins = new HashSet<>();
@@ -37,8 +35,8 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
     private ShutdownCoordinator shutdownCoordinator;
 
     @Override
-    public void start(ILukittuLoader lukittuLoader) {
-        loader = PlatformHelper.cast(lukittuLoader, SpigotLukittuLoader.class);
+    public void start(SpigotLukittuLoader lukittuLoader) {
+        loader = lukittuLoader;
         plugin = loader.getPlugin();
 
         Configs.init(plugin, getClass().getClassLoader());
@@ -76,7 +74,7 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin {
     }
 
     @Override
-    public void shutdown(ILukittuLoader lukittuLoader) {
+    public void shutdown(SpigotLukittuLoader lukittuLoader) {
         activePlugins.remove(this);
 
         try {

@@ -237,11 +237,19 @@ public class PacketLineRenderer implements LineRenderer {
         data.add(new EntityData<>(23, EntityDataTypes.ADV_COMPONENT, displayText != null ? displayText : Component.empty()));
         data.add(new EntityData<>(24, EntityDataTypes.INT, props.getLineWidth()));
 
+        // Mirrors BukkitLineRenderer/vanilla semantics: only compute a custom
+        // background value when the caller explicitly asked for one (via
+        // backgroundColor(...) or a non-default backgroundAlpha(...));
+        // otherwise send the real vanilla default (translucent black,
+        // 0x40000000) instead of synthesizing an opaque-black background
+        // from the builder's "unset" defaults (backgroundColor=null,
+        // backgroundAlpha=255 — HologramProperties' @Builder.Default).
         int backgroundColor;
-        if (props.getBackgroundColor() != null) {
-            int alpha = props.isDefaultBackground() ? 255 : props.getBackgroundAlpha();
-            backgroundColor = (alpha << 24) | (props.getBackgroundColor().asRGB() & 0xFFFFFF);
-        } else if (props.isDefaultBackground()) {
+        if (props.isDefaultBackground()) {
+            backgroundColor = 0x40000000;
+        } else if (props.getBackgroundColor() != null) {
+            backgroundColor = (props.getBackgroundAlpha() << 24) | (props.getBackgroundColor().asRGB() & 0xFFFFFF);
+        } else if (props.getBackgroundAlpha() == 255) {
             backgroundColor = 0x40000000;
         } else {
             backgroundColor = props.getBackgroundAlpha() << 24;

@@ -120,6 +120,11 @@ public class RedisCacheStrategy implements CacheStrategy<CacheKey, Object> {
     }
 
     @Override
+    public void invalidateLocal(CacheKey key) {
+        localCache.invalidate(key);
+    }
+
+    @Override
     public void invalidateAll() {
         localCache.invalidateAll();
         deleteByPattern(redisKeyPrefix + entityNamespace + ":*");

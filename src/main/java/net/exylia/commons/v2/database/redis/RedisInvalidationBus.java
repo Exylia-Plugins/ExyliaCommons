@@ -34,32 +34,56 @@ public class RedisInvalidationBus {
         };
     }
 
+    private static final long RECONNECT_DELAY_MS = 2000L;
+    private volatile boolean running = false;
+    private volatile Thread listenerThread;
+
     public void start() {
-        Thread listenerThread = new Thread(() -> {
+        running = true;
+        listenerThread = new Thread(this::runWithReconnect, "Exylia-Redis-InvalidationBus");
+        listenerThread.setDaemon(true);
+        listenerThread.start();
+    }
+
+    private void runWithReconnect() {
+        while (running) {
             Jedis jedis = null;
             try {
                 jedis = pool.createSubscriberConnection();
+                DebugAPI.logLibInfo("Redis invalidation bus connected (channel=" + channel + ")");
                 jedis.subscribe(subscriber, channel);
+                // subscribe() blocks until unsubscribed/disconnected.
             } catch (Exception e) {
-                if (subscriber.isSubscribed()) {
-                    DebugAPI.logLibError("Redis invalidation bus disconnected: " + e.getMessage());
+                if (running) {
+                    DebugAPI.logLibWarn("Redis invalidation bus disconnected: " + e.getMessage()
+                            + " — reconnecting in " + RECONNECT_DELAY_MS + "ms");
                 }
             } finally {
                 if (jedis != null) {
                     try { jedis.close(); } catch (Exception ignored) {}
                 }
             }
-        }, "Exylia-Redis-InvalidationBus");
-        listenerThread.setDaemon(true);
-        listenerThread.start();
+
+            if (!running) break;
+            try {
+                Thread.sleep(RECONNECT_DELAY_MS);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
     }
 
     public void stop() {
+        running = false;
         try {
             if (subscriber.isSubscribed()) {
                 subscriber.unsubscribe();
             }
         } catch (Exception ignored) {}
+        if (listenerThread != null) {
+            listenerThread.interrupt();
+        }
     }
 
     public void registerHandler(String entityNamespace, Consumer<CacheKey> onInvalidate, Runnable onClear) {

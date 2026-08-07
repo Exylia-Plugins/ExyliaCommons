@@ -119,7 +119,19 @@ public class Hologram {
         for (int i = 0; i < lines.size(); i++) {
             HologramLine line = lines.get(i);
             HologramProperties lineProps = line.getPropertiesOrDefault(properties);
-            renderers.add(LineRendererFactory.create(plugin, lineLocations.get(i), line, lineProps));
+            LineRenderer renderer = LineRendererFactory.create(plugin, lineLocations.get(i), line, lineProps);
+
+            // A freshly-created renderer's text field is the line's raw,
+            // unprocessed source (placeholders/color tags untouched). For
+            // shared (non-perPlayer) TEXT lines the resolved content is the
+            // same for every viewer, so resolve it once here rather than
+            // leaving literal "{highlight}%foo%" visible to whoever spawns
+            // it first, until the next scheduled updateAsync() tick.
+            if (!perPlayer && line.isText()) {
+                renderer.updateText(buildLineComponent(line, null));
+            }
+
+            renderers.add(renderer);
         }
     }
 
@@ -147,10 +159,19 @@ public class Hologram {
     private void spawnForPlayerInternal(Player player) {
         for (int i = 0; i < renderers.size(); i++) {
             LineRenderer renderer = renderers.get(i);
-            renderer.spawnFor(player);
-            if (perPlayer && lines.get(i).isText()) {
-                Component component = buildLineComponent(lines.get(i), player);
-                renderer.updateText(component);
+            HologramLine line = lines.get(i);
+
+            if (perPlayer && line.isText()) {
+                // Shared (non-perPlayer) TEXT renderers already carry
+                // resolved content set in createRenderers()/updateAsync();
+                // only per-player renderers need resolving right before
+                // this specific viewer's first spawn packet, since their
+                // text depends on that viewer's placeholder context.
+                Component component = buildLineComponent(line, player);
+                renderer.spawnFor(player);
+                renderer.updateTextFor(player, component);
+            } else {
+                renderer.spawnFor(player);
             }
         }
         viewers.add(player.getUniqueId());

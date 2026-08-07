@@ -10,6 +10,8 @@ import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSession;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootListClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootListMenu;
+import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootTypeSelectMenu;
+import net.exylia.commons.v2.loot.model.LootEntryType;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -40,11 +42,62 @@ public final class LootEditorActionRegistrar {
                     LootEditorSession session = LootEditorRegistry.getInstance().get(player);
                     if (session == null) return;
 
+                    if (session.isAllowCommands()) {
+                        LootTypeSelectMenu.open(player);
+                        return;
+                    }
+
                     IconPickerAPI.open(
                             player,
                             () -> LootListMenu.open(player, session),
                             snapshot -> {
                                 LootEntry entry = LootEntry.builder()
+                                        .itemSnapshot(snapshot.serialize())
+                                        .build();
+                                session.addEntry(entry);
+                                LootListMenu.open(player, session);
+                            }
+                    );
+                })
+                .build();
+
+        ActionAPI.create("loot_add_type", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null || args.isEmpty()) return;
+
+                    LootEntryType type;
+                    try {
+                        type = LootEntryType.valueOf(args.getString(0, "ITEM"));
+                    } catch (IllegalArgumentException e) {
+                        type = LootEntryType.ITEM;
+                    }
+
+                    if (type == LootEntryType.COMMAND) {
+                        LootEntry entry = LootEntry.ofCommand("");
+                        session.addEntry(entry);
+                        player.closeInventory();
+                        ChatInputAPI.text(player, "Enter the command to run (without /), e.g. give %player% diamond 1")
+                                .onCancel(() -> {
+                                    session.removeEntry(entry.getId());
+                                    LootListMenu.open(player, session);
+                                })
+                                .onResponse(value -> {
+                                    entry.setCommand(value.trim());
+                                    session.replaceEntry(entry);
+                                    LootEditMenu.open(player, entry);
+                                })
+                                .ask();
+                        return;
+                    }
+
+                    IconPickerAPI.open(
+                            player,
+                            () -> LootListMenu.open(player, session),
+                            snapshot -> {
+                                LootEntry entry = LootEntry.builder()
+                                        .type(LootEntryType.ITEM)
                                         .itemSnapshot(snapshot.serialize())
                                         .build();
                                 session.addEntry(entry);
@@ -186,6 +239,28 @@ public final class LootEditorActionRegistrar {
                                 LootEditMenu.open(player, entry);
                             }
                     );
+                })
+                .build();
+
+        ActionAPI.create("loot_set_command", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    String id = args.getString(0, "");
+                    LootEntry entry = session.findById(id);
+                    if (entry == null) return;
+
+                    player.closeInventory();
+                    ChatInputAPI.text(player, "Enter the command to run (without /), e.g. give %player% diamond 1")
+                            .onCancel(() -> LootEditMenu.open(player, entry))
+                            .onResponse(value -> {
+                                entry.setCommand(value.trim());
+                                session.replaceEntry(entry);
+                                LootEditMenu.open(player, entry);
+                            })
+                            .ask();
                 })
                 .build();
 

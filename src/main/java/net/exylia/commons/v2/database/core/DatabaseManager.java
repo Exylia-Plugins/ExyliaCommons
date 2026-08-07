@@ -190,8 +190,10 @@ public class DatabaseManager {
 
     private CacheStrategy<CacheKey, Object> buildCacheStrategy(Class<? extends Entity> entityClass) {
         if (redisPool != null) {
+            EntityMetadata metadata = entityMetadataCache.get(entityClass);
+            String namespace = metadata != null ? metadata.getTableName() : entityClass.getSimpleName();
             return new RedisCacheStrategy(
-                    entityClass.getSimpleName(),
+                    namespace,
                     redisPool,
                     invalidationBus,
                     config.getRedisConfig(),

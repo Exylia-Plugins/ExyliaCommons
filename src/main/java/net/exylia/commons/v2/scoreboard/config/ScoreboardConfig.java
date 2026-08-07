@@ -9,7 +9,7 @@ import lombok.With;
 @Builder
 @With
 @AllArgsConstructor
-public class ScoreboardConfig {
+public final class ScoreboardConfig {
 
     @Builder.Default
     private final UpdateConfig updateConfig = UpdateConfig.defaults();

@@ -198,11 +198,16 @@ public final class LootListMenu {
     }
 
     private static ItemData buildEntryItem(LootEntry entry) {
-        String material = resolveItemMaterial(entry);
+        String material = entry.isCommand() ? "COMMAND_BLOCK" : resolveItemMaterial(entry);
 
         List<String> lore = new ArrayList<>();
         lore.add("{secondary}Details:");
-        lore.add(" {letters_black}▎ {letters}Amount {letters_black}» {info}" + entry.getMinAmount() + " {muted}— {info}" + entry.getMaxAmount());
+        if (entry.isCommand()) {
+            lore.add(" {letters_black}▎ {letters}Type {letters_black}» {warning}Command ⌨");
+            lore.add(" {letters_black}▎ {letters}Value {letters_black}» {info}" + entry.getDisplayName());
+        } else {
+            lore.add(" {letters_black}▎ {letters}Amount {letters_black}» {info}" + entry.getMinAmount() + " {muted}— {info}" + entry.getMaxAmount());
+        }
         lore.add(" {letters_black}▎ {letters}Weight 🎲 {letters_black}» {highlight}" + formatWeight(entry.getWeight()));
         if (entry.getTier() != null && !entry.getTier().isBlank()) {
             lore.add(" {letters_black}▎ {letters}Tier {letters_black}» {info}" + entry.getTier());
@@ -214,6 +219,7 @@ public final class LootListMenu {
 
         return ItemData.builder()
                 .rawMaterial(material)
+                .rawDisplayName(entry.isCommand() ? "{warning}&l⌨ Command Entry" : null)
                 .rawLore(lore)
                 .actions(List.of(
                         ClickAction.builder()

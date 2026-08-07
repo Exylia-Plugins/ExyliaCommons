@@ -42,12 +42,12 @@ public class SystemDetector {
 
         detectDatabaseV2(builder);
         detectRedis(builder);
-        detectScoreboardManager(builder);
         detectHologramManager(builder);
         detectActionManager(builder);
         detectRegionManager(builder);
         detectPlaceholderRegistry(builder);
         detectVisualManager(builder);
+        detectScoreboardManager(builder);
 
         builder.check("FormatterRegistry", true, "Always available");
         builder.check("ColorSystem", true, "Always available");
@@ -80,21 +80,6 @@ public class SystemDetector {
             builder.unavailable("Redis", "Jedis not in classpath");
         } catch (Exception e) {
             builder.unavailable("Redis", "Error: " + e.getMessage());
-        }
-    }
-
-    private void detectScoreboardManager(SystemAvailability.Builder builder) {
-        try {
-            ScoreboardManager instance = ScoreboardManager.getInstance();
-            if (instance != null) {
-                builder.available("ScoreboardManager");
-            } else {
-                builder.unavailable("ScoreboardManager", "Instance is null");
-            }
-        } catch (IllegalStateException e) {
-            builder.unavailable("ScoreboardManager", "Not initialized");
-        } catch (Exception e) {
-            builder.unavailable("ScoreboardManager", "Error: " + e.getMessage());
         }
     }
 
@@ -152,6 +137,21 @@ public class SystemDetector {
             builder.unavailable("PlaceholderRegistry", "Not initialized");
         } catch (Exception e) {
             builder.unavailable("PlaceholderRegistry", "Error: " + e.getMessage());
+        }
+    }
+
+    private void detectScoreboardManager(SystemAvailability.Builder builder) {
+        try {
+            ScoreboardManager instance = ScoreboardManager.getInstance();
+            if (instance != null && instance.isInitialized()) {
+                builder.available("ScoreboardManager");
+            } else {
+                builder.unavailable("ScoreboardManager", "Instance is null");
+            }
+        } catch (IllegalStateException e) {
+            builder.unavailable("ScoreboardManager", "Not initialized");
+        } catch (Exception e) {
+            builder.unavailable("ScoreboardManager", "Error: " + e.getMessage());
         }
     }
 

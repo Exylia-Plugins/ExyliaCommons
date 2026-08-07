@@ -7,14 +7,13 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
-public class ScoreboardStats {
-
+public final class ScoreboardStats {
     private final int activeScoreboards;
     private final double cacheHitRate;
     private final long totalUpdates;
     private final double averageRenderTimeMs;
 
     public static ScoreboardStats empty() {
-        return new ScoreboardStats(0, 0.0, 0, 0.0);
+        return new ScoreboardStats(0, 0.0, 0L, 0.0);
     }
 }

@@ -1,112 +1,70 @@
 package net.exylia.commons.v2.scoreboard.core;
 
+import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
-import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.Bukkit;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class ScoreboardScheduler {
+public final class ScoreboardScheduler {
 
-    private final Plugin plugin;
-    private final ScoreboardRegistry registry;
-    private final Map<Long, ScheduledTask> schedulersByInterval;
-    private final Map<Long, Set<ScoreboardInstance>> instancesByInterval;
+    private static final String LOG_PREFIX = "[Scoreboard] [ScoreboardScheduler] ";
 
-    public ScoreboardScheduler(Plugin plugin, ScoreboardRegistry registry) {
-        this.plugin = plugin;
-        this.registry = registry;
-        this.schedulersByInterval = new ConcurrentHashMap<>();
-        this.instancesByInterval = new ConcurrentHashMap<>();
-    }
+    private final Map<Long, Set<ScoreboardInstance>> byInterval = new ConcurrentHashMap<>();
+    private final Map<Long, ScheduledTask> tasks = new ConcurrentHashMap<>();
 
     public void schedule(ScoreboardInstance instance) {
-        if (instance == null) {
-            return;
-        }
-
-        long interval = instance.getScoreboard().getUpdateInterval();
-
-        instancesByInterval.computeIfAbsent(interval, k -> ConcurrentHashMap.newKeySet())
-                .add(instance);
-
-        if (!schedulersByInterval.containsKey(interval)) {
-            createSchedulerForInterval(interval);
-        }
+        long interval = Math.max(1L, instance.getScoreboard().getUpdateInterval());
+        byInterval.computeIfAbsent(interval, ignored -> ConcurrentHashMap.newKeySet()).add(instance);
+        boolean newTask = !tasks.containsKey(interval);
+        tasks.computeIfAbsent(interval, this::createTask);
+        Bukkit.getLogger().info(LOG_PREFIX + "schedule(" + instance.getPlayer().getName() + ") -> interval=" + interval
+                + " ticks, " + (newTask ? "created new timer task" : "reused existing timer task")
+                + ", instancesAtInterval=" + byInterval.get(interval).size());
     }
 
     public void unschedule(ScoreboardInstance instance) {
-        if (instance == null) {
-            return;
-        }
-
-        long interval = instance.getScoreboard().getUpdateInterval();
-
-        Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
-        if (instances != null) {
-            instances.remove(instance);
-
-            if (instances.isEmpty()) {
-                removeSchedulerIfEmpty(interval);
+        long interval = Math.max(1L, instance.getScoreboard().getUpdateInterval());
+        Set<ScoreboardInstance> instances = byInterval.get(interval);
+        if (instances == null) return;
+        instances.remove(instance);
+        Bukkit.getLogger().info(LOG_PREFIX + "unschedule(" + instance.getPlayer().getName() + ") -> interval=" + interval
+                + " ticks, remainingAtInterval=" + instances.size());
+        if (instances.isEmpty()) {
+            byInterval.remove(interval, instances);
+            ScheduledTask task = tasks.remove(interval);
+            if (task != null) {
+                task.cancel();
+                Bukkit.getLogger().info(LOG_PREFIX + "unschedule() -> no more instances at interval=" + interval + ", timer task cancelled");
             }
         }
-    }
-
-    public void updateInterval(ScoreboardInstance instance, long newInterval) {
-        if (instance == null) {
-            return;
-        }
-
-        unschedule(instance);
-        schedule(instance);
     }
 
     public void shutdown() {
-        schedulersByInterval.values().forEach(ScheduledTask::cancel);
-        schedulersByInterval.clear();
-        instancesByInterval.clear();
+        Bukkit.getLogger().info(LOG_PREFIX + "shutdown() -> cancelling " + tasks.size() + " timer task(s)");
+        tasks.values().forEach(ScheduledTask::cancel);
+        tasks.clear();
+        byInterval.clear();
     }
 
-    private void createSchedulerForInterval(long interval) {
-        ScheduledTask task = Tasks.timer(() -> {
-            Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
-
-            if (instances == null || instances.isEmpty()) {
-                return;
-            }
-
-            long now = System.currentTimeMillis();
-
+    private ScheduledTask createTask(long interval) {
+        return Tasks.timer(() -> {
+            Set<ScoreboardInstance> instances = byInterval.get(interval);
+            if (instances == null) return;
+            long now = System.nanoTime();
             instances.removeIf(instance -> {
-                if (instance.getLifecycle().isCancelled() || !instance.getPlayer().isOnline()) {
-                    return true;
-                }
-
-                if (instance.shouldUpdate(now)) {
-                    instance.update();
-                }
-
+                if (!instance.isActive()) return true;
+                if (instance.shouldUpdate(now)) instance.update();
                 return false;
             });
-
-        }, 0L, interval);
-
-        schedulersByInterval.put(interval, task);
-    }
-
-    private void removeSchedulerIfEmpty(long interval) {
-        Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
-
-        if (instances == null || instances.isEmpty()) {
-            ScheduledTask task = schedulersByInterval.remove(interval);
-            if (task != null) {
-                task.cancel();
+            if (instances.isEmpty()) {
+                byInterval.remove(interval, instances);
+                ScheduledTask task = tasks.remove(interval);
+                if (task != null) task.cancel();
             }
-
-            instancesByInterval.remove(interval);
-        }
+        }, interval, interval);
     }
 }

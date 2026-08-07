@@ -25,6 +25,9 @@ public final class LootPicker {
      * Rolls each entry independently against its weight treated as a 0-100 percentage chance.
      * When forceOneIfEmpty is false, an empty result is possible (matches legacy item-spawner
      * behavior, where a spawn tick can legitimately produce nothing).
+     * <p>
+     * Only resolves ITEM entries into ItemStacks (COMMAND entries have none and are skipped here
+     * — use {@link #rollIndependentEntries} if the caller needs to also execute commands).
      */
     public static List<ItemStack> rollIndependent(List<LootEntry> entries, boolean forceOneIfEmpty) {
         if (entries.isEmpty()) return new ArrayList<>();
@@ -45,6 +48,30 @@ public final class LootPicker {
         }
 
         Collections.shuffle(result);
+        return result;
+    }
+
+    /**
+     * Same independent-weight-roll as {@link #rollIndependent}, but returns the raw
+     * {@link LootEntry} objects instead of resolved ItemStacks — needed by callers whose table
+     * can contain COMMAND entries (which have no ItemStack) alongside ITEM ones, so both kinds
+     * survive the roll and the caller decides how to apply each (give item / run command).
+     */
+    public static List<LootEntry> rollIndependentEntries(List<LootEntry> entries) {
+        if (entries.isEmpty()) return new ArrayList<>();
+        List<LootEntry> result = new ArrayList<>();
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+
+        for (LootEntry entry : entries) {
+            if (rng.nextDouble(100.0) < entry.getWeight()) {
+                result.add(entry);
+            }
+        }
+
+        if (result.isEmpty()) {
+            result.add(entries.get(rng.nextInt(entries.size())));
+        }
+
         return result;
     }
 

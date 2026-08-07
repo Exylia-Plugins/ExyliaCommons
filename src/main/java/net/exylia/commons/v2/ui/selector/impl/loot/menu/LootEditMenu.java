@@ -26,31 +26,17 @@ public final class LootEditMenu {
                 .build();
 
         ItemData displayItem = ItemData.builder()
-                .rawMaterial(resolveItemMaterial(entry))
+                .rawMaterial(entry.isCommand() ? "COMMAND_BLOCK" : resolveItemMaterial(entry))
                 .rawDisplayName("{primary}&l" + entry.getDisplayName())
                 .rawLore(List.of(
                         "{secondary}Details:",
-                        " {letters_black}▎ {letters}ID {letters_black}» {muted}" + entry.getId().substring(0, 8) + "..."
+                        " {letters_black}▎ {letters}ID {letters_black}» {muted}" + entry.getId().substring(0, 8) + "...",
+                        " {letters_black}▎ {letters}Type {letters_black}» " + (entry.isCommand() ? "{warning}Command" : "{info}Item")
                 ))
                 .slotConfig(SlotConfig.single(4))
                 .build();
 
-        ItemData itemButton = ItemData.builder()
-                .rawMaterial("ITEM_FRAME")
-                .rawDisplayName("{info}&lITEM 🎁")
-                .rawLore(List.of(
-                        "{secondary}Details:",
-                        " {letters_black}▎ {letters}The item given by this",
-                        " {letters_black}▎ {letters}loot entry.",
-                        "",
-                        "{warning}➥ Click to change item"
-                ))
-                .slotConfig(SlotConfig.single(20))
-                .actions(List.of(ClickAction.builder()
-                        .clickType(ClickTypeGroup.ANY)
-                        .action("commons:loot_set_item " + entry.getId())
-                        .build()))
-                .build();
+        ItemData itemButton = entry.isCommand() ? buildCommandButton(entry) : buildItemButton(entry);
 
         ItemData minButton = ItemData.builder()
                 .rawMaterial("REPEATER")
@@ -184,8 +170,10 @@ public final class LootEditMenu {
         LinkedHashMap<String, ItemData> items = new LinkedHashMap<>();
         items.put("display", displayItem);
         items.put("item", itemButton);
-        items.put("min", minButton);
-        items.put("max", maxButton);
+        if (entry.isItem()) {
+            items.put("min", minButton);
+            items.put("max", maxButton);
+        }
         items.put("weight", weightButton);
         items.put("tier", tierButton);
         items.put("delete", deleteButton);
@@ -201,6 +189,47 @@ public final class LootEditMenu {
                 .build();
 
         MenuAPI.open(player, menuData);
+    }
+
+    private static ItemData buildItemButton(LootEntry entry) {
+        return ItemData.builder()
+                .rawMaterial("ITEM_FRAME")
+                .rawDisplayName("{info}&lITEM 🎁")
+                .rawLore(List.of(
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}The item given by this",
+                        " {letters_black}▎ {letters}loot entry.",
+                        "",
+                        "{warning}➥ Click to change item"
+                ))
+                .slotConfig(SlotConfig.single(20))
+                .actions(List.of(ClickAction.builder()
+                        .clickType(ClickTypeGroup.ANY)
+                        .action("commons:loot_set_item " + entry.getId())
+                        .build()))
+                .build();
+    }
+
+    private static ItemData buildCommandButton(LootEntry entry) {
+        return ItemData.builder()
+                .rawMaterial("OAK_SIGN")
+                .rawDisplayName("{warning}&lCOMMAND ⌨")
+                .rawLore(List.of(
+                        "{secondary}Details:",
+                        " {letters_black}▎ {letters}Command executed (as console)",
+                        " {letters_black}▎ {letters}when this loot entry is rolled.",
+                        " {letters_black}▎ {muted}Use %player% for the recipient name.",
+                        "",
+                        " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getCommand() != null ? entry.getCommand() : "Not set"),
+                        "",
+                        "{warning}➥ Click to change"
+                ))
+                .slotConfig(SlotConfig.single(20))
+                .actions(List.of(ClickAction.builder()
+                        .clickType(ClickTypeGroup.ANY)
+                        .action("commons:loot_set_command " + entry.getId())
+                        .build()))
+                .build();
     }
 
     private static String formatWeight(double weight) {

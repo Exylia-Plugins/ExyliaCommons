@@ -1,11 +1,22 @@
-title: "&6&lMi Servidor"
-enabled: true
-lines:
-  - "&7-----------------"
-  - "&eJugadores: &f%online%"
-  - "&eDinero: &f$%money%"
-  - "&7-----------------"
-update:
-  interval: 20      # ticks
-  smart: true       # smart updates
-  cache: true       # cache enabled
+Enabled: true
+Title: '{primary}&lPRACTICE'
+Lines:
+  - ''
+  - ' {info}🌎 {letters}En línea: {success}%server_online%'
+  - ' {warning}⏳ {letters}Cola: {success}%queue%'
+  - ' {error}⚔ {letters}Combatiendo: {success}%fighting%'
+  - ''
+  - ' {secondary}☄ {letters}Cola RTP: {success}%exyliasandbox_queue_total%'
+  - ' {success}🗡 {letters}FFA: {success}%exyliaffa_total_players%'
+  - ' {secondary}☀ {letters}RTP: {success}%exyliasandbox_total_players%'
+  - ''
+  - ' {success}🏆 {letters}Victorias: {success}%wins%'
+  - ' {info}📈 {letters}Ratio: {success}%win_rate%'
+  - ' {warning}✦ {letters}Tu Rango'
+  - ' {highlight}%rank_name% {success}%rank_lp%{muted}/{error}%rank_lp_max%'
+  - ''
+  - ' {highlight}deluxezone.net'
+Update:
+  Interval: 10
+  Smart: true
+  Cache: true

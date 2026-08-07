@@ -17,6 +17,12 @@ public class LootEditorSession {
     private final BiConsumer<Player, List<LootEntry>> onSave;
     private final Runnable onCancel;
 
+    /** When false (default), the "add entry" flow skips the type-select step entirely and only
+     * ever creates ITEM entries — chests/spawners keep their exact pre-existing UX. When true,
+     * the caller opted in (e.g. mines) and gets a type-select step (Item / Command) first. */
+    @Setter
+    private boolean allowCommands = false;
+
     @Setter
     private String title;
 

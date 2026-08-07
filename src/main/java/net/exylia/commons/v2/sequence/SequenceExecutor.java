@@ -62,6 +62,14 @@ import java.util.function.BiPredicate;
  */
 public class SequenceExecutor {
 
+    /**
+     * Kill/hit effects are location-anchored spectacles, not gameplay-critical broadcasts.
+     * Capping visibility to 32 blocks keeps distant players from seeing/hearing effects
+     * that have nothing to do with them, regardless of Minecraft's chunk tracking range.
+     */
+    private static final double MAX_EFFECT_DISTANCE = 32.0;
+    private static final double MAX_EFFECT_DISTANCE_SQUARED = MAX_EFFECT_DISTANCE * MAX_EFFECT_DISTANCE;
+
     static final NamespacedKey EFFECT_FIREWORK_KEY = new NamespacedKey("exylia_commons", "effect_firework");
 
     private static final Particle PARTICLE_EXPLOSION = resolveParticle("EXPLOSION", "EXPLOSION_LARGE", "EXPLOSION_EMITTER");
@@ -198,16 +206,8 @@ public class SequenceExecutor {
         float volume = parts.length > 1 ? (float) parseDouble(parts[1].trim(), 1.0) : 1.0f;
         float pitch  = parts.length > 2 ? (float) parseDouble(parts[2].trim(), 1.0) : 1.0f;
 
-        BiPredicate<Player, UUID> filter = ctx.getParticleFilter();
-        if (filter != null && ctx.getSourcePlayer() != null) {
-            UUID sourceId = ctx.getSourcePlayer().getUniqueId();
-            for (Player observer : world.getPlayers()) {
-                if (filter.test(observer, sourceId)) {
-                    observer.playSound(ctx.getLocation(), sound, volume, pitch);
-                }
-            }
-        } else {
-            world.playSound(ctx.getLocation(), sound, volume, pitch);
+        for (Player observer : nearbyObservers(world, ctx)) {
+            observer.playSound(ctx.getLocation(), sound, volume, pitch);
         }
     }
 
@@ -216,7 +216,12 @@ public class SequenceExecutor {
     private void executeLightning(SequenceContext ctx) {
         World world = ctx.getLocation().getWorld();
         if (world == null) return;
-        world.strikeLightningEffect(ctx.getLocation());
+        for (Player observer : nearbyObservers(world, ctx)) {
+            observer.spawnParticle(Particle.FLASH, ctx.getLocation(), 1);
+            observer.spawnParticle(Particle.ELECTRIC_SPARK, ctx.getLocation().clone().add(0, 1.5, 0),
+                    60, 0.3, 1.5, 0.3, 0.3);
+            observer.playSound(ctx.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2.0f, 1.0f);
+        }
     }
 
     // ── [EXPLOSION] ───────────────────────────────────────────────────────────
@@ -225,8 +230,9 @@ public class SequenceExecutor {
         Location loc = ctx.getLocation();
         World world = loc.getWorld();
         if (world == null) return;
-        world.createExplosion(loc, 0F, false, false);
-        if (PARTICLE_EXPLOSION != null) world.spawnParticle(PARTICLE_EXPLOSION, loc, 1);
+        for (Player observer : nearbyObservers(world, ctx)) {
+            if (PARTICLE_EXPLOSION != null) observer.spawnParticle(PARTICLE_EXPLOSION, loc, 1);
+        }
     }
 
     // ── [FIREWORK] ────────────────────────────────────────────────────────────
@@ -263,7 +269,22 @@ public class SequenceExecutor {
         meta.setPower(fp);
         fw.setFireworkMeta(meta);
         fw.getPersistentDataContainer().set(EFFECT_FIREWORK_KEY, PersistentDataType.BYTE, (byte) 1);
+        hideFromDistantPlayers(world, loc, fw, ctx);
         TaskAPI.atLater(loc, fw::detonate, 50L, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Firework entities are normally visible through Minecraft's chunk tracking range,
+     * which is far beyond MAX_EFFECT_DISTANCE. Explicitly hide the entity (and its
+     * detonation burst/sound) from anyone outside the effect's visibility radius.
+     */
+    private void hideFromDistantPlayers(World world, Location loc, org.bukkit.entity.Entity entity, SequenceContext ctx) {
+        org.bukkit.plugin.Plugin plugin = net.exylia.commons.v2.tasks.core.TaskManager.getInstance().getPlugin();
+        for (Player online : world.getPlayers()) {
+            if (online.getLocation().distanceSquared(loc) > MAX_EFFECT_DISTANCE_SQUARED) {
+                online.hideEntity(plugin, entity);
+            }
+        }
     }
 
     // ── [COMMAND] ─────────────────────────────────────────────────────────────
@@ -326,7 +347,11 @@ public class SequenceExecutor {
         }
 
         Location loc = yShift != 0 ? ctx.getLocation().clone().add(0, yShift, 0) : ctx.getLocation();
-        if (PARTICLE_BLOCK != null) world.spawnParticle(PARTICLE_BLOCK, loc, count, oX, oY, oZ, 0.1, material.createBlockData());
+        if (PARTICLE_BLOCK == null) return;
+        org.bukkit.block.data.BlockData blockData = material.createBlockData();
+        for (Player observer : nearbyObservers(world, ctx)) {
+            observer.spawnParticle(PARTICLE_BLOCK, loc, count, oX, oY, oZ, 0.1, blockData);
+        }
     }
 
     // ── [TITLE] ───────────────────────────────────────────────────────────────
@@ -1275,18 +1300,28 @@ public class SequenceExecutor {
         Object data = resolveParticleData(particle, dustColor, dustSize);
         if (data == null && particle.getDataType() != Void.class) return;
 
-        BiPredicate<Player, UUID> filter = ctx.getParticleFilter();
-
-        if (filter != null && ctx.getSourcePlayer() != null) {
-            UUID sourceId = ctx.getSourcePlayer().getUniqueId();
-            for (Player observer : world.getPlayers()) {
-                if (filter.test(observer, sourceId)) {
-                    observer.spawnParticle(particle, loc, count, oX, oY, oZ, speed, data);
-                }
-            }
-        } else {
-            world.spawnParticle(particle, loc, count, oX, oY, oZ, speed, data);
+        for (Player observer : nearbyObservers(world, ctx)) {
+            observer.spawnParticle(particle, loc, count, oX, oY, oZ, speed, data);
         }
+    }
+
+    /**
+     * Resolves which players should perceive this effect: always capped to
+     * {@link #MAX_EFFECT_DISTANCE} blocks from the effect location, further narrowed by
+     * the caller's optional particleFilter (e.g. visibility toggle) when present.
+     */
+    private List<Player> nearbyObservers(World world, SequenceContext ctx) {
+        Location loc = ctx.getLocation();
+        BiPredicate<Player, UUID> filter = ctx.getParticleFilter();
+        UUID sourceId = ctx.getSourcePlayer() != null ? ctx.getSourcePlayer().getUniqueId() : null;
+
+        List<Player> observers = new ArrayList<>();
+        for (Player online : world.getPlayers()) {
+            if (online.getLocation().distanceSquared(loc) > MAX_EFFECT_DISTANCE_SQUARED) continue;
+            if (filter != null && sourceId != null && !filter.test(online, sourceId)) continue;
+            observers.add(online);
+        }
+        return observers;
     }
 
     private Object resolveParticleData(Particle particle, Color dustColor, float dustSize) {

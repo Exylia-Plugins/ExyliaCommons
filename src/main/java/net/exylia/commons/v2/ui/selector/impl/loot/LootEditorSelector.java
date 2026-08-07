@@ -12,6 +12,7 @@ import java.util.function.BiConsumer;
 public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> {
 
     private List<LootEntry> initialEntries = new ArrayList<>();
+    private boolean allowCommands = false;
 
     private LootEditorSelector(Player player) {
         super(player);
@@ -29,6 +30,13 @@ public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> 
 
     public LootEditorSelector entries(List<LootEntry> entries) {
         this.initialEntries = new ArrayList<>(entries);
+        return this;
+    }
+
+    /** Opt in to letting entries be commands as well as items — shows a type-select step when
+     * adding a new entry. Off by default so existing callers (chests, spawners) are unaffected. */
+    public LootEditorSelector allowCommands(boolean allowCommands) {
+        this.allowCommands = allowCommands;
         return this;
     }
 
@@ -51,6 +59,7 @@ public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> 
                 onSelect,
                 onCancel
         );
+        session.setAllowCommands(allowCommands);
         LootEditorRegistry.getInstance().put(session);
         LootListMenu.open(player, session);
     }
