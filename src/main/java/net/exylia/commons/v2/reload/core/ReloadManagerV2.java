@@ -43,6 +43,7 @@ public class ReloadManagerV2 {
         registerSystem("DatabaseV2", new DatabaseV2Adapter());
         registerSystem("Redis", new RedisAdapter(plugin));
         registerSystem("ClanManager", new ClanAdapter());
+        registerSystem("ScoreboardManager", new ScoreboardAdapter());
         registerSystem("HologramManager", new HologramAdapter());
         registerSystem("ActionManager", new ActionAdapter());
         registerSystem("RegionManager", new RegionAdapter());
@@ -54,7 +55,6 @@ public class ReloadManagerV2 {
         registerSystem("ColorPresetManager", new ColorPresetAdapter());
         registerSystem("FormatterRegistry", new FormatterAdapter());
         registerSystem("ColorSystem", new ColorAdapter());
-        registerSystem("ScoreboardManager", new ScoreboardAdapter());
         registerSystem("DiscordWebhooks", new DiscordAdapter());
     }
 

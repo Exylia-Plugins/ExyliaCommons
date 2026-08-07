@@ -9,7 +9,7 @@ import lombok.With;
 @Builder
 @With
 @AllArgsConstructor
-public final class UpdateConfig {
+public class UpdateConfig {
 
     @Builder.Default
     private final long updateInterval = 20L;
@@ -25,14 +25,20 @@ public final class UpdateConfig {
     }
 
     public static UpdateConfig fast() {
-        return UpdateConfig.builder().updateInterval(10L).build();
+        return UpdateConfig.builder()
+                .updateInterval(10L)
+                .build();
     }
 
     public static UpdateConfig slow() {
-        return UpdateConfig.builder().updateInterval(40L).build();
+        return UpdateConfig.builder()
+                .updateInterval(40L)
+                .build();
     }
 
     public static UpdateConfig minimal() {
-        return UpdateConfig.builder().updateInterval(100L).build();
+        return UpdateConfig.builder()
+                .updateInterval(100L)
+                .build();
     }
 }

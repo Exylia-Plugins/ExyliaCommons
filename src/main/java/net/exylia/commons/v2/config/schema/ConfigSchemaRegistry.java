@@ -3,13 +3,13 @@ package net.exylia.commons.v2.config.schema;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.config.Config;
 import net.exylia.commons.v2.config.Configs;
+import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardSerializer;
 import net.exylia.commons.v2.visual.config.serializer.ActionBarConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.BossBarConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.FireworkConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.HologramTemplateSerializer;
+import net.exylia.commons.v2.visual.config.serializer.ScoreboardConfigSerializer;
 import net.exylia.commons.v2.visual.config.serializer.TitleConfigSerializer;
-import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardConfigSerializer;
-import net.exylia.commons.v2.scoreboard.config.serializer.ScoreboardSerializer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -30,10 +30,10 @@ public class ConfigSchemaRegistry {
         registerSerializer(new BossBarConfigSerializer());
         registerSerializer(new ActionBarConfigSerializer());
         registerSerializer(new TitleConfigSerializer());
-        registerSerializer(new HologramTemplateSerializer());
-        registerSerializer(new FireworkConfigSerializer());
         registerSerializer(new ScoreboardConfigSerializer());
         registerSerializer(new ScoreboardSerializer());
+        registerSerializer(new HologramTemplateSerializer());
+        registerSerializer(new FireworkConfigSerializer());
     }
 
     public static <T> void registerSerializer(ConfigSerializer<T> serializer) {

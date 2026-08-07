@@ -4,6 +4,7 @@ import net.exylia.commons.v2.region.selection.Selection;
 import net.exylia.commons.v2.database.serialization.SerializationRegistry;
 import net.exylia.commons.v2.hologram.model.HologramData;
 import net.exylia.commons.v2.region.model.Region;
+import net.exylia.commons.v2.scoreboard.model.ScoreboardData;
 import net.exylia.commons.v2.snapshot.model.SnapshotData;
 import net.exylia.commons.v2.teleport.model.ExyliaLocation;
 import net.exylia.commons.v2.visual.model.ActionBarData;
@@ -40,6 +41,9 @@ public class SerializerFactory {
 
         registry.registerSerializer(ActionBarData.class, ActionBarDataSerializer.INSTANCE);
         registry.registerDeserializer(ActionBarData.class, new ActionBarDataDeserializer());
+
+        registry.registerSerializer(ScoreboardData.class, ScoreboardDataSerializer.INSTANCE);
+        registry.registerDeserializer(ScoreboardData.class, new ScoreboardDataDeserializer());
 
         registry.registerSerializer(HologramData.class, HologramDataSerializer.INSTANCE);
         registry.registerDeserializer(HologramData.class, new HologramDataDeserializer());

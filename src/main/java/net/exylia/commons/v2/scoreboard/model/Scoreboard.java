@@ -13,7 +13,7 @@ import java.util.UUID;
 @Builder
 @With
 @AllArgsConstructor
-public final class Scoreboard {
+public class Scoreboard {
 
     @Builder.Default
     private final String id = UUID.randomUUID().toString();
@@ -25,19 +25,7 @@ public final class Scoreboard {
     @Builder.Default
     private final boolean enabled = true;
 
-    public UpdateConfig getEffectiveUpdateConfig() {
-        return updateConfig != null ? updateConfig : UpdateConfig.defaults();
-    }
-
     public long getUpdateInterval() {
-        return getEffectiveUpdateConfig().getUpdateInterval();
-    }
-
-    public boolean isSmartUpdate() {
-        return getEffectiveUpdateConfig().isSmartUpdate();
-    }
-
-    public boolean isCacheEnabled() {
-        return getEffectiveUpdateConfig().isCacheEnabled();
+        return updateConfig != null ? updateConfig.getUpdateInterval() : UpdateConfig.defaults().getUpdateInterval();
     }
 }

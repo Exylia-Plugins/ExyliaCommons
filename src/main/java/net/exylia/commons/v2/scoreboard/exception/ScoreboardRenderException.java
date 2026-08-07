@@ -1,6 +1,12 @@
 package net.exylia.commons.v2.scoreboard.exception;
 
-public final class ScoreboardRenderException extends ScoreboardException {
-    public ScoreboardRenderException(String message) { super(message); }
-    public ScoreboardRenderException(String message, Throwable cause) { super(message, cause); }
+public class ScoreboardRenderException extends ScoreboardException {
+
+    public ScoreboardRenderException(String message) {
+        super(message);
+    }
+
+    public ScoreboardRenderException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

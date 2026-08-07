@@ -12,24 +12,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class ScoreboardSerializer implements ConfigSerializer<Scoreboard> {
+public class ScoreboardSerializer implements ConfigSerializer<Scoreboard> {
 
     @Override
     public Object serialize(Scoreboard value) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("enabled", value.isEnabled());
         map.put("title", value.getTitle());
-        map.put("lines", value.getLines().stream()
-                .sorted(Comparator.comparingInt(ScoreboardLine::getPosition))
-                .map(ScoreboardLine::getContent)
-                .toList());
+        map.put("lines", serializeLines(value.getLines()));
 
-        UpdateConfig update = value.getEffectiveUpdateConfig();
+        UpdateConfig updateConfig = value.getUpdateConfig() != null ? value.getUpdateConfig() : UpdateConfig.defaults();
         Map<String, Object> updateMap = new LinkedHashMap<>();
-        updateMap.put("interval", update.getUpdateInterval());
-        updateMap.put("smart", update.isSmartUpdate());
-        updateMap.put("cache", update.isCacheEnabled());
+        updateMap.put("interval", updateConfig.getUpdateInterval());
+        updateMap.put("smart", updateConfig.isSmartUpdate());
+        updateMap.put("cache", updateConfig.isCacheEnabled());
         map.put("update", updateMap);
+
         return map;
     }
 
@@ -41,5 +39,12 @@ public final class ScoreboardSerializer implements ConfigSerializer<Scoreboard> 
     @Override
     public Class<Scoreboard> getType() {
         return Scoreboard.class;
+    }
+
+    private List<String> serializeLines(List<ScoreboardLine> lines) {
+        return lines.stream()
+                .sorted(Comparator.comparingInt(ScoreboardLine::getPosition))
+                .map(ScoreboardLine::getContent)
+                .toList();
     }
 }

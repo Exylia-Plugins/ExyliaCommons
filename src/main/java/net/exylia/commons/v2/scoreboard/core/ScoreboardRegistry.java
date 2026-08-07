@@ -7,34 +7,36 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class ScoreboardRegistry {
-    private final ConcurrentHashMap<UUID, ScoreboardInstance> instances = new ConcurrentHashMap<>();
+public class ScoreboardRegistry {
 
-    public Optional<ScoreboardInstance> replace(UUID playerId, ScoreboardInstance instance) {
-        return Optional.ofNullable(instances.put(playerId, instance));
+    private final ConcurrentHashMap<UUID, ScoreboardInstance> scoreboards = new ConcurrentHashMap<>();
+
+    public void set(UUID playerId, ScoreboardInstance instance) {
+        scoreboards.put(playerId, instance);
     }
 
     public Optional<ScoreboardInstance> remove(UUID playerId) {
-        return Optional.ofNullable(instances.remove(playerId));
+        return Optional.ofNullable(scoreboards.remove(playerId));
     }
 
     public Optional<ScoreboardInstance> get(UUID playerId) {
-        return Optional.ofNullable(instances.get(playerId));
+        return Optional.ofNullable(scoreboards.get(playerId));
     }
 
     public boolean has(UUID playerId) {
-        return instances.containsKey(playerId);
+        return scoreboards.containsKey(playerId);
     }
 
-    public Collection<ScoreboardInstance> all() {
-        return instances.values();
+    public int getActiveCount() {
+        return scoreboards.size();
     }
 
-    public int size() {
-        return instances.size();
+    public Collection<ScoreboardInstance> getAll() {
+        return scoreboards.values();
     }
 
     public void clear() {
-        instances.clear();
+        scoreboards.values().forEach(ScoreboardInstance::hide);
+        scoreboards.clear();
     }
 }

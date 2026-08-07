@@ -9,13 +9,13 @@ import lombok.With;
 @Builder
 @With
 @AllArgsConstructor
-public final class ScoreboardLine {
+public class ScoreboardLine {
 
     private final int position;
     private final String content;
 
     public static ScoreboardLine of(int position, String content) {
-        return new ScoreboardLine(position, content == null ? "" : content);
+        return new ScoreboardLine(position, content);
     }
 
     public boolean isDynamic() {
