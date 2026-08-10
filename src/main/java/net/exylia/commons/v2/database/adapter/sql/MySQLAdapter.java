@@ -143,6 +143,39 @@ public class MySQLAdapter extends SQLAdapter {
         return "INSERT INTO `" + metadata.getTableName() + "`(" + columns + ") VALUES(" + values + ") ON DUPLICATE KEY UPDATE " + updates;
     }
 
+    /**
+     * MySQL rejects a sub-select that reads the same table a DELETE is writing
+     * (error 1093), so the portable sub-select form in {@link SQLAdapter} cannot
+     * be used here. It supports {@code DELETE ... ORDER BY ... LIMIT} directly,
+     * which is also the cheaper plan: it walks the index on {@code field} and
+     * stops at the limit.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit, EntityMetadata metadata) throws Exception {
+        FieldDescriptor target = metadata.getField(field);
+        if (target == null) throw new IllegalArgumentException("Field not found: " + field);
+
+        String sql = "DELETE FROM `" + metadata.getTableName() + "`"
+                + " WHERE `" + target.getColumnName() + "` < ?"
+                + " ORDER BY `" + target.getColumnName() + "` ASC LIMIT ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, value);
+            stmt.setInt(2, limit);
+            return stmt.executeUpdate();
+        }
+    }
+
+    @Override
+    public int deleteBounded(int limit, EntityMetadata metadata) throws Exception {
+        String sql = "DELETE FROM `" + metadata.getTableName() + "` LIMIT ?";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            return stmt.executeUpdate();
+        }
+    }
+
     @Override
     protected String getModifyColumnSql(String tableName, FieldDescriptor field) {
         return "ALTER TABLE `" + tableName + "` MODIFY COLUMN `" + field.getColumnName() + "` " + getMySQLType(field);

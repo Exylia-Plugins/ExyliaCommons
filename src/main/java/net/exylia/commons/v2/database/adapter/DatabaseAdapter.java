@@ -63,6 +63,37 @@ public interface DatabaseAdapter {
      */
     int truncate(EntityMetadata metadata) throws Exception;
 
+    /**
+     * Deletes at most {@code limit} rows whose {@code field} compares strictly
+     * less than {@code value}, oldest first, in a single server-side statement.
+     * <p>
+     * This exists because the alternative — SELECT a page, map it to entities,
+     * then delete them one by one — has to materialise every column of every
+     * matched row just to throw it away. On a table carrying a large TEXT/BLOB
+     * column (serialized inventories, snapshots, payloads) that is megabytes of
+     * garbage per batch and is a reliable way to stall a server. Nothing is
+     * loaded here; the rows never leave the database.
+     * <p>
+     * The {@code limit} bounds the transaction so a purge of a huge table stays
+     * a sequence of small commits rather than one lock-holding monster. Call it
+     * in a loop until it returns less than {@code limit}.
+     *
+     * @param field entity field name (not the column name) to compare on
+     * @param value exclusive upper bound; rows strictly below it are deleted
+     * @param limit maximum rows to delete in this call
+     * @return number of rows actually deleted
+     */
+    int deleteWhereLessThan(String field, Object value, int limit, EntityMetadata metadata) throws Exception;
+
+    /**
+     * Deletes at most {@code limit} rows, unconditionally. Used to drain a table
+     * in bounded chunks when a plain {@code truncate()} would build an undo log
+     * large enough to be its own outage. Call in a loop until it returns 0.
+     *
+     * @return number of rows actually deleted
+     */
+    int deleteBounded(int limit, EntityMetadata metadata) throws Exception;
+
     <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception;
 
     <T extends Entity> List<T> findAllSortedPaged(String orderByField, boolean ascending, int page, int pageSize, Class<T> entityClass, EntityMetadata metadata) throws Exception;

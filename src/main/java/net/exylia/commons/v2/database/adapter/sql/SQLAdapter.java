@@ -431,6 +431,47 @@ public abstract class SQLAdapter implements DatabaseAdapter {
         }
     }
 
+    /**
+     * Portable form: bound the victims with a sub-select on the primary key.
+     * {@code DELETE ... LIMIT} is a vendor extension rather than standard SQL, so
+     * the base implementation avoids it; MySQL overrides this with the cheaper
+     * direct form.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit, EntityMetadata metadata) throws Exception {
+        FieldDescriptor target = metadata.getField(field);
+        if (target == null) throw new IllegalArgumentException("Field not found: " + field);
+        FieldDescriptor pk = metadata.getPrimaryKeyField();
+        if (pk == null) throw new IllegalStateException("Bounded delete requires a primary key on " + metadata.getTableName());
+
+        String table = metadata.getTableName();
+        String sql = "DELETE FROM " + table + " WHERE " + pk.getColumnName() + " IN ("
+                + "SELECT " + pk.getColumnName() + " FROM " + table
+                + " WHERE " + target.getColumnName() + " < ?"
+                + " ORDER BY " + target.getColumnName() + " ASC LIMIT ?)";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, value);
+            stmt.setInt(2, limit);
+            return stmt.executeUpdate();
+        }
+    }
+
+    @Override
+    public int deleteBounded(int limit, EntityMetadata metadata) throws Exception {
+        FieldDescriptor pk = metadata.getPrimaryKeyField();
+        if (pk == null) throw new IllegalStateException("Bounded delete requires a primary key on " + metadata.getTableName());
+
+        String table = metadata.getTableName();
+        String sql = "DELETE FROM " + table + " WHERE " + pk.getColumnName() + " IN ("
+                + "SELECT " + pk.getColumnName() + " FROM " + table + " LIMIT ?)";
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            return stmt.executeUpdate();
+        }
+    }
+
     @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         FieldDescriptor orderField = metadata.getField(orderByField);

@@ -263,6 +263,41 @@ public class MongoDBAdapter implements DatabaseAdapter {
         return (int) database.getCollection(metadata.getTableName()).deleteMany(new Document()).getDeletedCount();
     }
 
+    /**
+     * {@code deleteMany} takes no limit, so the batch is bounded by first
+     * collecting the ids of the oldest matches. Only {@code _id} is projected —
+     * the documents themselves, including any large embedded payload, are never
+     * pulled over the wire.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit, EntityMetadata metadata) throws Exception {
+        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
+        List<Object> ids = new ArrayList<>();
+        FindIterable<Document> query = collection.find(Filters.lt(field, value))
+                .sort(new Document(field, 1))
+                .limit(limit)
+                .projection(new Document("_id", 1));
+        for (Document doc : query) {
+            ids.add(doc.get("_id"));
+        }
+        if (ids.isEmpty()) return 0;
+        return (int) collection.deleteMany(Filters.in("_id", ids)).getDeletedCount();
+    }
+
+    @Override
+    public int deleteBounded(int limit, EntityMetadata metadata) throws Exception {
+        MongoCollection<Document> collection = database.getCollection(metadata.getTableName());
+        List<Object> ids = new ArrayList<>();
+        FindIterable<Document> query = collection.find()
+                .limit(limit)
+                .projection(new Document("_id", 1));
+        for (Document doc : query) {
+            ids.add(doc.get("_id"));
+        }
+        if (ids.isEmpty()) return 0;
+        return (int) collection.deleteMany(Filters.in("_id", ids)).getDeletedCount();
+    }
+
     @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         MongoCollection<Document> collection = database.getCollection(metadata.getTableName());

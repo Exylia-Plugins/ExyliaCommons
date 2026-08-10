@@ -223,6 +223,69 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         return count;
     }
 
+    @Override
+    public CompletableFuture<Integer> deleteWhereLessThanAsync(String field, Object value, int limit) {
+        return Tasks.dbValue(() -> deleteWhereLessThan(field, value, limit));
+    }
+
+    /**
+     * Applied straight to the storage layer, bypassing the write-behind buffer on
+     * purpose: the whole point of the bulk delete is that the rows are removed now
+     * rather than queued. Any buffered write for a row this deletes is dropped
+     * first, otherwise the next flush would re-insert a row that was just purged.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit) {
+        dirtyEntities.values().removeIf(e -> fieldIsLessThan(e, field, value));
+        pendingDeletes.values().removeIf(e -> fieldIsLessThan(e, field, value));
+        int removed = delegate.deleteWhereLessThan(field, value, limit);
+        if (removed > 0) {
+            DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Bulk-deleted " + removed + " rows of " + entityName + " where " + field + " < " + value);
+        }
+        return removed;
+    }
+
+    @Override
+    public CompletableFuture<Integer> deleteBoundedAsync(int limit) {
+        return Tasks.dbValue(() -> deleteBounded(limit));
+    }
+
+    /**
+     * Drains a chunk of the table at the storage layer. Buffered writes are
+     * dropped wholesale: this is only used to empty the table, so nothing queued
+     * for it is still wanted.
+     */
+    @Override
+    public int deleteBounded(int limit) {
+        dirtyEntities.clear();
+        pendingDeletes.clear();
+        int removed = delegate.deleteBounded(limit);
+        if (removed > 0) {
+            DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Bulk-deleted " + removed + " rows of " + entityName);
+        }
+        return removed;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private boolean fieldIsLessThan(T entity, String fieldName, Object bound) {
+        try {
+            Field field = findField(entity.getClass(), fieldName);
+            if (field == null) return false;
+            field.setAccessible(true);
+            Object fieldValue = field.get(entity);
+            if (fieldValue == null || bound == null) return false;
+            if (fieldValue instanceof Number a && bound instanceof Number b) {
+                return a.doubleValue() < b.doubleValue();
+            }
+            if (fieldValue instanceof Comparable a && fieldValue.getClass() == bound.getClass()) {
+                return a.compareTo(bound) < 0;
+            }
+            return false;
+        } catch (IllegalAccessException e) {
+            return false;
+        }
+    }
+
     // --- Reads (read-your-writes) ---
 
     @Override

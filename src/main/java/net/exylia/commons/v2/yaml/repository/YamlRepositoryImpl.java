@@ -225,6 +225,55 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
     }
 
     @Override
+    public CompletableFuture<Integer> deleteWhereLessThanAsync(String field, Object value, int limit) {
+        return Tasks.dbValue(() -> deleteWhereLessThan(field, value, limit));
+    }
+
+    /**
+     * Unlike the database repositories, this backend stores one file per entity
+     * and has no server-side bulk delete, so the candidates must be read to be
+     * compared. The point of the bulk primitive — not materialising rows — cannot
+     * be honoured here; this exists so the contract holds. Keep large,
+     * high-churn tables (match history, event logs) on a database repository.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit) {
+        List<T> victims = new ArrayList<>();
+        for (T entity : findAll()) {
+            if (victims.size() >= limit) break;
+            if (isLessThan(metadata.getField(field).getValue(entity), value)) victims.add(entity);
+        }
+        victims.forEach(this::delete);
+        return victims.size();
+    }
+
+    @Override
+    public CompletableFuture<Integer> deleteBoundedAsync(int limit) {
+        return Tasks.dbValue(() -> deleteBounded(limit));
+    }
+
+    @Override
+    public int deleteBounded(int limit) {
+        List<T> all = findAll();
+        List<T> victims = all.size() > limit ? all.subList(0, limit) : all;
+        int removed = victims.size();
+        new ArrayList<>(victims).forEach(this::delete);
+        return removed;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private boolean isLessThan(Object candidate, Object bound) {
+        if (candidate == null || bound == null) return false;
+        if (candidate instanceof Number a && bound instanceof Number b) {
+            return a.doubleValue() < b.doubleValue();
+        }
+        if (candidate instanceof Comparable a && candidate.getClass() == bound.getClass()) {
+            return a.compareTo(bound) < 0;
+        }
+        return false;
+    }
+
+    @Override
     public CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit) {
         return Tasks.dbValue(() -> findAllOrderedBy(fieldName, ascending, limit));
     }

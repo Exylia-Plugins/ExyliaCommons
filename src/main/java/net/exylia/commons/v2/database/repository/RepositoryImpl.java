@@ -251,6 +251,40 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
     }
 
     @Override
+    public CompletableFuture<Integer> deleteWhereLessThanAsync(String field, Object value, int limit) {
+        return Tasks.dbValue(() -> deleteWhereLessThan(field, value, limit));
+    }
+
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit) {
+        try {
+            int removed = adapter.deleteWhereLessThan(field, value, limit, metadata);
+            // Rows vanished underneath the cache, so any list/aggregate entry it
+            // holds for this table is now wrong.
+            if (removed > 0) invalidateCache();
+            return removed;
+        } catch (Exception e) {
+            throw new RepositoryException("Error deleting rows where " + field + " < " + value, e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Integer> deleteBoundedAsync(int limit) {
+        return Tasks.dbValue(() -> deleteBounded(limit));
+    }
+
+    @Override
+    public int deleteBounded(int limit) {
+        try {
+            int removed = adapter.deleteBounded(limit, metadata);
+            if (removed > 0) invalidateCache();
+            return removed;
+        } catch (Exception e) {
+            throw new RepositoryException("Error deleting bounded batch", e);
+        }
+    }
+
+    @Override
     public CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit) {
         return Tasks.dbValue(() -> findAllOrderedBy(fieldName, ascending, limit));
     }

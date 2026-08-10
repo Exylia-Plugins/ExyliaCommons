@@ -216,6 +216,47 @@ public class YAMLFallbackAdapter implements DatabaseAdapter {
         return count;
     }
 
+    /**
+     * The backing store is an in-memory list, so records are dropped in place and
+     * never mapped to entities. Values are compared through {@link Comparable}
+     * because YAML round-trips numbers as boxed types.
+     */
+    @Override
+    public int deleteWhereLessThan(String field, Object value, int limit, EntityMetadata metadata) throws Exception {
+        List<Map<String, Object>> table = getTable(metadata.getTableName());
+        List<Map<String, Object>> expired = new ArrayList<>();
+        for (Map<String, Object> record : table) {
+            if (expired.size() >= limit) break;
+            if (isLessThan(record.get(field), value)) expired.add(record);
+        }
+        if (expired.isEmpty()) return 0;
+        table.removeAll(expired);
+        saveTable(metadata.getTableName());
+        return expired.size();
+    }
+
+    @Override
+    public int deleteBounded(int limit, EntityMetadata metadata) throws Exception {
+        List<Map<String, Object>> table = getTable(metadata.getTableName());
+        int removed = Math.min(limit, table.size());
+        if (removed <= 0) return 0;
+        table.subList(0, removed).clear();
+        saveTable(metadata.getTableName());
+        return removed;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private boolean isLessThan(Object candidate, Object bound) {
+        if (candidate == null || bound == null) return false;
+        if (candidate instanceof Number a && bound instanceof Number b) {
+            return a.doubleValue() < b.doubleValue();
+        }
+        if (candidate instanceof Comparable a && candidate.getClass() == bound.getClass()) {
+            return a.compareTo(bound) < 0;
+        }
+        return false;
+    }
+
     @Override
     public <T extends Entity> List<T> findAllSorted(String orderByField, boolean ascending, Class<T> entityClass, EntityMetadata metadata) throws Exception {
         List<Map<String, Object>> table = getTable(metadata.getTableName());

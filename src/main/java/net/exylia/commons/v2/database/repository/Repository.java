@@ -64,6 +64,41 @@ public interface Repository<T extends Entity> {
 
     int truncate();
 
+    /**
+     * Deletes up to {@code limit} rows where {@code field} is strictly less than
+     * {@code value}, oldest first, entirely inside the database.
+     * <p>
+     * Use this for retention sweeps instead of "read a page, then
+     * {@link #deleteAll(List)} it". That pattern deserializes every matched row —
+     * including any large TEXT/BLOB column — purely to discard it, and under
+     * write-behind the deletes are only queued, so the next read returns the very
+     * same rows and the loop spins. This method has neither problem: nothing is
+     * materialised, and the delete is applied immediately.
+     * <p>
+     * Bounded per call so each delete is a small transaction. Loop until the
+     * returned count is below {@code limit}.
+     *
+     * @param field entity field name to compare on
+     * @param value exclusive upper bound
+     * @param limit maximum rows removed per call
+     * @return rows actually deleted
+     */
+    CompletableFuture<Integer> deleteWhereLessThanAsync(String field, Object value, int limit);
+
+    int deleteWhereLessThan(String field, Object value, int limit);
+
+    /**
+     * Deletes up to {@code limit} rows unconditionally, for draining a table in
+     * bounded chunks. Prefer this over {@link #truncate()} when the table is large
+     * enough that a single unbounded DELETE would hold locks or build an undo log
+     * big enough to stall the server. Loop until it returns 0.
+     *
+     * @return rows actually deleted
+     */
+    CompletableFuture<Integer> deleteBoundedAsync(int limit);
+
+    int deleteBounded(int limit);
+
     CompletableFuture<List<T>> findAllOrderedByAsync(String fieldName, boolean ascending, int limit);
 
     List<T> findAllOrderedBy(String fieldName, boolean ascending, int limit);
