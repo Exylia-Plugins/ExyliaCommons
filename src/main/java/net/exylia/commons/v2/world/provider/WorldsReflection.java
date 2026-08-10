@@ -5,18 +5,27 @@ import org.bukkit.plugin.Plugin;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodType;
 
 /**
  * Reflection primitives shared by the Worlds backends.
  *
- * <p>Every lookup here is performed against the <em>Worlds plugin's own classloader</em> rather
- * than the loader of ExyliaCommons. On Paper, plugins are isolated: a plugin that does not declare
- * Worlds as a dependency cannot see {@code net.thenextlvl.worlds.*} through a plain
- * {@link Class#forName(String)}, which would make detection fail even though the plugin is
- * installed. Resolving through the plugin instance removes that dependency on load order and on
- * {@code paper-plugin.yml} declarations.
+ * <p>Two constraints shape this class, both learned from real failures:
+ *
+ * <p><b>1. Lookups go through the Worlds plugin's own classloader.</b> On Paper, plugins are
+ * isolated: a plugin that does not declare Worlds as a dependency cannot see
+ * {@code net.thenextlvl.worlds.*} via a plain {@link Class#forName(String)}, so detection would
+ * fail even with Worlds installed. Resolving through the plugin instance removes the dependency
+ * on load order and on {@code paper-plugin.yml} declarations.
+ *
+ * <p><b>2. Members are resolved with {@link MethodHandles.Lookup}, never with
+ * {@link Class#getMethod}.</b> {@code getMethod} and {@code getDeclaredMethods} force the JVM to
+ * resolve the descriptor of <em>every</em> method on the class. {@code WorldsProvider} declares
+ * {@code default GroupProvider groupProvider()} returning a type from the separate, optional
+ * <b>PerWorlds</b> plugin. On a server without PerWorlds, merely asking for an unrelated method
+ * throws {@link NoClassDefFoundError} for {@code net/thenextlvl/perworlds/GroupProvider}. By
+ * contrast {@code findVirtual}/{@code findStatic} resolve only the single descriptor requested,
+ * so an absent optional dependency on a method we never call stays harmless.
  *
  * <p>All failures surface as {@link BackendUnavailableException} so a backend can abort its own
  * construction cleanly and let the next generation be tried.
@@ -65,67 +74,87 @@ final class WorldsReflection {
     /**
      * Loads a Worlds API class through the Worlds plugin's classloader.
      *
-     * @throws BackendUnavailableException if the class is absent, i.e. the installed Worlds
-     *                                     version belongs to a different API generation
+     * <p>Initialization is deliberately requested ({@code initialize = true}) so that a class
+     * whose static initializer cannot run — for instance a preset holder needing a transitive
+     * library that is absent — fails here, during detection, instead of at first use.
+     *
+     * @throws BackendUnavailableException if the class is absent or cannot be initialized, i.e.
+     *                                     the installed Worlds version belongs to a different
+     *                                     API generation
      */
     static Class<?> require(Plugin plugin, String className) {
         try {
-            return Class.forName(className, false, plugin.getClass().getClassLoader());
-        } catch (ClassNotFoundException | LinkageError e) {
-            throw new BackendUnavailableException("missing class " + className, e);
+            return Class.forName(className, true, plugin.getClass().getClassLoader());
+        } catch (ClassNotFoundException | LinkageError | RuntimeException e) {
+            throw new BackendUnavailableException("cannot load " + className, e);
         }
     }
 
     /**
-     * Resolves a virtual/interface method and unreflects it into a {@link MethodHandle}.
+     * Resolves a virtual or interface method into a {@link MethodHandle}.
      *
-     * <p>Method handles are resolved once and invoked many times; unlike {@link Method#invoke},
-     * an {@code invokeExact}-shaped handle avoids per-call access checks and argument boxing
-     * arrays, which matters because world creation runs on gameplay paths.
+     * <p>Only the requested descriptor is resolved, so unrelated methods referencing absent
+     * optional plugins never trigger classloading.
      *
-     * @throws BackendUnavailableException if the method does not exist with that exact signature,
-     *                                     which is precisely how an incompatible patch release of
-     *                                     Worlds is detected
+     * @param owner      the declaring class or interface
+     * @param name       the method name
+     * @param returnType the exact declared return type
+     * @param parameters the exact declared parameter types
+     * @throws BackendUnavailableException if no method with that exact signature exists, which is
+     *                                     precisely how an incompatible release is detected
      */
-    static MethodHandle method(Class<?> owner, String name, Class<?>... parameterTypes) {
+    static MethodHandle virtual(Class<?> owner, String name, Class<?> returnType, Class<?>... parameters) {
         try {
-            Method method = owner.getMethod(name, parameterTypes);
-            method.setAccessible(true);
-            return LOOKUP.unreflect(method);
-        } catch (NoSuchMethodException | IllegalAccessException | RuntimeException e) {
+            return LOOKUP.findVirtual(owner, name, MethodType.methodType(returnType, parameters));
+        } catch (NoSuchMethodException | IllegalAccessException | LinkageError | RuntimeException e) {
             throw new BackendUnavailableException(
                     "missing method " + owner.getName() + '#' + name, e);
         }
     }
 
     /**
-     * Resolves an optional virtual/interface method.
+     * Resolves an optional virtual or interface method.
      *
      * <p>Used for members that exist only in some releases of a generation — for example
      * {@code Level.Builder#legacyName}, added in Worlds 4.1.0. Returns {@code null} when absent
      * so the caller can degrade instead of rejecting the whole backend.
      */
-    static MethodHandle optionalMethod(Class<?> owner, String name, Class<?>... parameterTypes) {
+    static MethodHandle optionalVirtual(Class<?> owner, String name, Class<?> returnType, Class<?>... parameters) {
         try {
-            return method(owner, name, parameterTypes);
+            return virtual(owner, name, returnType, parameters);
         } catch (BackendUnavailableException e) {
             return null;
         }
     }
 
     /**
+     * Resolves a static method into a {@link MethodHandle}.
+     *
+     * @throws BackendUnavailableException if no static method with that exact signature exists
+     */
+    static MethodHandle staticMethod(Class<?> owner, String name, Class<?> returnType, Class<?>... parameters) {
+        try {
+            return LOOKUP.findStatic(owner, name, MethodType.methodType(returnType, parameters));
+        } catch (NoSuchMethodException | IllegalAccessException | LinkageError | RuntimeException e) {
+            throw new BackendUnavailableException(
+                    "missing static method " + owner.getName() + '#' + name, e);
+        }
+    }
+
+    /**
      * Reads a public static field, typically an API constant such as a preset or generator type.
      *
+     * @param owner the declaring class
+     * @param name  the constant name
+     * @param type  the exact declared field type
      * @throws BackendUnavailableException if the constant is absent or unreadable
      */
-    static Object staticField(Class<?> owner, String name) {
+    static Object staticField(Class<?> owner, String name, Class<?> type) {
         try {
-            Field field = owner.getField(name);
-            field.setAccessible(true);
-            return field.get(null);
-        } catch (NoSuchFieldException | IllegalAccessException | RuntimeException e) {
+            return LOOKUP.findStaticGetter(owner, name, type).invoke();
+        } catch (Throwable t) {
             throw new BackendUnavailableException(
-                    "missing constant " + owner.getName() + '.' + name, e);
+                    "missing constant " + owner.getName() + '.' + name, t);
         }
     }
 }

@@ -26,6 +26,11 @@ import java.util.concurrent.CompletableFuture;
  * preset — the two generations are not shape-compatible, which is why they need separate backends
  * rather than a shared reflective path.
  *
+ * <p>{@code WorldsProvider} also declares {@code default GroupProvider groupProvider()} returning
+ * a type from the optional PerWorlds plugin. Every lookup here is therefore signature-scoped (see
+ * {@link WorldsReflection}); enumerating the interface's methods would hard-fail with
+ * {@link NoClassDefFoundError} on servers without PerWorlds.
+ *
  * @since 1.0.0
  */
 final class Worlds3Backend implements WorldsBackend {
@@ -36,6 +41,7 @@ final class Worlds3Backend implements WorldsBackend {
     private static final String LEVEL = "net.thenextlvl.worlds.api.level.Level";
     private static final String BUILDER = "net.thenextlvl.worlds.api.level.Level$Builder";
     private static final String LEVEL_VIEW = "net.thenextlvl.worlds.api.view.LevelView";
+    private static final String DELETION_RESULT = LEVEL_VIEW + "$DeletionResult";
 
     private final Object provider;
     private final Object voidPreset;
@@ -78,27 +84,28 @@ final class Worlds3Backend implements WorldsBackend {
         Class<?> levelClass = WorldsReflection.require(plugin, LEVEL);
         Class<?> builderClass = WorldsReflection.require(plugin, BUILDER);
         Class<?> levelViewClass = WorldsReflection.require(plugin, LEVEL_VIEW);
+        Class<?> deletionResultClass = WorldsReflection.require(plugin, DELETION_RESULT);
 
         this.voidPreset = WorldsReflection.staticField(
-                WorldsReflection.require(plugin, PRESETS), "THE_VOID");
+                WorldsReflection.require(plugin, PRESETS), "THE_VOID", presetClass);
 
-        this.levelBuilder = WorldsReflection.method(providerClass, "levelBuilder", Path.class);
-        this.builderKey = WorldsReflection.method(builderClass, "key", Key.class);
-        this.builderName = WorldsReflection.method(builderClass, "name", String.class);
-        this.builderStructures = WorldsReflection.method(builderClass, "structures", Boolean.class);
-        this.builderPreset = WorldsReflection.method(builderClass, "preset", presetClass);
-        this.builderBuild = WorldsReflection.method(builderClass, "build");
-        this.levelCreateAsync = WorldsReflection.method(levelClass, "createAsync");
+        this.levelBuilder = WorldsReflection.virtual(
+                providerClass, "levelBuilder", builderClass, Path.class);
+        this.builderKey = WorldsReflection.virtual(builderClass, "key", builderClass, Key.class);
+        this.builderName = WorldsReflection.virtual(builderClass, "name", builderClass, String.class);
+        this.builderStructures = WorldsReflection.virtual(
+                builderClass, "structures", builderClass, Boolean.class);
+        this.builderPreset = WorldsReflection.virtual(
+                builderClass, "preset", builderClass, presetClass);
+        this.builderBuild = WorldsReflection.virtual(builderClass, "build", levelClass);
+        this.levelCreateAsync = WorldsReflection.virtual(
+                levelClass, "createAsync", CompletableFuture.class);
 
-        this.levelView = WorldsReflection.method(providerClass, "levelView");
-        this.deleteAsync = WorldsReflection.method(
-                levelViewClass, "deleteAsync", World.class, boolean.class);
-
-        // DeletionResult is a nested enum of LevelView; resolve isSuccess() from the declared
-        // type rather than from a runtime instance so a failure is caught during construction.
-        Class<?> deletionResult = WorldsReflection.require(
-                plugin, LEVEL_VIEW + "$DeletionResult");
-        this.deletionIsSuccess = WorldsReflection.method(deletionResult, "isSuccess");
+        this.levelView = WorldsReflection.virtual(providerClass, "levelView", levelViewClass);
+        this.deleteAsync = WorldsReflection.virtual(
+                levelViewClass, "deleteAsync", CompletableFuture.class, World.class, boolean.class);
+        this.deletionIsSuccess = WorldsReflection.virtual(
+                deletionResultClass, "isSuccess", boolean.class);
     }
 
     @Override

@@ -69,7 +69,9 @@ final class Worlds4Backend implements WorldsBackend {
             this.access = plugin;
         } else {
             try {
-                this.access = WorldsReflection.method(accessClass, "access").invoke();
+                this.access = WorldsReflection
+                        .staticMethod(accessClass, "access", accessClass)
+                        .invoke();
             } catch (Throwable t) {
                 throw new BackendUnavailableException("WorldsAccess.access() failed", t);
             }
@@ -81,25 +83,28 @@ final class Worlds4Backend implements WorldsBackend {
         // GeneratorType.FLAT is typed as Flat and carries CLASSIC_FLAT by default; with(preset)
         // returns a new Flat bound to the void preset. Resolving this eagerly means a server
         // running a 4.x build that renamed either constant is rejected before any world is built.
-        Object flat = WorldsReflection.staticField(generatorTypeClass, "FLAT");
-        Object theVoid = WorldsReflection.staticField(presetClass, "THE_VOID");
+        Object flat = WorldsReflection.staticField(generatorTypeClass, "FLAT", flatClass);
+        Object theVoid = WorldsReflection.staticField(presetClass, "THE_VOID", presetClass);
         try {
             this.voidGenerator = WorldsReflection
-                    .method(flatClass, "with", presetClass)
+                    .virtual(flatClass, "with", flatClass, presetClass)
                     .invoke(flat, theVoid);
         } catch (Throwable t) {
             throw new BackendUnavailableException("GeneratorType.Flat#with(Preset) failed", t);
         }
 
-        this.levelBuilder = WorldsReflection.method(levelClass, "builder", Key.class);
-        this.builderStructures = WorldsReflection.method(builderClass, "structures", Boolean.class);
-        this.builderGeneratorType =
-                WorldsReflection.method(builderClass, "generatorType", generatorTypeClass);
-        this.builderLegacyName =
-                WorldsReflection.optionalMethod(builderClass, "legacyName", String.class);
-        this.builderBuild = WorldsReflection.method(builderClass, "build");
-        this.levelCreate = WorldsReflection.method(levelClass, "create");
-        this.accessDelete = WorldsReflection.method(accessClass, "delete", World.class);
+        this.levelBuilder = WorldsReflection.staticMethod(
+                levelClass, "builder", builderClass, Key.class);
+        this.builderStructures = WorldsReflection.virtual(
+                builderClass, "structures", builderClass, Boolean.class);
+        this.builderGeneratorType = WorldsReflection.virtual(
+                builderClass, "generatorType", builderClass, generatorTypeClass);
+        this.builderLegacyName = WorldsReflection.optionalVirtual(
+                builderClass, "legacyName", builderClass, String.class);
+        this.builderBuild = WorldsReflection.virtual(builderClass, "build", levelClass);
+        this.levelCreate = WorldsReflection.virtual(levelClass, "create", CompletableFuture.class);
+        this.accessDelete = WorldsReflection.virtual(
+                accessClass, "delete", CompletableFuture.class, World.class);
     }
 
     @Override

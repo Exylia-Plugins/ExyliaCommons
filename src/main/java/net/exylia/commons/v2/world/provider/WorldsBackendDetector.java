@@ -62,7 +62,13 @@ public final class WorldsBackendDetector {
     }
 
     private static WorldsBackend detect() {
-        Plugin plugin = WorldsReflection.worldsPlugin();
+        Plugin plugin;
+        try {
+            plugin = WorldsReflection.worldsPlugin();
+        } catch (Throwable t) {
+            DebugAPI.logLibWarn("[Worlds] Plugin lookup failed: " + t);
+            return null;
+        }
         if (plugin == null) {
             return null;
         }
@@ -70,19 +76,32 @@ public final class WorldsBackendDetector {
             try {
                 WorldsBackend candidate = factory.apply(plugin);
                 DebugAPI.logLibInfo("[Worlds] Bound to " + candidate.name()
-                        + " (plugin version " + plugin.getPluginMeta().getVersion() + ")");
+                        + " (plugin version " + version(plugin) + ")");
                 return candidate;
             } catch (BackendUnavailableException ignored) {
                 // Wrong generation, or an incompatible release of it: try the next candidate.
-            } catch (RuntimeException | LinkageError e) {
-                DebugAPI.logLibWarn("[Worlds] Backend probe failed: " + e);
+            } catch (Throwable t) {
+                // Deliberately broad. Probing a foreign plugin's classes can surface anything a
+                // classloader chooses to throw — including NoClassDefFoundError from an optional
+                // transitive dependency. Detection is best-effort and must never abort the
+                // enable of the plugin that merely asked whether Worlds was usable.
+                DebugAPI.logLibWarn("[Worlds] Backend probe failed: " + t);
             }
         }
-        DebugAPI.logLibWarn("[Worlds] Plugin version " + plugin.getPluginMeta().getVersion()
+        DebugAPI.logLibWarn("[Worlds] Plugin version " + version(plugin)
                 + " is installed but exposes no supported API"
                 + " (supported: 3.12.x for MC 1.21.x, 4.x for MC 26.x)."
                 + " World operations will fall back to vanilla Bukkit.");
         return null;
+    }
+
+    /** Reads the plugin version defensively; diagnostics must not themselves fail detection. */
+    private static String version(Plugin plugin) {
+        try {
+            return plugin.getPluginMeta().getVersion();
+        } catch (Throwable t) {
+            return "unknown";
+        }
     }
 
     /**
