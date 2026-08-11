@@ -4,6 +4,9 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Registry;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,6 +30,27 @@ public final class ParticleCompat {
         }
 
         return tryNormalizedSearch(name);
+    }
+
+    /**
+     * Every particle known to the running server, as {@code UPPER_SNAKE_CASE} ids accepted by
+     * {@link #fromName(String)}.
+     *
+     * <p>Read from {@link Registry#PARTICLE_TYPE} rather than {@code Particle.values()}, so this
+     * keeps working if/when {@code Particle} stops being an enum — the same change that broke
+     * {@code Sound.values()} with {@link IncompatibleClassChangeError}.
+     */
+    public static List<String> allNames() {
+        List<String> names = new ArrayList<>();
+        try {
+            for (Particle particle : Registry.PARTICLE_TYPE) {
+                names.add(particle.getKey().getKey().toUpperCase(Locale.ROOT));
+            }
+        } catch (Throwable ignored) {
+            // Throwable, not Exception: API drift surfaces as LinkageError, which is not an
+            // Exception and would otherwise escape into the caller's task.
+        }
+        return names;
     }
 
     private static Particle tryRegistry(String name) {

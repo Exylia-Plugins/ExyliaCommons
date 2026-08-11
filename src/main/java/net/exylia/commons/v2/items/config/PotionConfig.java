@@ -215,18 +215,14 @@ public class PotionConfig {
         }
     }
 
+    /**
+     * Delegates to {@link net.exylia.commons.v2.compat.PotionEffectTypeCompat}, which resolves
+     * through {@code Registry.EFFECT} and handles legacy names. The previous
+     * {@code PotionEffectType.values()} fallback is unsafe on API versions where the type is no
+     * longer an enum ({@link IncompatibleClassChangeError}).
+     */
     private PotionEffectType getPotionEffectByName(String name) {
-        try {
-            return PotionEffectType.getByName(name.toUpperCase());
-        } catch (Exception e) {
-            for (PotionEffectType type : PotionEffectType.values()) {
-                if (type != null && (type.getName().equalsIgnoreCase(name) ||
-                        type.toString().equalsIgnoreCase(name))) {
-                    return type;
-                }
-            }
-            return null;
-        }
+        return net.exylia.commons.v2.compat.PotionEffectTypeCompat.resolve(name);
     }
 
     private Color parseColor(String colorString) {

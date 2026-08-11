@@ -5,6 +5,9 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.Sound;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -42,6 +45,29 @@ public final class SoundCompat {
         if (result != null) return result;
 
         return tryNormalizedSearch(name);
+    }
+
+    /**
+     * Every sound known to the running server, as {@code UPPER_SNAKE_CASE} ids accepted by
+     * {@link #fromName(String)}.
+     *
+     * <p>Read from {@link Registry#SOUNDS} rather than {@code Sound.values()}: {@code Sound}
+     * became an interface in newer API versions, so a compiled {@code values()} call throws
+     * {@link IncompatibleClassChangeError} at runtime on those servers.
+     */
+    @SuppressWarnings("unchecked")
+    public static List<String> allNames() {
+        List<String> names = new ArrayList<>();
+        try {
+            for (Keyed keyed : (Iterable<? extends Keyed>) Registry.SOUNDS) {
+                names.add(keyed.getKey().getKey().replace('.', '_').toUpperCase(Locale.ROOT));
+            }
+        } catch (Throwable ignored) {
+            // Throwable, not Exception: API drift surfaces as LinkageError
+            // (IncompatibleClassChangeError / NoClassDefFoundError), which is NOT an Exception
+            // and would otherwise escape and kill the caller's task.
+        }
+        return names;
     }
 
     private static Sound tryRegistry(String name) {

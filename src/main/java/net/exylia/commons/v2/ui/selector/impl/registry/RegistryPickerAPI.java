@@ -2,14 +2,13 @@ package net.exylia.commons.v2.ui.selector.impl.registry;
 
 import net.exylia.commons.v2.chat.api.ChatInputAPI;
 import net.exylia.commons.v2.compat.ParticleCompat;
+import net.exylia.commons.v2.compat.PotionEffectTypeCompat;
 import net.exylia.commons.v2.compat.SoundCompat;
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Material;
-import org.bukkit.Particle;
-import org.bukkit.Registry;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +50,19 @@ public final class RegistryPickerAPI {
     private static final Map<String, List<Choice>> CACHE = new ConcurrentHashMap<>();
 
     private static List<Choice> cached(String key, Supplier<List<Choice>> supplier) {
-        return CACHE.computeIfAbsent(key, ignored -> supplier.get());
+        return CACHE.computeIfAbsent(key, ignored -> {
+            try {
+                return supplier.get();
+            } catch (Throwable t) {
+                // Catch Throwable, not Exception: a registry type that changed shape between API
+                // versions fails with LinkageError (IncompatibleClassChangeError), which is not
+                // an Exception. Opening a picker must never kill the caller's task — show an
+                // empty list and log instead.
+                DebugAPI.logLibError(DebugCategory.UI,
+                        "Failed to collect the '" + key + "' registry for the picker: " + t, t);
+                return List.of();
+            }
+        });
     }
 
     /** Clears the cached registry snapshots. Only needed if a plugin registers new entries. */
@@ -101,35 +112,23 @@ public final class RegistryPickerAPI {
 
     // ------------------------------------------------------------- collection
 
+    // Registry-backed types are read through the compat layer, never through Type.values():
+    // Sound (and potentially others) stopped being an enum in newer API versions, so a compiled
+    // values() call throws IncompatibleClassChangeError on those servers.
+
     private static List<Choice> collectParticles() {
-        List<Choice> choices = new ArrayList<>();
-        for (Particle particle : Particle.values()) {
-            // Some enum constants exist without a usable registry entry on certain versions.
-            if (ParticleCompat.fromName(particle.name()) == null) continue;
-            choices.add(new Choice(particle.name(), prettify(particle.name())));
-        }
-        return sorted(choices);
+        return fromNames(ParticleCompat.allNames());
     }
 
     private static List<Choice> collectSounds() {
-        List<Choice> choices = new ArrayList<>();
-        for (Sound sound : Sound.values()) {
-            if (SoundCompat.fromName(sound.name()) == null) continue;
-            choices.add(new Choice(sound.name(), prettify(sound.name())));
-        }
-        return sorted(choices);
+        return fromNames(SoundCompat.allNames());
     }
 
     private static List<Choice> collectPotionEffects() {
-        List<Choice> choices = new ArrayList<>();
-        for (PotionEffectType type : Registry.EFFECT) {
-            if (type == null) continue;
-            String name = type.getKey().getKey().toUpperCase(Locale.ROOT);
-            choices.add(new Choice(name, prettify(name)));
-        }
-        return sorted(choices);
+        return fromNames(PotionEffectTypeCompat.allNames());
     }
 
+    /** Still an enum, and a tiny closed set, so {@code values()} is safe here. */
     private static List<Choice> collectFireworkShapes() {
         List<Choice> choices = new ArrayList<>();
         for (FireworkEffect.Type type : FireworkEffect.Type.values()) {
@@ -138,12 +137,33 @@ public final class RegistryPickerAPI {
         return sorted(choices);
     }
 
+    /**
+     * {@code Material} is still an enum and is unlikely to change, but the registry is consulted
+     * first so this keeps working if it ever does.
+     */
     private static List<Choice> collectMaterials(boolean blocksOnly) {
         List<Choice> choices = new ArrayList<>();
-        for (Material material : Material.values()) {
-            if (material.isLegacy()) continue;
-            if (blocksOnly && !material.isBlock()) continue;
-            choices.add(new Choice(material.name(), prettify(material.name())));
+        try {
+            for (Material material : org.bukkit.Registry.MATERIAL) {
+                if (material.isLegacy()) continue;
+                if (blocksOnly && !material.isBlock()) continue;
+                choices.add(new Choice(material.name(), prettify(material.name())));
+            }
+        } catch (Throwable ignored) {
+            choices.clear();
+            for (Material material : Material.values()) {
+                if (material.isLegacy()) continue;
+                if (blocksOnly && !material.isBlock()) continue;
+                choices.add(new Choice(material.name(), prettify(material.name())));
+            }
+        }
+        return sorted(choices);
+    }
+
+    private static List<Choice> fromNames(List<String> names) {
+        List<Choice> choices = new ArrayList<>(names.size());
+        for (String name : names) {
+            if (name != null && !name.isBlank()) choices.add(new Choice(name, prettify(name)));
         }
         return sorted(choices);
     }

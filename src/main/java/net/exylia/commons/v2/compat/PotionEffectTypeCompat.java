@@ -65,6 +65,23 @@ public final class PotionEffectTypeCompat {
 
     private PotionEffectTypeCompat() {}
 
+    /**
+     * Every potion effect known to the running server, as {@code UPPER_SNAKE_CASE} ids accepted
+     * by {@link #resolve(String)}.
+     */
+    public static java.util.List<String> allNames() {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        try {
+            for (PotionEffectType type : Registry.EFFECT) {
+                if (type != null) names.add(type.getKey().getKey().toUpperCase(java.util.Locale.ROOT));
+            }
+        } catch (Throwable ignored) {
+            // Throwable, not Exception: API drift surfaces as LinkageError, which is not an
+            // Exception and would otherwise escape into the caller's task.
+        }
+        return names;
+    }
+
     public static PotionEffectType resolve(String name) {
         if (name == null) return null;
         String upper = name.toUpperCase();
