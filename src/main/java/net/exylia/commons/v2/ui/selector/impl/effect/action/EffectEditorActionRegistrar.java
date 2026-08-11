@@ -1,0 +1,492 @@
+package net.exylia.commons.v2.ui.selector.impl.effect.action;
+
+import net.exylia.commons.v2.action.api.ActionAPI;
+import net.exylia.commons.v2.chat.api.ChatInputAPI;
+import net.exylia.commons.v2.effect.api.EffectAPI;
+import net.exylia.commons.v2.effect.model.EffectContext;
+import net.exylia.commons.v2.effect.model.EffectEntry;
+import net.exylia.commons.v2.effect.model.EffectScope;
+import net.exylia.commons.v2.effect.model.EffectType;
+import net.exylia.commons.v2.ui.selector.impl.effect.EffectClipboard;
+import net.exylia.commons.v2.ui.selector.impl.effect.EffectEditorRegistry;
+import net.exylia.commons.v2.ui.selector.impl.effect.EffectEditorSession;
+import net.exylia.commons.v2.ui.selector.impl.effect.EffectListClipboard;
+import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectEditMenu;
+import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectListMenu;
+import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectTypeSelectMenu;
+import net.exylia.commons.v2.ui.selector.impl.iconpicker.IconPickerAPI;
+import net.exylia.commons.v2.visual.api.ColorAPI;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BiConsumer;
+
+/**
+ * Registers the {@code commons:effect_*} actions backing the effect editor UI.
+ *
+ * <p>Distinct from {@link PotionEffectEditorActionRegistrar}, which owns {@code commons:potion_*}
+ * for the potion-effect editor.
+ */
+public final class EffectEditorActionRegistrar {
+
+    private static final String NS = "commons";
+
+    private EffectEditorActionRegistrar() {}
+
+    public static void register(JavaPlugin plugin) {
+        if (ActionAPI.get(NS + ":effect_list").isPresent()) return;
+
+        session(plugin, "effect_list", (player, session) -> EffectListMenu.open(player, session));
+
+        session(plugin, "effect_add", EffectTypeSelectMenu::open);
+
+        ActionAPI.create("effect_add_type", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    EffectEditorSession session = EffectEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    EffectType type = EffectType.fromName(args.getString(0, ""));
+                    if (type == null) return;
+
+                    handleAddType(player, session, type);
+                })
+                .build();
+
+        entry(plugin, "effect_edit", (player, session, entry) -> EffectEditMenu.open(player, entry));
+
+        entry(plugin, "effect_delete", (player, session, entry) -> {
+            session.removeEntry(entry.getId());
+            EffectListMenu.open(player, session);
+        });
+
+        entry(plugin, "effect_copy", (player, session, entry) -> {
+            EffectClipboard.copy(player, entry);
+            player.sendMessage(ColorAPI.parse("{success}Effect copied to clipboard."));
+            EffectListMenu.open(player, session);
+        });
+
+        session(plugin, "effect_paste", (player, session) -> {
+            EffectEntry pasted = EffectClipboard.paste(player);
+            if (pasted == null) {
+                player.sendMessage(ColorAPI.parse("{error}No effect in clipboard."));
+                return;
+            }
+            session.addEntry(pasted);
+            EffectListMenu.open(player, session);
+        });
+
+        session(plugin, "effect_copy_all", (player, session) -> {
+            EffectListClipboard.copy(player, session.getEntries());
+            player.sendMessage(ColorAPI.parse("{success}Copied " + session.getEntries().size() + " effect(s) to clipboard."));
+            EffectListMenu.open(player, session);
+        });
+
+        session(plugin, "effect_paste_all", (player, session) -> {
+            List<EffectEntry> pasted = EffectListClipboard.paste(player);
+            if (pasted == null || pasted.isEmpty()) {
+                player.sendMessage(ColorAPI.parse("{error}No effect list in clipboard."));
+                return;
+            }
+            pasted.forEach(session::addEntry);
+            player.sendMessage(ColorAPI.parse("{success}Pasted " + pasted.size() + " effect(s)."));
+            EffectListMenu.open(player, session);
+        });
+
+        session(plugin, "effect_save", (player, session) -> {
+            EffectEditorRegistry.getInstance().remove(player);
+            if (session.getOnSave() != null) {
+                session.getOnSave().accept(player, List.copyOf(session.getEntries()));
+            }
+        });
+
+        session(plugin, "effect_cancel", (player, session) -> {
+            EffectEditorRegistry.getInstance().remove(player);
+            if (session.getOnCancel() != null) session.getOnCancel().run();
+        });
+
+        entry(plugin, "effect_preview", (player, session, entry) ->
+                EffectAPI.playSingle(entry, EffectContext.builder()
+                        .player(player)
+                        .skipProbability(true)
+                        .skipConditions(true)
+                        .skipPermissionCheck(true)
+                        .skipDelay(true)
+                        .build()));
+
+        registerValueActions(plugin);
+        registerMetadataActions(plugin);
+    }
+
+    // ------------------------------------------------------------ value edits
+
+    private static void registerValueActions(JavaPlugin plugin) {
+        entry(plugin, "effect_set_value", EffectEditorActionRegistrar::handleSetValue);
+
+        entry(plugin, "effect_set_count", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Particle count (1 - 1000)")
+                        .range(1, 1000)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setParticleCount(value.intValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_offset", (player, session, entry) ->
+                ChatInputAPI.text(player, "Offset as x y z (e.g. 0.3 0.5 0.3)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            String[] parts = value.trim().split("\\s+");
+                            if (parts.length == 3) {
+                                entry.setOffsetX(parseDouble(parts[0], entry.getOffsetX()));
+                                entry.setOffsetY(parseDouble(parts[1], entry.getOffsetY()));
+                                entry.setOffsetZ(parseDouble(parts[2], entry.getOffsetZ()));
+                            } else {
+                                player.sendMessage(ColorAPI.parse("{error}Expected three numbers: x y z"));
+                            }
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_color", (player, session, entry) ->
+                ChatInputAPI.text(player, "Color as hex (#ff6b9d) or r,g,b — 'none' to clear")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setParticleColor(value.equalsIgnoreCase("none") ? null : value);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_volume", (player, session, entry) ->
+                ChatInputAPI.decimal(player, "Sound volume (0.0 - 10.0)")
+                        .range(0.0, 10.0)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setSoundVolume(value.floatValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_pitch", (player, session, entry) ->
+                ChatInputAPI.decimal(player, "Sound pitch (0.5 - 2.0)")
+                        .range(0.5, 2.0)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setSoundPitch(value.floatValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_amplifier", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Potion amplifier (0 = level I)")
+                        .range(0, 255)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setPotionAmplifier(value.intValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_duration", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Potion duration in seconds")
+                        .range(1, 86400)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setPotionDurationTicks(value.intValue() * 20);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_subtitle", (player, session, entry) ->
+                ChatInputAPI.text(player, "Subtitle text (or 'none' to clear)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setSubtitle(value.equalsIgnoreCase("none") ? null : value);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_times", (player, session, entry) ->
+                ChatInputAPI.text(player, "Title times in ticks as fadeIn stay fadeOut (e.g. 10 70 20)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            String[] parts = value.trim().split("\\s+");
+                            if (parts.length == 3) {
+                                entry.setTitleFadeIn((int) parseDouble(parts[0], entry.getTitleFadeIn()));
+                                entry.setTitleStay((int) parseDouble(parts[1], entry.getTitleStay()));
+                                entry.setTitleFadeOut((int) parseDouble(parts[2], entry.getTitleFadeOut()));
+                            } else {
+                                player.sendMessage(ColorAPI.parse("{error}Expected three numbers: fadeIn stay fadeOut"));
+                            }
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_toggle_centered", (player, session, entry) -> {
+            entry.setCentered(!entry.isCentered());
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_add_step", (player, session, entry) ->
+                ChatInputAPI.text(player, "Sequence step (e.g. [CIRCLE] FLAME;radius:1.2)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            List<String> steps = new ArrayList<>(entry.getSequence());
+                            steps.add(value);
+                            entry.setSequence(steps);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_clear_steps", (player, session, entry) -> {
+            entry.setSequence(new ArrayList<>());
+            save(player, session, entry);
+        });
+    }
+
+    // --------------------------------------------------------- metadata edits
+
+    private static void registerMetadataActions(JavaPlugin plugin) {
+        entry(plugin, "effect_set_name", (player, session, entry) ->
+                ChatInputAPI.text(player, "Display name (or 'none' to use the value)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setName(value.equalsIgnoreCase("none") ? null : value);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_clear_name", (player, session, entry) -> {
+            entry.setName(null);
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_set_chance", (player, session, entry) ->
+                ChatInputAPI.decimal(player, "Chance (0.01 - 100.0)")
+                        .range(0.01, 100.0)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setChance(value.doubleValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_condition", (player, session, entry) ->
+                ChatInputAPI.text(player, "Condition expression (or 'none' to clear)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setCondition(value.equalsIgnoreCase("none") ? null : value);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_clear_condition", (player, session, entry) -> {
+            entry.setCondition(null);
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_set_permission", (player, session, entry) ->
+                ChatInputAPI.text(player, "Required permission (or 'none' to clear)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setPermission(value.equalsIgnoreCase("none") ? null : value);
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_clear_permission", (player, session, entry) -> {
+            entry.setPermission(null);
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_set_priority", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Priority (higher = first, default 0)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setPriority(value.intValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_delay", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Delay in ticks before playing (0 = immediate)")
+                        .range(0, 72000)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setDelayTicks(value.longValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_cycle_scope", (player, session, entry) -> {
+            EffectScope[] scopes = EffectScope.values();
+            EffectScope current = entry.getScope() == null ? EffectScope.PLAYER : entry.getScope();
+            entry.setScope(scopes[(current.ordinal() + 1) % scopes.length]);
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_set_radius", (player, session, entry) ->
+                ChatInputAPI.decimal(player, "Radius in blocks (1.0 - 256.0)")
+                        .range(1.0, 256.0)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setRadius(value.doubleValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_icon", (player, session, entry) ->
+                IconPickerAPI.open(
+                        player,
+                        () -> EffectEditMenu.open(player, entry),
+                        snapshot -> {
+                            entry.setIcon(snapshot.serialize());
+                            save(player, session, entry);
+                        }));
+
+        entry(plugin, "effect_clear_icon", (player, session, entry) -> {
+            entry.setIcon(null);
+            save(player, session, entry);
+        });
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    /** Registers an action that needs the active session. */
+    private static void session(JavaPlugin plugin, String id, BiConsumer<Player, EffectEditorSession> handler) {
+        ActionAPI.create(id, plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    EffectEditorSession session = EffectEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+                    handler.accept(player, session);
+                })
+                .build();
+    }
+
+    /** Registers an action that needs the entry identified by the first argument. */
+    private static void entry(JavaPlugin plugin, String id, EntryHandler handler) {
+        ActionAPI.create(id, plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    EffectEditorSession session = EffectEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+                    EffectEntry entry = session.findById(args.getString(0, ""));
+                    if (entry == null) return;
+                    handler.accept(player, session, entry);
+                })
+                .build();
+    }
+
+    @FunctionalInterface
+    private interface EntryHandler {
+        void accept(Player player, EffectEditorSession session, EffectEntry entry);
+    }
+
+    private static void save(Player player, EffectEditorSession session, EffectEntry entry) {
+        session.replaceEntry(entry);
+        EffectEditMenu.open(player, entry);
+    }
+
+    private static double parseDouble(String value, double fallback) {
+        try {
+            return Double.parseDouble(value.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    // ------------------------------------------------------------ type flows
+
+    private static void handleAddType(Player player, EffectEditorSession session, EffectType type) {
+        switch (type) {
+            case PARTICLE -> ask(player, session, "Particle name (e.g. FLAME, DUST, HAPPY_VILLAGER)",
+                    value -> EffectEntry.particle(value.toUpperCase()));
+
+            case SOUND -> ask(player, session, "Sound name (e.g. BLOCK_STONE_BREAK)",
+                    value -> EffectEntry.sound(value.toUpperCase()));
+
+            case POTION -> ask(player, session, "Potion effect (e.g. SPEED, HASTE)",
+                    value -> EffectEntry.potion(value.toUpperCase()));
+
+            case TITLE -> ask(player, session, "Title text (supports color codes)",
+                    value -> EffectEntry.title(value, null));
+
+            case ACTIONBAR -> ask(player, session, "Actionbar text (supports color codes)",
+                    EffectEntry::actionbar);
+
+            case MESSAGE -> ask(player, session, "Message text (supports color codes)",
+                    EffectEntry::message);
+
+            case SEQUENCE -> ask(player, session, "First sequence step (e.g. [CIRCLE] FLAME;radius:1.2)",
+                    value -> EffectEntry.sequence(List.of(value)));
+
+            case FIREWORK -> {
+                session.addEntry(EffectEntry.firework());
+                EffectListMenu.open(player, session);
+            }
+        }
+    }
+
+    private static void ask(
+            Player player,
+            EffectEditorSession session,
+            String prompt,
+            java.util.function.Function<String, EffectEntry> factory
+    ) {
+        ChatInputAPI.text(player, prompt)
+                .onCancel(() -> EffectTypeSelectMenu.open(player, session))
+                .onResponse(value -> {
+                    session.addEntry(factory.apply(value));
+                    EffectListMenu.open(player, session);
+                })
+                .ask();
+    }
+
+    private static void handleSetValue(Player player, EffectEditorSession session, EffectEntry entry) {
+        switch (entry.getType()) {
+            case PARTICLE -> edit(player, session, entry, "Particle name (e.g. FLAME)",
+                    value -> entry.setParticle(value.toUpperCase()));
+
+            case SOUND -> edit(player, session, entry, "Sound name (e.g. BLOCK_STONE_BREAK)",
+                    value -> entry.setSound(value.toUpperCase()));
+
+            case POTION -> edit(player, session, entry, "Potion effect (e.g. SPEED)",
+                    value -> entry.setPotion(value.toUpperCase()));
+
+            case FIREWORK -> edit(player, session, entry, "Firework shape (BALL, BALL_LARGE, STAR, BURST, CREEPER)",
+                    value -> entry.setFireworkType(value.toUpperCase()));
+
+            case TITLE -> edit(player, session, entry, "Title text (supports color codes)",
+                    entry::setTitle);
+
+            case ACTIONBAR -> edit(player, session, entry, "Actionbar text (supports color codes)",
+                    entry::setActionbar);
+
+            case MESSAGE -> edit(player, session, entry, "Message text (supports color codes)",
+                    entry::setMessage);
+
+            case SEQUENCE -> edit(player, session, entry, "Replace all steps with a single step",
+                    value -> entry.setSequence(new ArrayList<>(List.of(value))));
+        }
+    }
+
+    private static void edit(
+            Player player,
+            EffectEditorSession session,
+            EffectEntry entry,
+            String prompt,
+            java.util.function.Consumer<String> setter
+    ) {
+        ChatInputAPI.text(player, prompt)
+                .onCancel(() -> EffectEditMenu.open(player, entry))
+                .onResponse(value -> {
+                    setter.accept(value);
+                    save(player, session, entry);
+                })
+                .ask();
+    }
+}

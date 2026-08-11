@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.ui.selector.api;
 
 import net.exylia.commons.v2.ui.selector.impl.color.BukkitColorSelector;
+import net.exylia.commons.v2.ui.selector.impl.effect.EffectEditorSelector;
 import net.exylia.commons.v2.ui.selector.impl.effect.PotionEffectEditorSelector;
 import net.exylia.commons.v2.ui.selector.impl.effect.PotionEffectSelector;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorSelector;
@@ -20,6 +21,19 @@ public final class SelectorAPI {
 
     public static PotionEffectEditorSelector potionEffectEditor(Player player) {
         return PotionEffectEditorSelector.of(player);
+    }
+
+    /**
+     * Opens the effect editor: an in-game UI for building a list of
+     * {@link net.exylia.commons.v2.effect.model.EffectEntry} (particles, sounds, potions,
+     * fireworks, titles, actionbars, messages, sequences) with chance, condition, permission,
+     * priority, delay and scope.
+     *
+     * <p>Persist the saved list with
+     * {@link net.exylia.commons.v2.effect.config.EffectSerializer#write}.
+     */
+    public static EffectEditorSelector effectEditor(Player player) {
+        return EffectEditorSelector.of(player);
     }
 
     public static RewardEditorSelector rewardEditor(Player player) {

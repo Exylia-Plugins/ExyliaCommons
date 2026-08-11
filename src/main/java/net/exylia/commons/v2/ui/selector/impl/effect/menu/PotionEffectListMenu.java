@@ -53,7 +53,7 @@ public final class PotionEffectListMenu {
                 .slotConfig(SlotConfig.single(45))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
-                        .action("commons:effect_add")
+                        .action("commons:potion_add")
                         .build()))
                 .build();
 
@@ -70,7 +70,7 @@ public final class PotionEffectListMenu {
                 .slotConfig(SlotConfig.single(52))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
-                        .action("commons:effect_save")
+                        .action("commons:potion_save")
                         .build()))
                 .build();
 
@@ -86,7 +86,7 @@ public final class PotionEffectListMenu {
                 .slotConfig(SlotConfig.single(53))
                 .actions(List.of(ClickAction.builder()
                         .clickType(ClickTypeGroup.ANY)
-                        .action("commons:effect_cancel")
+                        .action("commons:potion_cancel")
                         .build()))
                 .build();
 
@@ -154,7 +154,7 @@ public final class PotionEffectListMenu {
                 .actions(List.of(
                         ClickAction.builder()
                                 .clickType(ClickTypeGroup.RIGHT)
-                                .action("commons:effect_delete " + index)
+                                .action("commons:potion_delete " + index)
                                 .build()
                 ))
                 .build();

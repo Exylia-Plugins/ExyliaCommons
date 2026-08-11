@@ -7,5 +7,15 @@ public enum EffectType {
     FIREWORK,
     TITLE,
     ACTIONBAR,
-    MESSAGE
+    MESSAGE,
+    SEQUENCE;
+
+    public static EffectType fromName(String name) {
+        if (name == null || name.isBlank()) return null;
+        try {
+            return valueOf(name.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

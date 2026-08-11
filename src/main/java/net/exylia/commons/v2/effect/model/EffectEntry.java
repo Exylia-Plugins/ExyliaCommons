@@ -11,7 +11,6 @@ import net.exylia.commons.v2.visual.builder.ActionBarBuilder;
 import net.exylia.commons.v2.visual.builder.EffectBuilder;
 import net.exylia.commons.v2.visual.builder.FireworkBuilder;
 import net.exylia.commons.v2.visual.builder.ParticleBuilder;
-import net.exylia.commons.v2.visual.builder.SoundBuilder;
 import net.exylia.commons.v2.visual.builder.TitleBuilder;
 import net.exylia.commons.v2.visual.config.ActionBarConfig;
 import net.exylia.commons.v2.visual.config.EffectConfig;
@@ -23,10 +22,19 @@ import org.bukkit.Color;
 import org.bukkit.FireworkEffect;
 import org.bukkit.Location;
 import org.bukkit.Material;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * A single configurable effect: a particle, sound, potion, firework, title, actionbar,
+ * message, or a full {@link net.exylia.commons.v2.sequence.SequenceAPI} sequence.
+ *
+ * <p>Mirrors {@link net.exylia.commons.v2.reward.model.RewardEntry}: alongside its payload it
+ * carries {@code chance}, {@code condition}, {@code permission}, {@code priority}, {@code delay}
+ * and {@code scope}, so effects can be authored as data with the same expressiveness as rewards.
+ */
 @Data
 @Builder
 @NoArgsConstructor
@@ -39,6 +47,39 @@ public class EffectEntry {
     private EffectType type = EffectType.MESSAGE;
 
     private String name;
+
+    /** Icon used by preview/editor menus. Falls back to a type-based material. */
+    private String icon;
+
+    // ---------------------------------------------------------------- gating
+
+    /** Probability percent (0.0 - 100.0) that this effect plays. */
+    @Builder.Default
+    private double chance = 100.0;
+
+    /** Boolean expression evaluated with placeholders. Empty/null means always true. */
+    private String condition;
+
+    /** Permission node required by the receiving player. Null means no requirement. */
+    private String permission;
+
+    /** Execution order. Higher runs first. */
+    @Builder.Default
+    private int priority = 0;
+
+    /** Delay in ticks before the effect plays. 0 means immediate. */
+    @Builder.Default
+    private long delayTicks = 0L;
+
+    /** Who receives this effect. Overrides the per-type legacy scopes when set. */
+    @Builder.Default
+    private EffectScope scope = EffectScope.PLAYER;
+
+    /** Radius in blocks, only used when {@link #scope} is {@link EffectScope#RADIUS}. */
+    @Builder.Default
+    private double radius = 16.0;
+
+    // -------------------------------------------------------------- particle
 
     private String particle;
     @Builder.Default
@@ -58,6 +99,8 @@ public class EffectEntry {
     @Builder.Default
     private ParticleConfig.ParticleScope particleScope = ParticleConfig.ParticleScope.PLAYER;
 
+    // ----------------------------------------------------------------- sound
+
     private String sound;
     @Builder.Default
     private float soundVolume = 1.0f;
@@ -65,6 +108,8 @@ public class EffectEntry {
     private float soundPitch = 1.0f;
     @Builder.Default
     private SoundConfig.SoundScope soundScope = SoundConfig.SoundScope.PLAYER;
+
+    // ---------------------------------------------------------------- potion
 
     private String potion;
     @Builder.Default
@@ -77,6 +122,8 @@ public class EffectEntry {
     private boolean potionParticles = true;
     @Builder.Default
     private boolean potionIcon = true;
+
+    // -------------------------------------------------------------- firework
 
     @Builder.Default
     private String fireworkType = FireworkEffect.Type.BALL.name();
@@ -91,6 +138,8 @@ public class EffectEntry {
     @Builder.Default
     private int fireworkPower = 1;
 
+    // ----------------------------------------------------------------- title
+
     private String title;
     private String subtitle;
     @Builder.Default
@@ -100,12 +149,20 @@ public class EffectEntry {
     @Builder.Default
     private int titleFadeOut = 20;
 
+    // ------------------------------------------------------------ text/other
+
     private String actionbar;
     private String message;
     @Builder.Default
     private List<String> messages = new ArrayList<>();
     @Builder.Default
     private boolean centered = false;
+
+    /** Sequence engine tokens, e.g. {@code [CIRCLE] FLAME;radius:1.2}. */
+    @Builder.Default
+    private List<String> sequence = new ArrayList<>();
+
+    // ------------------------------------------------------------- factories
 
     public static EffectEntry message(String message) {
         return builder().type(EffectType.MESSAGE).message(message).build();
@@ -135,11 +192,23 @@ public class EffectEntry {
         return builder().type(EffectType.FIREWORK).build();
     }
 
+    public static EffectEntry sequence(List<String> tokens) {
+        return builder().type(EffectType.SEQUENCE).sequence(copyList(tokens)).build();
+    }
+
     public EffectEntry copy() {
         EffectEntry copy = new EffectEntry();
         copy.id = UUID.randomUUID().toString();
         copy.type = type;
         copy.name = name;
+        copy.icon = icon;
+        copy.chance = chance;
+        copy.condition = condition;
+        copy.permission = permission;
+        copy.priority = priority;
+        copy.delayTicks = delayTicks;
+        copy.scope = scope;
+        copy.radius = radius;
         copy.particle = particle;
         copy.particleCount = particleCount;
         copy.offsetX = offsetX;
@@ -175,8 +244,11 @@ public class EffectEntry {
         copy.message = message;
         copy.messages = copyList(messages);
         copy.centered = centered;
+        copy.sequence = copyList(sequence);
         return copy;
     }
+
+    // -------------------------------------------------------------- display
 
     public String displayName() {
         if (name != null && !name.isBlank()) return name;
@@ -188,45 +260,86 @@ public class EffectEntry {
             case TITLE -> title != null && !title.isBlank() ? title : "Title";
             case ACTIONBAR -> actionbar != null ? actionbar : "Actionbar";
             case MESSAGE -> message != null ? message : "Message";
+            case SEQUENCE -> "Sequence";
         };
     }
 
     public String summary() {
         return switch (type) {
-            case PARTICLE -> particle == null ? "Particle" : particle;
+            case PARTICLE -> particle == null ? "Particle" : particle + " x" + particleCount;
             case SOUND -> sound == null ? "Sound" : sound;
             case POTION -> potion == null ? "Potion" : potion + " " + (potionAmplifier + 1);
             case FIREWORK -> "Firework " + fireworkType;
             case TITLE -> title == null ? "Title" : title;
             case ACTIONBAR -> actionbar == null ? "Actionbar" : actionbar;
             case MESSAGE -> message == null ? "Message" : message;
+            case SEQUENCE -> sequence == null || sequence.isEmpty()
+                    ? "Sequence" : sequence.size() + " step(s)";
         };
     }
 
+    public boolean hasIcon() {
+        return icon != null && !icon.isBlank();
+    }
+
+    /** @return the material shown in editor/preview menus for this effect. */
+    public String resolvedIconMaterial() {
+        if (hasIcon()) return icon;
+        return switch (type) {
+            case PARTICLE -> "BLAZE_POWDER";
+            case SOUND -> "NOTE_BLOCK";
+            case POTION -> "POTION";
+            case FIREWORK -> "FIREWORK_ROCKET";
+            case TITLE -> "NAME_TAG";
+            case ACTIONBAR -> "OAK_SIGN";
+            case MESSAGE -> "PAPER";
+            case SEQUENCE -> "END_CRYSTAL";
+        };
+    }
+
+    /** @return true when the payload for this effect's type is filled in. */
+    public boolean isPlayable() {
+        return switch (type) {
+            case PARTICLE -> particle != null && !particle.isBlank();
+            case SOUND -> sound != null && !sound.isBlank();
+            case POTION -> potion != null && !potion.isBlank();
+            case FIREWORK -> true;
+            case TITLE -> (title != null && !title.isBlank()) || (subtitle != null && !subtitle.isBlank());
+            case ACTIONBAR -> actionbar != null && !actionbar.isBlank();
+            case MESSAGE -> !messageLines().isEmpty();
+            case SEQUENCE -> sequence != null && !sequence.isEmpty();
+        };
+    }
+
+    // -------------------------------------------------------- config mapping
+
     public ParticleConfig toParticleConfig(Location location) {
+        ParticleConfig.ParticleScope resolved = scope != null ? scope.toParticleScope() : particleScope;
         ParticleBuilder builder = ParticleBuilder.create()
                 .particle(require(ParticleCompat.fromName(particle), "particle", particle))
                 .count(particleCount)
                 .offset(offsetX, offsetY, offsetZ)
                 .extra(particleExtra)
                 .dustSize(dustSize)
-                .scope(particleScope);
+                .scope(resolved);
         if (particleColor != null && !particleColor.isBlank()) builder.color(parseColor(particleColor));
         if (particleBlockMaterial != null && !particleBlockMaterial.isBlank()) {
             builder.blockMaterial(require(Material.matchMaterial(particleBlockMaterial), "material", particleBlockMaterial));
         }
-        if (particleScope == ParticleConfig.ParticleScope.LOCATION) builder.location(location);
+        if (resolved == ParticleConfig.ParticleScope.LOCATION) builder.location(location);
         return builder.build();
     }
 
     public SoundConfig toSoundConfig(Location location) {
-        SoundConfig.SoundScope scope = soundScope == null ? SoundConfig.SoundScope.PLAYER : soundScope;
+        SoundConfig.SoundScope resolved = scope != null
+                ? scope.toSoundScope()
+                : (soundScope == null ? SoundConfig.SoundScope.PLAYER : soundScope);
         var builder = SoundConfig.builder()
                 .sound(require(SoundCompat.fromName(sound), "sound", sound))
                 .volume(soundVolume)
                 .pitch(soundPitch)
-                .scope(scope);
-        if (scope == SoundConfig.SoundScope.LOCATION) builder.location(location);
+                .scope(resolved);
+        if (resolved == SoundConfig.SoundScope.LOCATION) builder.location(location);
         return builder.build();
     }
 
@@ -242,15 +355,15 @@ public class EffectEntry {
     }
 
     public FireworkConfig toFireworkConfig(Location location) {
-        FireworkBuilder builder = FireworkBuilder.create()
+        return FireworkBuilder.create()
                 .type(fireworkType == null ? FireworkEffect.Type.BALL : FireworkEffect.Type.valueOf(fireworkType.toUpperCase()))
                 .colors(parseColors(fireworkColors))
                 .fadeColors(parseColors(fireworkFadeColors))
                 .flicker(fireworkFlicker)
                 .trail(fireworkTrail)
                 .power(fireworkPower)
-                .location(location);
-        return builder.build();
+                .location(location)
+                .build();
     }
 
     public TitleConfig toTitleConfig() {
@@ -269,6 +382,12 @@ public class EffectEntry {
         if (messages != null && !messages.isEmpty()) return List.copyOf(messages);
         return message == null ? List.of() : List.of(message);
     }
+
+    public List<String> sequenceTokens() {
+        return sequence == null ? List.of() : List.copyOf(sequence);
+    }
+
+    // --------------------------------------------------------------- parsing
 
     private static Color parseColor(String value) {
         String raw = value.trim();

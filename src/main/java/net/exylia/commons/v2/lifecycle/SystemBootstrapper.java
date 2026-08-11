@@ -7,12 +7,14 @@ import net.exylia.commons.v2.config.ConfigInitializer;
 import net.exylia.commons.v2.config.schema.ConfigSchemaRegistry;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.debug.config.DebugDefaults;
+import net.exylia.commons.v2.effect.core.EffectManager;
 import net.exylia.commons.v2.formatter.FormattersDefaults;
 import net.exylia.commons.v2.reward.core.RewardManager;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
 import net.exylia.commons.v2.placeholders.api.Placeholders;
 import net.exylia.commons.v2.sequence.SequenceListener;
 import net.exylia.commons.v2.sequence.preview.EffectPreview;
+import net.exylia.commons.v2.ui.selector.impl.effect.action.EffectEditorActionRegistrar;
 import net.exylia.commons.v2.ui.selector.impl.reward.action.RewardEditorActionRegistrar;
 import net.exylia.commons.v2.utils.PlayerUtils;
 import net.exylia.commons.v2.visual.api.ColorAPI;
@@ -62,11 +64,17 @@ public class SystemBootstrapper {
             DebugAPI.logLibDebug("Initializing RewardManager...");
             RewardManager.getInstance().initialize(plugin);
 
+            DebugAPI.logLibDebug("Initializing EffectManager...");
+            EffectManager.getInstance().initialize(plugin);
+
             DebugAPI.logLibDebug("Initializing ActionAPI...");
             ActionAPI.initialize(plugin);
 
             DebugAPI.logLibDebug("Registering RewardEditor actions...");
             RewardEditorActionRegistrar.register(plugin);
+
+            DebugAPI.logLibDebug("Registering EffectEditor actions...");
+            EffectEditorActionRegistrar.register(plugin);
 
             EffectPreview.init(plugin);
             DebugAPI.logLibDebug("Registering SequenceListener...");

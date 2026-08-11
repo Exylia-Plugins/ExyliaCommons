@@ -128,6 +128,7 @@ See [Lifecycle.md](Lifecycle.md) for the full bootstrap/shutdown sequence.
 | Document | Subsystem |
 |----------|-----------|
 | [Sequence.md](Sequence.md) | Declarative YAML effect sequence engine |
+| [Effects.md](Effects.md) | `EffectAPI`, configurable sounds/particles per variant or global |
 | [Commands.md](Commands.md) | `CommandAPI`, YAML command execution |
 | [Placeholders.md](Placeholders.md) | Placeholder registration and PlaceholderAPI bridging |
 | [Actions.md](Actions.md) | Action pipeline, action tokens, custom actions |

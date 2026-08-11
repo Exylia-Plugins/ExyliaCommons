@@ -16,6 +16,7 @@ public enum DebugCategory {
     UI("UI"),
     VISUAL("VISUAL"),
     REWARD("REWARD"),
+    EFFECT("EFFECT"),
     ITEMS("ITEMS"),
     SKULL("SKULL"),
     CONFIG("CONFIG"),

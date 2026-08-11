@@ -17,9 +17,9 @@ public final class PotionEffectEditorActionRegistrar {
     private PotionEffectEditorActionRegistrar() {}
 
     public static void register(JavaPlugin plugin) {
-        if (ActionAPI.get(NS + ":effect_add").isPresent()) return;
+        if (ActionAPI.get(NS + ":potion_add").isPresent()) return;
 
-        ActionAPI.create("effect_add", plugin).namespace(NS)
+        ActionAPI.create("potion_add", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();
                     PotionEffectEditorSession session = PotionEffectEditorRegistry.getInstance().get(player);
@@ -34,7 +34,7 @@ public final class PotionEffectEditorActionRegistrar {
                 })
                 .build();
 
-        ActionAPI.create("effect_delete", plugin).namespace(NS)
+        ActionAPI.create("potion_delete", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();
                     PotionEffectEditorSession session = PotionEffectEditorRegistry.getInstance().get(player);
@@ -45,7 +45,7 @@ public final class PotionEffectEditorActionRegistrar {
                 })
                 .build();
 
-        ActionAPI.create("effect_save", plugin).namespace(NS)
+        ActionAPI.create("potion_save", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();
                     PotionEffectEditorSession session = PotionEffectEditorRegistry.getInstance().get(player);
@@ -57,7 +57,7 @@ public final class PotionEffectEditorActionRegistrar {
                 })
                 .build();
 
-        ActionAPI.create("effect_cancel", plugin).namespace(NS)
+        ActionAPI.create("potion_cancel", plugin).namespace(NS)
                 .handler((ctx, args) -> {
                     Player player = ctx.getPlayer();
                     PotionEffectEditorSession session = PotionEffectEditorRegistry.getInstance().get(player);
