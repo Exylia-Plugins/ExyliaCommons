@@ -29,14 +29,39 @@ public final class ClientTeamAPI {
         manager.ensureTeamAndAdd(viewer, name, color, seeFriendlyInvisibles, entityName, includeViewer);
     }
 
+    public static void addToTeam(Player viewer, String name, String entityName) {
+        if (manager == null) return;
+        manager.addToTeam(viewer, name, entityName);
+    }
+
     public static void removeFromTeam(Player viewer, String name, String entityName) {
         if (manager == null) return;
         manager.removeFromTeam(viewer, name, entityName);
     }
 
+    public static void removeOwnedEntity(Player viewer, String entityName) {
+        if (manager == null) return;
+        manager.removeOwnedEntity(viewer, entityName);
+    }
+
+    public static void removeTeam(Player viewer, String name) {
+        if (manager == null) return;
+        manager.removeTeam(viewer, name);
+    }
+
     public static void clearViewer(Player viewer) {
         if (manager == null) return;
         manager.clearViewer(viewer);
+    }
+
+    public static void cleanupViewer(UUID viewerUuid) {
+        if (manager == null) return;
+        manager.cleanupViewer(viewerUuid);
+    }
+
+    public static void forgetEntity(String entityName) {
+        if (manager == null) return;
+        manager.forgetEntity(entityName);
     }
 
     public static void registerEntity(int entityId, UUID uuid) {
@@ -62,5 +87,14 @@ public final class ClientTeamAPI {
     public static Set<String> getViewerTeams(UUID viewerUuid) {
         if (manager == null) return Collections.emptySet();
         return manager.getViewerTeams(viewerUuid);
+    }
+
+    public static boolean hasTeam(UUID viewerUuid, String teamName) {
+        return manager != null && manager.hasTeam(viewerUuid, teamName);
+    }
+
+    public static String getEntityTeam(UUID viewerUuid, String entityName) {
+        if (manager == null) return null;
+        return manager.getEntityTeam(viewerUuid, entityName);
     }
 }

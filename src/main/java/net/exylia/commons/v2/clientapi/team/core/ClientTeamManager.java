@@ -18,8 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientTeamManager extends PacketListenerAbstract {
 
-    private final Map<UUID, Set<String>> viewerCreatedTeams = new ConcurrentHashMap<>();
-    private final Map<UUID, Map<String, Set<String>>> viewerTeamMembers = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<String>> viewerOwnedTeams = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<String>> viewerKnownTeams = new ConcurrentHashMap<>();
+    private final Map<UUID, Map<String, String>> viewerEntityTeam = new ConcurrentHashMap<>();
     private final Map<UUID, Set<UUID>> viewerGlowTargets = new ConcurrentHashMap<>();
     private final Map<Integer, UUID> entityIdToUuid = new ConcurrentHashMap<>();
 
@@ -29,8 +30,14 @@ public class ClientTeamManager extends PacketListenerAbstract {
 
     @Override
     public void onPacketSend(PacketSendEvent event) {
-        if (event.getPacketType() != PacketType.Play.Server.ENTITY_METADATA) return;
         if (!(event.getPlayer() instanceof Player observer)) return;
+
+        if (event.getPacketType() == PacketType.Play.Server.TEAMS) {
+            trackTeamPacket(observer.getUniqueId(), event);
+            return;
+        }
+
+        if (event.getPacketType() != PacketType.Play.Server.ENTITY_METADATA) return;
 
         Set<UUID> glowTargets = viewerGlowTargets.get(observer.getUniqueId());
         if (glowTargets == null || glowTargets.isEmpty()) return;
@@ -51,67 +58,94 @@ public class ClientTeamManager extends PacketListenerAbstract {
         }
     }
 
-    public void createTeam(Player viewer, String name, NamedTextColor color, boolean seeFriendlyInvisibles, List<String> members) {
+    public void createTeam(Player viewer, String name, NamedTextColor color, boolean seeFriendlyInvisibles, Collection<String> members) {
         User user = getUser(viewer);
         if (user == null) return;
+        UUID viewerId = viewer.getUniqueId();
+        if (isKnown(viewerId, name)) sendRemoveTeam(user, viewerId, name);
         user.sendPacket(new WrapperPlayServerTeams(
                 name, WrapperPlayServerTeams.TeamMode.CREATE,
                 Optional.of(buildTeamInfo(color, seeFriendlyInvisibles)), members));
-        viewerCreatedTeams.computeIfAbsent(viewer.getUniqueId(), k -> ConcurrentHashMap.newKeySet()).add(name);
-        Set<String> memberSet = viewerTeamMembers
-                .computeIfAbsent(viewer.getUniqueId(), k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
-        memberSet.clear();
-        memberSet.addAll(members);
+        viewerOwnedTeams.computeIfAbsent(viewerId, k -> ConcurrentHashMap.newKeySet()).add(name);
+        markKnown(viewerId, name);
+        assignEntities(viewerId, name, members);
     }
 
     public void ensureTeamAndAdd(Player viewer, String name, NamedTextColor color, boolean seeFriendlyInvisibles, String entityName, boolean includeViewer) {
+        if (!isKnown(viewer.getUniqueId(), name)) {
+            createTeam(viewer, name, color, seeFriendlyInvisibles, includeViewer
+                    ? List.of(viewer.getName(), entityName)
+                    : Collections.singletonList(entityName));
+            return;
+        }
+        addToTeam(viewer, name, entityName);
+        if (includeViewer) addToTeam(viewer, name, viewer.getName());
+    }
+
+    public void addToTeam(Player viewer, String name, String entityName) {
+        UUID viewerId = viewer.getUniqueId();
+        if (!isKnown(viewerId, name)) return;
+        if (name.equals(getEntityTeam(viewerId, entityName))) return;
         User user = getUser(viewer);
         if (user == null) return;
-        Set<String> created = viewerCreatedTeams.computeIfAbsent(viewer.getUniqueId(), k -> ConcurrentHashMap.newKeySet());
-        Map<String, Set<String>> teamMembersMap = viewerTeamMembers.computeIfAbsent(viewer.getUniqueId(), k -> new ConcurrentHashMap<>());
-        if (created.add(name)) {
-            List<String> members = includeViewer
-                    ? List.of(viewer.getName(), entityName)
-                    : Collections.singletonList(entityName);
-            user.sendPacket(new WrapperPlayServerTeams(
-                    name, WrapperPlayServerTeams.TeamMode.CREATE,
-                    Optional.of(buildTeamInfo(color, seeFriendlyInvisibles)), members));
-            Set<String> memberSet = teamMembersMap.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
-            memberSet.addAll(members);
-        } else {
-            Set<String> memberSet = teamMembersMap.computeIfAbsent(name, k -> ConcurrentHashMap.newKeySet());
-            if (memberSet.add(entityName)) {
-                user.sendPacket(new WrapperPlayServerTeams(
-                        name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES,
-                        Optional.empty(), Collections.singletonList(entityName)));
-            }
-        }
+        user.sendPacket(new WrapperPlayServerTeams(
+                name, WrapperPlayServerTeams.TeamMode.ADD_ENTITIES,
+                Optional.empty(), Collections.singletonList(entityName)));
+        assignEntities(viewerId, name, Collections.singletonList(entityName));
     }
 
     public void removeFromTeam(Player viewer, String name, String entityName) {
-        Map<String, Set<String>> teamMembersMap = viewerTeamMembers.get(viewer.getUniqueId());
-        if (teamMembersMap == null) return;
-        Set<String> memberSet = teamMembersMap.get(name);
-        if (memberSet == null || !memberSet.remove(entityName)) return;
+        UUID viewerId = viewer.getUniqueId();
+        if (!name.equals(getEntityTeam(viewerId, entityName))) return;
         User user = getUser(viewer);
         if (user == null) return;
         user.sendPacket(new WrapperPlayServerTeams(
                 name, WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES,
                 Optional.empty(), Collections.singletonList(entityName)));
+        unassignEntity(viewerId, name, entityName);
+    }
+
+    public void removeOwnedEntity(Player viewer, String entityName) {
+        UUID viewerId = viewer.getUniqueId();
+        String team = getEntityTeam(viewerId, entityName);
+        if (team == null) return;
+        Set<String> owned = viewerOwnedTeams.get(viewerId);
+        if (owned == null || !owned.contains(team)) return;
+        removeFromTeam(viewer, team, entityName);
+    }
+
+    public void removeTeam(Player viewer, String name) {
+        UUID viewerId = viewer.getUniqueId();
+        Set<String> owned = viewerOwnedTeams.get(viewerId);
+        if (owned != null) owned.remove(name);
+        if (!isKnown(viewerId, name)) return;
+        User user = getUser(viewer);
+        if (user == null) return;
+        sendRemoveTeam(user, viewerId, name);
     }
 
     public void clearViewer(Player viewer) {
-        Set<String> teams = viewerCreatedTeams.remove(viewer.getUniqueId());
-        viewerTeamMembers.remove(viewer.getUniqueId());
-        viewerGlowTargets.remove(viewer.getUniqueId());
-        if (teams == null) return;
+        UUID viewerId = viewer.getUniqueId();
+        Set<String> owned = viewerOwnedTeams.remove(viewerId);
+        viewerGlowTargets.remove(viewerId);
+        if (owned == null || owned.isEmpty()) return;
         User user = getUser(viewer);
         if (user == null) return;
-        for (String name : teams) {
-            user.sendPacket(new WrapperPlayServerTeams(
-                    name, WrapperPlayServerTeams.TeamMode.REMOVE,
-                    Optional.empty(), Collections.emptyList()));
+        for (String name : owned) {
+            if (isKnown(viewerId, name)) sendRemoveTeam(user, viewerId, name);
+        }
+    }
+
+    public void cleanupViewer(UUID viewerUuid) {
+        viewerOwnedTeams.remove(viewerUuid);
+        viewerKnownTeams.remove(viewerUuid);
+        viewerEntityTeam.remove(viewerUuid);
+        viewerGlowTargets.remove(viewerUuid);
+    }
+
+    public void forgetEntity(String entityName) {
+        for (Map<String, String> assignments : viewerEntityTeam.values()) {
+            assignments.remove(entityName);
         }
     }
 
@@ -133,15 +167,77 @@ public class ClientTeamManager extends PacketListenerAbstract {
     }
 
     public Set<String> getViewerTeams(UUID viewerUuid) {
-        return Collections.unmodifiableSet(viewerCreatedTeams.getOrDefault(viewerUuid, Collections.emptySet()));
+        return Collections.unmodifiableSet(viewerOwnedTeams.getOrDefault(viewerUuid, Collections.emptySet()));
+    }
+
+    public boolean hasTeam(UUID viewerUuid, String teamName) {
+        return isKnown(viewerUuid, teamName);
+    }
+
+    public String getEntityTeam(UUID viewerUuid, String entityName) {
+        Map<String, String> assignments = viewerEntityTeam.get(viewerUuid);
+        return assignments == null ? null : assignments.get(entityName);
     }
 
     public void shutdown() {
         PacketEvents.getAPI().getEventManager().unregisterListener(this);
-        viewerCreatedTeams.clear();
-        viewerTeamMembers.clear();
+        viewerOwnedTeams.clear();
+        viewerKnownTeams.clear();
+        viewerEntityTeam.clear();
         viewerGlowTargets.clear();
         entityIdToUuid.clear();
+    }
+
+    private void trackTeamPacket(UUID viewerId, PacketSendEvent event) {
+        WrapperPlayServerTeams packet = new WrapperPlayServerTeams(event);
+        String teamName = packet.getTeamName();
+        switch (packet.getTeamMode()) {
+            case CREATE -> {
+                markKnown(viewerId, teamName);
+                assignEntities(viewerId, teamName, packet.getPlayers());
+            }
+            case ADD_ENTITIES -> assignEntities(viewerId, teamName, packet.getPlayers());
+            case REMOVE_ENTITIES -> {
+                for (String entity : packet.getPlayers()) unassignEntity(viewerId, teamName, entity);
+            }
+            case REMOVE -> markUnknown(viewerId, teamName);
+            default -> {
+            }
+        }
+    }
+
+    private void sendRemoveTeam(User user, UUID viewerId, String name) {
+        user.sendPacket(new WrapperPlayServerTeams(
+                name, WrapperPlayServerTeams.TeamMode.REMOVE,
+                Optional.empty(), Collections.emptyList()));
+        markUnknown(viewerId, name);
+    }
+
+    private boolean isKnown(UUID viewerId, String teamName) {
+        Set<String> teams = viewerKnownTeams.get(viewerId);
+        return teams != null && teams.contains(teamName);
+    }
+
+    private void markKnown(UUID viewerId, String teamName) {
+        viewerKnownTeams.computeIfAbsent(viewerId, k -> ConcurrentHashMap.newKeySet()).add(teamName);
+    }
+
+    private void markUnknown(UUID viewerId, String teamName) {
+        Set<String> teams = viewerKnownTeams.get(viewerId);
+        if (teams != null) teams.remove(teamName);
+        Map<String, String> assignments = viewerEntityTeam.get(viewerId);
+        if (assignments != null) assignments.values().removeIf(teamName::equals);
+    }
+
+    private void assignEntities(UUID viewerId, String teamName, Collection<String> entities) {
+        if (entities.isEmpty()) return;
+        Map<String, String> assignments = viewerEntityTeam.computeIfAbsent(viewerId, k -> new ConcurrentHashMap<>());
+        for (String entity : entities) assignments.put(entity, teamName);
+    }
+
+    private void unassignEntity(UUID viewerId, String teamName, String entityName) {
+        Map<String, String> assignments = viewerEntityTeam.get(viewerId);
+        if (assignments != null) assignments.remove(entityName, teamName);
     }
 
     private WrapperPlayServerTeams.ScoreBoardTeamInfo buildTeamInfo(NamedTextColor color, boolean seeFriendlyInvisibles) {

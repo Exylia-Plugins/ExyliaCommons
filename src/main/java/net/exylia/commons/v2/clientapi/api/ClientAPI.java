@@ -142,6 +142,11 @@ public final class ClientAPI {
             UUID quitId = player.getUniqueId();
             waypointManager.cleanupPlayer(player);
             teamTrackerManager.removeMember(player);
+            if (clientTeamManager != null) {
+                clientTeamManager.cleanupViewer(quitId);
+                clientTeamManager.forgetEntity(player.getName());
+                clientTeamManager.unregisterEntity(player.getEntityId());
+            }
             TaskAPI.io(() -> itemCooldownManager.saveAndCleanup(quitId));
             cooldownManager.cleanupPlayer(quitId);
         }
