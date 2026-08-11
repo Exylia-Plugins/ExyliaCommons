@@ -182,6 +182,11 @@ public class MySQLAdapter extends SQLAdapter {
     }
 
     @Override
+    protected String getColumnDefinition(FieldDescriptor field) {
+        return getMySQLType(field);
+    }
+
+    @Override
     public String getAdapterName() {
         return "MySQL";
     }

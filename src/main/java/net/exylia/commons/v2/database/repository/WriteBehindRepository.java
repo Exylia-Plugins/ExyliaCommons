@@ -49,8 +49,12 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
                 if (dirtyEntities.remove(id, entity)) toSave.add(entity);
             });
             if (!toSave.isEmpty()) {
-                delegate.saveAll(toSave);
-                saved = toSave.size();
+                try {
+                    delegate.saveAll(toSave);
+                    saved = toSave.size();
+                } catch (RuntimeException ex) {
+                    saved = salvageBatch(toSave, ex);
+                }
             }
         }
 
@@ -68,6 +72,54 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         if (saved > 0 || deleted > 0) {
             DebugAPI.logLibDebug(DebugCategory.DATABASE, "[WriteBehind] Flush complete for " + entityName + " — saved=" + saved + " deleted=" + deleted);
         }
+    }
+
+    /**
+     * Recovers a batch save that failed as a whole, saving each entity on its own
+     * so one bad row cannot hold the rest hostage.
+     * <p>
+     * The batch is written in a single transaction, so a single rejected entity —
+     * a value too long for its column, say — rolls back every other entity queued
+     * with it. Re-queueing the whole batch then replays the same failure on the
+     * next flush, forever: writes stop being persisted, the buffer only grows, and
+     * the log fills with an identical stack trace every flush interval.
+     * <p>
+     * Entities that save individually are kept. The ones that genuinely cannot be
+     * written are dropped after being logged, because retrying them is what caused
+     * the stall — they will not start fitting on their own.
+     *
+     * @return how many entities were salvaged
+     */
+    private int salvageBatch(List<T> batch, RuntimeException batchFailure) {
+        DebugAPI.logLibWarn(DebugCategory.DATABASE, "[WriteBehind] Batch save of " + batch.size() + " " + entityName
+                + " failed (" + rootMessage(batchFailure) + "); retrying individually");
+
+        int saved = 0;
+        int rejected = 0;
+        for (T entity : batch) {
+            try {
+                delegate.save(entity);
+                saved++;
+            } catch (RuntimeException ex) {
+                rejected++;
+                DebugAPI.logLibError(DebugCategory.DATABASE, "[WriteBehind] Dropping unsavable " + entityName
+                        + " [" + entity.getId() + "]: " + rootMessage(ex));
+            }
+        }
+
+        if (rejected > 0) {
+            DebugAPI.logLibWarn(DebugCategory.DATABASE, "[WriteBehind] Salvaged " + saved + " of " + batch.size()
+                    + " " + entityName + "; dropped " + rejected + " that could not be written");
+        }
+        return saved;
+    }
+
+    private String rootMessage(Throwable throwable) {
+        Throwable root = throwable;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root.getMessage();
     }
 
     public void flush() {

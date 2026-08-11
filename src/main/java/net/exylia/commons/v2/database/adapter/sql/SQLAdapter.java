@@ -141,20 +141,31 @@ public abstract class SQLAdapter implements DatabaseAdapter {
             for (FieldDescriptor field : metadata.getFields()) {
                 String columnName = field.getColumnName().toLowerCase();
                 if (!existingColumns.containsKey(columnName)) {
+                    // Must use the dialect's own type mapping, not the generic one.
+                    // getSQLType() maps an unbounded String to plain TEXT, which on
+                    // MySQL caps at 64KB — a column added this way silently differs
+                    // from the LONGTEXT that CREATE TABLE would have produced, and
+                    // only fails much later when a large value shows up.
                     String alterSql = "ALTER TABLE " + metadata.getTableName() +
-                        " ADD COLUMN " + field.getColumnName() + " " + getSQLType(field);
+                        " ADD COLUMN " + field.getColumnName() + " " + getColumnDefinition(field);
                     try (Statement stmt = conn.createStatement()) {
                         stmt.execute(alterSql);
                         DebugAPI.logLibInfo("Added column " + field.getColumnName() + " to " + metadata.getTableName());
                     }
-                } else if (field.isString() && field.getLength() > 0) {
+                } else if (field.isString()) {
                     int currentSize = existingColumns.get(columnName);
-                    if (currentSize < field.getLength()) {
+                    // length == -1 means "unbounded" and reports a driver-specific
+                    // size, so it is compared against the dialect's own maximum
+                    // rather than the declared length. Without this, a column that
+                    // was created too narrow stays too narrow forever: the old
+                    // condition only considered length > 0.
+                    int required = field.getLength() > 0 ? field.getLength() : getUnboundedTextSize();
+                    if (currentSize < required) {
                         String modifySql = getModifyColumnSql(metadata.getTableName(), field);
                         if (modifySql != null) {
                             try (Statement stmt = conn.createStatement()) {
                                 stmt.execute(modifySql);
-                                DebugAPI.logLibInfo("Resized column " + field.getColumnName() + " in " + metadata.getTableName() + " from " + currentSize + " to " + field.getLength());
+                                DebugAPI.logLibInfo("Resized column " + field.getColumnName() + " in " + metadata.getTableName() + " from " + currentSize + " to " + (field.getLength() > 0 ? String.valueOf(field.getLength()) : "unbounded"));
                             }
                         }
                     }
@@ -165,6 +176,31 @@ public abstract class SQLAdapter implements DatabaseAdapter {
 
     protected String getModifyColumnSql(String tableName, FieldDescriptor field) {
         return null;
+    }
+
+    /**
+     * Column type for this field in the dialect actually in use. Subclasses that
+     * map types differently from {@link #getSQLType(FieldDescriptor)} — notably
+     * MySQL, where an unbounded String must become LONGTEXT rather than TEXT —
+     * override this so schema migrations produce the same type that a fresh
+     * CREATE TABLE would.
+     */
+    protected String getColumnDefinition(FieldDescriptor field) {
+        return getSQLType(field);
+    }
+
+    /**
+     * Minimum capacity, in characters, that an unbounded ({@code length = -1})
+     * string column must report to be considered correct in this dialect. A column
+     * below it was created with a narrower type by an older version and is widened.
+     * <p>
+     * Deliberately a threshold rather than the exact capacity: the size drivers
+     * report for a large text type varies with the charset, and the true maximum
+     * can exceed {@code int}. The default sits above MEDIUMTEXT so that any real
+     * "big text" type clears it and no correct column is re-altered on every boot.
+     */
+    protected int getUnboundedTextSize() {
+        return 16_777_216;
     }
 
     private Map<String, Integer> getExistingColumnSizes(Connection conn, String tableName) throws SQLException {
