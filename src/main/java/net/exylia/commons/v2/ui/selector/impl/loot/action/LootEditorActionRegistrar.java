@@ -3,6 +3,7 @@ package net.exylia.commons.v2.ui.selector.impl.loot.action;
 import net.exylia.commons.v2.action.api.ActionAPI;
 import net.exylia.commons.v2.chat.api.ChatInputAPI;
 import net.exylia.commons.v2.loot.model.LootEntry;
+import net.exylia.commons.v2.ui.selector.core.SelectorButton;
 import net.exylia.commons.v2.ui.selector.impl.iconpicker.IconPickerAPI;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootClipboard;
 import net.exylia.commons.v2.ui.selector.impl.loot.LootEditorRegistry;
@@ -33,6 +34,22 @@ public final class LootEditorActionRegistrar {
                     LootEditorSession session = LootEditorRegistry.getInstance().get(player);
                     if (session == null) return;
                     LootListMenu.open(player, session);
+                })
+                .build();
+
+        ActionAPI.create("loot_custom", plugin).namespace(NS)
+                .handler((ctx, args) -> {
+                    Player player = ctx.getPlayer();
+                    LootEditorSession session = LootEditorRegistry.getInstance().get(player);
+                    if (session == null) return;
+
+                    SelectorButton<LootEditorSession> button = session.findCustomButton(args.getString(0, ""));
+                    if (button == null) return;
+
+                    button.run(player, session);
+                    if (button.isRefreshOnClick() && LootEditorRegistry.getInstance().has(player)) {
+                        LootListMenu.open(player, session);
+                    }
                 })
                 .build();
 

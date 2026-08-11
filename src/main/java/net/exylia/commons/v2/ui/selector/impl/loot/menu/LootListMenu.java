@@ -186,6 +186,9 @@ public final class LootListMenu {
             menuData.getItems().put("paste_all", pasteAllButton);
         }
 
+        session.getCustomButtons().forEach((key, button) ->
+                menuData.getItems().put(key, button.toItemData("commons:loot_custom " + key)));
+
         MenuAPI.open(player, menuData);
     }
 

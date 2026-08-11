@@ -2,6 +2,7 @@ package net.exylia.commons.v2.ui.selector.impl.loot;
 
 import net.exylia.commons.v2.loot.model.LootEntry;
 import net.exylia.commons.v2.ui.selector.core.AbstractSelector;
+import net.exylia.commons.v2.ui.selector.core.SelectorButton;
 import net.exylia.commons.v2.ui.selector.impl.loot.menu.LootListMenu;
 import org.bukkit.entity.Player;
 
@@ -12,6 +13,7 @@ import java.util.function.BiConsumer;
 public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> {
 
     private List<LootEntry> initialEntries = new ArrayList<>();
+    private final List<SelectorButton<LootEditorSession>> customButtons = new ArrayList<>();
     private boolean allowCommands = false;
 
     private LootEditorSelector(Player player) {
@@ -40,6 +42,12 @@ public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> 
         return this;
     }
 
+    /** Adds a plugin-defined button to the loot list menu (presets, imports, bulk edits...). */
+    public LootEditorSelector button(SelectorButton<LootEditorSession> button) {
+        this.customButtons.add(button);
+        return this;
+    }
+
     public LootEditorSelector onSave(BiConsumer<Player, List<LootEntry>> callback) {
         this.onSelect = callback;
         return this;
@@ -60,6 +68,7 @@ public final class LootEditorSelector extends AbstractSelector<List<LootEntry>> 
                 onCancel
         );
         session.setAllowCommands(allowCommands);
+        customButtons.forEach(session::addCustomButton);
         LootEditorRegistry.getInstance().put(session);
         LootListMenu.open(player, session);
     }

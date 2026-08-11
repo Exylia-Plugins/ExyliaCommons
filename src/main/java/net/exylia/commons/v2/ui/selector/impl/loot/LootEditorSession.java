@@ -3,10 +3,13 @@ package net.exylia.commons.v2.ui.selector.impl.loot;
 import lombok.Getter;
 import lombok.Setter;
 import net.exylia.commons.v2.loot.model.LootEntry;
+import net.exylia.commons.v2.ui.selector.core.SelectorButton;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 @Getter
@@ -16,6 +19,7 @@ public class LootEditorSession {
     private final List<LootEntry> entries;
     private final BiConsumer<Player, List<LootEntry>> onSave;
     private final Runnable onCancel;
+    private final Map<String, SelectorButton<LootEditorSession>> customButtons = new LinkedHashMap<>();
 
     /** When false (default), the "add entry" flow skips the type-select step entirely and only
      * ever creates ITEM entries — chests/spawners keep their exact pre-existing UX. When true,
@@ -38,6 +42,19 @@ public class LootEditorSession {
         this.title = title;
         this.onSave = onSave;
         this.onCancel = onCancel;
+    }
+
+    public void addCustomButton(SelectorButton<LootEditorSession> button) {
+        customButtons.put(button.getKey(), button);
+    }
+
+    public SelectorButton<LootEditorSession> findCustomButton(String key) {
+        return customButtons.get(key);
+    }
+
+    public void replaceEntries(List<LootEntry> replacement) {
+        entries.clear();
+        entries.addAll(replacement);
     }
 
     public void addEntry(LootEntry entry) {
