@@ -245,6 +245,92 @@ public final class EffectEditorActionRegistrar {
             entry.setSequence(new ArrayList<>());
             save(player, session, entry);
         });
+
+        entry(plugin, "effect_set_extra", (player, session, entry) ->
+                ChatInputAPI.decimal(player, "Particle speed / extra (0.0 - 10.0)")
+                        .range(0.0, 10.0)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setParticleExtra(value.doubleValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_colors", (player, session, entry) ->
+                ChatInputAPI.text(player, "Firework colors, comma separated (e.g. #ff6b9d, #ffd700)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setFireworkColors(splitColors(value));
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_fade_colors", (player, session, entry) ->
+                ChatInputAPI.text(player, "Firework fade colors, comma separated ('none' to clear)")
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setFireworkFadeColors(value.equalsIgnoreCase("none")
+                                    ? new ArrayList<>() : splitColors(value));
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_set_power", (player, session, entry) ->
+                ChatInputAPI.integer(player, "Firework flight power (0 - 3)")
+                        .range(0, 3)
+                        .onCancel(() -> EffectEditMenu.open(player, entry))
+                        .onResponse(value -> {
+                            entry.setFireworkPower(value.intValue());
+                            save(player, session, entry);
+                        })
+                        .ask());
+
+        entry(plugin, "effect_toggle_flicker", (player, session, entry) -> {
+            entry.setFireworkFlicker(!entry.isFireworkFlicker());
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_toggle_trail", (player, session, entry) -> {
+            entry.setFireworkTrail(!entry.isFireworkTrail());
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_toggle_potion_particles", (player, session, entry) -> {
+            entry.setPotionParticles(!entry.isPotionParticles());
+            save(player, session, entry);
+        });
+
+        entry(plugin, "effect_toggle_potion_icon", (player, session, entry) -> {
+            entry.setPotionIcon(!entry.isPotionIcon());
+            save(player, session, entry);
+        });
+    }
+
+    /**
+     * Splits a comma separated color list while keeping {@code r,g,b} triplets intact:
+     * numeric tokens are accumulated in groups of three, non-numeric tokens (hex) stand alone.
+     * So {@code "#ff6b9d, 255,215,0"} yields {@code ["#ff6b9d", "255,215,0"]}.
+     */
+    private static List<String> splitColors(String raw) {
+        List<String> colors = new ArrayList<>();
+        List<String> pending = new ArrayList<>();
+
+        for (String token : raw.split(",")) {
+            String trimmed = token.trim();
+            if (trimmed.isEmpty()) continue;
+
+            if (trimmed.chars().allMatch(Character::isDigit)) {
+                pending.add(trimmed);
+                if (pending.size() == 3) {
+                    colors.add(String.join(",", pending));
+                    pending.clear();
+                }
+            } else {
+                pending.clear();
+                colors.add(trimmed);
+            }
+        }
+        return colors;
     }
 
     // --------------------------------------------------------- metadata edits

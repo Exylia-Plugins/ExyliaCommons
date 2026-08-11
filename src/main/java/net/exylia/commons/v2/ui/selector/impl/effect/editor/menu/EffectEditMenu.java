@@ -21,6 +21,12 @@ import java.util.List;
  */
 public final class EffectEditMenu {
 
+    /** First slot of the type-specific button row. */
+    private static final int FIRST_EXTRA_SLOT = 20;
+
+    /** Reserved for the SCOPE button; caps how many type-specific buttons fit. */
+    private static final int SCOPE_SLOT = 25;
+
     private EffectEditMenu() {}
 
     public static void open(Player player, EffectEntry entry) {
@@ -29,8 +35,10 @@ public final class EffectEditMenu {
         items.put("display", display(entry));
         items.put("value", value(entry));
 
-        int slot = 20;
+        // Type-specific buttons fill row 3 from slot 20; slot 25 is reserved for SCOPE.
+        int slot = FIRST_EXTRA_SLOT;
         for (ItemData extra : typeSpecific(entry)) {
+            if (slot >= SCOPE_SLOT) break;
             items.put("extra_" + slot, reslot(extra, slot));
             slot++;
         }
@@ -191,7 +199,7 @@ public final class EffectEditMenu {
         };
 
         return ItemData.builder()
-                .rawMaterial(entry.resolvedIconMaterial())
+                .rawMaterial(entry.typeMaterial())
                 .rawDisplayName(label)
                 .rawLore(List.of(
                         "{secondary}Details:",
@@ -248,7 +256,7 @@ public final class EffectEditMenu {
                 .rawMaterial("SPYGLASS")
                 .rawDisplayName("{info}&lSCOPE ◎")
                 .rawLore(lore)
-                .slotConfig(SlotConfig.single(25))
+                .slotConfig(SlotConfig.single(SCOPE_SLOT))
                 .actions(actions)
                 .build();
     }
@@ -278,7 +286,14 @@ public final class EffectEditMenu {
                                     " {letters_black}▎ {muted}Required when using DUST.",
                                     "",
                                     " {letters_black}▎ {letters}Current {letters_black}» {info}" + orNone(entry.getParticleColor())),
-                            "effect_set_color", null));
+                            "effect_set_color", null),
+                    button(entry, "SUGAR", "{secondary_light}&lSPEED", 0,
+                            List.of(
+                                    " {letters_black}▎ {letters}Particle speed. For some",
+                                    " {letters_black}▎ {letters}particles this is a variant.",
+                                    "",
+                                    " {letters_black}▎ {letters}Current {letters_black}» {info}" + decimal(entry.getParticleExtra())),
+                            "effect_set_extra", null));
 
             case SOUND -> List.of(
                     button(entry, "BELL", "{secondary_light}&lVOLUME", 0,
@@ -307,7 +322,45 @@ public final class EffectEditMenu {
                                     " {letters_black}▎ {letters}How long the potion lasts.",
                                     "",
                                     " {letters_black}▎ {letters}Current {letters_black}» {info}" + (entry.getPotionDurationTicks() / 20) + "s"),
-                            "effect_set_duration", null));
+                            "effect_set_duration", null),
+                    toggle(entry, "{secondary_light}&lSHOW PARTICLES", entry.isPotionParticles(),
+                            " {letters_black}▎ {letters}Swirling particles around",
+                            " {letters_black}▎ {letters}the affected player.",
+                            "effect_toggle_potion_particles"),
+                    toggle(entry, "{secondary_light}&lSHOW ICON", entry.isPotionIcon(),
+                            " {letters_black}▎ {letters}Effect icon in the player's",
+                            " {letters_black}▎ {letters}HUD while it is active.",
+                            "effect_toggle_potion_icon"));
+
+            case FIREWORK -> List.of(
+                    button(entry, "RED_DYE", "{accent}&lCOLORS 🎨", 0,
+                            List.of(
+                                    " {letters_black}▎ {letters}Burst colors, as hex or r,g,b.",
+                                    " {letters_black}▎ {muted}Defaults to white when empty.",
+                                    "",
+                                    " {letters_black}▎ {letters}Current {letters_black}» {info}" + colorList(entry.getFireworkColors())),
+                            "effect_set_colors", null),
+                    button(entry, "ORANGE_DYE", "{accent}&lFADE COLORS", 0,
+                            List.of(
+                                    " {letters_black}▎ {letters}Colors the burst fades into.",
+                                    "",
+                                    " {letters_black}▎ {letters}Current {letters_black}» {info}" + colorList(entry.getFireworkFadeColors())),
+                            "effect_set_fade_colors", null),
+                    button(entry, "GUNPOWDER", "{secondary_light}&lPOWER", 0,
+                            List.of(
+                                    " {letters_black}▎ {letters}Flight duration before the",
+                                    " {letters_black}▎ {letters}firework detonates.",
+                                    "",
+                                    " {letters_black}▎ {letters}Current {letters_black}» {highlight}" + entry.getFireworkPower()),
+                            "effect_set_power", null),
+                    toggle(entry, "{secondary_light}&lFLICKER", entry.isFireworkFlicker(),
+                            " {letters_black}▎ {letters}Twinkle effect after the burst.",
+                            null,
+                            "effect_toggle_flicker"),
+                    toggle(entry, "{secondary_light}&lTRAIL", entry.isFireworkTrail(),
+                            " {letters_black}▎ {letters}Trailing particles on the burst.",
+                            null,
+                            "effect_toggle_trail"));
 
             case TITLE -> List.of(
                     button(entry, "PAPER", "{secondary_light}&lSUBTITLE", 0,
@@ -326,14 +379,10 @@ public final class EffectEditMenu {
                             "effect_set_times", null));
 
             case MESSAGE -> List.of(
-                    button(entry, entry.isCentered() ? "LIME_DYE" : "GRAY_DYE",
-                            "{secondary_light}&lCENTERED", 0,
-                            List.of(
-                                    " {letters_black}▎ {letters}Center the message in chat.",
-                                    "",
-                                    " {letters_black}▎ {letters}Current {letters_black}» "
-                                            + (entry.isCentered() ? "{success}Enabled" : "{muted}Disabled")),
-                            "effect_toggle_centered", null));
+                    toggle(entry, "{secondary_light}&lCENTERED", entry.isCentered(),
+                            " {letters_black}▎ {letters}Center the message in chat.",
+                            null,
+                            "effect_toggle_centered"));
 
             case SEQUENCE -> List.of(
                     button(entry, "EMERALD", "{success}&lADD STEP", 0,
@@ -349,7 +398,7 @@ public final class EffectEditMenu {
                                     " {letters_black}▎ {letters}this sequence."),
                             "effect_clear_steps", null));
 
-            case ACTIONBAR, FIREWORK -> List.of();
+            case ACTIONBAR -> List.of();
         };
     }
 
@@ -394,6 +443,30 @@ public final class EffectEditMenu {
                 .slotConfig(SlotConfig.single(slot))
                 .actions(actions)
                 .build();
+    }
+
+    /** A boolean button whose dye color and label reflect the current state. */
+    private static ItemData toggle(
+            EffectEntry entry,
+            String name,
+            boolean enabled,
+            String line1,
+            String line2,
+            String action
+    ) {
+        List<String> details = new ArrayList<>();
+        details.add(line1);
+        if (line2 != null) details.add(line2);
+        details.add("");
+        details.add(" {letters_black}▎ {letters}Current {letters_black}» "
+                + (enabled ? "{success}Enabled" : "{muted}Disabled"));
+
+        return button(entry, enabled ? "LIME_DYE" : "GRAY_DYE", name, 0, details, action, null);
+    }
+
+    private static String colorList(List<String> colors) {
+        if (colors == null || colors.isEmpty()) return "None";
+        return String.join(", ", colors);
     }
 
     private static ItemData reslot(ItemData item, int slot) {

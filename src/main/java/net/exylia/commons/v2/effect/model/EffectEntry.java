@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import net.exylia.commons.v2.compat.ParticleCompat;
 import net.exylia.commons.v2.compat.PotionEffectTypeCompat;
 import net.exylia.commons.v2.compat.SoundCompat;
+import net.exylia.commons.v2.items.snapshot.ItemSnapshot;
 import net.exylia.commons.v2.visual.builder.ActionBarBuilder;
 import net.exylia.commons.v2.visual.builder.EffectBuilder;
 import net.exylia.commons.v2.visual.builder.FireworkBuilder;
@@ -282,9 +283,18 @@ public class EffectEntry {
         return icon != null && !icon.isBlank();
     }
 
-    /** @return the material shown in editor/preview menus for this effect. */
+    /**
+     * @return the material string shown in editor/preview menus. Custom icons come from the icon
+     * picker as an {@link net.exylia.commons.v2.items.snapshot.ItemSnapshot}, so they are decoded
+     * here rather than passed through raw.
+     */
     public String resolvedIconMaterial() {
-        if (hasIcon()) return icon;
+        if (hasIcon()) return resolveMaterialFromSnapshot(icon);
+        return typeMaterial();
+    }
+
+    /** @return the default material for this effect's type, ignoring any custom icon. */
+    public String typeMaterial() {
         return switch (type) {
             case PARTICLE -> "BLAZE_POWDER";
             case SOUND -> "NOTE_BLOCK";
@@ -309,6 +319,27 @@ public class EffectEntry {
             case MESSAGE -> !messageLines().isEmpty();
             case SEQUENCE -> sequence != null && !sequence.isEmpty();
         };
+    }
+
+    /**
+     * Decodes an icon-picker snapshot into something {@code ItemData.rawMaterial} accepts.
+     * Skull strings and {@code item:} JSON are passed through (the item pipeline understands
+     * them); {@code bytes:} snapshots are decoded to their material name.
+     */
+    private static String resolveMaterialFromSnapshot(String snapshot) {
+        if (snapshot == null || snapshot.isBlank()) return "PAPER";
+        if (snapshot.startsWith("urlhead:") || snapshot.startsWith("playerhead:")
+                || snapshot.startsWith("basehead:") || snapshot.startsWith("item:")) {
+            return snapshot;
+        }
+        if (snapshot.startsWith("bytes:")) {
+            try {
+                return ItemSnapshot.from(snapshot).toItemStack().getType().name();
+            } catch (Exception e) {
+                return "PAPER";
+            }
+        }
+        return snapshot.toUpperCase();
     }
 
     // -------------------------------------------------------- config mapping
@@ -355,9 +386,14 @@ public class EffectEntry {
     }
 
     public FireworkConfig toFireworkConfig(Location location) {
+        // FireworkConfig rejects an empty color list, so fall back to white rather than
+        // failing validation for a firework authored without explicit colors.
+        List<Color> colors = parseColors(fireworkColors);
+        if (colors.isEmpty()) colors = List.of(Color.WHITE);
+
         return FireworkBuilder.create()
                 .type(fireworkType == null ? FireworkEffect.Type.BALL : FireworkEffect.Type.valueOf(fireworkType.toUpperCase()))
-                .colors(parseColors(fireworkColors))
+                .colors(colors)
                 .fadeColors(parseColors(fireworkFadeColors))
                 .flicker(fireworkFlicker)
                 .trail(fireworkTrail)

@@ -265,8 +265,37 @@ SelectorAPI.effectEditor(player)
 `EffectSerializer.write` emits the typed-list shape and omits default values, so the generated YAML
 stays readable and round-trips through `EffectConfigLoader`.
 
+### What the editor exposes
+
+| Screen | Contents |
+|--------|----------|
+| List | Paginated effects; add, save, cancel, copy/paste one or all |
+| Type picker | The 8 effect types |
+| Edit | Payload + the shared gating fields + a live **preview** button |
+
+Per-type buttons on the edit screen:
+
+| Type | Extra buttons |
+|------|--------------|
+| `PARTICLE` | count, offset, color, speed |
+| `SOUND` | volume, pitch |
+| `POTION` | amplifier, duration, show particles, show icon |
+| `FIREWORK` | colors, fade colors, power, flicker, trail |
+| `TITLE` | subtitle, times |
+| `MESSAGE` | centered |
+| `SEQUENCE` | add step, clear steps |
+| `ACTIONBAR` | — |
+
+Color inputs accept hex (`#ff6b9d`) or `r,g,b` (`255,215,0`), comma separated for firework lists.
+
+The **preview** button plays the effect on yourself with chance, condition, permission and delay
+bypassed, so you always see it regardless of gating.
+
 The editor is backed by the `commons:effect_*` actions. The potion-effect editor
 (`SelectorAPI.potionEffectEditor`) is a **separate** system backed by `commons:potion_*`.
+
+> A `FIREWORK` with no colors set renders **white** rather than failing validation, so an effect
+> created in the editor is always playable before you customize it.
 
 ## Threading Considerations
 
