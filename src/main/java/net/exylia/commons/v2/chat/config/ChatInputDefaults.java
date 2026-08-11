@@ -1,10 +1,10 @@
 package net.exylia.commons.v2.chat.config;
 
+import net.exylia.commons.v2.config.schema.Comment;
 import net.exylia.commons.v2.config.schema.ConfigSchema;
 import net.exylia.commons.v2.config.schema.ConfigSection;
 import net.exylia.commons.v2.config.schema.ConfigValue;
-
-@ConfigSchema(file = "config", strict = true, version = "1.0")
+@ConfigSchema(file = "config", strict = true, version = "1.1")
 public class ChatInputDefaults {
 
     @ConfigSection("chat-input")
@@ -62,6 +62,38 @@ public class ChatInputDefaults {
 
             @ConfigValue("submit-label")
             public static String SUBMIT_LABEL = "Submit";
+
+            @ConfigValue("search-label")
+            @Comment("Label of the search field shown above a searchable option list.")
+            public static String SEARCH_LABEL = "{letters}Search";
+
+            @ConfigValue("search-button")
+            @Comment("Button that applies whatever was typed in the search field.")
+            public static String SEARCH_BUTTON = "{info}\uD83D\uDD0D Search";
+
+            @ConfigValue("clear-search-button")
+            @Comment("Button that clears the active search filter.")
+            public static String CLEAR_SEARCH_BUTTON = "{error}\u2716 Clear";
+
+            @ConfigValue("previous-button")
+            @Comment("Previous-page button in a paged option list.")
+            public static String PREVIOUS_BUTTON = "{secondary}\u2190 Previous";
+
+            @ConfigValue("next-button")
+            @Comment("Next-page button in a paged option list.")
+            public static String NEXT_BUTTON = "{secondary}Next \u2192";
+
+            @ConfigValue("page-line")
+            @Comment("Page indicator line. Supports %page% and %total%.")
+            public static String PAGE_LINE = "{muted}Page {highlight}%page% {muted}of {highlight}%total%";
+
+            @ConfigValue("filter-line")
+            @Comment("Active-filter line. Supports %query% and %matches%.")
+            public static String FILTER_LINE = "{muted}Filter: {highlight}%query% {muted}({highlight}%matches% {muted}matches)";
+
+            @ConfigValue("no-matches-line")
+            @Comment("Shown when a search returns nothing.")
+            public static String NO_MATCHES_LINE = "{error}No matches. Try a different search.";
         }
 
         @ConfigSection("bedrock")

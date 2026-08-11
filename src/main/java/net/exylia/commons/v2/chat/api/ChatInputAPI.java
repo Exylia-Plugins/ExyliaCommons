@@ -222,6 +222,19 @@ public final class ChatInputAPI {
             return this;
         }
 
+        /** Adds every value of a collection, deriving key and label from each element. */
+        public <T> OptionBuilder options(
+                java.util.Collection<T> values,
+                java.util.function.Function<T, String> keyMapper,
+                java.util.function.Function<T, String> labelMapper
+        ) {
+            if (values == null) return this;
+            for (T value : values) {
+                if (value != null) request.addOption(keyMapper.apply(value), labelMapper.apply(value));
+            }
+            return this;
+        }
+
         public OptionBuilder onResponse(Consumer<String> callback) {
             request.setOnResponse(callback);
             return this;
@@ -235,6 +248,27 @@ public final class ChatInputAPI {
         public OptionBuilder columns(int columns) {
             request.setColumns(Math.max(1, columns));
             return this;
+        }
+
+        /** Shows a search box so the player can filter a long list by name or id. */
+        public OptionBuilder searchable() {
+            return searchable(true);
+        }
+
+        public OptionBuilder searchable(boolean searchable) {
+            request.setSearchable(searchable);
+            return this;
+        }
+
+        /** Splits the list into pages of {@code pageSize} buttons. {@code <= 0} disables paging. */
+        public OptionBuilder pageSize(int pageSize) {
+            request.setPageSize(pageSize);
+            return this;
+        }
+
+        /** Enables paging with the default page size. */
+        public OptionBuilder paged() {
+            return pageSize(SingleOptionRequest.DEFAULT_PAGE_SIZE);
         }
 
         public void ask() {

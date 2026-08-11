@@ -15,6 +15,7 @@ import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectEditMenu;
 import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectListMenu;
 import net.exylia.commons.v2.ui.selector.impl.effect.editor.menu.EffectTypeSelectMenu;
 import net.exylia.commons.v2.ui.selector.impl.iconpicker.IconPickerAPI;
+import net.exylia.commons.v2.ui.selector.impl.registry.RegistryPickerAPI;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -489,14 +490,15 @@ public final class EffectEditorActionRegistrar {
 
     private static void handleAddType(Player player, EffectEditorSession session, EffectType type) {
         switch (type) {
-            case PARTICLE -> ask(player, session, "Particle name (e.g. FLAME, DUST, HAPPY_VILLAGER)",
-                    value -> EffectEntry.particle(value.toUpperCase()));
+            // Registry-backed types use a browsable picker so admins never have to recall an id.
+            case PARTICLE -> pick(RegistryPickerAPI.particle(player), session, player,
+                    value -> EffectEntry.particle(value));
 
-            case SOUND -> ask(player, session, "Sound name (e.g. BLOCK_STONE_BREAK)",
-                    value -> EffectEntry.sound(value.toUpperCase()));
+            case SOUND -> pick(RegistryPickerAPI.sound(player), session, player,
+                    value -> EffectEntry.sound(value));
 
-            case POTION -> ask(player, session, "Potion effect (e.g. SPEED, HASTE)",
-                    value -> EffectEntry.potion(value.toUpperCase()));
+            case POTION -> pick(RegistryPickerAPI.potionEffect(player), session, player,
+                    value -> EffectEntry.potion(value));
 
             case TITLE -> ask(player, session, "Title text (supports color codes)",
                     value -> EffectEntry.title(value, null));
@@ -510,11 +512,27 @@ public final class EffectEditorActionRegistrar {
             case SEQUENCE -> ask(player, session, "First sequence step (e.g. [CIRCLE] FLAME;radius:1.2)",
                     value -> EffectEntry.sequence(List.of(value)));
 
-            case FIREWORK -> {
-                session.addEntry(EffectEntry.firework());
-                EffectListMenu.open(player, session);
-            }
+            case FIREWORK -> pick(RegistryPickerAPI.fireworkShape(player), session, player, value -> {
+                EffectEntry entry = EffectEntry.firework();
+                entry.setFireworkType(value);
+                return entry;
+            });
         }
+    }
+
+    /** Opens a registry picker, adding the built entry on pick and returning to the type list. */
+    private static void pick(
+            RegistryPickerAPI.Picker picker,
+            EffectEditorSession session,
+            Player player,
+            java.util.function.Function<String, EffectEntry> factory
+    ) {
+        picker.onPick(value -> {
+                    session.addEntry(factory.apply(value));
+                    EffectListMenu.open(player, session);
+                })
+                .onCancel(() -> EffectTypeSelectMenu.open(player, session))
+                .open();
     }
 
     private static void ask(
@@ -534,17 +552,17 @@ public final class EffectEditorActionRegistrar {
 
     private static void handleSetValue(Player player, EffectEditorSession session, EffectEntry entry) {
         switch (entry.getType()) {
-            case PARTICLE -> edit(player, session, entry, "Particle name (e.g. FLAME)",
-                    value -> entry.setParticle(value.toUpperCase()));
+            case PARTICLE -> repick(RegistryPickerAPI.particle(player), player, session, entry,
+                    entry::setParticle);
 
-            case SOUND -> edit(player, session, entry, "Sound name (e.g. BLOCK_STONE_BREAK)",
-                    value -> entry.setSound(value.toUpperCase()));
+            case SOUND -> repick(RegistryPickerAPI.sound(player), player, session, entry,
+                    entry::setSound);
 
-            case POTION -> edit(player, session, entry, "Potion effect (e.g. SPEED)",
-                    value -> entry.setPotion(value.toUpperCase()));
+            case POTION -> repick(RegistryPickerAPI.potionEffect(player), player, session, entry,
+                    entry::setPotion);
 
-            case FIREWORK -> edit(player, session, entry, "Firework shape (BALL, BALL_LARGE, STAR, BURST, CREEPER)",
-                    value -> entry.setFireworkType(value.toUpperCase()));
+            case FIREWORK -> repick(RegistryPickerAPI.fireworkShape(player), player, session, entry,
+                    entry::setFireworkType);
 
             case TITLE -> edit(player, session, entry, "Title text (supports color codes)",
                     entry::setTitle);
@@ -558,6 +576,22 @@ public final class EffectEditorActionRegistrar {
             case SEQUENCE -> edit(player, session, entry, "Replace all steps with a single step",
                     value -> entry.setSequence(new ArrayList<>(List.of(value))));
         }
+    }
+
+    /** Registry picker variant of {@link #edit}, for fields backed by a Minecraft registry. */
+    private static void repick(
+            RegistryPickerAPI.Picker picker,
+            Player player,
+            EffectEditorSession session,
+            EffectEntry entry,
+            java.util.function.Consumer<String> setter
+    ) {
+        picker.onPick(value -> {
+                    setter.accept(value);
+                    save(player, session, entry);
+                })
+                .onCancel(() -> EffectEditMenu.open(player, entry))
+                .open();
     }
 
     private static void edit(

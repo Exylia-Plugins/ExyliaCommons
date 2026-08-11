@@ -31,6 +31,12 @@ import java.util.UUID;
 
 public class InventoryInputHandler implements Listener {
 
+    /** Slots 0-44 hold options; the bottom row is reserved for navigation. */
+    private static final int CONTENT_SLOTS = 45;
+    private static final int PREV_SLOT = 45;
+    private static final int PAGE_SLOT = 49;
+    private static final int NEXT_SLOT = 53;
+
     private final Map<UUID, Inventory> trackedInventories = new HashMap<>();
     private final Set<UUID> programmaticClose = new HashSet<>();
     private final Map<UUID, Map<Integer, Runnable>> slotCallbacks = new HashMap<>();
@@ -145,25 +151,52 @@ public class InventoryInputHandler implements Listener {
         return inv;
     }
 
+    /**
+     * Inventory fallback for clients that cannot use dialogs. Options are paged across the top
+     * 45 slots with navigation on the bottom row, so a large registry (particles, sounds, ...)
+     * stays fully reachable instead of being silently truncated at 44 entries.
+     */
     private Inventory buildOptionInventory(Player player, SingleOptionRequest request, Map<Integer, Runnable> callbacks) {
-        List<OptionEntry> options = request.getOptions();
-        int totalItems = options.size() + 1;
-        int size = totalItems <= 7 ? 27 : (totalItems <= 16 ? 45 : 54);
+        // Reserve the bottom row for navigation whenever the list cannot fit in one screen.
+        List<OptionEntry> all = request.getFilteredOptions();
+        boolean needsPaging = all.size() > CONTENT_SLOTS;
+        int size = needsPaging ? 54 : (all.size() + 1 <= 7 ? 27 : (all.size() + 1 <= 16 ? 45 : 54));
+        int perPage = needsPaging ? CONTENT_SLOTS : size - 1;
+
+        int totalPages = needsPaging ? Math.max(1, (all.size() + perPage - 1) / perPage) : 1;
+        int page = Math.min(Math.max(0, request.getPage()), totalPages - 1);
+        request.setPage(page);
 
         Inventory inv = Bukkit.createInventory(null, size, ColorAPI.parse(request.getPrompt()));
         Material fillerMat = parseMaterial(ChatInputDefaults.ChatInput.UIFallback.FILLER_MATERIAL, Material.GRAY_STAINED_GLASS_PANE);
         ItemStack filler = buildFiller(fillerMat);
         for (int i = 0; i < size; i++) inv.setItem(i, filler);
 
-        int startSlot = 10;
         UUID uuid = player.getUniqueId();
-        for (int i = 0; i < options.size(); i++) {
-            OptionEntry entry = options.get(i);
-            int slot = startSlot + i;
+        int from = page * perPage;
+        int to = Math.min(from + perPage, all.size());
+
+        for (int i = from; i < to; i++) {
+            OptionEntry entry = all.get(i);
+            int slot = needsPaging ? (i - from) : (10 + (i - from));
             if (slot >= size - 1) break;
             inv.setItem(slot, buildItem(Material.PAPER, entry.label()));
             final String key = entry.key();
             callbacks.put(slot, () -> closeAndComplete(player, uuid, key));
+        }
+
+        if (needsPaging && totalPages > 1) {
+            if (page > 0) {
+                inv.setItem(PREV_SLOT, buildItem(Material.ARROW, ChatInputDefaults.ChatInput.Dialog.PREVIOUS_BUTTON));
+                callbacks.put(PREV_SLOT, () -> reopen(player, request, page - 1));
+            }
+            inv.setItem(PAGE_SLOT, buildItem(Material.PAPER, ChatInputDefaults.ChatInput.Dialog.PAGE_LINE
+                    .replace("%page%", String.valueOf(page + 1))
+                    .replace("%total%", String.valueOf(totalPages))));
+            if (page < totalPages - 1) {
+                inv.setItem(NEXT_SLOT, buildItem(Material.ARROW, ChatInputDefaults.ChatInput.Dialog.NEXT_BUTTON));
+                callbacks.put(NEXT_SLOT, () -> reopen(player, request, page + 1));
+            }
         }
 
         Material cancelMat = parseMaterial(ChatInputDefaults.ChatInput.UIFallback.CANCEL_MATERIAL, Material.RED_CONCRETE);
@@ -175,6 +208,20 @@ public class InventoryInputHandler implements Listener {
         });
 
         return inv;
+    }
+
+    /** Rebuilds the option inventory on a different page, keeping the session alive. */
+    private void reopen(Player player, SingleOptionRequest request, int page) {
+        request.setPage(page);
+        UUID uuid = player.getUniqueId();
+        Map<Integer, Runnable> callbacks = new HashMap<>();
+        Inventory inv = buildOptionInventory(player, request, callbacks);
+
+        // Suppress the close event for the swap, otherwise it would cancel the session.
+        programmaticClose.add(uuid);
+        trackedInventories.put(uuid, inv);
+        slotCallbacks.put(uuid, callbacks);
+        player.openInventory(inv);
     }
 
     private void closeAndComplete(Player player, UUID uuid, Object value) {

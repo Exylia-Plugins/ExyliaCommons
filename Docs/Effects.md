@@ -265,6 +265,33 @@ SelectorAPI.effectEditor(player)
 `EffectSerializer.write` emits the typed-list shape and omits default values, so the generated YAML
 stays readable and round-trips through `EffectConfigLoader`.
 
+### Registry pickers
+
+Fields backed by a Minecraft registry (particle, sound, potion effect, firework shape) do **not**
+ask the admin to type an id. They open a native Minecraft dialog listing every valid value as a
+button — paged, searchable, and labelled in plain English (`HAPPY_VILLAGER` shows as
+"Happy Villager").
+
+That matters at scale: there are ~107 particles and ~1539 sounds. Sounds alone span 35 pages, but
+typing `block stone break` narrows it to a single result.
+
+```java
+SelectorAPI.registry().particle(player)
+    .onPick(name -> entry.setParticle(name))   // receives the raw id, e.g. HAPPY_VILLAGER
+    .onCancel(() -> EffectEditMenu.open(player, entry))
+    .open();
+```
+
+Available: `particle`, `sound`, `potionEffect`, `fireworkShape`, `material`, `block`. Each accepts
+`.title(...)`, `.columns(n)`, `.pageSize(n)` and `.filter(predicate)` to narrow the list.
+
+Entries that do not resolve on the running server version are dropped at collection time, so the
+list can only ever offer values that actually work. Lists are cached after first use, since
+registry contents do not change at runtime.
+
+> On clients too old for dialogs this falls back to a paged inventory automatically — see
+> [PlayerInteraction](PlayerInteraction.md).
+
 ### What the editor exposes
 
 | Screen | Contents |

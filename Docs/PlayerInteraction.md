@@ -44,6 +44,31 @@ Builders: `text`, `integer`, `decimal`, `bool`, `option`, `confirm`, `numbers`, 
 methods include `.maxLength/.range/.validator/.onResponse/.onCancel/.forceChat/.forceTitle/
 .option(k,l)/.columns/.onConfirm/.onDeny/.field(...)/.ask()`.
 
+### Long option lists: paging & search
+
+`option(...)` renders a grid of buttons. For long lists, add paging and a search box so the player
+never has to scroll — or memorise — hundreds of entries:
+
+```java
+ChatInputAPI.option(player, "Pick a sound")
+    .options(sounds, Sound::name, s -> prettify(s.name()))  // bulk-add from a collection
+    .columns(3)
+    .paged()        // or .pageSize(45)
+    .searchable()   // adds a search field + Search / Clear buttons
+    .onResponse(name -> entry.setSound(name))
+    .ask();
+```
+
+Search matches **both** the key and the label, case-insensitively, and treats underscores as
+spaces — so `happy villager`, `HAPPY_VILLAGER` and `villager` all find the same entry. Paging and
+search re-render the dialog **without** completing the request; only picking an option resolves it.
+
+The inventory fallback pages too (45 options per screen, navigation on the bottom row), so nothing
+is silently truncated on clients that cannot use dialogs.
+
+> Button indices are relative to the **visible page**, not the full list. `SingleOptionRequest`
+> handles that mapping via `resolveVisible(index)`.
+
 ### Delivery Resolution & Fallback
 
 `resolveHandlerType`: (1) `forceChat` → CHAT; (2) Bedrock player → BEDROCK if Floodgate confirmed,

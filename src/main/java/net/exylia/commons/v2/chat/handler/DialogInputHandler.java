@@ -10,6 +10,9 @@ import com.github.retrooper.packetevents.protocol.dialog.Dialog;
 import com.github.retrooper.packetevents.protocol.dialog.DialogAction;
 import com.github.retrooper.packetevents.protocol.dialog.MultiActionDialog;
 import com.github.retrooper.packetevents.protocol.dialog.action.DynamicCustomAction;
+import com.github.retrooper.packetevents.protocol.dialog.body.DialogBody;
+import com.github.retrooper.packetevents.protocol.dialog.body.PlainMessage;
+import com.github.retrooper.packetevents.protocol.dialog.body.PlainMessageDialogBody;
 import com.github.retrooper.packetevents.protocol.dialog.button.ActionButton;
 import com.github.retrooper.packetevents.protocol.dialog.button.CommonButtonData;
 import com.github.retrooper.packetevents.protocol.dialog.input.BooleanInputControl;
@@ -58,6 +61,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DialogInputHandler {
 
     private static final String NAMESPACE = "exyliacommons";
+
+    /** Body text width, matching the button width used across dialogs. */
+    private static final int BODY_WIDTH = 200;
 
     private final Map<UUID, InputSession> pendingSessions = new ConcurrentHashMap<>();
     private PacketListenerCommon packetListener;
@@ -140,34 +146,55 @@ public class DialogInputHandler {
         }
     }
 
+    /**
+     * Renders a {@link SingleOptionRequest} as a grid of buttons, adding paging controls and a
+     * search box when the request opts in. Navigation buttons re-render the same session instead
+     * of completing it, so the player can browse a large registry (particles, sounds, ...) and
+     * only the final pick resolves the request.
+     */
     private boolean showOptionButtonDialog(InputSession session) {
         try {
             Player player = session.getPlayer();
             String sessionKey = session.getSessionId().toString().replace("-", "");
             SingleOptionRequest optionReq = (SingleOptionRequest) session.getRequest();
+            optionReq.clampPage();
 
-            List<ActionButton> optionButtons = new ArrayList<>();
-            List<OptionEntry> options = optionReq.getOptions();
-            for (int i = 0; i < options.size(); i++) {
-                optionButtons.add(new ActionButton(
-                    new CommonButtonData(ColorAPI.parse(options.get(i).label()), null, 200),
+            List<ActionButton> buttons = new ArrayList<>();
+            List<OptionEntry> visible = optionReq.getVisibleOptions();
+            for (int i = 0; i < visible.size(); i++) {
+                buttons.add(new ActionButton(
+                    new CommonButtonData(ColorAPI.parse(visible.get(i).label()), null, 200),
                     new DynamicCustomAction(new ResourceLocation(NAMESPACE, "opt-" + i + "-" + sessionKey), null)
                 ));
             }
+
+            buttons.addAll(buildNavButtons(optionReq, sessionKey));
 
             ActionButton cancelButton = new ActionButton(
                 new CommonButtonData(ColorAPI.parse(ChatInputDefaults.ChatInput.Dialog.CANCEL_LABEL), null, 200),
                 new DynamicCustomAction(new ResourceLocation(NAMESPACE, "cancel-" + sessionKey), null)
             );
 
+            // The search box is a real dialog input, so its value rides along with whichever
+            // button the player presses — that is how "search" picks up the typed text.
+            List<Input> inputs = optionReq.isSearchable()
+                ? List.of(new Input("search_" + sessionKey, new TextInputControl(
+                        200,
+                        ColorAPI.parse(ChatInputDefaults.ChatInput.Dialog.SEARCH_LABEL),
+                        true,
+                        optionReq.hasQuery() ? optionReq.getQuery() : "",
+                        64,
+                        null)))
+                : Collections.emptyList();
+
             CommonDialogData data = new CommonDialogData(
                 ColorAPI.parse(session.getRequest().getPrompt()),
                 null, true, false, DialogAction.CLOSE,
-                Collections.emptyList(),
-                Collections.emptyList()
+                buildStatusBody(optionReq),
+                inputs
             );
 
-            Dialog dialog = new MultiActionDialog(data, optionButtons, cancelButton, optionReq.getColumns());
+            Dialog dialog = new MultiActionDialog(data, buttons, cancelButton, optionReq.getColumns());
 
             User user = PacketEvents.getAPI().getPlayerManager().getUser(player);
             if (user == null) return false;
@@ -178,11 +205,79 @@ public class DialogInputHandler {
             user.sendPacket(wrapper);
 
             pendingSessions.put(player.getUniqueId(), session);
-            DebugAPI.logLibDebug("[Dialog] Option buttons shown for " + player.getName() + " sessionKey=" + sessionKey);
+            DebugAPI.logLibDebug("[Dialog] Options shown for " + player.getName()
+                + " page=" + (optionReq.getPage() + 1) + "/" + optionReq.getTotalPages()
+                + " visible=" + visible.size() + " sessionKey=" + sessionKey);
             return true;
         } catch (Exception e) {
             DebugAPI.logLibWarn("[Dialog] showOptionButtonDialog() failed: " + e.getMessage());
             return false;
+        }
+    }
+
+    /** Search / paging controls. Each re-renders the dialog rather than completing the request. */
+    private List<ActionButton> buildNavButtons(SingleOptionRequest request, String sessionKey) {
+        List<ActionButton> nav = new ArrayList<>();
+
+        if (request.isSearchable()) {
+            nav.add(navButton(ChatInputDefaults.ChatInput.Dialog.SEARCH_BUTTON, "search-" + sessionKey));
+            if (request.hasQuery()) {
+                nav.add(navButton(ChatInputDefaults.ChatInput.Dialog.CLEAR_SEARCH_BUTTON, "clearsearch-" + sessionKey));
+            }
+        }
+
+        if (request.isPaged() && request.getTotalPages() > 1) {
+            if (request.getPage() > 0) {
+                nav.add(navButton(ChatInputDefaults.ChatInput.Dialog.PREVIOUS_BUTTON, "prev-" + sessionKey));
+            }
+            if (request.getPage() < request.getTotalPages() - 1) {
+                nav.add(navButton(ChatInputDefaults.ChatInput.Dialog.NEXT_BUTTON, "next-" + sessionKey));
+            }
+        }
+
+        return nav;
+    }
+
+    private ActionButton navButton(String label, String key) {
+        return new ActionButton(
+            new CommonButtonData(ColorAPI.parse(label), null, 200),
+            new DynamicCustomAction(new ResourceLocation(NAMESPACE, key), null)
+        );
+    }
+
+    /** Body lines showing page position, active filter, and empty-result feedback. */
+    private List<DialogBody> buildStatusBody(SingleOptionRequest request) {
+        if (!request.isPaged() && !request.hasQuery()) return Collections.emptyList();
+
+        List<DialogBody> body = new ArrayList<>();
+        int matches = request.getFilteredOptions().size();
+
+        if (request.hasQuery()) {
+            body.add(bodyLine(ChatInputDefaults.ChatInput.Dialog.FILTER_LINE
+                .replace("%query%", request.getQuery())
+                .replace("%matches%", String.valueOf(matches))));
+        }
+        if (matches == 0) {
+            body.add(bodyLine(ChatInputDefaults.ChatInput.Dialog.NO_MATCHES_LINE));
+        } else if (request.isPaged() && request.getTotalPages() > 1) {
+            body.add(bodyLine(ChatInputDefaults.ChatInput.Dialog.PAGE_LINE
+                .replace("%page%", String.valueOf(request.getPage() + 1))
+                .replace("%total%", String.valueOf(request.getTotalPages()))));
+        }
+        return body;
+    }
+
+    private DialogBody bodyLine(String text) {
+        return new PlainMessageDialogBody(new PlainMessage(ColorAPI.parse(text), BODY_WIDTH));
+    }
+
+    /** Re-sends the dialog for a session already in progress (paging / search). */
+    private void rerender(UUID playerUuid, InputSession session) {
+        pendingSessions.remove(playerUuid);
+        if (!showOptionButtonDialog(session)) {
+            // Re-render failed (player left, packet error): drop the session rather than
+            // leaving it stuck pending forever.
+            ChatInputManager.getInstance().handleCancelFromHandler(session.getPlayer());
         }
     }
 
@@ -311,8 +406,35 @@ public class DialogInputHandler {
                 } catch (NumberFormatException e) {
                     return;
                 }
-                if (index < 0 || index >= optReq.getOptions().size()) return;
-                ChatInputManager.getInstance().handleCompleteFromHandler(playerUuid, optReq.getOptions().get(index).key());
+                // Indices are relative to the visible page, not the full option list.
+                OptionEntry picked = optReq.resolveVisible(index);
+                if (picked == null) return;
+                ChatInputManager.getInstance().handleCompleteFromHandler(playerUuid, picked.key());
+            } else if (key.startsWith("next-") || key.startsWith("prev-")) {
+                boolean forward = key.startsWith("next-");
+                String sessionKey = key.substring(5);
+                SessionRef ref = findOptionSession(sessionKey);
+                if (ref == null) return;
+                ref.request.setPage(ref.request.getPage() + (forward ? 1 : -1));
+                ref.request.clampPage();
+                rerender(ref.playerUuid, ref.session);
+            } else if (key.startsWith("search-")) {
+                String sessionKey = key.substring(7);
+                SessionRef ref = findOptionSession(sessionKey);
+                if (ref == null) return;
+                NBT nbt = packet.getPayload();
+                NBTCompound compound = nbt instanceof NBTCompound c ? c : new NBTCompound();
+                String typed = compound.getStringTagValueOrNull("search_" + sessionKey);
+                ref.request.setQuery(typed == null || typed.isBlank() ? null : typed.trim());
+                ref.request.setPage(0);
+                rerender(ref.playerUuid, ref.session);
+            } else if (key.startsWith("clearsearch-")) {
+                String sessionKey = key.substring(12);
+                SessionRef ref = findOptionSession(sessionKey);
+                if (ref == null) return;
+                ref.request.setQuery(null);
+                ref.request.setPage(0);
+                rerender(ref.playerUuid, ref.session);
             }
         } catch (Exception e) {
             DebugAPI.logLibWarn("[Dialog] handleCustomClickAction failed: " + e.getMessage());
@@ -327,6 +449,18 @@ public class DialogInputHandler {
         }
         return null;
     }
+
+    /** Bundles the lookups every navigation branch needs, without consuming the session. */
+    private SessionRef findOptionSession(String sessionKey) {
+        UUID playerUuid = findPlayerBySessionKey(sessionKey);
+        if (playerUuid == null) return null;
+        InputSession session = pendingSessions.get(playerUuid);
+        if (session == null) return null;
+        if (!(session.getRequest() instanceof SingleOptionRequest request)) return null;
+        return new SessionRef(playerUuid, session, request);
+    }
+
+    private record SessionRef(UUID playerUuid, InputSession session, SingleOptionRequest request) {}
 
     private Object extractResponse(InputSession session, NBTCompound compound, String sessionKey) {
         String inputKey = "input_" + sessionKey;
