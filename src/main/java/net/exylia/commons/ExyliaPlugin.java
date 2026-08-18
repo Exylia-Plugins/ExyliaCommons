@@ -5,6 +5,7 @@ import java.util.Set;
 import lombok.Getter;
 import net.exylia.commons.v2.debug.api.DebugAPI;
 import net.exylia.commons.v2.lifecycle.LifecycleManager;
+import net.exylia.commons.v2.loader.ExyliaLibInstaller;
 import net.exylia.commons.v2.reload.api.ReloadAPI;
 import net.exylia.commons.v2.reload.api.ReloadContext;
 import net.exylia.commons.v2.tasks.api.TaskAPI;
@@ -25,6 +26,11 @@ public abstract class ExyliaPlugin extends JavaPlugin {
 
     @Override
     public final void onEnable() {
+        // Gets ExyliaLib onto the server for plugins that still run on
+        // Commons, so it is already there when one of them is migrated. Off
+        // the main thread and best effort: this plugin does not use it.
+        ExyliaLibInstaller.ensureInstalled(this);
+
         onPreExyliaEnable();
 
         lifecycleManager = new LifecycleManager(this);

@@ -39,6 +39,11 @@ public abstract class ExyliaLoaderPlugin implements LoaderPlugin<SpigotLukittuLo
         loader = lukittuLoader;
         plugin = loader.getPlugin();
 
+        // Gets ExyliaLib onto the server for plugins that still run on
+        // Commons, so it is already there when one of them is migrated. Off
+        // the main thread and best effort: this plugin does not use it.
+        ExyliaLibInstaller.ensureInstalled(plugin);
+
         Configs.init(plugin, getClass().getClassLoader());
         TaskAPI.initialize(plugin);
 
