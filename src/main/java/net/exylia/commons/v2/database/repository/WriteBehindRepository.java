@@ -64,8 +64,15 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
                 if (pendingDeletes.remove(id, entity)) toDelete.add(entity);
             });
             if (!toDelete.isEmpty()) {
-                delegate.deleteAll(toDelete);
-                deleted = toDelete.size();
+                try {
+                    delegate.deleteAll(toDelete);
+                    deleted = toDelete.size();
+                } catch (RuntimeException ex) {
+                    for (T entity : toDelete) {
+                        pendingDeletes.putIfAbsent(entity.getId(), entity);
+                    }
+                    throw ex;
+                }
             }
         }
 
@@ -150,8 +157,14 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         final T toSave = entity;
         final T toDel = toDelete;
         return Tasks.dbRun(() -> {
-            if (toSave != null) delegate.save(toSave);
-            if (toDel != null) delegate.delete(toDel);
+            try {
+                if (toSave != null) delegate.save(toSave);
+                if (toDel != null) delegate.delete(toDel);
+            } catch (RuntimeException ex) {
+                if (toSave != null) dirtyEntities.putIfAbsent(toSave.getId(), toSave);
+                if (toDel != null) pendingDeletes.putIfAbsent(toDel.getId(), toDel);
+                throw ex;
+            }
         });
     }
 
@@ -178,9 +191,49 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
         final List<T> finalToSave = toSave;
         final List<T> finalToDelete = toDelete;
         return Tasks.dbRun(() -> {
-            if (!finalToSave.isEmpty()) delegate.saveAll(finalToSave);
-            if (!finalToDelete.isEmpty()) delegate.deleteAll(finalToDelete);
+            try {
+                if (!finalToSave.isEmpty()) delegate.saveAll(finalToSave);
+                if (!finalToDelete.isEmpty()) delegate.deleteAll(finalToDelete);
+            } catch (RuntimeException ex) {
+                for (T entity : finalToSave) dirtyEntities.putIfAbsent(entity.getId(), entity);
+                for (T entity : finalToDelete) pendingDeletes.putIfAbsent(entity.getId(), entity);
+                throw ex;
+            }
         });
+    }
+
+    /**
+     * Writes every buffered entity of every repository to the database on the
+     * calling thread, without shutting the buffers down.
+     * <p>
+     * Unlike {@link #flush()}, which merely schedules the work, this returns only
+     * once the data is durable. Intended for the points where the process is about
+     * to lose its in-memory state — a season rotation followed by a restart — where
+     * scheduling a flush would race the shutdown that follows it.
+     *
+     * @return number of repositories that failed to flush
+     */
+    public static int flushAllNow() {
+        int failed = 0;
+        for (WriteBehindRepository<?> repository : new ArrayList<>(INSTANCES)) {
+            try {
+                repository.flushNow();
+            } catch (RuntimeException ex) {
+                failed++;
+                DebugAPI.logLibError(DebugCategory.DATABASE,
+                        "[WriteBehind] Flush failed for " + repository.entityName + ": " + ex.getMessage(), ex);
+            }
+        }
+        return failed;
+    }
+
+    /** Entities still buffered across every repository. */
+    public static int pendingAll() {
+        int pending = 0;
+        for (WriteBehindRepository<?> repository : new ArrayList<>(INSTANCES)) {
+            pending += repository.dirtyEntities.size() + repository.pendingDeletes.size();
+        }
+        return pending;
     }
 
     public static void shutdownAll() {
@@ -218,6 +271,30 @@ public class WriteBehindRepository<T extends Entity> implements Repository<T> {
     @Override
     public void saveAll(List<T> entities) {
         entities.forEach(this::save);
+    }
+
+    /**
+     * Applied straight to the storage layer, bypassing the write-behind buffer on
+     * purpose.
+     * <p>
+     * Buffering a bulk load would be the worst case for this repository: every
+     * imported entity would be held in {@link #dirtyEntities} until the next flush
+     * interval, so the buffer would grow with the size of the import rather than
+     * with the number of players actually online. Writing through keeps the
+     * batch collectable as soon as it lands.
+     * <p>
+     * Any write already queued for a row this loads is dropped first, otherwise
+     * the next flush would overwrite the freshly imported value with the older
+     * buffered one.
+     */
+    @Override
+    public void bulkLoad(List<T> entities) {
+        for (T entity : entities) {
+            Object id = entity.getId();
+            dirtyEntities.remove(id);
+            pendingDeletes.remove(id);
+        }
+        delegate.bulkLoad(entities);
     }
 
     @Override

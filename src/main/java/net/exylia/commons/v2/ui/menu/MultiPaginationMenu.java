@@ -254,7 +254,7 @@ public class MultiPaginationMenu extends MenuBase {
         if (section != null) {
             section.setItems(items);
             if (state.get() == MenuState.OPEN) {
-                Tasks.sync(this::refresh);
+                runOnPlayerThread(this::refresh);
             }
         }
     }
@@ -271,6 +271,7 @@ public class MultiPaginationMenu extends MenuBase {
         AnimationSettings animSettings = menuData.getAnimationSettings();
         if (animSettings != null && animSettings.hasPageAnimation()) {
             AnimationExecutor.executeWithTransition(
+                    player,
                     inventory,
                     oldItems,
                     itemsBySlot,

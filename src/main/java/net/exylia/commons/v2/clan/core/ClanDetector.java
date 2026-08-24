@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.clan.core;
 
 import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.clan.integration.OptionalClassCache;
 import net.exylia.commons.v2.clan.provider.*;
 import org.bukkit.Bukkit;
 
@@ -90,12 +91,7 @@ public class ClanDetector {
     }
 
     public boolean isClassAvailable(String className) {
-        try {
-            Class.forName(className);
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+        return OptionalClassCache.resolve(className) != null;
     }
 
     public boolean hasAnyClanPlugin() {

@@ -49,7 +49,7 @@ public class MenuClickHandler implements Listener {
             int slot = event.getSlot();
 
             if (menu instanceof ItemInputMenu inputMenu && inputMenu.isEditableSlot(slot)) {
-                Tasks.later(inputMenu::updateEditableItems, 1L);
+                Tasks.atLater(player, inputMenu::updateEditableItems, 1L);
                 return;
             }
 
@@ -110,7 +110,7 @@ public class MenuClickHandler implements Listener {
                     .allMatch(inputMenu::isEditableSlot);
 
             if (allEditable) {
-                Tasks.later(inputMenu::updateEditableItems, 1L);
+                Tasks.atLater(player, inputMenu::updateEditableItems, 1L);
                 return;
             }
         } else {

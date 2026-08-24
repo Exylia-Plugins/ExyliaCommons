@@ -39,12 +39,7 @@ public final class ClanIntegration {
     private ClanIntegration() {}
 
     public static boolean isAvailable() {
-        try {
-            Class.forName(CLAN_API);
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+        return OptionalClassCache.resolve(CLAN_API) != null;
     }
 
     public static boolean register(ClanProviderBridge bridge) {
@@ -69,7 +64,10 @@ public final class ClanIntegration {
 
     private static boolean invokeStatic(String methodName, Class<?>[] paramTypes, Object... args) {
         try {
-            Class<?> clanApi = Class.forName(CLAN_API);
+            Class<?> clanApi = OptionalClassCache.resolve(CLAN_API);
+            if (clanApi == null) {
+                return false;
+            }
             Method method = clanApi.getMethod(methodName, paramTypes);
             method.invoke(null, args);
             return true;

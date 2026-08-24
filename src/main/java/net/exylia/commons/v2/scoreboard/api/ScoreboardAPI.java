@@ -32,12 +32,28 @@ public final class ScoreboardAPI {
         return ScoreboardLoader.load(section);
     }
 
+    /**
+     * @return true si la version del servidor tiene packet adapter. Si es false
+     * los scoreboards no se muestran, pero ninguna llamada falla.
+     */
+    public static boolean isSupported() {
+        return ScoreboardManager.getInstance().isSupported();
+    }
+
     public static CompletableFuture<String> show(Player player, Scoreboard scoreboard) {
         return show(player, scoreboard, null);
     }
 
+    /**
+     * Muestra un scoreboard. El registro es inmediato; el envio de packets lo
+     * hace scoreboard-library en su propia tarea asincrona.
+     * <p>
+     * Devuelve un future ya completado: la firma se mantiene por compatibilidad
+     * con el API anterior, que si era asincrona.
+     */
     public static CompletableFuture<String> show(Player player, Scoreboard scoreboard, PlaceholderContext context) {
-        return ScoreboardManager.getInstance().showScoreboard(player, scoreboard, context);
+        return CompletableFuture.completedFuture(
+                ScoreboardManager.getInstance().showScoreboard(player, scoreboard, context));
     }
 
     public static boolean hide(Player player) {
@@ -62,6 +78,10 @@ public final class ScoreboardAPI {
 
     public static void hideAll() {
         ScoreboardManager.getInstance().hideAll();
+    }
+
+    public static void shutdown() {
+        ScoreboardManager.getInstance().shutdown();
     }
 
     public static int getActiveCount() {

@@ -14,15 +14,50 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
-import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
 public final class DatabaseImporter {
 
     private static final Gson GSON = new Gson();
+
+    /**
+     * Upper bound on rows per batch. Only ever reached by narrow tables — a batch
+     * of wide rows hits {@link #BATCH_BYTES} first and is flushed early.
+     */
     private static final int BATCH_SIZE = 500;
+
+    /**
+     * Payload budget per batch, in characters of decoded JSON.
+     * <p>
+     * Row count alone is the wrong unit: a table may declare an unbounded text
+     * column — a Base64 Bukkit inventory, say — so 500 rows is a few hundred KB
+     * for one table and hundreds of MB for another. The JDBC driver holds every
+     * bound parameter of the batch until {@code executeBatch()}, and MySQL with
+     * {@code rewriteBatchedStatements} additionally concatenates them into a
+     * single contiguous payload, so an oversized batch is several multiples of
+     * itself in live memory at the moment it is sent.
+     * <p>
+     * Whichever limit is reached first ends the batch, which keeps peak memory
+     * bounded by payload rather than by whatever the widest table happens to hold.
+     */
+    private static final int BATCH_BYTES = 8 * 1024 * 1024;
+
+    /**
+     * Rough character count of a row, used to decide when the batch has grown
+     * large enough to flush. Only strings are measured: every other column type is
+     * fixed-width and negligible next to a blob, and the estimate only needs to be
+     * good enough to keep the batch off the heap ceiling.
+     */
+    private static long estimateRowSize(Map<String, Object> row) {
+        long size = 0;
+        for (Object value : row.values()) {
+            size += value instanceof String s ? s.length() : 8;
+        }
+        return size;
+    }
 
     private DatabaseImporter() {}
 
@@ -40,7 +75,10 @@ public final class DatabaseImporter {
         String sourceAdapter = "unknown";
         Map<String, Integer> tableCounts = new HashMap<>();
 
-        try (JsonReader jr = new JsonReader(new FileReader(filePath.toFile()))) {
+        // Buffered on purpose: JsonReader pulls a character at a time, so an
+        // unbuffered FileReader turns a multi-gigabyte import into one syscall per
+        // character.
+        try (JsonReader jr = new JsonReader(Files.newBufferedReader(filePath))) {
             jr.beginObject();
             while (jr.hasNext()) {
                 String key = jr.nextName();
@@ -101,6 +139,7 @@ public final class DatabaseImporter {
         List<Entity> batch = new ArrayList<>(BATCH_SIZE);
         int totalSaved = 0;
         int totalRead = 0;
+        long batchBytes = 0;
 
         if (totalExpected > 0) {
             log(player, "Importing '" + tableName + "' (" + totalExpected + " rows)...", NamedTextColor.GRAY);
@@ -116,17 +155,19 @@ public final class DatabaseImporter {
             Entity entity = reconstructEntity(entityClass, metadata, row);
             if (entity != null) {
                 batch.add(entity);
+                batchBytes += estimateRowSize(row);
             }
 
-            if (batch.size() >= BATCH_SIZE) {
+            if (batch.size() >= BATCH_SIZE || batchBytes >= BATCH_BYTES) {
                 try {
-                    repo.saveAll(batch);
+                    repo.bulkLoad(batch);
                     totalSaved += batch.size();
                     log(player, "  " + tableName + ": " + formatProgress(totalSaved, totalExpected), NamedTextColor.DARK_GRAY);
                 } catch (Exception e) {
                     logError(player, "Batch failed in '" + tableName + "': " + e.getMessage(), e);
                 } finally {
                     batch.clear();
+                    batchBytes = 0;
                 }
             }
         }
@@ -134,12 +175,13 @@ public final class DatabaseImporter {
 
         if (!batch.isEmpty()) {
             try {
-                repo.saveAll(batch);
+                repo.bulkLoad(batch);
                 totalSaved += batch.size();
             } catch (Exception e) {
                 logError(player, "Final batch failed in '" + tableName + "': " + e.getMessage(), e);
             } finally {
                 batch.clear();
+                batchBytes = 0;
             }
         }
 

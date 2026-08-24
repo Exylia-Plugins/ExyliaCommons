@@ -3,8 +3,7 @@ package net.exylia.commons.v2.snapshot.core;
 import lombok.Getter;
 import net.exylia.commons.v2.snapshot.cache.SnapshotCacheManager;
 import net.exylia.commons.v2.snapshot.model.SnapshotData;
-import net.exylia.commons.v2.tasks.api.TaskAPI;
-import net.exylia.commons.v2.tasks.core.TaskManager;
+import net.exylia.commons.v2.tasks.api.Tasks;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -50,7 +49,7 @@ public class SnapshotManager {
     }
 
     public CompletableFuture<SnapshotData> createSnapshotAsync(Player player) {
-        return CompletableFuture.supplyAsync(() -> SnapshotData.fromPlayer(player));
+        return Tasks.entityValue(player, () -> SnapshotData.fromPlayer(player));
     }
 
     public SnapshotData createSnapshot(Player player) {
@@ -74,8 +73,8 @@ public class SnapshotManager {
     }
 
     public CompletableFuture<Boolean> restoreAsync(Player player, SnapshotData snapshot) {
-        return CompletableFuture.supplyAsync(() -> {
-            TaskAPI.runSync(() -> snapshot.applyToPlayer(player));
+        return Tasks.entityValue(player, () -> {
+            snapshot.applyToPlayer(player);
             return true;
         });
     }
@@ -85,26 +84,25 @@ public class SnapshotManager {
     }
 
     public CompletableFuture<Boolean> restoreRegisteredAsync(Player player, String snapshotId) {
-        return CompletableFuture.supplyAsync(() -> {
-            Optional<SnapshotData> cachedSnapshot = cacheManager.get(player.getUniqueId(), snapshotId);
-            if (cachedSnapshot.isPresent()) {
-                TaskAPI.runSync(() -> cachedSnapshot.get().applyToPlayer(player));
-                return true;
-            }
+        Optional<SnapshotData> snapshot = getRegistered(player.getUniqueId(), snapshotId);
+        if (snapshot.isEmpty()) {
+            return CompletableFuture.completedFuture(false);
+        }
 
-            Optional<SnapshotData> registeredSnapshot = registry.get(player.getUniqueId(), snapshotId);
-            if (registeredSnapshot.isPresent()) {
-                cacheManager.cache(player.getUniqueId(), snapshotId, registeredSnapshot.get());
-                TaskAPI.runSync(() -> registeredSnapshot.get().applyToPlayer(player));
-                return true;
-            }
-
-            return false;
+        return Tasks.entityValue(player, () -> {
+            snapshot.get().applyToPlayer(player);
+            return true;
         });
     }
 
     public boolean restoreRegistered(Player player, String snapshotId) {
-        return restoreRegisteredAsync(player, snapshotId).join();
+        Optional<SnapshotData> snapshot = getRegistered(player.getUniqueId(), snapshotId);
+        if (snapshot.isEmpty()) {
+            return false;
+        }
+
+        snapshot.get().applyToPlayer(player);
+        return true;
     }
 
     public Optional<SnapshotData> getRegistered(UUID playerUuid, String snapshotId) {

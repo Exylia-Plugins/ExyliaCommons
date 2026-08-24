@@ -1,7 +1,6 @@
 package net.exylia.commons.v2.ui.menu;
 
 import net.exylia.commons.v2.ui.model.MenuData;
-import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.ui.snapshot.AutoSnapshotHandler;
 import net.exylia.commons.v2.visual.api.ColorAPI;
 import org.bukkit.Bukkit;
@@ -48,7 +47,7 @@ public class FullInventoryMenu extends MenuBase {
     public void close() {
         if (menuData.isSnapshotEnabled() && menuData.isRestoreOnClose()) {
             AutoSnapshotHandler.restoreSnapshot(player)
-                    .whenComplete((result, throwable) -> Tasks.sync(super::close));
+                    .whenComplete((result, throwable) -> runOnPlayerThread(super::close));
         } else {
             super.close();
         }

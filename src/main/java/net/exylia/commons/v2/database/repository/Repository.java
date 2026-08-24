@@ -45,6 +45,23 @@ public interface Repository<T extends Entity> {
 
     void saveAll(List<T> entities);
 
+    /**
+     * Writes a batch without leaving any of it in the cache.
+     * <p>
+     * {@link #saveAll(List)} caches every entity it writes, which is right for
+     * live gameplay — those rows are about to be read back — and wrong for a bulk
+     * load, where the rows are cold by definition and nothing is going to read
+     * them. Caching them there merely pins up to the cache's maximum size worth of
+     * entities in the heap for the whole TTL; on a table with an unbounded blob
+     * column that alone can exhaust the heap, and the cache is shared across every
+     * table when Redis is off.
+     * <p>
+     * The cache is still invalidated, since the rows it holds may now be stale.
+     *
+     * @see #saveAll(List)
+     */
+    void bulkLoad(List<T> entities);
+
     CompletableFuture<Void> deleteAsync(T entity);
 
     void delete(T entity);

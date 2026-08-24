@@ -1,112 +1,104 @@
 package net.exylia.commons.v2.scoreboard.core;
 
+import net.exylia.commons.v2.debug.api.DebugAPI;
+import net.exylia.commons.v2.debug.core.DebugCategory;
+import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
 import net.exylia.commons.v2.tasks.api.Tasks;
 import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
-import net.exylia.commons.v2.scoreboard.instance.ScoreboardInstance;
-import org.bukkit.plugin.Plugin;
 
+import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Un unico timer asincrono conduce todos los scoreboards.
+ * <p>
+ * El diseño anterior creaba una tarea <em>sincrona</em> por cada intervalo
+ * distinto y ademas volvia a comprobar el tiempo en milisegundos dentro de cada
+ * una, con lo que el intervalo se aplicaba dos veces. Aqui hay un solo tick a
+ * 50ms que consulta {@link ScoreboardInstance#shouldUpdate(long)}: el ritmo real
+ * lo decide cada instancia, y el desfase por jugador reparte la carga.
+ * <p>
+ * Corre fuera del hilo principal: resolver placeholders y encolar packets no
+ * necesita el main thread, y scoreboard-library es explicitamente segura ahi.
+ */
 public class ScoreboardScheduler {
 
-    private final Plugin plugin;
-    private final ScoreboardRegistry registry;
-    private final Map<Long, ScheduledTask> schedulersByInterval;
-    private final Map<Long, Set<ScoreboardInstance>> instancesByInterval;
+    private static final long TICK_PERIOD_TICKS = 1L;
 
-    public ScoreboardScheduler(Plugin plugin, ScoreboardRegistry registry) {
-        this.plugin = plugin;
-        this.registry = registry;
-        this.schedulersByInterval = new ConcurrentHashMap<>();
-        this.instancesByInterval = new ConcurrentHashMap<>();
-    }
+    private final Map<String, ScoreboardInstance> instances = new ConcurrentHashMap<>();
+    private final AtomicLong renderCount = new AtomicLong();
+
+    private volatile ScheduledTask task;
 
     public void schedule(ScoreboardInstance instance) {
         if (instance == null) {
             return;
         }
-
-        long interval = instance.getScoreboard().getUpdateInterval();
-
-        instancesByInterval.computeIfAbsent(interval, k -> ConcurrentHashMap.newKeySet())
-                .add(instance);
-
-        if (!schedulersByInterval.containsKey(interval)) {
-            createSchedulerForInterval(interval);
-        }
+        instances.put(instance.getId(), instance);
+        ensureRunning();
     }
 
     public void unschedule(ScoreboardInstance instance) {
         if (instance == null) {
             return;
         }
-
-        long interval = instance.getScoreboard().getUpdateInterval();
-
-        Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
-        if (instances != null) {
-            instances.remove(instance);
-
-            if (instances.isEmpty()) {
-                removeSchedulerIfEmpty(interval);
-            }
-        }
+        instances.remove(instance.getId());
     }
 
-    public void updateInterval(ScoreboardInstance instance, long newInterval) {
-        if (instance == null) {
-            return;
-        }
-
-        unschedule(instance);
-        schedule(instance);
+    public long getRenderCount() {
+        return renderCount.get();
     }
 
     public void shutdown() {
-        schedulersByInterval.values().forEach(ScheduledTask::cancel);
-        schedulersByInterval.clear();
-        instancesByInterval.clear();
+        ScheduledTask current = task;
+        task = null;
+        if (current != null && !current.isCancelled()) {
+            current.cancel();
+        }
+        instances.clear();
     }
 
-    private void createSchedulerForInterval(long interval) {
-        ScheduledTask task = Tasks.timer(() -> {
-            Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
-
-            if (instances == null || instances.isEmpty()) {
+    private void ensureRunning() {
+        if (task != null) {
+            return;
+        }
+        synchronized (this) {
+            if (task != null) {
                 return;
             }
-
-            long now = System.currentTimeMillis();
-
-            instances.removeIf(instance -> {
-                if (instance.getLifecycle().isCancelled() || !instance.getPlayer().isOnline()) {
-                    return true;
-                }
-
-                if (instance.shouldUpdate(now)) {
-                    instance.update();
-                }
-
-                return false;
-            });
-
-        }, 0L, interval);
-
-        schedulersByInterval.put(interval, task);
+            task = Tasks.asyncTimer(this::tick, TICK_PERIOD_TICKS, TICK_PERIOD_TICKS);
+        }
     }
 
-    private void removeSchedulerIfEmpty(long interval) {
-        Set<ScoreboardInstance> instances = instancesByInterval.get(interval);
+    private void tick() {
+        if (instances.isEmpty()) {
+            return;
+        }
 
-        if (instances == null || instances.isEmpty()) {
-            ScheduledTask task = schedulersByInterval.remove(interval);
-            if (task != null) {
-                task.cancel();
+        long now = System.currentTimeMillis();
+        Iterator<ScoreboardInstance> iterator = instances.values().iterator();
+
+        while (iterator.hasNext()) {
+            ScoreboardInstance instance = iterator.next();
+
+            if (instance.getLifecycle().isCancelled() || !instance.getPlayer().isOnline()) {
+                iterator.remove();
+                continue;
             }
 
-            instancesByInterval.remove(interval);
+            if (!instance.shouldUpdate(now)) {
+                continue;
+            }
+
+            try {
+                instance.render();
+                renderCount.incrementAndGet();
+            } catch (Throwable t) {
+                DebugAPI.logLibError(DebugCategory.SCOREBOARD,
+                        "Fallo en el ciclo de scoreboard: " + t.getMessage(), t);
+            }
         }
     }
 }

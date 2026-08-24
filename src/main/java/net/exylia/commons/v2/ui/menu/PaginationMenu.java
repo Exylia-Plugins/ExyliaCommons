@@ -199,6 +199,7 @@ public class PaginationMenu extends MenuBase {
 
         if (hasPageAnimation) {
             AnimationExecutor.executeWithTransition(
+                    player,
                     inventory,
                     oldItems,
                     itemsBySlot,

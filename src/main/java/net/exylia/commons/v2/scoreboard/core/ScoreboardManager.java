@@ -12,11 +12,10 @@ import net.exylia.commons.v2.tasks.scheduler.ScheduledTask;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public class ScoreboardManager {
@@ -27,18 +26,26 @@ public class ScoreboardManager {
     private static final Object LOCK = new Object();
 
     private final Plugin plugin;
+    private final ScoreboardLibraryProvider provider;
     private final ScoreboardRegistry registry;
     private final ScoreboardFactory factory;
     private final ScoreboardScheduler scheduler;
-    private final Map<UUID, ScheduledTask> pendingReinitTasks;
+
+    /**
+     * Reinits pendientes por jugador. Era un HashMap plano pese a mutarse desde
+     * listeners y desde tareas programadas: condicion de carrera real.
+     */
+    private final Map<UUID, ScheduledTask> pendingReinitTasks = new ConcurrentHashMap<>();
+
     private boolean initialized;
 
     private ScoreboardManager(Plugin plugin) {
         this.plugin = plugin;
+        // resolve() gestiona la instancia unica entre plugins via ServicesManager
+        this.provider = ScoreboardLibraryProvider.resolve(plugin);
         this.registry = new ScoreboardRegistry();
-        this.factory = new ScoreboardFactory(plugin);
-        this.scheduler = new ScoreboardScheduler(plugin, registry);
-        this.pendingReinitTasks = new HashMap<>();
+        this.factory = new ScoreboardFactory(provider);
+        this.scheduler = new ScoreboardScheduler();
         this.initialized = false;
     }
 
@@ -66,26 +73,30 @@ public class ScoreboardManager {
         initialized = true;
     }
 
-    public CompletableFuture<String> showScoreboard(
-            Player player,
-            Scoreboard scoreboard,
-            PlaceholderContext context
-    ) {
+    /**
+     * @return true si hay packet adapter para esta version del servidor
+     */
+    public boolean isSupported() {
+        return provider.isSupported();
+    }
+
+    public String showScoreboard(Player player, Scoreboard scoreboard, PlaceholderContext context) {
         if (player == null || scoreboard == null) {
-            return CompletableFuture.completedFuture(null);
+            return null;
         }
 
         UUID uuid = player.getUniqueId();
         registry.remove(uuid).ifPresent(current -> {
-            current.hide();
             scheduler.unschedule(current);
+            current.hide();
         });
 
-        ScoreboardInstance newInstance = factory.createInstance(player, scoreboard, context);
-        registry.set(uuid, newInstance);
-        scheduler.schedule(newInstance);
+        ScoreboardInstance created = factory.createInstance(player, scoreboard, context);
+        registry.set(uuid, created);
+        created.show();
+        scheduler.schedule(created);
 
-        return newInstance.show().thenApply(v -> newInstance.getId());
+        return created.getId();
     }
 
     public boolean hideScoreboard(Player player) {
@@ -97,20 +108,20 @@ public class ScoreboardManager {
         Optional<ScoreboardInstance> instanceOpt = registry.remove(uuid);
         if (instanceOpt.isEmpty()) return false;
 
-        ScoreboardInstance instance = instanceOpt.get();
-        instance.hide();
-        scheduler.unschedule(instance);
+        ScoreboardInstance target = instanceOpt.get();
+        scheduler.unschedule(target);
+        target.hide();
         TabIntegration.resetScoreboard(player);
 
         return true;
     }
 
-    public void scheduleReinit(Player player, ScoreboardInstance instance) {
+    public void scheduleReinit(Player player, ScoreboardInstance target) {
         UUID uuid = player.getUniqueId();
         cancelPendingReinit(uuid);
         ScheduledTask task = Tasks.later(() -> {
             pendingReinitTasks.remove(uuid);
-            if (player.isOnline()) instance.reinitialize();
+            if (player.isOnline()) target.reinitialize();
         }, REINIT_DELAY_TICKS);
         pendingReinitTasks.put(uuid, task);
     }
@@ -132,7 +143,7 @@ public class ScoreboardManager {
     }
 
     public void updateContext(Player player, PlaceholderContext context) {
-        getScoreboard(player).ifPresent(instance -> instance.updateContext(context));
+        getScoreboard(player).ifPresent(target -> target.updateContext(context));
     }
 
     public void forceUpdate(Player player) {
@@ -145,9 +156,9 @@ public class ScoreboardManager {
         UUID uuid = player.getUniqueId();
         cancelPendingReinit(uuid);
 
-        registry.remove(uuid).ifPresent(instance -> {
-            instance.hide();
-            scheduler.unschedule(instance);
+        registry.remove(uuid).ifPresent(target -> {
+            scheduler.unschedule(target);
+            target.hide();
         });
 
         if (player.isOnline()) {
@@ -160,8 +171,8 @@ public class ScoreboardManager {
             if (!task.isCancelled()) task.cancel();
         });
         pendingReinitTasks.clear();
-        registry.clear();
         scheduler.shutdown();
+        registry.clear();
     }
 
     public int getActiveCount() {
@@ -172,16 +183,23 @@ public class ScoreboardManager {
         return ScoreboardStats.builder()
                 .activeScoreboards(registry.getActiveCount())
                 .cacheHitRate(0.0)
-                .totalUpdates(0)
+                .totalUpdates(scheduler.getRenderCount())
                 .averageRenderTimeMs(0.0)
                 .build();
     }
 
+    /**
+     * Invalida el diff de todos los scoreboards activos para que el siguiente
+     * ciclo reenvie titulo y lineas completos. Lo usa el sistema de reload tras
+     * recargar presets de color o plantillas.
+     */
     public void clearCache() {
+        registry.getAll().forEach(ScoreboardInstance::invalidateAndRefresh);
     }
 
     public void shutdown() {
         hideAll();
+        provider.close();
         initialized = false;
     }
 }

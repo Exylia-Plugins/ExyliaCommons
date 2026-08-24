@@ -35,7 +35,7 @@ public final class MenuAPI {
     }
 
     public static void open(Player player, ConfigurationSection config) {
-        openAsync(player, config).join();
+        openAsync(player, config);
     }
 
     public static void open(Player player, MenuData menuData) {

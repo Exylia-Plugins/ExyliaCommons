@@ -204,6 +204,24 @@ public class RepositoryImpl<T extends Entity> implements Repository<T> {
         }
     }
 
+    /**
+     * Same write as {@link #saveAll(List)} minus the repopulation, so the batch
+     * becomes collectable the moment it has been written rather than being pinned
+     * in the cache until its TTL expires.
+     */
+    @Override
+    public void bulkLoad(List<T> entities) {
+        try {
+            for (T entity : entities) {
+                entity.updateTimestamp();
+            }
+            adapter.upsertBatch(entities, metadata);
+            cache.invalidateAll();
+        } catch (Exception e) {
+            throw new RepositoryException("Error bulk loading batch of entities", e);
+        }
+    }
+
     @Override
     public CompletableFuture<Void> deleteAsync(T entity) {
         return Tasks.dbRun(() -> delete(entity));

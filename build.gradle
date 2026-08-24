@@ -90,6 +90,20 @@ dependencies {
     compileOnly 'net.kyori:adventure-text-minimessage:4.25.0'
     compileOnly 'net.kyori:adventure-text-serializer-legacy:4.25.0'
 
+    // scoreboard-library: sidebars a nivel de packet, soporte nativo 1.7.10 -> 26.2
+    // NO se shadea aqui (ver shadowJar.dependencies abajo): se propaga a los plugins
+    // consumidores como dependencia runtime del POM para que cada plugin la shadee y
+    // relocalice junto con el resto de commons.
+    // adventure lo aporta Paper, se excluye para no duplicarlo.
+    implementation('net.megavex:scoreboard-library-api:2.8.1') {
+        exclude group: 'net.kyori'
+    }
+    // La implementacion se resuelve por Class.forName -> los plugins DEBEN excluirla
+    // de minimize() o shadow la eliminara y saltara NoPacketAdapterAvailableException.
+    runtimeOnly('net.megavex:scoreboard-library-implementation:2.8.1') {
+        exclude group: 'net.kyori'
+    }
+
     compileOnly 'org.mongodb:mongodb-driver-sync:4.11.0'
 
     compileOnly('com.github.MilkBowl:VaultAPI:1.7') {
@@ -156,6 +170,13 @@ publishing {
 
 shadowJar {
     archiveClassifier.set('')
+
+    // scoreboard-library NO se empaqueta dentro del jar de Commons: viaja por el POM
+    // hacia los plugins, que la shadean y relocalizan junto a net.exylia.commons.
+    // Asi solo existe una copia relocalizada por plugin en vez de dos anidadas.
+    dependencies {
+        exclude(dependency('net.megavex:.*:.*'))
+    }
 }
 
 build {

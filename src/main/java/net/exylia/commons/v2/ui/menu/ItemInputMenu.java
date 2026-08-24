@@ -46,17 +46,21 @@ public class ItemInputMenu extends MenuBase {
 
     public void setEditableItem(int slot, ItemStack itemStack) {
         if (!isEditableSlot(slot)) return;
-        if (itemStack == null || itemStack.getType() == Material.AIR) {
+
+        ItemStack stack = itemStack == null || itemStack.getType() == Material.AIR
+                ? null
+                : itemStack.clone();
+
+        if (stack == null) {
             pendingEditableItems.remove(slot);
-            if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
-                inventory.setItem(slot, null);
-            }
-            return;
+        } else {
+            pendingEditableItems.put(slot, stack.clone());
         }
-        pendingEditableItems.put(slot, itemStack.clone());
-        if (inventory == null) return;
-        if (slot < 0 || slot >= inventory.getSize()) return;
-        inventory.setItem(slot, itemStack.clone());
+
+        runOnPlayerThread(() -> {
+            if (inventory == null || slot < 0 || slot >= inventory.getSize()) return;
+            inventory.setItem(slot, stack);
+        });
     }
 
     public void setEditableItems(Map<Integer, ItemStack> items) {
@@ -78,11 +82,11 @@ public class ItemInputMenu extends MenuBase {
         applyFillersExcludingEditable();
         applyStaticItems();
         if (!pendingEditableItems.isEmpty()) {
-            pendingEditableItems.forEach((slot, item) -> {
-                if (slot >= 0 && slot < menuData.getSize() && isEditableSlot(slot)) {
+            runOnPlayerThread(() -> pendingEditableItems.forEach((slot, item) -> {
+                if (inventory != null && slot >= 0 && slot < menuData.getSize() && isEditableSlot(slot)) {
                     inventory.setItem(slot, item.clone());
                 }
-            });
+            }));
         }
     }
 

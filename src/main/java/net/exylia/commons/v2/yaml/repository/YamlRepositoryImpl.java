@@ -187,6 +187,16 @@ public class YamlRepositoryImpl<T extends Entity> implements YamlRepository<T> {
         entities.forEach(this::save);
     }
 
+    /**
+     * No distinct bulk path here: YAML storage writes a file per entity and keeps
+     * no batch in flight, so there is nothing to hold off the heap. Delegates to
+     * {@link #saveAll(List)} to keep the contract.
+     */
+    @Override
+    public void bulkLoad(List<T> entities) {
+        saveAll(entities);
+    }
+
     @Override
     public CompletableFuture<Void> deleteAsync(T entity) {
         return Tasks.dbRun(() -> delete(entity));

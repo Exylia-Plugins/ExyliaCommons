@@ -8,6 +8,7 @@ import net.exylia.commons.v2.hologram.cache.HologramCacheManager;
 import net.exylia.commons.v2.hologram.exception.HologramException;
 import net.exylia.commons.v2.hologram.listener.ChunkListener;
 import net.exylia.commons.v2.hologram.listener.HologramListener;
+import net.exylia.commons.v2.clan.integration.OptionalClassCache;
 import net.exylia.commons.v2.hologram.model.*;
 import net.exylia.commons.v2.yaml.api.Yaml;
 import net.exylia.commons.v2.yaml.repository.YamlRepository;
@@ -74,12 +75,10 @@ public class HologramManager {
     }
 
     private boolean isYamlAvailable() {
-        try {
-            Class.forName("net.exylia.commons.v2.yaml.api.Yaml");
-            return Yaml.isInitialized();
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
+        if (OptionalClassCache.resolve("net.exylia.commons.v2.yaml.api.Yaml") == null) {
             return false;
         }
+        return Yaml.isInitialized();
     }
 
     private void loadPersistentHolograms() {

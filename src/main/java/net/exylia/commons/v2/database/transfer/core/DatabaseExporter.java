@@ -1,7 +1,7 @@
 package net.exylia.commons.v2.database.transfer.core;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.stream.JsonWriter;
 import net.exylia.commons.v2.database.core.DatabaseManager;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
@@ -14,7 +14,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
 
-import java.io.FileWriter;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,7 +23,21 @@ import java.util.*;
 
 public final class DatabaseExporter {
 
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
+    /**
+     * Compact on purpose: at millions of rows, pretty-printing inflates the file by
+     * a third for zero benefit — the importer reads this with a streaming parser.
+     */
+    private static final Gson GSON = new Gson();
+
+    /**
+     * Rows fetched per page and held in memory at any moment. The previous
+     * implementation materialised every table (plus a map per row, plus the whole
+     * manifest) in heap before writing a single byte; a server with millions of
+     * rows ran out of memory mid-export, got killed by the host, and the
+     * ungraceful kill corrupted the H2 file. Streaming keeps memory constant
+     * regardless of database size.
+     */
+    private static final int PAGE_SIZE = 1000;
 
     private DatabaseExporter() {}
 
@@ -34,48 +48,54 @@ public final class DatabaseExporter {
 
         log(player, "Starting export from adapter: " + manager.getAdapter().getAdapterName(), NamedTextColor.YELLOW);
 
-        Map<String, Object> manifest = new LinkedHashMap<>();
-        manifest.put("version", "1.0");
-        manifest.put("exportedAt", Instant.now().toEpochMilli());
-        manifest.put("sourceAdapter", manager.getAdapter().getAdapterName());
-
-        Map<String, List<Map<String, Object>>> tables = new LinkedHashMap<>();
+        // Table counts up front (cheap COUNT(*) per table) so the manifest can be
+        // written before the tables themselves, keeping the format identical to
+        // what the importer expects.
+        Map<String, Repository<Entity>> reposByTable = new LinkedHashMap<>();
         Map<String, Integer> rowCounts = new LinkedHashMap<>();
-        int totalRows = 0;
-        int tablesCount = 0;
-
         for (Map.Entry<Class<?>, EntityMetadata> entry : manager.getEntityMetadataCache().entrySet()) {
             EntityMetadata metadata = entry.getValue();
-            String tableName = metadata.getTableName();
-
             try {
                 Repository<Entity> repo = (Repository<Entity>) manager.getRepository((Class<Entity>) entry.getKey());
-                List<Entity> entities = repo.findAll();
-                List<Map<String, Object>> rows = new ArrayList<>(entities.size());
-
-                for (Entity entity : entities) {
-                    rows.add(serializeEntity(entity, metadata));
-                }
-
-                tables.put(tableName, rows);
-                rowCounts.put(tableName, rows.size());
-                totalRows += rows.size();
-                tablesCount++;
-
-                log(player, "Table '" + tableName + "': " + rows.size() + " rows", NamedTextColor.GRAY);
+                reposByTable.put(metadata.getTableName(), repo);
+                rowCounts.put(metadata.getTableName(), (int) repo.count());
             } catch (Exception e) {
-                logError(player, "Failed to export table '" + tableName + "': " + e.getMessage(), e);
+                logError(player, "Failed to prepare table '" + metadata.getTableName() + "': " + e.getMessage(), e);
             }
         }
 
-        manifest.put("tableCounts", rowCounts);
-        manifest.put("tables", tables);
+        int totalRows = 0;
+        int tablesCount = 0;
 
         try {
             Files.createDirectories(outputPath.getParent());
-            try (FileWriter writer = new FileWriter(outputPath.toFile())) {
-                GSON.toJson(manifest, writer);
+        } catch (IOException e) {
+            DebugAPI.logLibError(DebugCategory.DATABASE, "[Transfer] Failed to create export directory", e);
+            return TransferResult.builder().success(false).error(e.getMessage()).build();
+        }
+
+        try (BufferedWriter bw = Files.newBufferedWriter(outputPath);
+             JsonWriter jw = new JsonWriter(bw)) {
+            jw.beginObject();
+            jw.name("version").value("1.0");
+            jw.name("exportedAt").value(Instant.now().toEpochMilli());
+            jw.name("sourceAdapter").value(manager.getAdapter().getAdapterName());
+
+            jw.name("tableCounts");
+            GSON.toJson(rowCounts, Map.class, jw);
+
+            jw.name("tables");
+            jw.beginObject();
+            for (Map.Entry<String, Repository<Entity>> table : reposByTable.entrySet()) {
+                String tableName = table.getKey();
+                EntityMetadata metadata = findMetadata(manager, tableName);
+                int written = streamTable(player, table.getValue(), metadata, jw);
+                totalRows += written;
+                tablesCount++;
+                log(player, "Table '" + tableName + "': " + written + " rows", NamedTextColor.GRAY);
             }
+            jw.endObject();
+            jw.endObject();
         } catch (IOException e) {
             DebugAPI.logLibError(DebugCategory.DATABASE, "[Transfer] Failed to write export file", e);
             return TransferResult.builder().success(false).error(e.getMessage()).build();
@@ -93,6 +113,46 @@ public final class DatabaseExporter {
                 .durationMs(duration)
                 .outputPath(pathStr)
                 .build();
+    }
+
+    /**
+     * Writes one table as a JSON array, paging through the repository so at most
+     * {@link #PAGE_SIZE} entities are live at once. Each page is garbage
+     * collectable as soon as it has been serialised.
+     * <p>
+     * On failure the array is still closed so the rest of the file stays valid
+     * JSON: a partially exported table beats an unimportable export.
+     */
+    private static int streamTable(Player player, Repository<Entity> repo, EntityMetadata metadata, JsonWriter jw) throws IOException {
+        jw.name(metadata.getTableName());
+        jw.beginArray();
+
+        int written = 0;
+        int page = 0;
+        try {
+            while (true) {
+                List<Entity> entities = repo.findAllPaged(page, PAGE_SIZE);
+                for (Entity entity : entities) {
+                    GSON.toJson(serializeEntity(entity, metadata), Map.class, jw);
+                }
+                written += entities.size();
+                if (entities.size() < PAGE_SIZE) break;
+                page++;
+            }
+        } catch (Exception e) {
+            logError(player, "Failed to export table '" + metadata.getTableName() + "' after " + written + " rows: " + e.getMessage(), e);
+        } finally {
+            jw.endArray();
+            jw.flush();
+        }
+        return written;
+    }
+
+    private static EntityMetadata findMetadata(DatabaseManager manager, String tableName) {
+        for (EntityMetadata metadata : manager.getEntityMetadataCache().values()) {
+            if (metadata.getTableName().equals(tableName)) return metadata;
+        }
+        throw new IllegalStateException("No metadata for table " + tableName);
     }
 
     private static Map<String, Object> serializeEntity(Entity entity, EntityMetadata metadata) {

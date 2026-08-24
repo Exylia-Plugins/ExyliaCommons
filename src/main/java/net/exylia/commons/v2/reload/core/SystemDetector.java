@@ -1,6 +1,7 @@
 package net.exylia.commons.v2.reload.core;
 
 import net.exylia.commons.v2.action.core.ActionManager;
+import net.exylia.commons.v2.clan.integration.OptionalClassCache;
 import net.exylia.commons.v2.hologram.core.HologramManager;
 import net.exylia.commons.v2.placeholders.registry.PlaceholderRegistry;
 import net.exylia.commons.v2.region.RegionManager;
@@ -69,15 +70,16 @@ public class SystemDetector {
 
     private void detectRedis(SystemAvailability.Builder builder) {
         try {
-            Class.forName("redis.clients.jedis.Jedis");
+            if (OptionalClassCache.resolve("redis.clients.jedis.Jedis") == null) {
+                builder.unavailable("Redis", "Jedis not in classpath");
+                return;
+            }
             net.exylia.commons.v2.redis.SimpleRedis instance = net.exylia.commons.v2.redis.SimpleRedis.getInstance();
             if (instance != null && instance.isConnected()) {
                 builder.available("Redis");
             } else {
                 builder.unavailable("Redis", "Not connected");
             }
-        } catch (ClassNotFoundException e) {
-            builder.unavailable("Redis", "Jedis not in classpath");
         } catch (Exception e) {
             builder.unavailable("Redis", "Error: " + e.getMessage());
         }

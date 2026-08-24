@@ -85,6 +85,22 @@ public final class Database {
                 : CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
+    /**
+     * Forces every buffered write to disk and blocks until it is durable.
+     * Returns the number of repositories that failed, so a caller about to restart
+     * the process can abort rather than discard the data.
+     */
+    public static int flushAllNow() {
+        if (!DatabaseDefaults.Database.WriteBehind.ENABLED) return 0;
+        return WriteBehindRepository.flushAllNow();
+    }
+
+    /** Entities still waiting to be written across every repository. */
+    public static int pendingWrites() {
+        if (!DatabaseDefaults.Database.WriteBehind.ENABLED) return 0;
+        return WriteBehindRepository.pendingAll();
+    }
+
     public static void shutdown() {
         WriteBehindRepository.shutdownAll();
         writeBehindCache.clear();

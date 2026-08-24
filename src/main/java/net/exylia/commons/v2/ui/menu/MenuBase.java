@@ -94,6 +94,18 @@ public abstract class MenuBase {
 
     protected abstract void handleClickInternal(int slot, ClickType clickType);
 
+    protected void runOnPlayerThread(Runnable task) {
+        Tasks.runOnEntity(player, task);
+    }
+
+    protected ScheduledTask runOnPlayerThreadLater(Runnable task, long ticks) {
+        return Tasks.atLater(player, task, ticks);
+    }
+
+    protected ScheduledTask runOnPlayerThreadTimer(Runnable task, long delayTicks, long periodTicks) {
+        return Tasks.atTimer(player, task, delayTicks, periodTicks);
+    }
+
     public CompletableFuture<Void> openAsync() {
         if (state.get() == MenuState.OPEN) {
             DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " already open for " + player.getName());
@@ -106,7 +118,7 @@ public abstract class MenuBase {
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        Tasks.sync(() -> {
+        runOnPlayerThread(() -> {
             this.inventory = createInventory();
 
             Tasks.run(() -> {
@@ -114,7 +126,7 @@ public abstract class MenuBase {
                     populateItemsWithoutDisplay();
                     DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " items prepared");
 
-                    Tasks.sync(() -> {
+                    runOnPlayerThread(() -> {
                         try {
                             player.openInventory(inventory);
                             state.set(MenuState.OPEN);
@@ -124,6 +136,7 @@ public abstract class MenuBase {
                             AnimationSettings animSettings = menuData.getAnimationSettings();
                             if (animSettings != null && animSettings.hasOpenAnimation()) {
                                 AnimationExecutor.execute(
+                                        player,
                                         inventory,
                                         itemsBySlot,
                                         animSettings.getOpenAnimation(),
@@ -171,14 +184,14 @@ public abstract class MenuBase {
         state.set(MenuState.TRANSITIONING);
         animationCancelFlag.set(false);
 
-        this.inventory = createInventory();
+        runOnPlayerThread(() -> this.inventory = createInventory());
 
         Tasks.run(() -> {
             try {
                 populateItemsWithoutDisplay();
                 DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " items prepared");
 
-                Tasks.sync(() -> {
+                runOnPlayerThread(() -> {
                     try {
                         player.openInventory(inventory);
                         state.set(MenuState.OPEN);
@@ -188,6 +201,7 @@ public abstract class MenuBase {
                         AnimationSettings animSettings = menuData.getAnimationSettings();
                         if (animSettings != null && animSettings.hasOpenAnimation()) {
                             AnimationExecutor.execute(
+                                    player,
                                     inventory,
                                     itemsBySlot,
                                     animSettings.getOpenAnimation(),
@@ -226,9 +240,11 @@ public abstract class MenuBase {
         DebugAPI.logLibDebug(DebugCategory.UI, "Closing menu " + menuId + " for " + player.getName());
         state.set(MenuState.CLOSED);
         animationCancelFlag.set(true);
-        playCloseSounds();
-        player.closeInventory();
         cancelRefresh();
+        runOnPlayerThread(() -> {
+            playCloseSounds();
+            player.closeInventory();
+        });
         cleanup();
         DebugAPI.logLibDebug(DebugCategory.UI, "Menu " + menuId + " closed successfully");
     }
@@ -365,7 +381,7 @@ public abstract class MenuBase {
     }
 
     protected void schedulePostClickRefresh() {
-        Tasks.later(() -> {
+        runOnPlayerThreadLater(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshInventory();
             }
@@ -373,7 +389,7 @@ public abstract class MenuBase {
     }
 
     protected void scheduleClickedSlotRefresh(int slot) {
-        Tasks.later(() -> {
+        runOnPlayerThreadLater(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshSlot(slot);
             }
@@ -395,7 +411,7 @@ public abstract class MenuBase {
             itemsBySlot.put(slot, newItem);
 
             if (!Objects.equals(oldStack, newStack)) {
-                Tasks.sync(() -> {
+                runOnPlayerThread(() -> {
                     if (inventory != null && slot >= 0 && slot < inventory.getSize()) {
                         inventory.setItem(slot, newStack);
                     }
@@ -431,7 +447,7 @@ public abstract class MenuBase {
             DebugAPI.logLibDebug(DebugCategory.UI, "Scheduling refresh for menu " + menuId + " (mode: " + menuData.getRefreshMode() + ", interval: " + interval + ")");
         }
 
-        refreshTask = Tasks.timer(() -> {
+        refreshTask = runOnPlayerThreadTimer(() -> {
             if (state.get() == MenuState.OPEN && inventory != null) {
                 refreshInventory();
             } else {
@@ -473,7 +489,7 @@ public abstract class MenuBase {
             } catch (Exception e) {
                 DebugAPI.logLibError(DebugCategory.UI, "Error populating menu " + menuId + " during fullRefresh", e);
             }
-            Tasks.sync(() -> {
+            runOnPlayerThread(() -> {
                 if (state.get() != MenuState.OPEN || inventory == null) return;
                 updateInventoryDisplay();
                 refreshTitle();
@@ -512,7 +528,7 @@ public abstract class MenuBase {
                 }
             }
 
-            Tasks.sync(() -> {
+            runOnPlayerThread(() -> {
                 if (state.get() != MenuState.OPEN || inventory == null) return;
                 updates.forEach((slot, stack) -> {
                     if (slot >= 0 && slot < inventory.getSize()) {

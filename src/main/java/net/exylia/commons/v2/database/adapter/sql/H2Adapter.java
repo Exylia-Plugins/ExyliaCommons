@@ -4,6 +4,7 @@ import net.exylia.commons.v2.database.config.AdapterConfig;
 import net.exylia.commons.v2.database.entity.Entity;
 import net.exylia.commons.v2.database.entity.EntityMetadata;
 import net.exylia.commons.v2.database.entity.FieldDescriptor;
+import net.exylia.commons.v2.debug.api.DebugAPI;
 
 import java.io.File;
 import java.sql.Connection;
@@ -25,7 +26,36 @@ public class H2Adapter extends SQLAdapter {
         if (parentDir != null && !parentDir.exists()) {
             parentDir.mkdirs();
         }
-        super.connect();
+        try {
+            super.connect();
+        } catch (Exception e) {
+            if (isCorruption(e)) {
+                // H2's MVStore does not survive ungraceful kills (OOM kill, host
+                // restart, watchdog). There is no in-place repair; the Recover tool
+                // dumps whatever is readable to a SQL script for a fresh database.
+                DebugAPI.logLibError("H2 database file is corrupted: " + config.getFile()
+                        + ". This usually follows a hard kill of the server process."
+                        + " To salvage data, run: java -cp <h2.jar> org.h2.tools.Recover -dir "
+                        + (parentDir != null ? parentDir.getAbsolutePath() : ".") + " -db " + dbName(dbFile)
+                        + ", then reload the generated .sql into a new database."
+                        + " Servers with large datasets should use MySQL instead of H2.");
+            }
+            throw e;
+        }
+    }
+
+    private static boolean isCorruption(Throwable e) {
+        while (e != null) {
+            String msg = e.getMessage();
+            if (msg != null && msg.contains("File corrupted")) return true;
+            e = e.getCause();
+        }
+        return false;
+    }
+
+    private static String dbName(File dbFile) {
+        String name = dbFile.getName();
+        return name.endsWith(".mv.db") ? name.substring(0, name.length() - ".mv.db".length()) : name;
     }
 
     @Override

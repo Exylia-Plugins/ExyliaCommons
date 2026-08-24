@@ -15,10 +15,21 @@ public class CacheManager {
     private static volatile CacheManager instance;
     private static final Object LOCK = new Object();
 
-    private record RenderKey(UUID uuid, int templateId) {}
     private record RenderEntry(String resolvedText, Component component) {}
 
-    private final Map<RenderKey, RenderEntry> playerRenderCache = new ConcurrentHashMap<>();
+    /**
+     * Upper bound of distinct text templates memoized per player. Keys are
+     * {@link System#identityHashCode(Object)} of the source string, so callers that
+     * build their text dynamically produce a new key on every render. Without a cap
+     * the per-player map would grow without bound for the whole session.
+     */
+    private static final int MAX_TEMPLATES_PER_PLAYER = 64;
+
+    /**
+     * Per-player render memo, nested so that {@link #invalidatePlayer(Player)} is an
+     * O(1) map removal instead of a full scan of every entry of every player.
+     */
+    private final Map<UUID, Map<Integer, RenderEntry>> playerRenderCache = new ConcurrentHashMap<>();
 
     private CacheManager() {
     }
@@ -42,13 +53,20 @@ public class CacheManager {
         String resolved = PlaceholderCache.getOrProcess(text, player, context);
 
         if (player != null) {
-            RenderKey key = new RenderKey(player.getUniqueId(), System.identityHashCode(text));
-            RenderEntry last = playerRenderCache.get(key);
+            Map<Integer, RenderEntry> templates =
+                    playerRenderCache.computeIfAbsent(player.getUniqueId(), k -> new ConcurrentHashMap<>());
+
+            Integer key = System.identityHashCode(text);
+            RenderEntry last = templates.get(key);
             if (last != null && resolved.equals(last.resolvedText())) {
                 return last.component();
             }
+
             Component component = ColorProcessor.parseToComponent(resolved);
-            playerRenderCache.put(key, new RenderEntry(resolved, component));
+            if (templates.size() >= MAX_TEMPLATES_PER_PLAYER && !templates.containsKey(key)) {
+                templates.clear();
+            }
+            templates.put(key, new RenderEntry(resolved, component));
             return component;
         }
 
@@ -70,8 +88,7 @@ public class CacheManager {
 
     public void invalidatePlayer(Player player) {
         PlaceholderCache.invalidate(player);
-        UUID uuid = player.getUniqueId();
-        playerRenderCache.keySet().removeIf(k -> k.uuid().equals(uuid));
+        playerRenderCache.remove(player.getUniqueId());
     }
 
     public void clearAll() {

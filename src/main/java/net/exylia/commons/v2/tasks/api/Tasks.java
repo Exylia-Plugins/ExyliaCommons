@@ -140,6 +140,25 @@ public final class Tasks {
         }
     }
 
+    public static CompletableFuture<Void> entityRun(Entity entity, Runnable task) {
+        return entityValue(entity, () -> {
+            task.run();
+            return null;
+        });
+    }
+
+    public static <T> CompletableFuture<T> entityValue(Entity entity, Supplier<T> supplier) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        runOnEntity(entity, () -> {
+            try {
+                future.complete(supplier.get());
+            } catch (Throwable throwable) {
+                future.completeExceptionally(throwable);
+            }
+        });
+        return future;
+    }
+
     public static void runOnLocation(Location location, Runnable task) {
         if (TaskAPI.isRegionThread(location)) {
             task.run();
